@@ -2,128 +2,219 @@
 Theme Name: Hello Elementor Child
 Description: Tema filho do Hello Elementor com customizações para The Events Calendar
 Author: Daniel Cambría + Warp AI
-Version: 1.0
+Version: 1.1
 Template: hello-elementor
 */
 
 @import url("../hello-elementor/style.css");
 
+
 /* ==========================================================================
-   1. Variáveis de Cores (The Events Calendar, Branding Concertação, etc.)
+   1. ELEMENTOR GLOBAL COLORS
+   Sincronizado com: Elementor Kit ID 2553
+   Última atualização: 2025-12-01
+
+   As cores são definidas em: Elementor > Site Settings > Global Colors
+   Os nomes das variáveis correspondem aos títulos definidos no painel.
    ========================================================================== */
 
-/* Cores de Eventos / "Virada" */
-:root,
-.virada-2024-10-2 {
-    --flamingo             : #f75729;
-    --lightning-yellow     : #fcbf0f;
-    --salmon               : #ff8d73;
-    --fountain-blue        : #5eb8be;
-    --rebel                : #3f1907;
-    --quarter-spanish-white: #f8f0e4;
-}
-
-:root,
-.concertação-virada-2024-08-26-carmezia-emiliano {
-    --everglade    : #234625;
-    --killarney    : #305e30;
-    --parchment    : #f0eed3;
-    --orange-roughy: #c55d16;
-    --saffron      : #f5c023;
-    --malibu       : #689cfd;
-    --royal-blue   : #3979e9;
-}
-
-:root,
-.virada-2024-11-25-eder-oliveira {
-    --red         : #fb0001;
-    --linen       : #faeee0;
-    --givry       : #fad2c9;
-    --horizon     : #5a879d;
-    --black       : #000000;
-    --desert-storm: #f4f4f4;
-}
-
-:root,
-.virada-2025-02-24-feliciano {
-    --pure-white   : #FFFFFF;
-    --light-silver : #F4F4F4;
-    --soft-lime    : #d3f67a;
-    --misty-aqua   : #a8d1d4;
-    --deep-ocean   : #00456c;
-    --midnight-blue: #002b41;
-}
-
-:root,
-.virada-2025-04-28-Rita-Huni-Kuin {
-    --soft-peach    : #efe6e1;
-    --vivid-crimson : #c42408;
-    --golden-sun    : #f1b61f;
-    --royal-blue    : #005ab6;
-    --deep-forest   : #1e402f;
-    --charcoal-black: #2c2c2a;
-    --fiery-red     : #d7341e;
-}
-
-:root,
-.virada-2025-06-30-Rafael-Prado {
-    --deep-crimson   : #822417;
-    --rusty-brick    : #712011;
-    --ember-orange   : #ce5215;
-    --linen-beige    : #f0efd5;
-    --sunburst-yellow: #fdc300;
-    --sage-mist      : #d1d591;
-    --forest-moss    : #486a2e;
-}
-
-:root,
-.virada-2025-09-01-PV-Dias {
-	--plum-shadow    : #660044;
-	--crimson-orchid : #900042;
-	--magenta-bloom  : #c02975;
-	--amber-glow     : #f0c400;
-	--stone-sand     : #deddd1;
-}
-
-/* Variáveis de Cores Principais do Tema (UCPA) */
 :root {
-    --ucpa-color-1     : var(--crimson-orchid) !important;
-    --ucpa-color-1-dark: color-mix(in lab, var(--crimson-orchid) 75%, black 35%) !important;
-    --ucpa-color-2     : var(--stone-sand) !important;
-    --ucpa-color-3     : var(--sage-mist) !important;
-    --ucpa-color-4     : var(--amber-glow) !important;
-    --ucpa-color-5     : var(--magenta-bloom) !important;
-    --ucpa-color-6     : var(--pure-white) !important;
-    --ucpa-color-7     : var(--crimson-orchid) !important;
-    --ucpa-color-8     : var(--deep-crimson) !important;
+    /* =========================================
+       SYSTEM COLORS (Elementor Default)
+       ========================================= */
+    --main-color   : var(--e-global-color-primary);   /* Main color    #900042 */
+    --offwhite     : var(--e-global-color-secondary); /* Offwhite      #DEDDD1 */
+    --accent-color : var(--e-global-color-accent);    /* Accent color  #F0C400 */
+    --text         : var(--e-global-color-text);      /* Text          #900042 */
 
-    --ucpa-color-text        : var(--ucpa-color-7);
-    --ucpa-color-links       : var(--ucpa-color-1);
-    --ucpa-color-text-invert : var(--pure-white);
-    --ucpa-color-home-espiral: var(--magenta-bloom);
-    --ucpa-color-main        : var(--crimson-orchid );
-    --ucpa-color-accent      : var(--amber-glow);
-    --ucpa-color-offwhite    : var(--stone-sand);
+    /* =========================================
+       CORES BASE
+       ========================================= */
+    --color-extra-1       : var(--e-global-color-96a86ed); /* Color Extra 1       #F0C400 */
+    --color-extra-2       : var(--e-global-color-6f8d79f); /* Color Extra 2       #D1D591 */
+    --color-extra-3       : var(--e-global-color-1de5509); /* Color Extra 3       #660044 */
+    --txt-invertido       : var(--e-global-color-d06d81a); /* txt invertido       #FFFFFF */
+    --background-invertido: var(--e-global-color-bbe749d); /* Background invertido #C02975 */
+    --background-offwhite : var(--e-global-color-e03d05f); /* Background Offwhite #DEDDD1 */
+    --white               : var(--e-global-color-f589ade); /* White               #FFFFFF */
+    --black               : var(--e-global-color-f7de0e8); /* Black               #000000 */
+
+    /* =========================================
+       BOTÕES - NORMAL
+       ========================================= */
+    --btn-normal-bg        : var(--e-global-color-bfeecce); /* btn normal bg        #DEDDD1 */
+    --btn-normal-txt       : var(--e-global-color-195c11b); /* btn normal txt       #900042 */
+    --btn-normal-bdr       : var(--e-global-color-e978a34); /* btn normal BDR       #900042 */
+    --btn-normal-icn       : var(--e-global-color-70ad25c); /* btn normal ICN       #900042 */
+    --btn-normal-bg-hv     : var(--e-global-color-1a29b29); /* btn normal bg HV     #900042 */
+    --btn-normal-txt-hv    : var(--e-global-color-5376d26); /* btn normal txt HV    #DEDDD1 */
+    --btn-normal-border-hv : var(--e-global-color-fcf9248); /* btn normal border HV #900042 */
+    --btn-normal-icon-hv   : var(--e-global-color-bb00ea4); /* btn normal icon HV   #DEDDD1 */
+
+    /* =========================================
+       BOTÕES - INVERTIDO
+       ========================================= */
+    --btn-invertido-bg     : var(--e-global-color-32d8d3f); /* btn invertido bg     #DEDDD1 */
+    --btn-invertido-txt    : var(--e-global-color-2ab85f4); /* btn invertido txt    #900042 */
+    --btn-invertido-bdr    : var(--e-global-color-bd1b734); /* btn invertido BDR    #900042 */
+    --btn-invertido-icn    : var(--e-global-color-ea51a4f); /* btn invertido ICN    #900042 */
+    --btn-invertido-hv-bg  : var(--e-global-color-b60173c); /* btn invertido HV bg  #900042 */
+    --btn-invertido-hv-txt : var(--e-global-color-1d51d48); /* btn invertido HV txt #DEDDD1 */
+    --btn-invertido-hv-bdr : var(--e-global-color-4ad591c); /* btn invertido HV BDR #900042 */
+    --btn-invertido-hv-icn : var(--e-global-color-7b38f65); /* btn invertido HV ICN #DEDDD1 */
+
+    /* =========================================
+       BOTÕES - SLIDER BANNER
+       ========================================= */
+    --btn-slider-banner-bg     : var(--e-global-color-c639634); /* Btn slider banner BG     #C02975 */
+    --btn-slider-banner-txt    : var(--e-global-color-2854dc7); /* Btn slider banner TXT    #FFFFFF */
+    --btn-slider-banner-icn    : var(--e-global-color-75dce5f); /* Btn slider banner ICN    #FFFFFF */
+    --btn-slider-banner-bdr    : var(--e-global-color-26aa749); /* Btn slider banner BDR    #FFFFFF */
+    --btn-slider-banner-bg-hv  : var(--e-global-color-ef329fa); /* Btn slider banner BG HV  #FFFFFF */
+    --btn-slider-banner-txt-hv : var(--e-global-color-d2bf309); /* Btn slider banner TXT HV #C02975 */
+    --btn-slider-banner-icn-hv : var(--e-global-color-8ad9cb6); /* Btn slider banner ICN HV #C02975 */
+    --btn-slider-banner-bdr-hv : var(--e-global-color-b6697c3); /* Btn slider banner BDR HV #C02975 */
+
+    /* =========================================
+       ESPIRAL
+       ========================================= */
+    --espiral-o-que-somos: var(--e-global-color-a3fcda9); /* Espiral O que somos #FFFFFF */
+    --espiral-ciclo-1    : var(--e-global-color-5818b63); /* espiral [ciclo 1]   #900042 */
+    --espiral-ciclo-2    : var(--e-global-color-ad96ee3); /* espiral [ciclo 2]   #900042 */
+
+    /* =========================================
+       HEADER
+       ========================================= */
+    --header-background               : var(--e-global-color-603dd02); /* Header Background               #900042 */
+    --header-background-submenu-cultura: var(--e-global-color-4a4a8de); /* Header Background Submenu Cultura #F0C400 */
+    --header-background-submenu       : var(--e-global-color-fb4dbf2); /* Header Background Submenu       #900042 */
+    --header-txt                      : var(--e-global-color-bcf690c); /* header txt                      #FFFFFF */
+    --header-txt-hover                : var(--e-global-color-95160ae); /* header txt hover                #F0C400 */
+    --header-txt-active               : var(--e-global-color-cbf4f1c); /* header txt active               #F0C400 */
+    --header-icon                     : var(--e-global-color-1fff4a8); /* header icon                     #FFFFFF */
+    --header-icon-hover               : var(--e-global-color-b262c8c); /* header icon hover               #F0C400 */
+    --header-menu-mobile-bg           : var(--e-global-color-784a92e); /* header menu-mobile bg           #000000 */
+    --header-menu-mobile-txt          : var(--e-global-color-8d6d024); /* header menu-mobile txt          #000000 */
+    --header-mega-cultura-txt         : var(--e-global-color-3e69eb5); /* header-mega cultura txt         #2C2C2A */
+
+    /* =========================================
+       EVENTOS
+       ========================================= */
+    --eventos-bg           : var(--e-global-color-1056812); /* eventos bg           #FFFFFF */
+    --evento-tag-bg        : var(--e-global-color-e750255); /* evento tag bg        #00456C */
+    --eventos-passados-bg  : var(--e-global-color-091b1c5); /* eventos passados bg  #FFFFFF */
+    --evento-passado-tag-bg: var(--e-global-color-f4e9724); /* evento passado tag bg #FFFFFF */
+    --evento-data-bg       : var(--e-global-color-a29627a); /* evento data bg       #000000 */
+
+    /* =========================================
+       FORMULÁRIOS
+       ========================================= */
+    --form-botao      : var(--e-global-color-1e2de0e); /* form [botão]       #FFFFFF */
+    --form-botao-hover: var(--e-global-color-acf4884); /* form [botão:hover] #000000 */
+    --form-placeholder: var(--e-global-color-a910fcf); /* form [placeholder] #656568 */
+    --form-border     : var(--e-global-color-9e25231); /* form [border]      #FFFFFF */
+    --form-texto      : var(--e-global-color-ce3a7e4); /* form [texto]       #00456C */
+
+    /* =========================================
+       UI ELEMENTS
+       ========================================= */
+    --focus-outline-color : var(--e-global-color-3091f92); /* focus: outline-color  #C02975 */
+    --scroll-handle-hover : var(--e-global-color-44d5626); /* scroll [handle:hover] #C02975 */
+    --scroll-track        : var(--e-global-color-f1d8cc9); /* scroll [track]        #C02975 */
+
+    /* =========================================
+       PAGINAÇÃO
+       ========================================= */
+    --pagination-text          : var(--e-global-color-15a7cb4); /* pagination [text]          #FFFFFF */
+    --pagination-text-invertido: var(--e-global-color-5d15942); /* pagination [text invertido] #C02975 */
+    --pagination-bg            : var(--e-global-color-ed15391); /* pagination [bg]            #FFFFFF */
+    --pagination-bg-invertido  : var(--e-global-color-a469a3e); /* pagination [bg invertido]  #C02975 */
+    --pagination-bg-hover      : var(--e-global-color-7af83f7); /* pagination [bg:hover]      #C02975 */
+    --pagination-bg-current    : var(--e-global-color-31f423a); /* pagination [bg:current]    #4AA521 */
+
+    /* =========================================
+       TAGS
+       ========================================= */
+    --tag-normal-bg          : var(--e-global-color-ec6250c); /* tag normal bg           #000000 */
+    --tag-normal-txt         : var(--e-global-color-bd4fd6f); /* tag normal txt          #FFFFFF */
+    --tag-normal-border      : var(--e-global-color-9ca7650); /* tag normal border       #000000 */
+    --tag-normal-bg-hover    : var(--e-global-color-66b635f); /* tag normal bg hover     #FFFFFF */
+    --tag-normal-txt-hover   : var(--e-global-color-a67be25); /* tag normal txt hover    #000000 */
+    --tag-normal-border-hover: var(--e-global-color-88a5bb5); /* tag normal border hover #FFFFFF */
+
+    /* =========================================
+       NAVEGAÇÃO
+       ========================================= */
+    --navigation-icon      : var(--e-global-color-189d99c); /* navigation icon       #FFFFFF */
+    --navigation-bg        : var(--e-global-color-bd58f97); /* navigation bg         #818180 */
+    --navigation-icon-hover: var(--e-global-color-7ad475b); /* navigation icon hover #FFFFFF */
+    --navigation-bg-hover  : var(--e-global-color-5c7f233); /* navigation bg hover   #F0C400 */
+
+    /* =========================================
+       OUTROS
+       ========================================= */
+    --news-single-lateral  : var(--e-global-color-85f2876); /* news single lateral   #3A2E2A */
+    --dropdown-bg          : var(--e-global-color-7b0a793); /* dropdown bg           #F4F4F2 */
+    --popup-btn            : var(--e-global-color-9f90efa); /* popup btn             #000000 */
+    --popup-bg             : var(--e-global-color-00554d5); /* popup bg              #F4F4F2 */
+    --footer-logo          : var(--e-global-color-774f1bc); /* footer logo           #FFFFFF */
+    --footer-cadastre-se   : var(--e-global-color-eebdb92); /* Footer Cadastre-se    #900042 */
+    --thumbnails-bg        : var(--e-global-color-40feb06); /* thumbnails bg         #FFFFFF */
+    --menuflip-bg          : var(--e-global-color-82f2da3); /* menuflip bg           #000000 */
+    --ico-espiral          : var(--e-global-color-3889a68); /* ico espiral           #FFFFFF */
+    --mapa-artistas-bg     : var(--e-global-color-67488b5); /* mapa artistas bg      #E1E1D5 */
+    --tratamento-de-erros  : var(--e-global-color-32e74e2); /* Tratamento de Erros   #C84747 */
+
+    /* =========================================
+       BREAKNEWS
+       ========================================= */
+    --breaknews-bg       : var(--e-global-color-b2cd905); /* breaknews bg        #C86F47 */
+    --breaknews-txt      : var(--e-global-color-938e171); /* breaknews txt       #FFFFFF */
+    --breaknews-txt-hover: var(--e-global-color-794b9f6); /* breaknews txt hover #191919 */
+
+    /* =========================================
+       ALIASES DE COMPATIBILIDADE (legado)
+       Use as variáveis acima para novos estilos
+       ========================================= */
+    --ucpa-color-main        : var(--main-color);
+    --ucpa-color-offwhite    : var(--offwhite);
+    --ucpa-color-accent      : var(--accent-color);
+    --ucpa-color-text        : var(--text);
+    --ucpa-color-text-invert : var(--txt-invertido);
+    --ucpa-color-home-espiral: var(--background-invertido);
+    --ucpa-color-white       : var(--white);
     --ucpa-color-black       : var(--black);
-    --ucpa-color-white       : #ffffff;
+    --ucpa-color-1           : var(--main-color);
+    --ucpa-color-1-dark      : color-mix(in lab, var(--main-color) 75%, black 35%);
+    --ucpa-color-2           : var(--offwhite);
+    --ucpa-color-3           : var(--color-extra-2);
+    --ucpa-color-4           : var(--accent-color);
+    --ucpa-color-5           : var(--background-invertido);
+    --ucpa-color-6           : var(--white);
+    --ucpa-color-7           : var(--main-color);
+    --ucpa-color-8           : var(--main-color);
+    --ucpa-color-links       : var(--main-color);
+    --ucpa-color-header-bg   : var(--header-background);
+    --ucpa-color-header-bg-submenu        : var(--header-background-submenu);
+    --ucpa-color-header-bg-submenu-cultura: var(--header-background-submenu-cultura);
 
-    --ucpa-color-header-bg           : var(--ucpa-color-1);
+    /* =========================================
+       TRANSIÇÕES E ASSETS
+       ========================================= */
     --ucpa-transition-timing-function: cubic-bezier(1.000, -0.125, 0.310, 1.460);
     --ucpa-transition-duration       : 200ms;
-
-    --ucpa-color-header-bg-submenu        : var(--plum-shadow, #fff);
-    --ucpa-color-header-bg-submenu-cultura: var(--amber-glow, #d3f67a);
-
     --ucpa-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' style='width:100px;height:auto;fill:%237c6451' viewBox='0 0 12.7 12.93'%3E%3Cpath d='M5.5 11.01c-3.03 0-5.5-2.47-5.5-5.5C0 2.47 2.47 0 5.51 0c3.04 0 5.51 2.47 5.51 5.51 0 3.04-2.47 5.5-5.51 5.5ZM5.5.58C2.79.58.58 2.79.58 5.51c0 2.71 2.21 4.92 4.92 4.92s4.93-2.21 4.93-4.92C10.43 2.79 8.22.59 5.5.59Z' class='cls-1'/%3E%3Cpath d='M12.41 12.93c-.07 0-.15-.03-.21-.09L8.96 9.6c-.11-.11-.11-.3 0-.41.11-.11.3-.11.41 0l3.24 3.24c.11.11.11.3 0 .41-.06.06-.13.09-.21.09Z' /%3E%3C/svg%3E");
 }
 
+
 /* ==========================================================================
-   2. Estilos Globais
+   2. ESTILOS GLOBAIS
    ========================================================================== */
 
+/* --- 2.1 HTML & Body --- */
 html {
     font-size         : 16px;
-    scrollbar-gutter  : stable; /* Evitar layout shift quando abrir modal de pesquisa */
+    scrollbar-gutter  : stable;
     scroll-behavior   : smooth;
 }
 
@@ -135,33 +226,22 @@ html {
 }
 
 body {
-    background-color: var(--ucpa-color-2) !important;
+    background-color: var(--ucpa-color-offwhite) !important;
     overflow-x      : hidden;
     position        : relative;
 }
 
-/* Correção de movimento do eixo X em mobile */
 @media (max-width: 768px) {
     html, body {
         overflow-x: hidden;
     }
 }
 
-/* Background específico para páginas Elementor com kit 2553 */
 html body.elementor-kit-2553.elementor-page-26826 {
-    background-color: var(--ucpa-color-2);
+    background-color: var(--ucpa-color-offwhite);
 }
 
-/* Links */
-a[href*="mailto"]:hover {
-    color: currentColor !important;
-}
-
-.elementor-kit-2553 a:hover {
-    color: var(--e-global-color-text);
-}
-
-/* Títulos */
+/* --- 2.2 Tipografia --- */
 h1, h2, h3, h4, h5, h6 {
     text-wrap: balance;
 }
@@ -170,7 +250,21 @@ h1, h2, h3, h4, h5, h6 {
     margin-top: 5rem;
 }
 
-/* Seleção de texto */
+figcaption {
+    text-align: center;
+    color     : var(--e-global-color-text);
+}
+
+/* --- 2.3 Links --- */
+a[href*="mailto"]:hover {
+    color: currentColor !important;
+}
+
+.elementor-kit-2553 a:hover {
+    color: var(--e-global-color-text);
+}
+
+/* --- 2.4 Seleção de Texto --- */
 ::selection {
     background-color: var(--ucpa-color-white);
     color           : var(--ucpa-color-accent);
@@ -178,28 +272,17 @@ h1, h2, h3, h4, h5, h6 {
 
 @supports (color: color-mix(in oklch, black 50%, white)) {
     ::selection {
-        background-color: color-mix(in oklch, var(--ucpa-color-1) 90%, black 10%);
-        color           : color-mix(in oklch, var(--ucpa-color-1) 10%, white 90%);
+        background-color: color-mix(in oklch, var(--ucpa-color-main) 90%, black 10%);
+        color           : color-mix(in oklch, var(--ucpa-color-main) 10%, white 90%);
     }
 }
 
-/* Estilo para label Elementor */
-html body.elementor-kit-2553 label {
-    color: var(--ucpa-color-main, #000);
-}
-
-/* Estilo para figcaption */
-figcaption {
-    text-align: center;
-    color     : var(--e-global-color-text)
-}
-
-/* Outline global */
+/* --- 2.5 Outline --- */
 * {
     outline-color: var(--e-global-color-accent);
 }
 
-/* Scrollbar */
+/* --- 2.6 Scrollbar --- */
 ::-webkit-scrollbar {
     width    : 7px;
     transform: width 1s ease;
@@ -219,13 +302,22 @@ figcaption {
     background: var(--ucpa-color-accent);
 }
 
+
 /* ==========================================================================
-   3. Estilos Específicos de Plugins / Componentes
+   3. COMPONENTES
    ========================================================================== */
 
-/* --- 3.1 The Events Calendar --- */
+/* --- 3.1 Labels --- */
+html body.elementor-kit-2553 label {
+    color: var(--ucpa-color-main, #000);
+}
 
-/* Estilo para categorias dos eventos */
+
+/* ==========================================================================
+   4. PLUGINS - The Events Calendar
+   ========================================================================== */
+
+/* --- 4.1 Categorias de Eventos --- */
 .event-category {
     background-color: #f8f9fa;
     color           : #495057;
@@ -238,7 +330,6 @@ figcaption {
     border          : 1px solid #dee2e6;
 }
 
-/* Estilo específico para editais */
 .event-edital .event-category {
     background-color: #fff3cd;
     color           : #856404;
@@ -251,12 +342,10 @@ figcaption {
     font-weight: 600;
 }
 
-/* Estilo para múltiplas categorias */
 .event-category + .event-category {
     margin-left: 4px;
 }
 
-/* Responsividade para categorias */
 @media (max-width: 768px) {
     .event-category {
         font-size: 11px;
@@ -264,7 +353,6 @@ figcaption {
     }
 }
 
-/* Garantir visibilidade das categorias */
 .tec-events-calendar-list__event-categories,
 .event-category {
     display   : block !important;
@@ -272,9 +360,9 @@ figcaption {
     opacity   : 1 !important;
 }
 
-/* Estilos gerais do The Events Calendar */
+/* --- 4.2 Estilos Gerais TEC --- */
 .tribe-events {
-    font-family: var(--e-global-typography-primary-font-family)
+    font-family: var(--e-global-typography-primary-font-family);
 }
 
 .tribe-events .tribe-events-c-breadcrumbs__list-item-link,
@@ -291,7 +379,7 @@ figcaption {
 }
 
 .tribe-common .tribe-common-h3 {
-    color: var(--e-global-color-secondary)
+    color: var(--e-global-color-secondary);
 }
 
 .tribe-events-c-subscribe-dropdown__button button,
@@ -310,6 +398,7 @@ figcaption {
     object-fit: cover;
 }
 
+/* --- 4.3 Barra de Pesquisa TEC --- */
 .tribe-events-c-events-bar__search-container {
     background-color: var(--ucpa-color-offwhite) !important;
 }
@@ -322,6 +411,7 @@ figcaption {
     gap: 1rem;
 }
 
+/* --- 4.4 Botões TEC --- */
 .tribe-common-c-btn {
     height     : 44px !important;
     line-height: 1 !important;
@@ -344,11 +434,11 @@ figcaption {
     color           : var(--ucpa-color-offwhite) !important;
 }
 
-
 .tribe-events button.tribe-events-c-top-bar__datepicker-button:hover {
     background-color: transparent !important;
 }
 
+/* --- 4.5 Background TEC --- */
 html body.tribe_events-template-default,
 html #tribe-events-pg-template {
     background-color: var(--ucpa-color-offwhite) !important;
@@ -377,6 +467,7 @@ body #epta-template.epta-template-1 .epta-share-area a:hover {
     text-decoration : none;
 }
 
+/* --- 4.6 Countdown Timer --- */
 .epta-countdown-timer {
     display        : flex;
     justify-content: space-between;
@@ -384,29 +475,30 @@ body #epta-template.epta-template-1 .epta-share-area a:hover {
     cursor         : default;
 }
 
-.epta-countdown-timer>* {
+.epta-countdown-timer > * {
     flex          : 1;
     border-radius : 5px;
     pointer-events: none;
     user-select   : none;
 }
 
+/* --- 4.7 Elementos UI TEC --- */
 .tribe-common--breakpoint-medium.tribe-common .tribe-common-h4--min-medium :hover {
-	color: var(--e-global-color-accent) !important;
+    color: var(--e-global-color-accent) !important;
 }
 
-.tribe-common .tribe-common-anchor-thin:active, .tribe-common .tribe-common-anchor-thin:focus, .tribe-common .tribe-common-anchor-thin:hover{
-	border-bottom:0px !important
+.tribe-common .tribe-common-anchor-thin:active,
+.tribe-common .tribe-common-anchor-thin:focus,
+.tribe-common .tribe-common-anchor-thin:hover {
+    border-bottom: 0px !important;
 }
 
-
-/* Estilos de Elementos Específicos do The Events Calendar */
 .tribe-common.tribe-events .tribe-events-c-top-bar__datepicker-button-icon-svg {
-    margin-top: 7px
+    margin-top: 7px;
 }
 
 .tribe-events-c-top-bar__datepicker-mobile {
-    color: var(--e-global-color-secondary)
+    color: var(--e-global-color-secondary);
 }
 
 .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-view-selector--tabs .tribe-events-c-view-selector__content {
@@ -415,20 +507,19 @@ body #epta-template.epta-template-1 .epta-share-area a:hover {
 
 svg.tribe-common-c-svgicon.tribe-common-c-svgicon--caret-right.tribe-events-c-breadcrumbs__list-item-icon-svg {
     fill   : var(--e-global-color-accent) !important;
-    padding: 0px; /* Corrigido de "px" para "0px" */
+    padding: 0px;
     margin : 10px;
 }
 
 .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-search__input-control-icon-svg {
-    display: none
+    display: none;
 }
 
-/* Remover "Virtual Eventos" */
 .tribe-common-b2.tribe-common-b2--bold.tribe-events-virtual-virtual-event {
     display: none;
 }
 
-/* Customização de textos em PT-BR para The Events Calendar */
+/* --- 4.8 Traduções PT-BR TEC --- */
 html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button {
     font-size: 0 !important;
 }
@@ -472,19 +563,19 @@ button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path
     fill   : black !important;
 }
 
-/* Imagem de evento */
+/* --- 4.9 Imagem de Evento --- */
 .ectbe-evt-img {
     max-width: 250px;
 }
 
-/* Navegação entre eventos (anterior/próximo) */
+/* --- 4.10 Navegação Eventos --- */
 .tribe-events-c-nav__prev-label {
     font-size: 0;
 }
 
 .tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide {
     font-size: 1rem;
-    color    : var(--e-global-color-text)
+    color    : var(--e-global-color-text);
 }
 
 .tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide::after {
@@ -498,15 +589,15 @@ button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path
 
 .tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide {
     font-size: 1rem;
-    color    : var(--e-global-color-text)
+    color    : var(--e-global-color-text);
 }
 
 a.tribe-events-c-nav__prev.tribe-common-b2.tribe-common-b1--min-medium :hover {
-    color: var(--e-global-color-accent)
+    color: var(--e-global-color-accent);
 }
 
 a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
-    color: var(--e-global-color-accent)
+    color: var(--e-global-color-accent);
 }
 
 .tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide::after {
@@ -514,51 +605,132 @@ a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
     font-size: 1rem;
 }
 
-/* --- 3.2 WordPress Admin Bar (#wpadminbar) --- */
+
+/* ==========================================================================
+   5. PLUGINS - JetEngine / JetSearch
+   ========================================================================== */
+
+/* --- 5.1 Input de Pesquisa --- */
+html .elementor-26826 .elementor-element.elementor-element-9ca8c23 .jet-search-filter__input {
+    border-width: var(--border-width, 0);
+    border-color: var(--border-color, transparent);
+    border-style: var(--border-style, solid);
+}
+
+input.jet-search-filter__input {
+    border-radius: 0.6rem !important;
+    transition   : none !important;
+}
+
+input.jet-search-filter__input:focus-visible {
+    outline       : solid var(--ucpa-color-main) 2px;
+    outline-offset: 0;
+}
+
+html body.elementor-kit-2553.logged-in input,
+html body.elementor-kit-2553.logged-in .tribe-common input {
+    border-color : transparent;
+    border-radius: 10px;
+}
+
+/* --- 5.2 Hover States --- */
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover {
+    background-color: var(--e-global-color-1de5509);
+    border-width    : 0 !important;
+}
+
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
+    border-width: 0 0 1px 0 !important;
+}
+
+/* --- 5.3 Painel Hamburger (Pesquisa Ajax) --- */
+.jet-hamburger-panel__content[data-template-id="4360"] {
+    position: fixed;
+    inset   : 4rem !important;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav {
+    height  : 100%;
+    overflow: hidden;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template {
+    height    : 100%;
+    background: color-mix(in lab, var(--ucpa-color-white), transparent 6%);
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template::before {
+    animation: giragiraespiralzinha 200s infinite;
+    display  : none;
+}
+
+@keyframes giragiraespiralzinha {
+    to {
+        rotate: 360deg;
+    }
+}
+
+.jet-hamburger-panel__inner {
+    background: unset !important;
+}
+
+/* --- 5.4 Filtro Alfabético --- */
+div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet-alphabet-list__button {
+    display      : grid;
+    height       : fit-content;
+    aspect-ratio : 1;
+    place-content: center;
+    padding      : 0;
+    font-size    : 0.8rem;
+}
+
+
+/* ==========================================================================
+   6. ADMIN - WP Admin Bar
+   ========================================================================== */
+
 html #wpadminbar {
     z-index: 99999999999;
 }
 
-/* Itens completamente ocultados */
+/* --- 6.1 Itens Ocultos --- */
 #wp-admin-bar-elementor_notes,
 #wp-admin-bar-new-content .ab-label,
 #wp-admin-bar-gform-forms,
-#wp-admin-bar-elementor_edit_page>a>.elementor-edit-link-title,
-#wp-admin-bar-elementor_edit_page>div.ab-item>.elementor-edit-link-title,
+#wp-admin-bar-elementor_edit_page > a > .elementor-edit-link-title,
+#wp-admin-bar-elementor_edit_page > div.ab-item > .elementor-edit-link-title,
 #wp-admin-bar-tribe-events {
     display: none;
 }
 
-/* Itens com font-size 0 para ocultar texto e deixar ícones */
 li#wp-admin-bar-jet_plugins .ab-item,
 li#wp-admin-bar-tribe-events .ab-item,
 li#wp-admin-bar-customize .ab-item,
 #wp-admin-bar-my-account a.ab-item,
-#wp-admin-bar-site-name>a,
+#wp-admin-bar-site-name > a,
 #wp-admin-bar-edit a {
     font-size: 0;
 }
 
-/* Título da página com font-size 0.8em */
-#wp-admin-bar-site-name>a {
+#wp-admin-bar-site-name > a {
     font-size     : 0.8em;
     letter-spacing: -1px;
     line-height   : 32px;
 }
 
-/* Emoji de foguete para WP Rocket */
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a {
+/* --- 6.2 WP Rocket --- */
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a {
     font-size: 0;
 }
 
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a::before {
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a::before {
     content    : "WP";
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     font-size  : 0.8rem;
     line-height: 25px;
 }
 
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a::after {
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a::after {
     content    : "?";
     font-size  : 1rem;
     line-height: 32px;
@@ -569,8 +741,8 @@ li#wp-admin-bar-customize .ab-item,
     display : block;
 }
 
-#wpadminbar .menupop li.hover>.ab-sub-wrapper,
-#wpadminbar .menupop li:hover>.ab-sub-wrapper {
+#wpadminbar .menupop li.hover > .ab-sub-wrapper,
+#wpadminbar .menupop li:hover > .ab-sub-wrapper {
     margin-left: 0 !important;
     margin-top : 0 !important;
 }
@@ -585,7 +757,7 @@ li#wp-admin-bar-customize .ab-item,
     border-radius: 1rem;
 }
 
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all>.ab-tem::after {
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all > .ab-tem::after {
     content: ":";
 }
 
@@ -597,6 +769,7 @@ li#wp-admin-bar-customize .ab-item,
     display: none;
 }
 
+/* --- 6.3 Redis Cache --- */
 #wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush {
     background   : gray;
     margin       : 0.3rem 0.6rem;
@@ -607,12 +780,13 @@ li#wp-admin-bar-customize .ab-item,
     color: black;
 }
 
+/* --- 6.4 Overflow de Itens --- */
 #wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a,
 #wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item,
 #wpadminbar #wp-toolbar #wp-admin-bar-elementor_inspector div.ab-item {
-    max-width   : 80px;
-    white-space : nowrap;
-    overflow    : hidden;
+    max-width    : 80px;
+    white-space  : nowrap;
+    overflow     : hidden;
     text-overflow: ellipsis;
 }
 
@@ -624,14 +798,13 @@ li#wp-admin-bar-customize .ab-item,
     max-width: 50px;
 }
 
-/* Cursor Pointer em tudo */
 #wpadminbar #wp-toolbar,
 #wpadminbar #wp-toolbar .ab-item {
     cursor: pointer !important;
 }
 
-/* Botão e menu do Elementor */
-#wpadminbar #wp-admin-bar-elementor_edit_page>.ab-item::before {
+/* --- 6.5 Elementor Edit Button --- */
+#wpadminbar #wp-admin-bar-elementor_edit_page > .ab-item::before {
     content    : "\e813";
     font-family: eicons;
     top        : 3.5px;
@@ -640,7 +813,7 @@ li#wp-admin-bar-customize .ab-item,
     scale      : 1.5;
 }
 
-#wpadminbar #wp-admin-bar-elementor_edit_page>.ab-item::after {
+#wpadminbar #wp-admin-bar-elementor_edit_page > .ab-item::after {
     content    : "✨";
     font-size  : 31px;
     line-height: 1;
@@ -698,7 +871,7 @@ li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
     padding-top: 0 !important;
 }
 
-/* Centralizar o botão do Elementor na página */
+/* --- 6.6 Centralização do Elementor --- */
 #wpadminbar #wp-toolbar {
     display: flex;
 }
@@ -720,15 +893,15 @@ li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
     margin-inline: auto;
 }
 
-#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page~* {
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page ~ * {
     margin-inline: 0;
 }
 
-#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page+* {
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page + * {
     margin-inline-start: auto;
 }
 
-/* Responsividade da barra de administração */
+/* --- 6.7 Responsividade Admin Bar --- */
 @media screen and (max-width: 990px) {
     #wp-admin-bar-site-name {
         font-size : 1em;
@@ -756,6 +929,7 @@ li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
     }
 }
 
+/* --- 6.8 Translate --- */
 li#wp-admin-bar-translate a {
     font-size: 0;
 }
@@ -765,104 +939,29 @@ li#wp-admin-bar-translate a::after {
     font-size: 0.9rem;
 }
 
-#wpadminbar ul#wp-admin-bar-root-default>li a {
+#wpadminbar ul#wp-admin-bar-root-default > li a {
     padding-inline-start: 16px;
 }
 
-/* --- 3.3 Cookie Consent Button --- */
+
+/* ==========================================================================
+   7. COMPONENTES ESPECIAIS
+   ========================================================================== */
+
+/* --- 7.1 Cookie Consent --- */
 #cn-accept-cookie {
     background: var(--ucpa-color-accent) !important;
     color     : var(--ucpa-color-white) !important;
 }
 
-/* --- 3.4 Estilos Elementor / JetEngine --- */
-
-/* Input de pesquisa do JetEngine */
-html .elementor-26826 .elementor-element.elementor-element-9ca8c23 .jet-search-filter__input {
-    border-width: var(--border-width, 0);
-    border-color: var(--border-color, transparent);
-    border-style: var(--border-style, solid);
-}
-
-input.jet-search-filter__input {
-    border-radius: 0.6rem !important;
-    transition   : none !important;
-}
-
-input.jet-search-filter__input:focus-visible {
-	outline       : solid var(--ucpa-color-1) 2px;
-	outline-offset: 0;
-}
-
-html body.elementor-kit-2553.logged-in input,
-html body.elementor-kit-2553.logged-in .tribe-common input {
-    border-color : transparent;
-    border-radius: 10px;
-}
-
-
-/* Estilos para hover em Elementor/JetEngine */
-html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover {
-	background-color: var(--e-global-color-1de5509);
-	border-width    : 0 !important;
-}
-
-/* Estilo específico para select em hover (menu dropdown) */
-html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
-    border-width: 0 0 1px 0 !important;
-}
-
-/* Painel Hamburger (Pesquisa Ajax) */
-.jet-hamburger-panel__content[data-template-id="4360"] {
-    position: fixed;
-    inset   : 4rem !important;
-}
-
-.jet-hamburger-panel__content[data-template-id="4360"] nav {
-    height  : 100%;
-    overflow: hidden;
-}
-
-.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template {
-    height    : 100%;
-    background: color-mix(in lab, var(--ucpa-color-6), transparent 6%);
-}
-
-.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template::before {
-    /* opacity: 1; */
-    animation: giragiraespiralzinha 200s infinite;
-    display  : none;
-}
-
-@keyframes giragiraespiralzinha {
-    to {
-        rotate: 360deg;
-    }
-}
-
-.jet-hamburger-panel__inner {
-    background: unset !important;
-}
-
-/* Botões de filtro alfabético (em "Sobre Nós"?) */
-div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet-alphabet-list__button {
-	display     : grid;
-	height      : fit-content;
-	aspect-ratio: 1;
-	place-content: center;
-    padding     : 0;
-    font-size   : 0.8rem;
-}
 
 /* ==========================================================================
-   4. Estilos de Páginas / Seções Específicas
+   8. PÁGINAS ESPECÍFICAS
    ========================================================================== */
 
-/* --- 4.1 Home Page --- */
-
-/* Banner */
+/* --- 8.1 Home - Banner --- */
 .divider_banner {
-    padding: 0.3rem 0rem 0rem 0rem
+    padding: 0.3rem 0rem 0rem 0rem;
 }
 
 .img_banner img {
@@ -886,7 +985,7 @@ div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet
     }
 }
 
-/* Pêndulo */
+/* --- 8.2 Home - Pêndulo --- */
 .pendulo svg path {
     fill: var(--e-global-color-96a86ed, #DAF58A);
 }
@@ -932,9 +1031,7 @@ div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet
     }
 }
 
-/* --- 4.2 Páginas Simples e Listagens --- */
-
-/* Listagens de Estudos (Geral) */
+/* --- 8.3 Listagens de Estudos --- */
 @media (min-width: 1140px) {
     .listing_container_thumb_bg * {
         object-position: top;
@@ -943,17 +1040,17 @@ div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet
 
 @media (max-width: 1024px) {
     .listing_container_thumb_bg {
-        background-color: var(--e-global-color-text)
+        background-color: var(--e-global-color-text);
     }
 }
 
 @media (max-width: 767px) {
     .listing_container_thumb_bg {
-        background-color: var(--e-global-color-text)
+        background-color: var(--e-global-color-text);
     }
 }
 
-/* Destaque para estudo "100-primeiros-dias-de-governo" */
+/* --- 8.4 Destaque Estudos --- */
 .listing_destaque .jet-listing-grid__item {
     order: 1;
 }
@@ -963,18 +1060,18 @@ div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet
 }
 
 .listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .e-con-inner {
-    background   : var(--ucpa-color-3);
+    background   : var(--ucpa-color-sage);
     border-radius: 1px;
-    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-3);
+    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-sage);
 }
 
-.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a>.e-con-inner::before {
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a > .e-con-inner::before {
     content       : "Em destaque";
     position      : absolute;
     top           : -1.6rem;
     left          : 50%;
     transform     : translateX(-50%);
-    background    : var(--ucpa-color-3);
+    background    : var(--ucpa-color-sage);
     padding       : 2px 6px;
     border-radius : 5px;
     font-size     : 12px;
@@ -983,17 +1080,14 @@ div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet
     color         : #000000;
 }
 
-/* --- 4.3 Links Dinâmicos --- */
-
-/* Usado em listagem de notícias */
+/* --- 8.5 Links Dinâmicos --- */
 .botao_dynamic_link a {
     display        : flex;
     justify-content: space-around;
     flex-direction : row;
 }
 
-/* --- 4.4 Header Main Template - Single Artist --- */
-
+/* --- 8.6 Single Artist (Linha das Artes) --- */
 .ucpa-highlight {
     background-color: color-mix(in lab, var(--ucpa-color-offwhite) 80%, var(--ucpa-color-main) 20%) !important;
 }
@@ -1011,7 +1105,7 @@ div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet
         padding-block: 6rem;
     }
 
-    .ucpa-highlight>div p {
+    .ucpa-highlight > div p {
         line-height: 2;
     }
 
@@ -1035,7 +1129,6 @@ div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet
     color: var(--ucpa-color-text, #333);
 }
 
-/* Reduzir a margem da legenda das fotos */
 .linha-das-artes-template-default figcaption {
-	margin-top: -40px
+    margin-top: -40px;
 }
