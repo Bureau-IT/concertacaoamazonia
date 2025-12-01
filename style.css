@@ -8,77 +8,11 @@ Template: hello-elementor
 
 @import url("../hello-elementor/style.css");
 
-/* Customizações para The Events Calendar */
+/* ==========================================================================
+   1. Variáveis de Cores (The Events Calendar, Branding Concertação, etc.)
+   ========================================================================== */
 
-/* Estilo para categorias dos eventos */
-.event-category {
-    background-color: #f8f9fa;
-    color: #495057;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 12px;
-    font-weight: 500;
-    margin-bottom: 8px;
-    display: inline-block;
-    border: 1px solid #dee2e6;
-}
-
-/* Estilo específico para editais */
-.event-edital .event-category {
-    background-color: #fff3cd;
-    color: #856404;
-    border-color: #ffeaa7;
-}
-
-.event-edital .tribe-events-calendar-list__event-datetime,
-.event-edital .tribe-events-calendar-month__calendar-event-tooltip-datetime {
-    color: #856404;
-    font-weight: 600;
-}
-
-/* Estilo para múltiplas categorias */
-.event-category + .event-category {
-    margin-left: 4px;
-}
-
-/* Responsividade */
-@media (max-width: 768px) {
-    .event-category {
-        font-size: 11px;
-        padding: 3px 6px;
-    }
-}
-
-/* Garantir visibilidade das categorias */
-.tec-events-calendar-list__event-categories,
-.event-category {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-CSS ADICIONAL GERAL CONCERTAÇÃO 2025-07-01
-
-/*
-    * UCPA - Uma Concertação Pela Amazônia
-    ? Personalizando - CSS Adicional
-    # Index:
-        1. Current colors
-        2. General styles
-        3. Cookie consent button
-        4. Scrollbar
-				5. Listings
-        6. WP Admin Bar (admin)
-        7. Home: Banner, Pendulo
-        8. Dynamic links
-        9. Tribe Events Calendar
-        10. Header Main Template - Single Artist
-        11. Pesquisa Ajax
-        12. ??
-*/
-
-/* # 1. Current colors */
-
+/* Cores de Eventos / "Virada" */
 :root,
 .virada-2024-10-2 {
     --flamingo             : #f75729;
@@ -151,7 +85,7 @@ CSS ADICIONAL GERAL CONCERTAÇÃO 2025-07-01
 	--stone-sand     : #deddd1;
 }
 
-
+/* Variáveis de Cores Principais do Tema (UCPA) */
 :root {
     --ucpa-color-1     : var(--crimson-orchid) !important;
     --ucpa-color-1-dark: color-mix(in lab, var(--crimson-orchid) 75%, black 35%) !important;
@@ -162,9 +96,7 @@ CSS ADICIONAL GERAL CONCERTAÇÃO 2025-07-01
     --ucpa-color-6     : var(--pure-white) !important;
     --ucpa-color-7     : var(--crimson-orchid) !important;
     --ucpa-color-8     : var(--deep-crimson) !important;
-}
 
-:root {
     --ucpa-color-text        : var(--ucpa-color-7);
     --ucpa-color-links       : var(--ucpa-color-1);
     --ucpa-color-text-invert : var(--pure-white);
@@ -185,42 +117,60 @@ CSS ADICIONAL GERAL CONCERTAÇÃO 2025-07-01
     --ucpa-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' style='width:100px;height:auto;fill:%237c6451' viewBox='0 0 12.7 12.93'%3E%3Cpath d='M5.5 11.01c-3.03 0-5.5-2.47-5.5-5.5C0 2.47 2.47 0 5.51 0c3.04 0 5.51 2.47 5.51 5.51 0 3.04-2.47 5.5-5.51 5.5ZM5.5.58C2.79.58.58 2.79.58 5.51c0 2.71 2.21 4.92 4.92 4.92s4.93-2.21 4.93-4.92C10.43 2.79 8.22.59 5.5.59Z' class='cls-1'/%3E%3Cpath d='M12.41 12.93c-.07 0-.15-.03-.21-.09L8.96 9.6c-.11-.11-.11-.3 0-.41.11-.11.3-.11.41 0l3.24 3.24c.11.11.11.3 0 .41-.06.06-.13.09-.21.09Z' /%3E%3C/svg%3E");
 }
 
-
-
-/* # 2. General styles */
+/* ==========================================================================
+   2. Estilos Globais
+   ========================================================================== */
 
 html {
-    font-size: 16px;
+    font-size         : 16px;
+    scrollbar-gutter  : stable; /* Evitar layout shift quando abrir modal de pesquisa */
+    scroll-behavior   : smooth;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    :has(:target) {
+        scroll-behavior   : smooth;
+        scroll-padding-top: 3rem;
+    }
 }
 
 body {
     background-color: var(--ucpa-color-2) !important;
+    overflow-x      : hidden;
+    position        : relative;
 }
 
-/*
-    wp-singular page-template-default page page-id-26826 page-child
-    parent-pageid-2 logged-in admin-bar wp-custom-logo
-    wp-embed-responsive wp-theme-hello-elementor
-    wp-child-theme-hello-elementor-child cookies-not-set
-    hello-elementor-default jet-mega-menu-location
-    jet-engine-optimized-dom elementor-default elementor-kit-2553
-    elementor-page elementor-page-26826 dialog-body dialog-buttons-body
-    dialog-container dialog-buttons-container customize-support
-    e--ua-firefox e--ua-mac
-*/
+/* Correção de movimento do eixo X em mobile */
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden;
+    }
+}
+
+/* Background específico para páginas Elementor com kit 2553 */
 html body.elementor-kit-2553.elementor-page-26826 {
     background-color: var(--ucpa-color-2);
 }
 
+/* Links */
 a[href*="mailto"]:hover {
     color: currentColor !important;
+}
 
+.elementor-kit-2553 a:hover {
+    color: var(--e-global-color-text);
+}
+
+/* Títulos */
+h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
 }
 
 #content .tituloPagina {
     margin-top: 5rem;
 }
 
+/* Seleção de texto */
 ::selection {
     background-color: var(--ucpa-color-white);
     color           : var(--ucpa-color-accent);
@@ -233,43 +183,23 @@ a[href*="mailto"]:hover {
     }
 }
 
-body {
-    overflow-x: hidden;
-    position  : relative
+/* Estilo para label Elementor */
+html body.elementor-kit-2553 label {
+    color: var(--ucpa-color-main, #000);
 }
 
-/* html body main a:not(:has(span)) { color: var(--ucpa-color-links) !important; text-decoration: none; }
-html body main a:not(:has(span)):hover { color: var(--ucpa-color-links) !important; }
-html body.elementor-kit-2553 #content a:not(:has(span)):hover {
-    font-weight: 800 !important;
-    text-shadow: 0.6px 0 0.5px color-mix(in lab, currentColor 60%, transparent 40%),
-    -0.6px 0 0.5px color-mix(in lab, currentColor 60%, transparent 40%);
-} */
-
-.elementor-kit-2553 a:hover {
-    color: var(--e-global-color-text);
+/* Estilo para figcaption */
+figcaption {
+    text-align: center;
+    color     : var(--e-global-color-text)
 }
 
-/* Correção de diagramação */
-.caixa_2_linhas {
-    height        : 4rem;
-    vertical-align: bottom;
-    display       : flex;
-    align-items   : end
+/* Outline global */
+* {
+    outline-color: var(--e-global-color-accent);
 }
 
-
-/* # 3. botão do cookie consent */
-#cn-accept-cookie {
-    background: var(--ucpa-color-accent) !important;
-    color     : var(--ucpa-color-white) !important;
-}
-
-
-
-
-/* # 4. Scroll and scrollbar */
-
+/* Scrollbar */
 ::-webkit-scrollbar {
     width    : 7px;
     transform: width 1s ease;
@@ -289,479 +219,60 @@ html body.elementor-kit-2553 #content a:not(:has(span)):hover {
     background: var(--ucpa-color-accent);
 }
 
-* {
-    outline-color: var(--e-global-color-accent);
+/* ==========================================================================
+   3. Estilos Específicos de Plugins / Componentes
+   ========================================================================== */
+
+/* --- 3.1 The Events Calendar --- */
+
+/* Estilo para categorias dos eventos */
+.event-category {
+    background-color: #f8f9fa;
+    color           : #495057;
+    padding         : 4px 8px;
+    border-radius   : 3px;
+    font-size       : 12px;
+    font-weight     : 500;
+    margin-bottom   : 8px;
+    display         : inline-block;
+    border          : 1px solid #dee2e6;
 }
 
-/* .hovered_slide {
-	width: 1900px!important;
-	transition: 0.3s ease-in-out;
-}
-.sibling {
-	width: 0!important;
-} */
-
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    text-wrap: balance;
+/* Estilo específico para editais */
+.event-edital .event-category {
+    background-color: #fff3cd;
+    color           : #856404;
+    border-color    : #ffeaa7;
 }
 
+.event-edital .tribe-events-calendar-list__event-datetime,
+.event-edital .tribe-events-calendar-month__calendar-event-tooltip-datetime {
+    color      : #856404;
+    font-weight: 600;
+}
+
+/* Estilo para múltiplas categorias */
+.event-category + .event-category {
+    margin-left: 4px;
+}
+
+/* Responsividade para categorias */
 @media (max-width: 768px) {
-
-    /* corrige movimentação eixo x em mobile */
-    html,
-    body {
-        overflow-x: hidden;
+    .event-category {
+        font-size: 11px;
+        padding  : 3px 6px;
     }
 }
 
-/* rolagem suave */
-@media (prefers-reduced-motion: no-preference) {
-    :has(:target) {
-        scroll-behavior   : smooth;
-        scroll-padding-top: 3rem;
-    }
-
-    html {
-        scroll-behavior: smooth;
-    }
+/* Garantir visibilidade das categorias */
+.tec-events-calendar-list__event-categories,
+.event-category {
+    display   : block !important;
+    visibility: visible !important;
+    opacity   : 1 !important;
 }
 
-
-html .elementor-26826 .elementor-element.elementor-element-9ca8c23 .jet-search-filter__input {
-    border-width: var(--border-width, 0);
-    border-color: var(--border-color, transparent);
-    border-style: var(--border-style, solid);
-}
-
-
-/* # 5. Single Pages e Listings */
-
-/* Single de Estudos */
-@media (min-width: 1140px) {
-    .listing_container_thumb_bg * {
-        object-position: top;
-    }
-}
-
-@media (max-width: 1024px) {
-    .listing_container_thumb_bg {
-        background-color: var(--e-global-color-text)
-    }
-}
-
-@media (max-width: 767px) {
-    .listing_container_thumb_bg {
-        background-color: var(--e-global-color-text)
-    }
-}
-
-/* CSS destaque estudo "100-primeiros-dias-de-governo" */
-.listing_destaque .jet-listing-grid__item {
-    order: 1;
-}
-
-.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) {
-    order: 1;
-}
-
-.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .e-con-inner {
-    background   : var(--ucpa-color-3);
-    border-radius: 1px;
-    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-3);
-}
-
-.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a>.e-con-inner::before {
-    content       : "Em destaque";
-    position      : absolute;
-    top           : -1.6rem;
-    left          : 50%;
-    transform     : translateX(-50%);
-    background    : var(--ucpa-color-3);
-    padding       : 2px 6px;
-    border-radius : 5px;
-    font-size     : 12px;
-    font-weight   : bold;
-    text-transform: uppercase;
-    color         : #000000;
-}
-
-/* Fim CSS destaque estudo "100-primeiros-dias-de-governo" */
-
-/* # 6. Novos estilos para #wpadminbar */
-
-html #wpadminbar {
-    z-index: 99999999999;
-}
-
-/* * Itens completamente ocultados */
-#wp-admin-bar-elementor_notes,
-#wp-admin-bar-new-content .ab-label,
-#wp-admin-bar-gform-forms,
-#wp-admin-bar-elementor_edit_page>a>.elementor-edit-link-title,
-#wp-admin-bar-elementor_edit_page>div.ab-item>.elementor-edit-link-title,
-#wp-admin-bar-tribe-events {
-    display: none;
-}
-
-/* Itens com font-size 0 para ocultar texto e deixar ícones */
-li#wp-admin-bar-jet_plugins .ab-item,
-li#wp-admin-bar-tribe-events .ab-item,
-li#wp-admin-bar-customize .ab-item,
-#wp-admin-bar-my-account a.ab-item,
-#wp-admin-bar-site-name>a,
-#wp-admin-bar-edit a {
-    font-size: 0;
-}
-
-/* * Título da página com font-size 0.8em */
-#wp-admin-bar-site-name>a {
-    font-size     : 0.8em;
-    letter-spacing: -1px;
-    line-height   : 32px;
-}
-
-
-
-/* Emoji de foghete para WP Rocket */
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a {
-    font-size: 0;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a::before {
-    content    : "WP";
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    font-size  : 0.8rem;
-    line-height: 25px;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a::after {
-    content    : "?";
-    font-size  : 1rem;
-    line-height: 32px;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .ab-sub-wrapper {
-    position: relative;
-    display : block;
-}
-
-#wpadminbar .menupop li.hover>.ab-sub-wrapper,
-#wpadminbar .menupop li:hover>.ab-sub-wrapper {
-    margin-left: 0 !important;
-    margin-top : 0 !important;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket img {
-    max-width: 18px;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default {
-    background   : gray;
-    margin       : 0.3rem 0.6rem;
-    border-radius: 1rem;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all>.ab-tem::after {
-    content: ":";
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default a:hover {
-    color: black;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .wp-admin-bar-arrow {
-    display: none;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush {
-    background   : gray;
-    margin       : 0.3rem 0.6rem;
-    border-radius: 1rem;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush a:hover {
-    color: black;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a,
-#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item,
-#wpadminbar #wp-toolbar #wp-admin-bar-elementor_inspector div.ab-item {
-    max-width: 80px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item {
-    max-width: 50px;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a {
-    max-width: 50px;
-}
-
-
-/* Colocar cursor Pointer em tudo */
-#wpadminbar #wp-toolbar,
-#wpadminbar #wp-toolbar .ab-item {
-    cursor: pointer !important;
-}
-
-
-
-
-/* * Tornar especial o botão e menu do Elementor */
-#wpadminbar #wp-admin-bar-elementor_edit_page>.ab-item::before {
-    content    : "\e813";
-    font-family: eicons;
-    top        : 3.5px;
-    font-size  : 18px;
-    color      : #ad0b0b !important;
-    scale      : 1.5;
-}
-
-#wpadminbar #wp-admin-bar-elementor_edit_page>.ab-item::after {
-    content    : "✨";
-    font-size  : 31px;
-    line-height: 1;
-}
-
-#wpadminbar #wp-admin-bar-elementor_edit_page {
-    padding-inline: 0 !important;
-}
-
-#wpadminbar .elementor-edit-link-type {
-    color: white !important;
-}
-
-.elementor-general-section a span::after {
-    content: unset;
-    display: none;
-}
-
-#wp-admin-bar-elementor_edit_page .ab-submenu .ab-item {
-    width: 100%;
-}
-
-#wp-admin-bar-elementor_edit_page .ab-sub-wrapper {
-    width                     : 360px;
-    transform                 : translateX(-50%);
-    padding                   : 0 1rem 1rem !important;
-    border-bottom-left-radius : 1.2rem;
-    border-bottom-right-radius: 1.2rem;
-}
-
-#wp-admin-bar-elementor_edit_page .ab-sub-wrapper a {
-    background-color: transparent !important;
-    align-items     : center;
-}
-
-#wp-admin-bar-elementor_edit_page li a:hover {
-    color: #ad0f0c !important;
-}
-
-#wp-admin-bar-elementor_edit_page span.elementor-edit-link-type {
-    margin     : 0 1rem 0 0;
-    line-height: 1;
-    height     : 1em;
-}
-
-li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
-    content            : "✨ Seções do Elementor ✨";
-    color              : #c00;
-    font-weight        : bold;
-    font-size          : 1.1rem;
-    margin-inline-start: 4.5rem;
-}
-
-#wp-admin-bar-elementor_edit_page .ab-sub-wrapper ul {
-    padding-top: 0 !important;
-}
-
-
-/* Deixar o botão do Elementor no centro da página */
-
-#wpadminbar #wp-toolbar {
-    display: flex;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-root-default {
-    flex   : 1;
-    display: flex;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-top-secondary {
-    margin-inline: auto 0;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-edit {
-    margin-inline-end: auto;
-}
-
-#wp-admin-bar-elementor_edit_page {
-    margin-inline: auto;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page~* {
-    margin-inline: 0;
-}
-
-#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page+* {
-    margin-inline-start: auto;
-}
-
-
-@media screen and (max-width: 990px) {
-    #wp-admin-bar-site-name {
-        font-size : 1em;
-        max-width : 4rem !important;
-        background: green !important;
-
-    }
-
-    #wp-admin-bar-site-name a {
-        text-overflow: ellipsis !important;
-        white-space  : nowrap;
-        overflow     : hidden;
-    }
-
-    #wp-admin-bar-redis-cache {
-        width: 5rem;
-
-    }
-
-    #wpadminbar #wp-admin-bar-redis-cache .ab-item {
-        word-break : break-word;
-        line-height: 1;
-        font-size  : 10px;
-        text-align : center;
-        display    : flex;
-        align-items: center;
-    }
-}
-
-
-
-li#wp-admin-bar-translate a {
-    font-size: 0;
-}
-
-li#wp-admin-bar-translate a::after {
-    content  : "? ?";
-    font-size: 0.9rem;
-}
-
-#wpadminbar ul#wp-admin-bar-root-default>li a {
-    padding-inline-start: 16px;
-}
-
-
-
-/* # 7. Home: Banner */
-
-.divider_banner {
-    padding: 0.3rem 0rem 0rem 0rem
-}
-
-.img_banner img {
-    height         : 600px;
-    object-fit     : cover;
-    object-position: center center;
-}
-
-@media (max-width: 1024px) {
-    .img_banner img {
-        object-fit     : cover;
-        object-position: center center;
-    }
-}
-
-@media (max-width: 767px) {
-    .img_banner img {
-        height         : 250px;
-        object-fit     : cover;
-        object-position: center center;
-    }
-}
-
-/* HOME: Pendulo */
-
-.pendulo svg path {
-    fill: var(--e-global-color-96a86ed, #DAF58A);
-}
-
-.pendulo {
-    -webkit-animation-name: pendulo;
-    -webkit-animation     : rotating 14s ease-in-out infinite;
-    -moz-animation        : rotating 20s ease-in-out infinite;
-    -moz-animation-name   : pendulo;
-    -ms-animation         : rotating 20s ease-in-out infinite;
-    -ms-animation-name    : pendulo;
-    -o-animation          : rotating 20s ease-in-out infinite;
-    -o-animation-name     : pendulo;
-    animation             : rotating 20s ease-in-out infinite;
-    animation-name        : pendulo;
-}
-
-@keyframes pendulo {
-    0% {
-        -ms-transform    : rotate(0deg);
-        -moz-transform   : rotate(0deg);
-        -webkit-transform: rotate(0deg);
-        -o-transform     : rotate(0deg);
-        transform        : rotate(0deg);
-        transform        : translate3d(0px, 10px, 0px);
-
-    }
-
-    50% {
-        -ms-transform    : rotate(-20deg);
-        -moz-transform   : rotate(-20deg);
-        -webkit-transform: rotate(-20deg);
-        -o-transform     : rotate(-20deg);
-        transform        : rotate(-20deg);
-    }
-
-    100% {
-        -ms-transform    : rotate(30deg);
-        -moz-transform   : rotate(30deg);
-        -webkit-transform: rotate(30deg);
-        -o-transform     : rotate(30deg);
-        transform        : rotate(30deg);
-        transform        : translate3d(0px, 10px, 0px);
-    }
-}
-
-
-
-
-/* 8. Dynamic Links */
-
-/* usado em listing noticias */
-.botao_dynamic_link a {
-    display        : flex;
-    justify-content: space-around;
-    flex-direction : row;
-}
-
-
-
-/* 9. Tribe Events Calendar */
-.tribe-common.tribe-events .tribe-events-c-top-bar__datepicker-button-icon-svg {
-    margin-top: 7px
-}
-
-
-.tribe-events-c-top-bar__datepicker-mobile {
-    color: var(--e-global-color-secondary)
-}
-
+/* Estilos gerais do The Events Calendar */
 .tribe-events {
     font-family: var(--e-global-typography-primary-font-family)
 }
@@ -769,20 +280,6 @@ li#wp-admin-bar-translate a::after {
 .tribe-events .tribe-events-c-breadcrumbs__list-item-link,
 .tribe-events .tribe-events-c-breadcrumbs__list-item {
     color: var(--e-global-color-secondary);
-}
-
-.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-view-selector--tabs .tribe-events-c-view-selector__content {
-    display: none;
-}
-
-svg.tribe-common-c-svgicon.tribe-common-c-svgicon--caret-right.tribe-events-c-breadcrumbs__list-item-icon-svg {
-    fill   : var(--e-global-color-accent) !important;
-    padding: px;
-    margin : 10px;
-}
-
-.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-search__input-control-icon-svg {
-    display: none
 }
 
 .tribe-events-c-breadcrumbs__list-item a {
@@ -804,14 +301,6 @@ svg.tribe-common-c-svgicon.tribe-common-c-svgicon--caret-right.tribe-events-c-br
     border-color: var(--e-global-color-accent);
 }
 
-/* Tribe Events Widget */
-
-/* elimina "Virtual Eventos" */
-
-.tribe-common-b2.tribe-common-b2--bold.tribe-events-virtual-virtual-event {
-    display: none;
-}
-
 .tribe-events-calendar-list * {
     color: var(--ucpa-color-text, #000) !important;
 }
@@ -819,56 +308,6 @@ svg.tribe-common-c-svgicon.tribe-common-c-svgicon--caret-right.tribe-events-c-br
 .tribe-events-calendar-list img.tribe-events-calendar-list__event-featured-image {
     height    : 230px;
     object-fit: cover;
-}
-
-html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button {
-    font-size: 0 !important;
-}
-
-html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button::before {
-    content  : "Encontrar eventos";
-    font-size: 1rem;
-}
-
-.tribe-events-c-top-bar__datepicker-time span {
-    color    : var(--ucpa-color-text) !important;
-    font-size: 1.6rem;
-}
-
-html[lang="pt-br"] .tribe-events-c-top-bar__datepicker-time span {
-    font-size: 0 !important;
-}
-
-html[lang="pt-br"] .tribe-events-c-top-bar__datepicker-time span::before {
-    content  : "Próximos";
-    font-size: 1.6rem;
-}
-
-html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"] {
-    font-size: 0 !important;
-}
-
-html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
-    content: "Hoje";
-}
-
-a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
-    color    : var(--ucpa-color-text);
-    font-size: 1rem;
-}
-
-button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium,
-button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path {
-    opacity: 0.3;
-    color  : black;
-    fill   : black !important;
-}
-
-/* Calendário e eventos */
-
-/* CSS instruso em Header Main Template para realizar bug fixes em calendario e eventos */
-.ectbe-evt-img {
-    max-width: 250px;
 }
 
 .tribe-events-c-events-bar__search-container {
@@ -880,48 +319,8 @@ button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path
 }
 
 .tribe-events-c-events-bar__search-form {
-    gap                : 1rem;
-    /* background-color: transparent !important; */
+    gap: 1rem;
 }
-
-.tribe-events-c-nav__prev-label {
-    font-size: 0;
-}
-
-.tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide {
-    font-size: 1rem;
-    color    : var(--e-global-color-text)
-}
-
-.tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide::after {
-    content  : " passados";
-    font-size: 1rem;
-}
-
-.tribe-events-c-nav__next-label {
-    font-size: 0;
-}
-
-.tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide {
-    font-size: 1rem;
-    color    : var(--e-global-color-text)
-}
-
-a.tribe-events-c-nav__prev.tribe-common-b2.tribe-common-b1--min-medium :hover {
-    color: var(--e-global-color-accent)
-}
-
-a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
-    color: var(--e-global-color-accent)
-}
-
-
-.tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide::after {
-    content  : " seguintes";
-    font-size: 1rem;
-}
-
-
 
 .tribe-common-c-btn {
     height     : 44px !important;
@@ -1001,7 +400,599 @@ body #epta-template.epta-template-1 .epta-share-area a:hover {
 }
 
 
-/* 10. Header Main Template - Single Artist */
+/* Estilos de Elementos Específicos do The Events Calendar */
+.tribe-common.tribe-events .tribe-events-c-top-bar__datepicker-button-icon-svg {
+    margin-top: 7px
+}
+
+.tribe-events-c-top-bar__datepicker-mobile {
+    color: var(--e-global-color-secondary)
+}
+
+.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-view-selector--tabs .tribe-events-c-view-selector__content {
+    display: none;
+}
+
+svg.tribe-common-c-svgicon.tribe-common-c-svgicon--caret-right.tribe-events-c-breadcrumbs__list-item-icon-svg {
+    fill   : var(--e-global-color-accent) !important;
+    padding: 0px; /* Corrigido de "px" para "0px" */
+    margin : 10px;
+}
+
+.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-search__input-control-icon-svg {
+    display: none
+}
+
+/* Remover "Virtual Eventos" */
+.tribe-common-b2.tribe-common-b2--bold.tribe-events-virtual-virtual-event {
+    display: none;
+}
+
+/* Customização de textos em PT-BR para The Events Calendar */
+html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button {
+    font-size: 0 !important;
+}
+
+html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button::before {
+    content  : "Encontrar eventos";
+    font-size: 1rem;
+}
+
+.tribe-events-c-top-bar__datepicker-time span {
+    color    : var(--ucpa-color-text) !important;
+    font-size: 1.6rem;
+}
+
+html[lang="pt-br"] .tribe-events-c-top-bar__datepicker-time span {
+    font-size: 0 !important;
+}
+
+html[lang="pt-br"] .tribe-events-c-top-bar__datepicker-time span::before {
+    content  : "Próximos";
+    font-size: 1.6rem;
+}
+
+html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"] {
+    font-size: 0 !important;
+}
+
+html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
+    content: "Hoje";
+}
+
+a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
+    color    : var(--ucpa-color-text);
+    font-size: 1rem;
+}
+
+button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium,
+button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path {
+    opacity: 0.3;
+    color  : black;
+    fill   : black !important;
+}
+
+/* Imagem de evento */
+.ectbe-evt-img {
+    max-width: 250px;
+}
+
+/* Navegação entre eventos (anterior/próximo) */
+.tribe-events-c-nav__prev-label {
+    font-size: 0;
+}
+
+.tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide {
+    font-size: 1rem;
+    color    : var(--e-global-color-text)
+}
+
+.tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide::after {
+    content  : " passados";
+    font-size: 1rem;
+}
+
+.tribe-events-c-nav__next-label {
+    font-size: 0;
+}
+
+.tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide {
+    font-size: 1rem;
+    color    : var(--e-global-color-text)
+}
+
+a.tribe-events-c-nav__prev.tribe-common-b2.tribe-common-b1--min-medium :hover {
+    color: var(--e-global-color-accent)
+}
+
+a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
+    color: var(--e-global-color-accent)
+}
+
+.tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide::after {
+    content  : " seguintes";
+    font-size: 1rem;
+}
+
+/* --- 3.2 WordPress Admin Bar (#wpadminbar) --- */
+html #wpadminbar {
+    z-index: 99999999999;
+}
+
+/* Itens completamente ocultados */
+#wp-admin-bar-elementor_notes,
+#wp-admin-bar-new-content .ab-label,
+#wp-admin-bar-gform-forms,
+#wp-admin-bar-elementor_edit_page>a>.elementor-edit-link-title,
+#wp-admin-bar-elementor_edit_page>div.ab-item>.elementor-edit-link-title,
+#wp-admin-bar-tribe-events {
+    display: none;
+}
+
+/* Itens com font-size 0 para ocultar texto e deixar ícones */
+li#wp-admin-bar-jet_plugins .ab-item,
+li#wp-admin-bar-tribe-events .ab-item,
+li#wp-admin-bar-customize .ab-item,
+#wp-admin-bar-my-account a.ab-item,
+#wp-admin-bar-site-name>a,
+#wp-admin-bar-edit a {
+    font-size: 0;
+}
+
+/* Título da página com font-size 0.8em */
+#wp-admin-bar-site-name>a {
+    font-size     : 0.8em;
+    letter-spacing: -1px;
+    line-height   : 32px;
+}
+
+/* Emoji de foguete para WP Rocket */
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a {
+    font-size: 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a::before {
+    content    : "WP";
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size  : 0.8rem;
+    line-height: 25px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket>a::after {
+    content    : "?";
+    font-size  : 1rem;
+    line-height: 32px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .ab-sub-wrapper {
+    position: relative;
+    display : block;
+}
+
+#wpadminbar .menupop li.hover>.ab-sub-wrapper,
+#wpadminbar .menupop li:hover>.ab-sub-wrapper {
+    margin-left: 0 !important;
+    margin-top : 0 !important;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket img {
+    max-width: 18px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default {
+    background   : gray;
+    margin       : 0.3rem 0.6rem;
+    border-radius: 1rem;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all>.ab-tem::after {
+    content: ":";
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default a:hover {
+    color: black;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .wp-admin-bar-arrow {
+    display: none;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush {
+    background   : gray;
+    margin       : 0.3rem 0.6rem;
+    border-radius: 1rem;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush a:hover {
+    color: black;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a,
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item,
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_inspector div.ab-item {
+    max-width   : 80px;
+    white-space : nowrap;
+    overflow    : hidden;
+    text-overflow: ellipsis;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item {
+    max-width: 50px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a {
+    max-width: 50px;
+}
+
+/* Cursor Pointer em tudo */
+#wpadminbar #wp-toolbar,
+#wpadminbar #wp-toolbar .ab-item {
+    cursor: pointer !important;
+}
+
+/* Botão e menu do Elementor */
+#wpadminbar #wp-admin-bar-elementor_edit_page>.ab-item::before {
+    content    : "\e813";
+    font-family: eicons;
+    top        : 3.5px;
+    font-size  : 18px;
+    color      : #ad0b0b !important;
+    scale      : 1.5;
+}
+
+#wpadminbar #wp-admin-bar-elementor_edit_page>.ab-item::after {
+    content    : "✨";
+    font-size  : 31px;
+    line-height: 1;
+}
+
+#wpadminbar #wp-admin-bar-elementor_edit_page {
+    padding-inline: 0 !important;
+}
+
+#wpadminbar .elementor-edit-link-type {
+    color: white !important;
+}
+
+.elementor-general-section a span::after {
+    content: unset;
+    display: none;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-submenu .ab-item {
+    width: 100%;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper {
+    width                     : 360px;
+    transform                 : translateX(-50%);
+    padding                   : 0 1rem 1rem !important;
+    border-bottom-left-radius : 1.2rem;
+    border-bottom-right-radius: 1.2rem;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper a {
+    background-color: transparent !important;
+    align-items     : center;
+}
+
+#wp-admin-bar-elementor_edit_page li a:hover {
+    color: #ad0f0c !important;
+}
+
+#wp-admin-bar-elementor_edit_page span.elementor-edit-link-type {
+    margin     : 0 1rem 0 0;
+    line-height: 1;
+    height     : 1em;
+}
+
+li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
+    content            : "✨ Seções do Elementor ✨";
+    color              : #c00;
+    font-weight        : bold;
+    font-size          : 1.1rem;
+    margin-inline-start: 4.5rem;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper ul {
+    padding-top: 0 !important;
+}
+
+/* Centralizar o botão do Elementor na página */
+#wpadminbar #wp-toolbar {
+    display: flex;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-root-default {
+    flex   : 1;
+    display: flex;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-top-secondary {
+    margin-inline: auto 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-edit {
+    margin-inline-end: auto;
+}
+
+#wp-admin-bar-elementor_edit_page {
+    margin-inline: auto;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page~* {
+    margin-inline: 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page+* {
+    margin-inline-start: auto;
+}
+
+/* Responsividade da barra de administração */
+@media screen and (max-width: 990px) {
+    #wp-admin-bar-site-name {
+        font-size : 1em;
+        max-width : 4rem !important;
+        background: green !important;
+    }
+
+    #wp-admin-bar-site-name a {
+        text-overflow: ellipsis !important;
+        white-space  : nowrap;
+        overflow     : hidden;
+    }
+
+    #wp-admin-bar-redis-cache {
+        width: 5rem;
+    }
+
+    #wpadminbar #wp-admin-bar-redis-cache .ab-item {
+        word-break : break-word;
+        line-height: 1;
+        font-size  : 10px;
+        text-align : center;
+        display    : flex;
+        align-items: center;
+    }
+}
+
+li#wp-admin-bar-translate a {
+    font-size: 0;
+}
+
+li#wp-admin-bar-translate a::after {
+    content  : "? ?";
+    font-size: 0.9rem;
+}
+
+#wpadminbar ul#wp-admin-bar-root-default>li a {
+    padding-inline-start: 16px;
+}
+
+/* --- 3.3 Cookie Consent Button --- */
+#cn-accept-cookie {
+    background: var(--ucpa-color-accent) !important;
+    color     : var(--ucpa-color-white) !important;
+}
+
+/* --- 3.4 Estilos Elementor / JetEngine --- */
+
+/* Input de pesquisa do JetEngine */
+html .elementor-26826 .elementor-element.elementor-element-9ca8c23 .jet-search-filter__input {
+    border-width: var(--border-width, 0);
+    border-color: var(--border-color, transparent);
+    border-style: var(--border-style, solid);
+}
+
+input.jet-search-filter__input {
+    border-radius: 0.6rem !important;
+    transition   : none !important;
+}
+
+input.jet-search-filter__input:focus-visible {
+	outline       : solid var(--ucpa-color-1) 2px;
+	outline-offset: 0;
+}
+
+html body.elementor-kit-2553.logged-in input,
+html body.elementor-kit-2553.logged-in .tribe-common input {
+    border-color : transparent;
+    border-radius: 10px;
+}
+
+
+/* Estilos para hover em Elementor/JetEngine */
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover {
+	background-color: var(--e-global-color-1de5509);
+	border-width    : 0 !important;
+}
+
+/* Estilo específico para select em hover (menu dropdown) */
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
+    border-width: 0 0 1px 0 !important;
+}
+
+/* Painel Hamburger (Pesquisa Ajax) */
+.jet-hamburger-panel__content[data-template-id="4360"] {
+    position: fixed;
+    inset   : 4rem !important;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav {
+    height  : 100%;
+    overflow: hidden;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template {
+    height    : 100%;
+    background: color-mix(in lab, var(--ucpa-color-6), transparent 6%);
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template::before {
+    /* opacity: 1; */
+    animation: giragiraespiralzinha 200s infinite;
+    display  : none;
+}
+
+@keyframes giragiraespiralzinha {
+    to {
+        rotate: 360deg;
+    }
+}
+
+.jet-hamburger-panel__inner {
+    background: unset !important;
+}
+
+/* Botões de filtro alfabético (em "Sobre Nós"?) */
+div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet-alphabet-list__button {
+	display     : grid;
+	height      : fit-content;
+	aspect-ratio: 1;
+	place-content: center;
+    padding     : 0;
+    font-size   : 0.8rem;
+}
+
+/* ==========================================================================
+   4. Estilos de Páginas / Seções Específicas
+   ========================================================================== */
+
+/* --- 4.1 Home Page --- */
+
+/* Banner */
+.divider_banner {
+    padding: 0.3rem 0rem 0rem 0rem
+}
+
+.img_banner img {
+    height         : 600px;
+    object-fit     : cover;
+    object-position: center center;
+}
+
+@media (max-width: 1024px) {
+    .img_banner img {
+        object-fit     : cover;
+        object-position: center center;
+    }
+}
+
+@media (max-width: 767px) {
+    .img_banner img {
+        height         : 250px;
+        object-fit     : cover;
+        object-position: center center;
+    }
+}
+
+/* Pêndulo */
+.pendulo svg path {
+    fill: var(--e-global-color-96a86ed, #DAF58A);
+}
+
+.pendulo {
+    -webkit-animation-name: pendulo;
+    -webkit-animation     : rotating 14s ease-in-out infinite;
+    -moz-animation        : rotating 20s ease-in-out infinite;
+    -moz-animation-name   : pendulo;
+    -ms-animation         : rotating 20s ease-in-out infinite;
+    -ms-animation-name    : pendulo;
+    -o-animation          : rotating 20s ease-in-out infinite;
+    -o-animation-name     : pendulo;
+    animation             : rotating 20s ease-in-out infinite;
+    animation-name        : pendulo;
+}
+
+@keyframes pendulo {
+    0% {
+        -ms-transform    : rotate(0deg);
+        -moz-transform   : rotate(0deg);
+        -webkit-transform: rotate(0deg);
+        -o-transform     : rotate(0deg);
+        transform        : rotate(0deg);
+        transform        : translate3d(0px, 10px, 0px);
+    }
+
+    50% {
+        -ms-transform    : rotate(-20deg);
+        -moz-transform   : rotate(-20deg);
+        -webkit-transform: rotate(-20deg);
+        -o-transform     : rotate(-20deg);
+        transform        : rotate(-20deg);
+    }
+
+    100% {
+        -ms-transform    : rotate(30deg);
+        -moz-transform   : rotate(30deg);
+        -webkit-transform: rotate(30deg);
+        -o-transform     : rotate(30deg);
+        transform        : rotate(30deg);
+        transform        : translate3d(0px, 10px, 0px);
+    }
+}
+
+/* --- 4.2 Páginas Simples e Listagens --- */
+
+/* Listagens de Estudos (Geral) */
+@media (min-width: 1140px) {
+    .listing_container_thumb_bg * {
+        object-position: top;
+    }
+}
+
+@media (max-width: 1024px) {
+    .listing_container_thumb_bg {
+        background-color: var(--e-global-color-text)
+    }
+}
+
+@media (max-width: 767px) {
+    .listing_container_thumb_bg {
+        background-color: var(--e-global-color-text)
+    }
+}
+
+/* Destaque para estudo "100-primeiros-dias-de-governo" */
+.listing_destaque .jet-listing-grid__item {
+    order: 1;
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) {
+    order: 1;
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .e-con-inner {
+    background   : var(--ucpa-color-3);
+    border-radius: 1px;
+    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-3);
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a>.e-con-inner::before {
+    content       : "Em destaque";
+    position      : absolute;
+    top           : -1.6rem;
+    left          : 50%;
+    transform     : translateX(-50%);
+    background    : var(--ucpa-color-3);
+    padding       : 2px 6px;
+    border-radius : 5px;
+    font-size     : 12px;
+    font-weight   : bold;
+    text-transform: uppercase;
+    color         : #000000;
+}
+
+/* --- 4.3 Links Dinâmicos --- */
+
+/* Usado em listagem de notícias */
+.botao_dynamic_link a {
+    display        : flex;
+    justify-content: space-around;
+    flex-direction : row;
+}
+
+/* --- 4.4 Header Main Template - Single Artist --- */
 
 .ucpa-highlight {
     background-color: color-mix(in lab, var(--ucpa-color-offwhite) 80%, var(--ucpa-color-main) 20%) !important;
@@ -1044,111 +1035,7 @@ body #epta-template.epta-template-1 .epta-share-area a:hover {
     color: var(--ucpa-color-text, #333);
 }
 
-/*reduzir a margem da legenda das fotos*/
+/* Reduzir a margem da legenda das fotos */
 .linha-das-artes-template-default figcaption {
 	margin-top: -40px
 }
-
-
-/* END OF css específico para página single-artist */
-
-
-
-/* Pesquisa Ajax */
-
-.jet-hamburger-panel__content[data-template-id="4360"] {
-    position: fixed;
-    inset   : 4rem !important;
-}
-
-.jet-hamburger-panel__content[data-template-id="4360"] nav {
-    height  : 100%;
-    overflow: hidden;
-}
-
-.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template {
-    height    : 100%;
-    background: color-mix(in lab, var(--ucpa-color-6), transparent 6%);
-}
-
-.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template::before {
-    /* opacity: 1; */
-    animation: giragiraespiralzinha 200s infinite;
-    display: none;
-}
-
-@keyframes giragiraespiralzinha {
-    to {
-        rotate: 360deg;
-    }
-}
-
-.jet-hamburger-panel__inner {
-    background: unset !important;
-}
-
-/* circulo jet-hamburger-panel__close-button.jet-blocks-icon */
-
-
-/* ?? */
-html body.elementor-kit-2553 label {
-    color: var(--ucpa-color-main, #000);
-}
-
-html body.elementor-kit-2553.logged-in input,
-html body.elementor-kit-2553.logged-in .tribe-common input {
-    border-color : transparent;
-    border-radius: 10px;
-}
-
-
-/* Evitar layout shift quando abrir modal de pesquisa */
-html {
-    scrollbar-gutter: stable;
-}
-
-/* all inputs */
-input.jet-search-filter__input {
-    border-radius: 0.6rem !important;
-    transition: none !important;
-}
-
-input.jet-search-filter__input:focus-visible {
-	outline: solid var(--ucpa-color-1) 2px;
-	outline-offset: 0;
-}
-
-html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover {
-	background-color: var(--e-global-color-1de5509);
-	border-width: 0 !important;
-}
-
-/* espiral de conhecimento, dropdown menu */
-html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
-    border-width: 0 0 1px 0 !important;
-}
-
-
-/* corrigir alinhamento botoes de letrinhas em sobre nós */
-/* div.jet-alphabet-list__row.jet-filter-row {
-    background: darkgreen;
-}
-div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item {
-    background: blue;
-} */
-div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet-alphabet-list__button {
-	display: grid;
-	height: fit-content;
-	aspect-ratio: 1;
-	place-content: center;
-    padding: 0;
-    font-size: 0.8rem;
-}
-
-/*corrigir subtítulos das fotos*/
-
-figcaption {
-	text-align:center;
-	color: var(--e-global-color-text)
-}
-
