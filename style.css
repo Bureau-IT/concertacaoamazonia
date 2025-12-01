@@ -1132,3 +1132,185 @@ li#wp-admin-bar-translate a::after {
 .linha-das-artes-template-default figcaption {
     margin-top: -40px;
 }
+
+
+/* ==========================================================================
+   9. HEADER & MENU
+   Migrado de: header.css
+   ========================================================================== */
+
+/* --- 9.1 Variáveis do Menu --- */
+@layer Dashboard {
+    :root {
+        --submenu-texto                  : var(--white);
+        --submenu-cultura-texto          : var(--main-color);
+        --submenu-block-size             : 85px;
+        --submenu-gap                    : 0rem;
+        --submenu-background             : var(--color-extra-3);
+        --submenu-cultura-background     : var(--accent-color);
+        --menu-mobile-background         : var(--main-color);
+        --menu-mobile-cultura-background : var(--accent-color);
+        --menu-mobile-cultura-text       : var(--main-color);
+        --menu-mobile-background-hover   : color-mix(in lab, var(--color-extra-3) 80%, black 20%);
+        --menu-mobile-background-text    : var(--white);
+    }
+}
+
+/* --- 9.2 Header Principal --- */
+#ucpaHeader.elementor-element {
+    background-color: var(--main-color);
+}
+
+/* --- 9.3 Desktop --- */
+@media screen and (min-width: 1024px) {
+
+    /* Estilos para o sub-menu */
+    #menuPrincipal nav>ul.elementor-nav-menu>li>ul.sub-menu {
+        display         : none !important;
+        position        : absolute !important;
+        width           : 100vw !important;
+        max-width       : 100vw !important;
+        top             : 85px !important;
+        left            : var(--left, -999999px) !important;
+        transform       : unset !important;
+        right           : 0 !important;
+        height          : var(--submenu-block-size, 80px) !important;
+        max-height      : var(--submenu-block-size, 80px) !important;
+        margin-left     : unset !important;
+        justify-content : center;
+        align-items     : center;
+        gap             : var(--submenu-gap, 1rem);
+        background-color: var(--submenu-background, #ccc) !important;
+        transition      : all 0, left var(--ucpa-transition-duration) var(--ucpa-transition-timing-function);
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu>li>ul.sub-menu::after {
+        content         : '';
+        position        : absolute;
+        inset           : 0 -100vw 0 -100vw;
+        background-color: var(--submenu-background);
+        z-index         : -1;
+    }
+
+    /* Seta para cima que liga visualmente o submenu ao seu elemento-pai */
+    #menuPrincipal nav>ul.elementor-nav-menu>li>ul.sub-menu::before {
+        --arrowSize     : 14px;
+        content         : "";
+        position        : absolute;
+        background-color: var(--submenu-background, #911);
+        block-size      : var(--arrowSize);
+        aspect-ratio    : 1;
+        top             : calc(var(--arrowSize) / 2 * -1);
+        left            : calc(calc(-1 * var(--left)) + calc(var(--liWidth) / 2) - calc(var(--arrowSize) / 2));
+        transform       : rotate(45deg);
+    }
+
+    /* Esconder seta */
+    #menuPrincipal nav>ul.elementor-nav-menu:has(.menu-item-has-children:hover)>li>ul.sub-menu::before {
+        content: unset;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu>li:hover>ul.sub-menu::before {
+        content: "" !important;
+    }
+
+    /* Ativar display flex para mostrar o sub-menu da página corrente e no hover do menu */
+    #menuPrincipal nav>ul.elementor-nav-menu>li.current_page_item>ul.sub-menu {
+        display: flex !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu>li.current-menu-parent>ul.sub-menu {
+        display: flex !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li [aria-expanded="true"]+ul.sub-menu {
+        display: flex !important;
+    }
+
+    /* Corrigir font-size de 16px para 1rem no submenu */
+    .elementor-39359 .elementor-element.elementor-element-27229d66 .elementor-nav-menu--dropdown .elementor-item,
+    .elementor-39359 .elementor-element.elementor-element-27229d66 .elementor-nav-menu--dropdown .elementor-sub-item {
+        font-size: 1rem !important;
+    }
+
+    :is(.home, .page-id-2) main#content {
+        z-index  : 1;
+        isolation: isolate;
+    }
+
+    /* Cores e efeito hover nos links do sub-menu */
+    #menuPrincipal nav>ul.elementor-nav-menu li:nth-child(4) ul.sub-menu a {
+        color              : var(--text, #fff);
+        transition-duration: 0 !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li:is(.current-page-ancestor, .current-menu-ancestor, .current-menu-parent, .current-menu-item, .current-page-parent, .current_page_parent, .current_page_ancestor)>a {
+        font-weight     : 800;
+        background-color: transparent !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li:not(.current-page-ancestor, .current-menu-ancestor, .current-menu-parent, .current-menu-item, .current-page-parent, .current_page_parent, .current_page_ancestor)>a:hover {
+        text-shadow: 0.6px 0 0.5px currentColor, -0.6px 0 0.5px currentColor;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li a {
+        transition   : none !important;
+        border       : 0;
+        border-radius: 100vh;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li a:focus {
+        background-color: transparent !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li>a:focus-visible {
+        outline       : 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+    /* Estilos para menu cultura */
+    #menuPrincipal nav>ul.elementor-nav-menu li:nth-child(4) ul.sub-menu {
+        --submenu-background: var(--submenu-cultura-background, #911);
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li:nth-child(4) ul.sub-menu svg path {
+        fill: var(--submenu-cultura-texto);
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li ul.sub-menu a {
+        color     : var(--white, #fff);
+        position  : relative;
+        transition: none;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li.highlightCultura ul.sub-menu a {
+        color: var(--submenu-cultura-texto, #000)
+    }
+
+    .sub-arrow {
+        display: none !important;
+    }
+}
+
+/* --- 9.4 Mobile / Tablet --- */
+#menuPrincipal nav.elementor-nav-menu--dropdown {
+    top: 19px !important;
+}
+
+#menuPrincipal nav.elementor-nav-menu--dropdown {
+    background-color: var(--menu-mobile-background) !important;
+}
+
+#menuPrincipal nav.elementor-nav-menu--dropdown > ul#menu-2-27229d66.elementor-nav-menu > li.menu-item > a + ul.sub-menu {
+    background-color: var(--submenu-background) !important;
+    margin          : 0 0.5rem !important;
+    border-radius   : 0.5rem;
+}
+
+.elementor-nav-menu .elementor-nav-menu--dropdown ul li a:hover,
+.elementor-nav-menu--dropdown ul li a:focus {
+    background: var(--menu-mobile-background-hover) !important;
+    color     : var(--menu-mobile-background-text, #009) !important;
+    outline   : none !important;
+    border    : 0 !important;
+}
