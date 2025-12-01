@@ -1,0 +1,57 @@
+/*
+ * bureau-it.com
+ * Created with ColorSlurp
+ */
+:root, .bureau-it-com {
+    --shark: #1b1d1e;
+    --river-bed: #465457;
+    --oslo-gray: #7e8e91;
+    --spring-wood: #f8f8f2;
+    --rob-roy: #e7dd6d;
+    --radical-red: #fb1f70;
+    --pear: #a6e22e;
+    --california: #ff9800;
+    --spray: #66d9ef;
+    --heliotrope: #ae7dff;
+    --white: #ffffff;
+}
+
+@supports (color: color(display-p3 1 1 1)) {
+    :root, .bureau-it-com {
+        --shark: color(display-p3 0.106 0.114 0.118 / 1.0);
+        --river-bed: color(display-p3 0.275 0.329 0.341 / 1.0);
+        --oslo-gray: color(display-p3 0.494 0.557 0.569 / 1.0);
+        --spring-wood: color(display-p3 0.973 0.973 0.949 / 1.0);
+        --rob-roy: color(display-p3 0.905 0.865 0.428 / 1.0);
+        --radical-red: color(display-p3 0.986 0.12 0.439 / 1.0);
+        --pear: color(display-p3 0.651 0.886 0.18 / 1.0);
+        --california: color(display-p3 1.0 0.596 0.0 / 1.0);
+        --spray: color(display-p3 0.4 0.851 0.937 / 1.0);
+        --heliotrope: color(display-p3 0.684 0.49 1.0 / 1.0);
+        --white: color(display-p3 1.0 1.0 1.0 / 1.0);
+    }
+}
+/* Estiliza os títulos das páginas de administração */
+.wrap h1 {
+    color: var(--radical-red)
+}
+
+
+.admin-menu-title *{
+        background: var(--river-bed);
+}
+.admin-menu-1 *{
+        border-left: solid 2px var(--radical-red);
+}
+.admin-menu-2 *{
+        border-left: solid 2px var(--california);
+}
+.admin-menu-3 *{
+        border-left: solid 2px var(--pear);
+}
+.admin-menu-4 *{
+        border-left: solid 2px var(--river-bed);
+}
+.admin-menu-5 *{
+        border-left: solid 2px var(--heliotrope);
+}
