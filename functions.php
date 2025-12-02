@@ -82,3 +82,33 @@ add_filter('tec_events_get_date_time_separator', function($separator) {
     return (strpos($separator, '#') !== false) ? ' @ ' : $separator;
 });
 
+/**
+ * ============================================================================
+ * ELEMENTOR PRO BUG FIX: SVG Links
+ * ============================================================================
+ *
+ * Fix para bug do Elementor Pro 3.33.x onde o módulo Off-Canvas falha ao
+ * processar links dentro de elementos SVG. O erro ocorre porque links SVG
+ * retornam SVGAnimatedString (objeto) ao invés de string para a propriedade
+ * .href, e o Elementor tenta chamar .includes() que não existe nesse objeto.
+ *
+ * Este fix adiciona o método .includes() ao prototype de SVGAnimatedString.
+ *
+ * @since 1.4.1
+ * @see https://github.com/elementor/elementor/issues/XXXXX
+ */
+add_action('wp_head', 'bureau_it_fix_elementor_svg_links', 1);
+function bureau_it_fix_elementor_svg_links() {
+    ?>
+    <script>
+    // Fix: Elementor Pro Off-Canvas + SVG links compatibility
+    // SVGAnimatedString doesn't have .includes(), causing TypeError
+    if (typeof SVGAnimatedString !== 'undefined' && !SVGAnimatedString.prototype.includes) {
+        SVGAnimatedString.prototype.includes = function(searchString) {
+            return this.baseVal.includes(searchString);
+        };
+    }
+    </script>
+    <?php
+}
+

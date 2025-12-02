@@ -199,6 +199,21 @@ Template: hello-elementor
     --ucpa-color-header-bg-submenu-cultura: var(--header-background-submenu-cultura);
 
     /* =========================================
+       CORES LEGADO (paletas anteriores)
+       Necessárias para compatibilidade com
+       estilos que referenciam cores antigas
+       ========================================= */
+    --ucpa-color-sage: #D1D591;  /* usado em destaque de estudos */
+
+    /* Paleta PV Dias (virada 2025-09-01) */
+    --plum-shadow    : #660044;
+    --crimson-orchid : #900042;
+    --magenta-bloom  : #c02975;
+    --amber-glow     : #f0c400;
+    --stone-sand     : #deddd1;
+    --sage-mist      : #d1d591;
+
+    /* =========================================
        TRANSIÇÕES E ASSETS
        ========================================= */
     --ucpa-transition-timing-function: cubic-bezier(1.000, -0.125, 0.310, 1.460);
@@ -1158,7 +1173,7 @@ li#wp-admin-bar-translate a::after {
 
 /* --- 9.2 Header Principal --- */
 #ucpaHeader.elementor-element {
-    background-color: var(--main-color);
+    background-color: var(--header-background);
 }
 
 /* --- 9.3 Desktop --- */
