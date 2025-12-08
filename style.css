@@ -199,19 +199,18 @@ Template: hello-elementor
     --ucpa-color-header-bg-submenu-cultura: var(--header-background-submenu-cultura);
 
     /* =========================================
-       CORES LEGADO (paletas anteriores)
-       Necessárias para compatibilidade com
-       estilos que referenciam cores antigas
+       ALIASES LEGADO (compatibilidade)
+       Apontam para Global Colors via variaveis
        ========================================= */
-    --ucpa-color-sage: #D1D591;  /* usado em destaque de estudos */
+    --ucpa-color-sage: var(--color-extra-2);  /* Color Extra 2 - usado em destaque de estudos */
 
-    /* Paleta PV Dias (virada 2025-09-01) */
-    --plum-shadow    : #660044;
-    --crimson-orchid : #900042;
-    --magenta-bloom  : #c02975;
-    --amber-glow     : #f0c400;
-    --stone-sand     : #deddd1;
-    --sage-mist      : #d1d591;
+    /* Aliases de paleta - apontam para Global Colors */
+    --plum-shadow    : var(--color-extra-3);       /* Color Extra 3 */
+    --crimson-orchid : var(--main-color);          /* Primary */
+    --magenta-bloom  : var(--background-invertido);/* Background invertido */
+    --amber-glow     : var(--accent-color);        /* Accent */
+    --stone-sand     : var(--offwhite);            /* Secondary */
+    --sage-mist      : var(--color-extra-2);       /* Color Extra 2 */
 
     /* =========================================
        TRANSIÇÕES E ASSETS
@@ -240,8 +239,8 @@ html {
     }
 }
 
-body {
-    background-color: var(--ucpa-color-offwhite) !important;
+html body.elementor-default {
+    background-color: var(--ucpa-color-offwhite);
     overflow-x      : hidden;
     position        : relative;
 }
@@ -271,8 +270,8 @@ figcaption {
 }
 
 /* --- 2.3 Links --- */
-a[href*="mailto"]:hover {
-    color: currentColor !important;
+html body a[href*="mailto"]:hover {
+    color: currentColor;
 }
 
 .elementor-kit-2553 a:hover {
@@ -632,9 +631,9 @@ html .elementor-26826 .elementor-element.elementor-element-9ca8c23 .jet-search-f
     border-style: var(--border-style, solid);
 }
 
-input.jet-search-filter__input {
-    border-radius: 0.6rem !important;
-    transition   : none !important;
+html body input.jet-search-filter__input {
+    border-radius: 0.6rem;
+    transition   : none;
 }
 
 input.jet-search-filter__input:focus-visible {
@@ -685,8 +684,8 @@ html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
     }
 }
 
-.jet-hamburger-panel__inner {
-    background: unset !important;
+html body .jet-hamburger-panel__inner {
+    background: unset;
 }
 
 /* --- 5.4 Filtro Alfabético --- */
@@ -915,6 +914,11 @@ li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
 #wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page + * {
     margin-inline-start: auto;
 }
+/* --- Interface interna de Configurações do Elementor --- */
+.elementor-control-type-global-style-repeater .elementor-control-title input {
+    max-width: 100%;
+}
+
 
 /* --- 6.7 Responsividade Admin Bar --- */
 @media screen and (max-width: 990px) {
@@ -964,9 +968,11 @@ li#wp-admin-bar-translate a::after {
    ========================================================================== */
 
 /* --- 7.1 Cookie Consent --- */
-#cn-accept-cookie {
-    background: var(--ucpa-color-accent) !important;
-    color     : var(--ucpa-color-white) !important;
+/* Seletor específico para sobrescrever plugin sem !important */
+html body #cn-accept-cookie,
+.cookie-notice-container #cn-accept-cookie {
+    background: var(--ucpa-color-accent);
+    color     : var(--ucpa-color-white);
 }
 
 
@@ -1103,8 +1109,8 @@ li#wp-admin-bar-translate a::after {
 }
 
 /* --- 8.6 Single Artist (Linha das Artes) --- */
-.ucpa-highlight {
-    background-color: color-mix(in lab, var(--ucpa-color-offwhite) 80%, var(--ucpa-color-main) 20%) !important;
+html body .ucpa-highlight {
+    background-color: color-mix(in lab, var(--ucpa-color-offwhite) 80%, var(--ucpa-color-main) 20%);
 }
 
 .ucpa-highlight .is-vertically-aligned-center .wp-block-image {
@@ -1155,20 +1161,19 @@ li#wp-admin-bar-translate a::after {
    ========================================================================== */
 
 /* --- 9.1 Variáveis do Menu --- */
-@layer Dashboard {
-    :root {
-        --submenu-texto                  : var(--white);
-        --submenu-cultura-texto          : var(--main-color);
-        --submenu-block-size             : 85px;
-        --submenu-gap                    : 0rem;
-        --submenu-background             : var(--color-extra-3);
-        --submenu-cultura-background     : var(--accent-color);
-        --menu-mobile-background         : var(--main-color);
-        --menu-mobile-cultura-background : var(--accent-color);
-        --menu-mobile-cultura-text       : var(--main-color);
-        --menu-mobile-background-hover   : color-mix(in lab, var(--color-extra-3) 80%, black 20%);
-        --menu-mobile-background-text    : var(--white);
-    }
+/* NOTA: Variáveis movidas para fora do @layer para garantir precedência correta */
+:root {
+    --submenu-texto                  : var(--white, #FFFFFF);
+    --submenu-cultura-texto          : var(--main-color, #900042);
+    --submenu-block-size             : 85px;
+    --submenu-gap                    : 0rem;
+    --submenu-background             : var(--header-background-submenu, #900042);
+    --submenu-cultura-background     : var(--header-background-submenu-cultura, #F0C400);
+    --menu-mobile-background         : var(--main-color, #900042);
+    --menu-mobile-cultura-background : var(--header-background-submenu-cultura, #F0C400);
+    --menu-mobile-cultura-text       : var(--main-color, #900042);
+    --menu-mobile-background-hover   : color-mix(in lab, var(--header-background-submenu, #900042) 80%, black 20%);
+    --menu-mobile-background-text    : var(--white, #FFFFFF);
 }
 
 /* --- 9.2 Header Principal --- */
