@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Tema filho do Hello Elementor com customizações para The Events Calendar
 Author: Daniel Cambría + Warp AI
-Version: 1.1
+Version: 1.2
 Template: hello-elementor
 */
 
@@ -10,15 +10,18 @@ Template: hello-elementor
 
 
 /* ==========================================================================
-   1. ELEMENTOR GLOBAL COLORS
+   1. ELEMENTOR GLOBAL COLORS - Remapeadas para o contexto do Kit
    Sincronizado com: Elementor Kit ID 2553
-   Última atualização: 2025-12-01
+   Última atualização: 2025-12-12
 
    As cores são definidas em: Elementor > Site Settings > Global Colors
    Os nomes das variáveis correspondem aos títulos definidos no painel.
+
+   IMPORTANTE: Usamos .elementor-kit-2553 em vez de :root porque as variáveis
+   --e-global-color-* só existem nesse contexto (body tem essa classe).
    ========================================================================== */
 
-:root {
+.elementor-kit-2553 {
     /* =========================================
        SYSTEM COLORS (Elementor Default)
        ========================================= */
@@ -220,7 +223,7 @@ Template: hello-elementor
     --ucpa-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' style='width:100px;height:auto;fill:%237c6451' viewBox='0 0 12.7 12.93'%3E%3Cpath d='M5.5 11.01c-3.03 0-5.5-2.47-5.5-5.5C0 2.47 2.47 0 5.51 0c3.04 0 5.51 2.47 5.51 5.51 0 3.04-2.47 5.5-5.51 5.5ZM5.5.58C2.79.58.58 2.79.58 5.51c0 2.71 2.21 4.92 4.92 4.92s4.93-2.21 4.93-4.92C10.43 2.79 8.22.59 5.5.59Z' class='cls-1'/%3E%3Cpath d='M12.41 12.93c-.07 0-.15-.03-.21-.09L8.96 9.6c-.11-.11-.11-.3 0-.41.11-.11.3-.11.41 0l3.24 3.24c.11.11.11.3 0 .41-.06.06-.13.09-.21.09Z' /%3E%3C/svg%3E");
 
     /* Ícone de download (seta para baixo em círculo) */
-    --ucpa-icon-download: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M11,0C4.92,0,0,4.92,0,11s4.92,11,11,11,11-4.92,11-11S17.08,0,11,0Zm.13,8.42h3.5l-1.75,3.03-1.75,3.03-1.75-3.03-1.75-3.03h3.5Z'/%3E%3C/svg%3E");
+    --ucpa-icon-download: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cg%3E%3Cpath d='M11,0C4.92,0,0,4.92,0,11s4.92,11,11,11,11-4.92,11-11S17.08,0,11,0Zm.13,8.42h3.5l-1.75,3.03-1.75,3.03-1.75-3.03-1.75-3.03h3.5Z' /%3E%3C/g%3E%3C/svg%3E");
 }
 
 
@@ -1408,8 +1411,8 @@ html body .ucpa-highlight {
 
 /* ==========================================================================
    11. COMPONENTES - DROPDOWN BUTTON (Publicações)
-   Replica o visual do JetElements Button usado no site
-   Usa variáveis Global Colors do Elementor (seção 1)
+   Usa variáveis de botão do tema: --btn-normal-* e --btn-normal-*-hv
+   Especificidade aumentada via .dropdown-btn-container para vencer Elementor Kit
    ========================================================================== */
 
 /* --- 11.1 Container --- */
@@ -1423,100 +1426,100 @@ html body .ucpa-highlight {
     display : inline-block;
 }
 
-/* --- 11.2 Botão Toggle (replica .jet-button__instance) --- */
-.dropdown-btn-toggle {
+/* --- 11.2 Botão Toggle --- */
+/* Especificidade (0,2,1) > .elementor-kit-2553 button (0,1,1) */
+.dropdown-btn-container button.dropdown-btn-toggle {
     position        : relative;
     display         : block;
+    width           : 220px;
+    margin          : 0 auto;
+    padding         : 15px 25px;
     border          : 2px solid var(--btn-normal-bdr);
     border-radius   : 4px;
-    background-color: transparent;
-    cursor          : pointer;
-    overflow        : hidden;
-    transition      : 0.3s cubic-bezier(0.5, 0.12, 0.46, 0.88);
-}
-
-/* Plane de fundo (normal) */
-.dropdown-btn-toggle::before {
-    content         : '';
-    position        : absolute;
-    inset           : 0;
     background-color: var(--btn-normal-bg);
-    z-index         : 0;
-    transition      : opacity 0.3s cubic-bezier(0.5, 0.12, 0.46, 0.88);
+    color           : var(--btn-normal-txt);
+    font-family     : var(--e-global-typography-text-font-family), sans-serif;
+    font-size       : 16px;
+    font-weight     : 600;
+    text-transform  : uppercase;
+    cursor          : pointer;
+    outline         : none;
+    transition      : background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Plane de fundo (hover) */
-.dropdown-btn-toggle::after {
-    content         : '';
-    position        : absolute;
-    inset           : 0;
+/* Hover state */
+.dropdown-btn-container:hover button.dropdown-btn-toggle {
     background-color: var(--btn-normal-bg-hv);
-    z-index         : 0;
-    opacity         : 0;
-    transition      : opacity 0.3s cubic-bezier(0.5, 0.12, 0.46, 0.88);
+    border-color    : var(--btn-normal-border-hv);
+    border-radius   : 4px 4px 0 0;
+    color           : var(--btn-normal-txt-hv);
 }
 
-.dropdown-btn-toggle:hover::before {
-    opacity: 0;
+/* Focus state SEM hover */
+.dropdown-btn-container button.dropdown-btn-toggle:focus,
+.dropdown-btn-container button.dropdown-btn-toggle:focus-visible {
+    outline         : none;
+    border-color    : var(--btn-normal-bdr);
+    border-radius   : 4px;
+    background-color: var(--btn-normal-bg);
+    color           : var(--btn-normal-txt);
 }
 
-.dropdown-btn-toggle:hover::after {
-    opacity: 1;
+/* Focus COM hover */
+.dropdown-btn-container:hover button.dropdown-btn-toggle:focus {
+    background-color: var(--btn-normal-bg-hv);
+    border-radius   : 4px 4px 0 0;
+    color           : var(--btn-normal-txt-hv);
 }
 
-/* --- 11.3 Conteúdo do Botão (replica .jet-button__state) --- */
-.dropdown-btn-content {
-    position       : relative;
-    z-index        : 1;
+/* --- 11.2.1 Conteúdo interno (flex container) --- */
+.dropdown-btn-container .dropdown-btn-content {
     display        : flex;
     align-items    : center;
     justify-content: space-between;
-    padding        : 15px 20px 15px 25px;
-    gap            : 10px;
+    width          : 100%;
 }
 
-/* --- 11.4 Label do Botão --- */
-.dropdown-btn-label {
-    font-family   : var(--e-global-typography-text-font-family, Barlow, sans-serif);
-    font-size     : 16px;
-    font-weight   : 600;
-    text-transform: uppercase;
-    color         : var(--btn-normal-txt);
-    transition    : color 0.3s cubic-bezier(0.5, 0.12, 0.46, 0.88);
+/* --- 11.3 Label --- */
+.dropdown-btn-container .dropdown-btn-label {
+    flex-shrink: 0;
 }
 
-.dropdown-btn-toggle:hover .dropdown-btn-label {
-    color: var(--btn-normal-txt-hv);
+/* --- 11.4 Ícone (SVG via mask - 30px) --- */
+.dropdown-btn-container .dropdown-btn-icon {
+    display               : inline-block;
+    width                 : 30px;
+    height                : 30px;
+    flex-shrink           : 0;
+    background-color      : var(--btn-normal-icn);
+    -webkit-mask-image    : var(--ucpa-icon-download);
+    mask-image            : var(--ucpa-icon-download);
+    -webkit-mask-size     : contain;
+    mask-size             : contain;
+    -webkit-mask-repeat   : no-repeat;
+    mask-repeat           : no-repeat;
+    -webkit-mask-position : center;
+    mask-position         : center;
+    transition            : background-color 0.3s ease;
 }
 
-/* --- 11.5 Ícone via CSS mask (usa variável --ucpa-icon-download) --- */
-.dropdown-btn-icon {
-    width                : 30px;
-    height               : 30px;
-    background-color     : var(--btn-normal-icn);
-    mask-image           : var(--ucpa-icon-download);
-    mask-size            : contain;
-    mask-repeat          : no-repeat;
-    mask-position        : center;
-    -webkit-mask-image   : var(--ucpa-icon-download);
-    -webkit-mask-size    : contain;
-    -webkit-mask-repeat  : no-repeat;
-    -webkit-mask-position: center;
-    transition           : background-color 0.3s cubic-bezier(0.5, 0.12, 0.46, 0.88);
-}
-
-.dropdown-btn-toggle:hover .dropdown-btn-icon {
+.dropdown-btn-container:hover .dropdown-btn-icon {
     background-color: var(--btn-normal-icon-hv);
 }
 
-/* --- 11.6 Menu Dropdown --- */
-.dropdown-btn-menu {
+.dropdown-btn-container:not(:hover) .dropdown-btn-icon {
+    background-color: var(--btn-normal-icn);
+}
+
+/* --- 11.5 Menu Dropdown --- */
+.dropdown-btn-container .dropdown-btn-menu {
     position        : absolute;
     background-color: var(--btn-normal-bg);
     min-width       : 100%;
     border          : 2px solid var(--btn-normal-bdr);
-    border-radius   : 4px;
-    top             : calc(100% + 4px);
+    border-top      : none;
+    border-radius   : 0 0 4px 4px;
+    top             : 100%;
     left            : 50%;
     transform       : translateX(-50%);
     z-index         : 1000;
@@ -1525,19 +1528,15 @@ html body .ucpa-highlight {
     overflow        : hidden;
 }
 
-.dropdown-btn-container:hover .dropdown-btn-menu,
-.dropdown-btn-container.active .dropdown-btn-menu {
+.dropdown-btn-container:hover .dropdown-btn-menu {
     display: block;
 }
 
-/* --- 11.7 Links do Menu (replica estilo dos botões) --- */
-.dropdown-btn-menu a {
-    position       : relative;
-    display        : flex;
-    align-items    : center;
-    gap            : 10px;
+/* --- 11.6 Links do Menu --- */
+.dropdown-btn-container .dropdown-btn-menu a {
+    display        : block;
     padding        : 12px 20px;
-    font-family    : var(--e-global-typography-text-font-family, Barlow, sans-serif);
+    font-family    : var(--e-global-typography-text-font-family), sans-serif;
     font-size      : 14px;
     font-weight    : 600;
     text-transform : uppercase;
@@ -1548,34 +1547,12 @@ html body .ucpa-highlight {
     transition     : all 0.2s ease;
 }
 
-.dropdown-btn-menu a:last-child {
+.dropdown-btn-container .dropdown-btn-menu a:last-child {
     border-bottom: none;
 }
 
-.dropdown-btn-menu a:hover {
+.dropdown-btn-container .dropdown-btn-menu a:hover {
     background-color: var(--btn-normal-bg-hv);
     color           : var(--btn-normal-txt-hv);
-}
-
-/* Ícone nos links do menu (via CSS mask) */
-.dropdown-btn-menu a::before {
-    content              : '';
-    width                : 22px;
-    height               : 22px;
-    flex-shrink          : 0;
-    background-color     : var(--btn-normal-icn);
-    mask-image           : var(--ucpa-icon-download);
-    mask-size            : contain;
-    mask-repeat          : no-repeat;
-    mask-position        : center;
-    -webkit-mask-image   : var(--ucpa-icon-download);
-    -webkit-mask-size    : contain;
-    -webkit-mask-repeat  : no-repeat;
-    -webkit-mask-position: center;
-    transition           : background-color 0.2s ease;
-}
-
-.dropdown-btn-menu a:hover::before {
-    background-color: var(--btn-normal-icon-hv);
 }
 
