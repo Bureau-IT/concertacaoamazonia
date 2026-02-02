@@ -1,0 +1,92 @@
+# =============================================================================
+# .gitignore - Versionamento WordPress Docker Dev
+# Site: Concertação Amazônia
+# Baseado no padrão escoladobairro
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# WordPress Core (não versionado - gerenciado pelo Docker)
+# -----------------------------------------------------------------------------
+wordpress/wp-admin/
+wordpress/wp-includes/
+wordpress/wp-*.php
+wordpress/index.php
+wordpress/license.txt
+wordpress/readme.html
+wordpress/xmlrpc.php
+
+# -----------------------------------------------------------------------------
+# Arquivos de Configuração (contêm credenciais)
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.sample
+wordpress/wp-config.php
+
+# -----------------------------------------------------------------------------
+# Uploads e Mídia (gerenciados externamente - S3 ou backup)
+# -----------------------------------------------------------------------------
+wordpress/wp-content/uploads/
+
+# -----------------------------------------------------------------------------
+# Plugins (instalados via Docker/Composer)
+# Exceção: plugins customizados específicos do projeto
+# -----------------------------------------------------------------------------
+wordpress/wp-content/plugins/
+
+# -----------------------------------------------------------------------------
+# Temas Core (apenas tema child é versionado)
+# Ignorar tudo exceto hello-elementor-child
+# -----------------------------------------------------------------------------
+wordpress/wp-content/themes/hello-elementor/
+wordpress/wp-content/themes/developer*/
+
+# -----------------------------------------------------------------------------
+# Dados de Runtime (volumes Docker)
+# -----------------------------------------------------------------------------
+mysql/
+logs/
+redis/
+
+# -----------------------------------------------------------------------------
+# Backups e Exports (gerenciados externamente)
+# -----------------------------------------------------------------------------
+exports/
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+
+# -----------------------------------------------------------------------------
+# Cache e Arquivos Temporários
+# -----------------------------------------------------------------------------
+wordpress/wp-content/cache/
+wordpress/wp-content/upgrade/
+wordpress/wp-content/wflogs/
+wordpress/wp-content/et-cache/
+wordpress/wp-content/debug.log
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# IDE e Editores
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# Node/NPM (se usado para build de assets)
+# -----------------------------------------------------------------------------
+node_modules/
+package-lock.json
+yarn.lock
+
+# -----------------------------------------------------------------------------
+# Arquivos de Plano do Claude Code
+# -----------------------------------------------------------------------------
+*.plan.md
