@@ -121,6 +121,9 @@ services:
       - ./logs/php:/var/log/php
       - ../../common/scripts:/usr/local/bin/wp-scripts
       - ./exports/posts:/var/www/html/imported_posts
+
+      # Elementor exports/imports
+      - ./exports/elementor:/var/www/html/wp-content/elementor-exports
       - ./logs/supervisor:/var/log/supervisor
 
       # AWS credentials (para upload S3)
