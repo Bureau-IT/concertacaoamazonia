@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Tema filho do Hello Elementor com customizações para The Events Calendar
 Author: Daniel Cambría + Warp AI
-Version: 1.2
+Version: 1.1
 Template: hello-elementor
 */
 
@@ -10,18 +10,15 @@ Template: hello-elementor
 
 
 /* ==========================================================================
-   1. ELEMENTOR GLOBAL COLORS - Remapeadas para o contexto do Kit
+   1. ELEMENTOR GLOBAL COLORS
    Sincronizado com: Elementor Kit ID 2553
-   Última atualização: 2025-12-12
+   Última atualização: 2025-12-01
 
    As cores são definidas em: Elementor > Site Settings > Global Colors
    Os nomes das variáveis correspondem aos títulos definidos no painel.
-
-   IMPORTANTE: Usamos .elementor-kit-2553 em vez de :root porque as variáveis
-   --e-global-color-* só existem nesse contexto (body tem essa classe).
    ========================================================================== */
 
-.elementor-kit-2553 {
+:root {
     /* =========================================
        SYSTEM COLORS (Elementor Default)
        ========================================= */
@@ -221,207 +218,1188 @@ Template: hello-elementor
     --ucpa-transition-timing-function: cubic-bezier(1.000, -0.125, 0.310, 1.460);
     --ucpa-transition-duration       : 200ms;
     --ucpa-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' style='width:100px;height:auto;fill:%237c6451' viewBox='0 0 12.7 12.93'%3E%3Cpath d='M5.5 11.01c-3.03 0-5.5-2.47-5.5-5.5C0 2.47 2.47 0 5.51 0c3.04 0 5.51 2.47 5.51 5.51 0 3.04-2.47 5.5-5.51 5.5ZM5.5.58C2.79.58.58 2.79.58 5.51c0 2.71 2.21 4.92 4.92 4.92s4.93-2.21 4.93-4.92C10.43 2.79 8.22.59 5.5.59Z' class='cls-1'/%3E%3Cpath d='M12.41 12.93c-.07 0-.15-.03-.21-.09L8.96 9.6c-.11-.11-.11-.3 0-.41.11-.11.3-.11.41 0l3.24 3.24c.11.11.11.3 0 .41-.06.06-.13.09-.21.09Z' /%3E%3C/svg%3E");
-
-    /* Ícone de download (seta para baixo em círculo) */
-    --ucpa-icon-download: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Cg%3E%3Cpath d='M11,0C4.92,0,0,4.92,0,11s4.92,11,11,11,11-4.92,11-11S17.08,0,11,0Zm.13,8.42h3.5l-1.75,3.03-1.75,3.03-1.75-3.03-1.75-3.03h3.5Z' /%3E%3C/g%3E%3C/svg%3E");
 }
 
 
 /* ==========================================================================
-   2. PLUGINS - The Events Calendar
+   2. ESTILOS GLOBAIS
    ========================================================================== */
 
-/* Estilo para categorias dos eventos */
-.event-category {
-    background-color: #f8f9fa;
-    color: #495057;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 12px;
-    font-weight: 500;
-    margin-bottom: 8px;
-    display: inline-block;
-    border: 1px solid #dee2e6;
+/* --- 2.1 HTML & Body --- */
+html {
+    font-size         : 16px;
+    scrollbar-gutter  : stable;
+    scroll-behavior   : smooth;
 }
 
-/* Estilo específico para editais */
+@media (prefers-reduced-motion: no-preference) {
+    :has(:target) {
+        scroll-behavior   : smooth;
+        scroll-padding-top: 3rem;
+    }
+}
+
+html body.elementor-default {
+    background-color: var(--ucpa-color-offwhite);
+    overflow-x      : hidden;
+    position        : relative;
+}
+
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden;
+    }
+}
+
+html body.elementor-kit-2553.elementor-page-26826 {
+    background-color: var(--ucpa-color-offwhite);
+}
+
+/* --- 2.2 Tipografia --- */
+h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+}
+
+#content .tituloPagina {
+    margin-top: 5rem;
+}
+
+figcaption {
+    text-align: center;
+    color     : var(--e-global-color-text);
+}
+
+/* --- 2.3 Links --- */
+html body a[href*="mailto"]:hover {
+    color: currentColor;
+}
+
+.elementor-kit-2553 a:hover {
+    color: var(--e-global-color-text);
+}
+
+/* --- 2.4 Seleção de Texto --- */
+::selection {
+    background-color: var(--ucpa-color-white);
+    color           : var(--ucpa-color-accent);
+}
+
+@supports (color: color-mix(in oklch, black 50%, white)) {
+    ::selection {
+        background-color: color-mix(in oklch, var(--ucpa-color-main) 90%, black 10%);
+        color           : color-mix(in oklch, var(--ucpa-color-main) 10%, white 90%);
+    }
+}
+
+/* --- 2.5 Outline --- */
+* {
+    outline-color: var(--e-global-color-accent);
+}
+
+/* --- 2.6 Scrollbar --- */
+::-webkit-scrollbar {
+    width    : 7px;
+    transform: width 1s ease;
+}
+
+::-webkit-scrollbar-track {
+    background   : var(--ucpa-color-white);
+    border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb {
+    background   : var(--ucpa-color-accent);
+    border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--ucpa-color-accent);
+}
+
+
+/* ==========================================================================
+   3. COMPONENTES
+   ========================================================================== */
+
+/* --- 3.1 Labels --- */
+html body.elementor-kit-2553 label {
+    color: var(--ucpa-color-main, #000);
+}
+
+
+/* ==========================================================================
+   4. PLUGINS - The Events Calendar
+   ========================================================================== */
+
+/* --- 4.1 Categorias de Eventos --- */
+.event-category {
+    background-color: #f8f9fa;
+    color           : #495057;
+    padding         : 4px 8px;
+    border-radius   : 3px;
+    font-size       : 12px;
+    font-weight     : 500;
+    margin-bottom   : 8px;
+    display         : inline-block;
+    border          : 1px solid #dee2e6;
+}
+
 .event-edital .event-category {
     background-color: #fff3cd;
-    color: #856404;
-    border-color: #ffeaa7;
+    color           : #856404;
+    border-color    : #ffeaa7;
 }
 
 .event-edital .tribe-events-calendar-list__event-datetime,
 .event-edital .tribe-events-calendar-month__calendar-event-tooltip-datetime {
-    color: #856404;
+    color      : #856404;
     font-weight: 600;
 }
 
-/* Estilo para múltiplas categorias */
 .event-category + .event-category {
     margin-left: 4px;
 }
 
-/* Responsividade */
 @media (max-width: 768px) {
     .event-category {
         font-size: 11px;
-        padding: 3px 6px;
+        padding  : 3px 6px;
     }
 }
 
-/* Garantir visibilidade das categorias */
 .tec-events-calendar-list__event-categories,
 .event-category {
-    display: block !important;
+    display   : block !important;
     visibility: visible !important;
+    opacity   : 1 !important;
+}
+
+/* --- 4.1.1 Estilos para Editais (templates customizados) --- */
+.tribe-event-edital .tribe-event-normal-date {
+    display: none;
+}
+
+.tribe-event-edital-date {
+    font-weight: 600;
+    color      : #856404;
+}
+
+.tribe-event-edital-text {
+    font-weight: 600;
+    color      : #856404;
+}
+
+/* Categorias na lista de eventos */
+.tec-events-calendar-list__category {
+    display       : inline-flex;
+    align-items   : center;
+    gap           : 4px;
+    font-size     : 12px;
+    font-weight   : 500;
+    padding       : 4px 8px;
+    border-radius : 4px;
+    background    : var(--background-offwhite);
+    margin-bottom : 8px;
+}
+
+.tec-events-calendar-list__category-icon {
+    width           : 8px;
+    height          : 8px;
+    border-radius   : 50%;
+    background-color: currentColor;
+}
+
+/* Categoria no tooltip do calendário mensal */
+.tribe-event-categories {
+    margin-bottom: 4px;
+}
+
+.tribe-event-category {
+    font-size  : 11px;
+    font-weight: 600;
+    color      : var(--e-global-color-accent);
+}
+
+/* --- 4.2 Estilos Gerais TEC --- */
+.tribe-events {
+    font-family: var(--e-global-typography-primary-font-family);
+}
+
+.tribe-events .tribe-events-c-breadcrumbs__list-item-link,
+.tribe-events .tribe-events-c-breadcrumbs__list-item {
+    color: var(--e-global-color-secondary);
+}
+
+.tribe-events-c-breadcrumbs__list-item a {
+    padding       : 0 10px 0 0;
+    font-family   : var(--e-global-typography-primary-font-family);
+    font-weight   : 500;
+    text-transform: uppercase;
+    font-size     : 1em;
+}
+
+.tribe-common .tribe-common-h3 {
+    color: var(--e-global-color-secondary);
+}
+
+.tribe-events-c-subscribe-dropdown__button button,
+.tribe-events-c-subscribe-dropdown__button button:hover {
+    background  : var(--e-global-color-accent);
+    color       : white;
+    border-color: var(--e-global-color-accent);
+}
+
+.tribe-events-calendar-list * {
+    color: var(--ucpa-color-text, #000) !important;
+}
+
+.tribe-events-calendar-list img.tribe-events-calendar-list__event-featured-image {
+    height    : 230px;
+    object-fit: cover;
+}
+
+/* --- 4.3 Barra de Pesquisa TEC --- */
+.tribe-events-c-events-bar__search-container {
+    background-color: var(--ucpa-color-offwhite) !important;
+}
+
+.tribe-common-form-control-text__input {
+    background-color: var(--ucpa-color-white) !important;
+}
+
+.tribe-events-c-events-bar__search-form {
+    gap: 1rem;
+}
+
+/* --- 4.4 Botões TEC --- */
+.tribe-common-c-btn {
+    height     : 44px !important;
+    line-height: 1 !important;
+}
+
+.tribe-common-c-btn,
+.tribe-events-c-subscribe-dropdown__button {
+    background-color: var(--ucpa-color-offwhite) !important;
+    border-radius   : 0 !important;
+    border          : 2px solid var(--ucpa-color-text) !important;
+    color           : var(--ucpa-color-text) !important;
+    transition      : all 0.1s ease !important;
+}
+
+.tribe-common-c-btn:hover,
+.tribe-events-c-subscribe-dropdown__button:hover {
+    background-color: var(--ucpa-color-text) !important;
+    border-radius   : 0 !important;
+    border          : 2px solid var(--ucpa-color-text) !important;
+    color           : var(--ucpa-color-offwhite) !important;
+}
+
+.tribe-events button.tribe-events-c-top-bar__datepicker-button:hover {
+    background-color: transparent !important;
+}
+
+/* --- 4.5 Background TEC --- */
+html body.tribe_events-template-default,
+html #tribe-events-pg-template {
+    background-color: var(--ucpa-color-offwhite) !important;
+}
+
+html #epta-template.epta-template-1 .epta-sidebar-area {
+    background-color: var(--ucpa-color-white) !important;
+}
+
+body #epta-template.epta-template-1 .epta-share-area a {
+    color: var(--ucpa-color-main) !important;
+}
+
+body #epta-template.epta-template-1 .epta-share-area a:hover {
+    color  : var(--ucpa-color-accent) !important;
     opacity: 1 !important;
+}
+
+#epta-template.epta-template-1 .epta-addto-calendar a {
+    color: var(--ucpa-color-offwhite) !important;
+}
+
+#epta-template.epta-template-1 .epta-addto-calendar a:hover {
+    color           : var(--ucpa-color-main) !important;
+    background-color: var(--ucpa-color-offwhite) !important;
+    text-decoration : none;
+}
+
+/* --- 4.6 Countdown Timer --- */
+.epta-countdown-timer {
+    display        : flex;
+    justify-content: space-between;
+    gap            : 5px;
+    cursor         : default;
+}
+
+.epta-countdown-timer > * {
+    flex          : 1;
+    border-radius : 5px;
+    pointer-events: none;
+    user-select   : none;
+}
+
+/* --- 4.7 Elementos UI TEC --- */
+.tribe-common--breakpoint-medium.tribe-common .tribe-common-h4--min-medium :hover {
+    color: var(--e-global-color-accent) !important;
+}
+
+.tribe-common .tribe-common-anchor-thin:active,
+.tribe-common .tribe-common-anchor-thin:focus,
+.tribe-common .tribe-common-anchor-thin:hover {
+    border-bottom: 0px !important;
+}
+
+.tribe-common.tribe-events .tribe-events-c-top-bar__datepicker-button-icon-svg {
+    margin-top: 7px;
+}
+
+.tribe-events-c-top-bar__datepicker-mobile {
+    color: var(--e-global-color-secondary);
+}
+
+.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-view-selector--tabs .tribe-events-c-view-selector__content {
+    display: none;
+}
+
+svg.tribe-common-c-svgicon.tribe-common-c-svgicon--caret-right.tribe-events-c-breadcrumbs__list-item-icon-svg {
+    fill   : var(--e-global-color-accent) !important;
+    padding: 0px;
+    margin : 10px;
+}
+
+.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-search__input-control-icon-svg {
+    display: none;
+}
+
+.tribe-common-b2.tribe-common-b2--bold.tribe-events-virtual-virtual-event {
+    display: none;
+}
+
+/* --- 4.8 Traduções PT-BR TEC --- */
+html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button {
+    font-size: 0 !important;
+}
+
+html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button::before {
+    content  : "Encontrar eventos";
+    font-size: 1rem;
+}
+
+.tribe-events-c-top-bar__datepicker-time span {
+    color    : var(--ucpa-color-text) !important;
+    font-size: 1.6rem;
+}
+
+html[lang="pt-br"] .tribe-events-c-top-bar__datepicker-time span {
+    font-size: 0 !important;
+}
+
+html[lang="pt-br"] .tribe-events-c-top-bar__datepicker-time span::before {
+    content  : "Próximos";
+    font-size: 1.6rem;
+}
+
+html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"] {
+    font-size: 0 !important;
+}
+
+html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
+    content: "Hoje";
+}
+
+a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
+    color    : var(--ucpa-color-text);
+    font-size: 1rem;
+}
+
+button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium,
+button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path {
+    opacity: 0.3;
+    color  : black;
+    fill   : black !important;
+}
+
+/* --- 4.9 Imagem de Evento --- */
+.ectbe-evt-img {
+    max-width: 250px;
+}
+
+/* --- 4.10 Navegação Eventos --- */
+.tribe-events-c-nav__prev-label {
+    font-size: 0;
+}
+
+.tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide {
+    font-size: 1rem;
+    color    : var(--e-global-color-text);
+}
+
+.tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide::after {
+    content  : " passados";
+    font-size: 1rem;
+}
+
+.tribe-events-c-nav__next-label {
+    font-size: 0;
+}
+
+.tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide {
+    font-size: 1rem;
+    color    : var(--e-global-color-text);
+}
+
+a.tribe-events-c-nav__prev.tribe-common-b2.tribe-common-b1--min-medium :hover {
+    color: var(--e-global-color-accent);
+}
+
+a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
+    color: var(--e-global-color-accent);
+}
+
+.tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide::after {
+    content  : " seguintes";
+    font-size: 1rem;
 }
 
 
 /* ==========================================================================
-   11. COMPONENTES - DROPDOWN BUTTON (Publicações)
-   Usa variáveis de botão do tema: --btn-normal-* e --btn-normal-*-hv
-   Especificidade aumentada via .dropdown-btn-container para vencer Elementor Kit
+   5. PLUGINS - JetEngine / JetSearch
    ========================================================================== */
 
-/* --- 11.1 Container --- */
-.dropdown-btn-wrapper {
-    text-align: center;
-    width     : 100%;
+/* --- 5.1 Input de Pesquisa --- */
+html .elementor-26826 .elementor-element.elementor-element-9ca8c23 .jet-search-filter__input {
+    border-width: var(--border-width, 0);
+    border-color: var(--border-color, transparent);
+    border-style: var(--border-style, solid);
 }
 
-.dropdown-btn-container {
+html body input.jet-search-filter__input {
+    border-radius: 0.6rem;
+    transition   : none;
+}
+
+input.jet-search-filter__input:focus-visible {
+    outline       : solid var(--ucpa-color-main) 2px;
+    outline-offset: 0;
+}
+
+html body.elementor-kit-2553.logged-in input,
+html body.elementor-kit-2553.logged-in .tribe-common input {
+    border-color : transparent;
+    border-radius: 10px;
+}
+
+/* --- 5.2 Hover States --- */
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover {
+    background-color: var(--e-global-color-1de5509);
+    border-width    : 0 !important;
+}
+
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
+    border-width: 0 0 1px 0 !important;
+}
+
+/* --- 5.3 Painel Hamburger (Pesquisa Ajax) --- */
+.jet-hamburger-panel__content[data-template-id="4360"] {
+    position: fixed;
+    inset   : 4rem !important;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav {
+    height  : 100%;
+    overflow: hidden;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template {
+    height    : 100%;
+    background: color-mix(in lab, var(--ucpa-color-white), transparent 6%);
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template::before {
+    animation: giragiraespiralzinha 200s infinite;
+    display  : none;
+}
+
+@keyframes giragiraespiralzinha {
+    to {
+        rotate: 360deg;
+    }
+}
+
+html body .jet-hamburger-panel__inner {
+    background: unset;
+}
+
+/* --- 5.4 Filtro Alfabético --- */
+div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet-alphabet-list__button {
+    display      : grid;
+    height       : fit-content;
+    aspect-ratio : 1;
+    place-content: center;
+    padding      : 0;
+    font-size    : 0.8rem;
+}
+
+
+/* ==========================================================================
+   6. ADMIN - WP Admin Bar
+   ========================================================================== */
+
+html #wpadminbar {
+    z-index: 99999999999;
+}
+
+/* --- 6.1 Itens Ocultos --- */
+#wp-admin-bar-elementor_notes,
+#wp-admin-bar-new-content .ab-label,
+#wp-admin-bar-gform-forms,
+#wp-admin-bar-elementor_edit_page > a > .elementor-edit-link-title,
+#wp-admin-bar-elementor_edit_page > div.ab-item > .elementor-edit-link-title,
+#wp-admin-bar-tribe-events {
+    display: none;
+}
+
+li#wp-admin-bar-jet_plugins .ab-item,
+li#wp-admin-bar-tribe-events .ab-item,
+li#wp-admin-bar-customize .ab-item,
+#wp-admin-bar-my-account a.ab-item,
+#wp-admin-bar-site-name > a,
+#wp-admin-bar-edit a {
+    font-size: 0;
+}
+
+#wp-admin-bar-site-name > a {
+    font-size     : 0.8em;
+    letter-spacing: -1px;
+    line-height   : 32px;
+}
+
+/* --- 6.2 WP Rocket --- */
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a {
+    font-size: 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a::before {
+    content    : "WP";
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size  : 0.8rem;
+    line-height: 25px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a::after {
+    content    : "?";
+    font-size  : 1rem;
+    line-height: 32px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .ab-sub-wrapper {
     position: relative;
-    display : inline-block;
+    display : block;
 }
 
-/* --- 11.2 Botão Toggle --- */
-/* Especificidade (0,2,1) > .elementor-kit-2553 button (0,1,1) */
-.dropdown-btn-container button.dropdown-btn-toggle {
-    position        : relative;
-    display         : block;
-    width           : 220px;
-    margin          : 0 auto;
-    padding         : 15px 25px;
-    border          : 2px solid var(--btn-normal-bdr);
-    border-radius   : 4px;
-    background-color: var(--btn-normal-bg);
-    color           : var(--btn-normal-txt);
-    font-family     : var(--e-global-typography-text-font-family), sans-serif;
-    font-size       : 16px;
-    font-weight     : 600;
-    text-transform  : uppercase;
-    cursor          : pointer;
-    outline         : none;
-    transition      : background-color 0.3s ease, color 0.3s ease;
+#wpadminbar .menupop li.hover > .ab-sub-wrapper,
+#wpadminbar .menupop li:hover > .ab-sub-wrapper {
+    margin-left: 0 !important;
+    margin-top : 0 !important;
 }
 
-/* Hover state */
-.dropdown-btn-container:hover button.dropdown-btn-toggle {
-    background-color: var(--btn-normal-bg-hv);
-    border-color    : var(--btn-normal-border-hv);
-    border-radius   : 4px 4px 0 0;
-    color           : var(--btn-normal-txt-hv);
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket img {
+    max-width: 18px;
 }
 
-/* Focus state SEM hover */
-.dropdown-btn-container button.dropdown-btn-toggle:focus,
-.dropdown-btn-container button.dropdown-btn-toggle:focus-visible {
-    outline         : none;
-    border-color    : var(--btn-normal-bdr);
-    border-radius   : 4px;
-    background-color: var(--btn-normal-bg);
-    color           : var(--btn-normal-txt);
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default {
+    background   : gray;
+    margin       : 0.3rem 0.6rem;
+    border-radius: 1rem;
 }
 
-/* Focus COM hover */
-.dropdown-btn-container:hover button.dropdown-btn-toggle:focus {
-    background-color: var(--btn-normal-bg-hv);
-    border-radius   : 4px 4px 0 0;
-    color           : var(--btn-normal-txt-hv);
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all > .ab-tem::after {
+    content: ":";
 }
 
-/* --- 11.2.1 Conteúdo interno (flex container) --- */
-.dropdown-btn-container .dropdown-btn-content {
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default a:hover {
+    color: black;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .wp-admin-bar-arrow {
+    display: none;
+}
+
+/* --- 6.3 Redis Cache --- */
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush {
+    background   : gray;
+    margin       : 0.3rem 0.6rem;
+    border-radius: 1rem;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush a:hover {
+    color: black;
+}
+
+/* --- 6.4 Overflow de Itens --- */
+#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a,
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item,
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_inspector div.ab-item {
+    max-width    : 80px;
+    white-space  : nowrap;
+    overflow     : hidden;
+    text-overflow: ellipsis;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item {
+    max-width: 50px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a {
+    max-width: 50px;
+}
+
+#wpadminbar #wp-toolbar,
+#wpadminbar #wp-toolbar .ab-item {
+    cursor: pointer !important;
+}
+
+/* --- 6.5 Elementor Edit Button --- */
+#wpadminbar #wp-admin-bar-elementor_edit_page > .ab-item::before {
+    content    : "\e813";
+    font-family: eicons;
+    top        : 3.5px;
+    font-size  : 18px;
+    color      : #ad0b0b !important;
+    scale      : 1.5;
+}
+
+#wpadminbar #wp-admin-bar-elementor_edit_page > .ab-item::after {
+    content    : "✨";
+    font-size  : 31px;
+    line-height: 1;
+}
+
+#wpadminbar #wp-admin-bar-elementor_edit_page {
+    padding-inline: 0 !important;
+}
+
+#wpadminbar .elementor-edit-link-type {
+    color: white !important;
+}
+
+.elementor-general-section a span::after {
+    content: unset;
+    display: none;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-submenu .ab-item {
+    width: 100%;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper {
+    width                     : 360px;
+    transform                 : translateX(-50%);
+    padding                   : 0 1rem 1rem !important;
+    border-bottom-left-radius : 1.2rem;
+    border-bottom-right-radius: 1.2rem;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper a {
+    background-color: transparent !important;
+    align-items     : center;
+}
+
+#wp-admin-bar-elementor_edit_page li a:hover {
+    color: #ad0f0c !important;
+}
+
+#wp-admin-bar-elementor_edit_page span.elementor-edit-link-type {
+    margin     : 0 1rem 0 0;
+    line-height: 1;
+    height     : 1em;
+}
+
+li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
+    content            : "✨ Seções do Elementor ✨";
+    color              : #c00;
+    font-weight        : bold;
+    font-size          : 1.1rem;
+    margin-inline-start: 4.5rem;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper ul {
+    padding-top: 0 !important;
+}
+
+/* --- 6.6 Centralização do Elementor --- */
+#wpadminbar #wp-toolbar {
+    display: flex;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-root-default {
+    flex   : 1;
+    display: flex;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-top-secondary {
+    margin-inline: auto 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-edit {
+    margin-inline-end: auto;
+}
+
+#wp-admin-bar-elementor_edit_page {
+    margin-inline: auto;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page ~ * {
+    margin-inline: 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page + * {
+    margin-inline-start: auto;
+}
+/* --- Interface interna de Configurações do Elementor --- */
+.elementor-control-type-global-style-repeater .elementor-control-title input {
+    max-width: 100%;
+}
+
+
+/* --- 6.7 Responsividade Admin Bar --- */
+@media screen and (max-width: 990px) {
+    #wp-admin-bar-site-name {
+        font-size : 1em;
+        max-width : 4rem !important;
+        background: green !important;
+    }
+
+    #wp-admin-bar-site-name a {
+        text-overflow: ellipsis !important;
+        white-space  : nowrap;
+        overflow     : hidden;
+    }
+
+    #wp-admin-bar-redis-cache {
+        width: 5rem;
+    }
+
+    #wpadminbar #wp-admin-bar-redis-cache .ab-item {
+        word-break : break-word;
+        line-height: 1;
+        font-size  : 10px;
+        text-align : center;
+        display    : flex;
+        align-items: center;
+    }
+}
+
+/* --- 6.8 Translate --- */
+li#wp-admin-bar-translate a {
+    font-size: 0;
+}
+
+li#wp-admin-bar-translate a::after {
+    content  : "? ?";
+    font-size: 0.9rem;
+}
+
+#wpadminbar ul#wp-admin-bar-root-default > li a {
+    padding-inline-start: 16px;
+}
+
+
+/* ==========================================================================
+   7. COMPONENTES ESPECIAIS
+   ========================================================================== */
+
+/* --- 7.1 Cookie Consent --- */
+/* Seletor específico para sobrescrever plugin sem !important */
+html body #cn-accept-cookie,
+.cookie-notice-container #cn-accept-cookie {
+    background: var(--ucpa-color-accent);
+    color     : var(--ucpa-color-white);
+}
+
+
+/* ==========================================================================
+   8. PÁGINAS ESPECÍFICAS
+   ========================================================================== */
+
+/* --- 8.1 Home - Banner --- */
+.divider_banner {
+    padding: 0.3rem 0rem 0rem 0rem;
+}
+
+.img_banner img {
+    height         : 600px;
+    object-fit     : cover;
+    object-position: center center;
+}
+
+@media (max-width: 1024px) {
+    .img_banner img {
+        object-fit     : cover;
+        object-position: center center;
+    }
+}
+
+@media (max-width: 767px) {
+    .img_banner img {
+        height         : 250px;
+        object-fit     : cover;
+        object-position: center center;
+    }
+}
+
+/* --- 8.2 Home - Pêndulo --- */
+.pendulo svg path {
+    fill: var(--e-global-color-96a86ed, #DAF58A);
+}
+
+.pendulo {
+    -webkit-animation-name: pendulo;
+    -webkit-animation     : rotating 14s ease-in-out infinite;
+    -moz-animation        : rotating 20s ease-in-out infinite;
+    -moz-animation-name   : pendulo;
+    -ms-animation         : rotating 20s ease-in-out infinite;
+    -ms-animation-name    : pendulo;
+    -o-animation          : rotating 20s ease-in-out infinite;
+    -o-animation-name     : pendulo;
+    animation             : rotating 20s ease-in-out infinite;
+    animation-name        : pendulo;
+}
+
+@keyframes pendulo {
+    0% {
+        -ms-transform    : rotate(0deg);
+        -moz-transform   : rotate(0deg);
+        -webkit-transform: rotate(0deg);
+        -o-transform     : rotate(0deg);
+        transform        : rotate(0deg);
+        transform        : translate3d(0px, 10px, 0px);
+    }
+
+    50% {
+        -ms-transform    : rotate(-20deg);
+        -moz-transform   : rotate(-20deg);
+        -webkit-transform: rotate(-20deg);
+        -o-transform     : rotate(-20deg);
+        transform        : rotate(-20deg);
+    }
+
+    100% {
+        -ms-transform    : rotate(30deg);
+        -moz-transform   : rotate(30deg);
+        -webkit-transform: rotate(30deg);
+        -o-transform     : rotate(30deg);
+        transform        : rotate(30deg);
+        transform        : translate3d(0px, 10px, 0px);
+    }
+}
+
+/* --- 8.3 Listagens de Estudos --- */
+@media (min-width: 1140px) {
+    .listing_container_thumb_bg * {
+        object-position: top;
+    }
+}
+
+@media (max-width: 1024px) {
+    .listing_container_thumb_bg {
+        background-color: var(--e-global-color-text);
+    }
+}
+
+@media (max-width: 767px) {
+    .listing_container_thumb_bg {
+        background-color: var(--e-global-color-text);
+    }
+}
+
+/* --- 8.4 Destaque Estudos --- */
+.listing_destaque .jet-listing-grid__item {
+    order: 1;
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) {
+    order: 1;
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .e-con-inner {
+    background   : var(--ucpa-color-sage);
+    border-radius: 1px;
+    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-sage);
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a > .e-con-inner::before {
+    content       : "Em destaque";
+    position      : absolute;
+    top           : -1.6rem;
+    left          : 50%;
+    transform     : translateX(-50%);
+    background    : var(--ucpa-color-sage);
+    padding       : 2px 6px;
+    border-radius : 5px;
+    font-size     : 12px;
+    font-weight   : bold;
+    text-transform: uppercase;
+    color         : #000000;
+}
+
+/* --- 8.5 Links Dinâmicos --- */
+.botao_dynamic_link a {
     display        : flex;
-    align-items    : center;
-    justify-content: space-between;
-    width          : 100%;
+    justify-content: space-around;
+    flex-direction : row;
 }
 
-/* --- 11.3 Label --- */
-.dropdown-btn-container .dropdown-btn-label {
-    flex-shrink: 0;
+/* --- 8.6 Single Artist (Linha das Artes) --- */
+html body .ucpa-highlight {
+    background-color: color-mix(in lab, var(--ucpa-color-offwhite) 80%, var(--ucpa-color-main) 20%);
 }
 
-/* --- 11.4 Ícone (SVG via mask - 30px) --- */
-.dropdown-btn-container .dropdown-btn-icon {
-    display               : inline-block;
-    width                 : 30px;
-    height                : 30px;
-    flex-shrink           : 0;
-    background-color      : var(--btn-normal-icn);
-    -webkit-mask-image    : var(--ucpa-icon-download);
-    mask-image            : var(--ucpa-icon-download);
-    -webkit-mask-size     : contain;
-    mask-size             : contain;
-    -webkit-mask-repeat   : no-repeat;
-    mask-repeat           : no-repeat;
-    -webkit-mask-position : center;
-    mask-position         : center;
-    transition            : background-color 0.3s ease;
+.ucpa-highlight .is-vertically-aligned-center .wp-block-image {
+    padding: 20px;
 }
 
-.dropdown-btn-container:hover .dropdown-btn-icon {
-    background-color: var(--btn-normal-icon-hv);
+@media screen and (min-width: 1024px) {
+    .linha-das-artes-template-default p {
+        line-height: 1.6;
+    }
+
+    .ucpa-highlight {
+        padding-block: 6rem;
+    }
+
+    .ucpa-highlight > div p {
+        line-height: 2;
+    }
+
+    .ucpa-highlight figure {
+        padding: 4rem 4rem 0;
+    }
+
+    .ucpa-highlight figcaption {
+        text-align    : center;
+        padding-inline: 4rem;
+    }
 }
 
-.dropdown-btn-container:not(:hover) .dropdown-btn-icon {
-    background-color: var(--btn-normal-icn);
+@media screen and (max-width: 1023px) {
+    .ucpa-highlight {
+        padding-inline: 6rem;
+    }
 }
 
-/* --- 11.5 Menu Dropdown --- */
-.dropdown-btn-container .dropdown-btn-menu {
-    position        : absolute;
-    background-color: var(--btn-normal-bg);
-    min-width       : 100%;
-    border          : 2px solid var(--btn-normal-bdr);
-    border-top      : none;
-    border-radius   : 0 0 4px 4px;
-    top             : 100%;
-    left            : 50%;
-    transform       : translateX(-50%);
-    z-index         : 1000;
-    display         : none;
-    box-shadow      : 0 4px 12px rgba(0, 0, 0, 0.15);
-    overflow        : hidden;
+.linha-das-artes-template-default figcaption {
+    color: var(--ucpa-color-text, #333);
 }
 
-.dropdown-btn-container:hover .dropdown-btn-menu {
-    display: block;
+.linha-das-artes-template-default figcaption {
+    margin-top: -40px;
 }
 
-/* --- 11.6 Links do Menu --- */
-.dropdown-btn-container .dropdown-btn-menu a {
-    display        : block;
-    padding        : 12px 20px;
-    font-family    : var(--e-global-typography-text-font-family), sans-serif;
-    font-size      : 14px;
-    font-weight    : 600;
-    text-transform : uppercase;
-    text-decoration: none;
-    color          : var(--btn-normal-txt);
-    background     : transparent;
-    border-bottom  : 1px solid rgba(0, 0, 0, 0.1);
-    transition     : all 0.2s ease;
+
+/* ==========================================================================
+   9. HEADER & MENU
+   Migrado de: header.css
+   ========================================================================== */
+
+/* --- 9.1 Variáveis do Menu --- */
+/* NOTA: Variáveis movidas para fora do @layer para garantir precedência correta */
+:root {
+    --submenu-texto                  : var(--white, #FFFFFF);
+    --submenu-cultura-texto          : var(--main-color, #900042);
+    --submenu-block-size             : 85px;
+    --submenu-gap                    : 0rem;
+    --submenu-background             : var(--header-background-submenu, #900042);
+    --submenu-cultura-background     : var(--header-background-submenu-cultura, #F0C400);
+    --menu-mobile-background         : var(--main-color, #900042);
+    --menu-mobile-cultura-background : var(--header-background-submenu-cultura, #F0C400);
+    --menu-mobile-cultura-text       : var(--main-color, #900042);
+    --menu-mobile-background-hover   : color-mix(in lab, var(--header-background-submenu, #900042) 80%, black 20%);
+    --menu-mobile-background-text    : var(--white, #FFFFFF);
 }
 
-.dropdown-btn-container .dropdown-btn-menu a:last-child {
-    border-bottom: none;
+/* --- 9.2 Header Principal --- */
+#ucpaHeader.elementor-element {
+    background-color: var(--header-background);
 }
 
-.dropdown-btn-container .dropdown-btn-menu a:hover {
-    background-color: var(--btn-normal-bg-hv);
-    color           : var(--btn-normal-txt-hv);
+/* --- 9.3 Desktop --- */
+@media screen and (min-width: 1024px) {
+
+    /* Estilos para o sub-menu */
+    #menuPrincipal nav>ul.elementor-nav-menu>li>ul.sub-menu {
+        display         : none !important;
+        position        : absolute !important;
+        width           : 100vw !important;
+        max-width       : 100vw !important;
+        top             : 85px !important;
+        left            : var(--left, -999999px) !important;
+        transform       : unset !important;
+        right           : 0 !important;
+        height          : var(--submenu-block-size, 80px) !important;
+        max-height      : var(--submenu-block-size, 80px) !important;
+        margin-left     : unset !important;
+        justify-content : center;
+        align-items     : center;
+        gap             : var(--submenu-gap, 1rem);
+        background-color: var(--submenu-background, #ccc) !important;
+        transition      : all 0, left var(--ucpa-transition-duration) var(--ucpa-transition-timing-function);
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu>li>ul.sub-menu::after {
+        content         : '';
+        position        : absolute;
+        inset           : 0 -100vw 0 -100vw;
+        background-color: var(--submenu-background);
+        z-index         : -1;
+    }
+
+    /* Seta para cima que liga visualmente o submenu ao seu elemento-pai */
+    #menuPrincipal nav>ul.elementor-nav-menu>li>ul.sub-menu::before {
+        --arrowSize     : 14px;
+        content         : "";
+        position        : absolute;
+        background-color: var(--submenu-background, #911);
+        block-size      : var(--arrowSize);
+        aspect-ratio    : 1;
+        top             : calc(var(--arrowSize) / 2 * -1);
+        left            : calc(calc(-1 * var(--left)) + calc(var(--liWidth) / 2) - calc(var(--arrowSize) / 2));
+        transform       : rotate(45deg);
+    }
+
+    /* Esconder seta */
+    #menuPrincipal nav>ul.elementor-nav-menu:has(.menu-item-has-children:hover)>li>ul.sub-menu::before {
+        content: unset;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu>li:hover>ul.sub-menu::before {
+        content: "" !important;
+    }
+
+    /* Ativar display flex para mostrar o sub-menu da página corrente e no hover do menu */
+    #menuPrincipal nav>ul.elementor-nav-menu>li.current_page_item>ul.sub-menu {
+        display: flex !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu>li.current-menu-parent>ul.sub-menu {
+        display: flex !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li [aria-expanded="true"]+ul.sub-menu {
+        display: flex !important;
+    }
+
+    /* Corrigir font-size de 16px para 1rem no submenu */
+    .elementor-39359 .elementor-element.elementor-element-27229d66 .elementor-nav-menu--dropdown .elementor-item,
+    .elementor-39359 .elementor-element.elementor-element-27229d66 .elementor-nav-menu--dropdown .elementor-sub-item {
+        font-size: 1rem !important;
+    }
+
+    :is(.home, .page-id-2) main#content {
+        z-index  : 1;
+        isolation: isolate;
+    }
+
+    /* Cores e efeito hover nos links do sub-menu */
+    #menuPrincipal nav>ul.elementor-nav-menu li:nth-child(4) ul.sub-menu a {
+        color              : var(--text, #fff);
+        transition-duration: 0 !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li:is(.current-page-ancestor, .current-menu-ancestor, .current-menu-parent, .current-menu-item, .current-page-parent, .current_page_parent, .current_page_ancestor)>a {
+        font-weight     : 800;
+        background-color: transparent !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li:not(.current-page-ancestor, .current-menu-ancestor, .current-menu-parent, .current-menu-item, .current-page-parent, .current_page_parent, .current_page_ancestor)>a:hover {
+        text-shadow: 0.6px 0 0.5px currentColor, -0.6px 0 0.5px currentColor;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li a {
+        transition   : none !important;
+        border       : 0;
+        border-radius: 100vh;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li a:focus {
+        background-color: transparent !important;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li>a:focus-visible {
+        outline       : 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+    /* Estilos para menu cultura */
+    #menuPrincipal nav>ul.elementor-nav-menu li:nth-child(4) ul.sub-menu {
+        --submenu-background: var(--submenu-cultura-background, #911);
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li:nth-child(4) ul.sub-menu svg path {
+        fill: var(--submenu-cultura-texto);
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li ul.sub-menu a {
+        color     : var(--white, #fff);
+        position  : relative;
+        transition: none;
+    }
+
+    #menuPrincipal nav>ul.elementor-nav-menu li.highlightCultura ul.sub-menu a {
+        color: var(--submenu-cultura-texto, #000)
+    }
+
+    .sub-arrow {
+        display: none !important;
+    }
 }
+
+/* --- 9.4 Mobile / Tablet --- */
+#menuPrincipal nav.elementor-nav-menu--dropdown {
+    top: 19px !important;
+}
+
+#menuPrincipal nav.elementor-nav-menu--dropdown {
+    background-color: var(--menu-mobile-background) !important;
+}
+
+#menuPrincipal nav.elementor-nav-menu--dropdown > ul#menu-2-27229d66.elementor-nav-menu > li.menu-item > a + ul.sub-menu {
+    background-color: var(--submenu-background) !important;
+    margin          : 0 0.5rem !important;
+    border-radius   : 0.5rem;
+}
+
+.elementor-nav-menu .elementor-nav-menu--dropdown ul li a:hover,
+.elementor-nav-menu--dropdown ul li a:focus {
+    background: var(--menu-mobile-background-hover) !important;
+    color     : var(--menu-mobile-background-text, #009) !important;
+    outline   : none !important;
+    border    : 0 !important;
+}
+
+
+/* ==========================================================================
+   10. JETMENU - PAINEL DE PESQUISA AJAX
+   ========================================================================== */
+
+/* --- 10.1 Corrigir posicionamento do botão FECHAR PESQUISA --- */
+/* O widget Heading do Elementor recebe classes do JetMenu que forçam position absolute */
+.elementor-widget-heading.jet-hamburger-panel__close-button {
+    position: relative !important;
+    top     : auto !important;
+    right   : auto !important;
+    left    : auto !important;
+    width   : auto !important;
+    height  : auto !important;
+}
+
+/* Garantir que o texto fique clicável */
+.elementor-widget-heading.jet-hamburger-panel__close-button .elementor-heading-title {
+    cursor: pointer;
+}
+
+
