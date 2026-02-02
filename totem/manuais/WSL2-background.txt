@@ -1,0 +1,20 @@
+Manter WSL2 rodando em background (Recomendado)**
+
+No **Windows**, crie um serviço que mantém o Docker rodando mesmo sem terminal aberto.
+
+**Arquivo:** `C:\docker-startup.bat`
+```batch
+@echo off
+wsl -d Ubuntu -u dcambria -- sudo service docker start
+wsl -d Ubuntu -u dcambria -- bash -c "cd ~/server-tools/docker-dev && docker-compose up -d"
+```
+**Adicione ao Agendador de Tarefas do Windows:**
+
+1. Abra **Task Scheduler** (Agendador de Tarefas)
+2. Criar Tarefa Básica → Nome: "Docker WSL2 Auto Start"
+3. Gatilho: **Ao iniciar o sistema**
+4. Ação: **Iniciar um programa**
+   - Programa: `C:\Windows\System32\wsl.exe`
+   - Argumentos: `-d Ubuntu -u dcambria -- bash -c "sudo service docker start && cd ~/server-tools/docker-dev && docker-compose up -d"`
+5. Marcar: **Executar com privilégios mais altos**
+6. Em "Configurações" → Desmarcar **"Parar a tarefa se executar por mais de 3 dias"**

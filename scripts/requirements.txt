@@ -1,0 +1,2 @@
+# Dependências para download de tiles OSM
+aiohttp>=3.9.0

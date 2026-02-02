@@ -1,0 +1,216 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: ${COMPOSE_STACK_NAME:-site}-dev-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass123}
+      MYSQL_DATABASE: ${DB_NAME_DEV}
+      MYSQL_USER: ${DB_USER_DEV}
+      MYSQL_PASSWORD: ${DB_PASS_DEV}
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      timeout: 10s
+      retries: 10
+      interval: 5s
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis Cache (Otimizado para WordPress)
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_STACK_NAME:-site}-dev-redis
+    restart: unless-stopped
+    # Usa configuração otimizada: maxmemory, LRU eviction, sem persistência
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      # Configuração otimizada (256MB RAM, sem disco, LRU policy)
+      - ../../common/config/redis-dev.conf:/usr/local/etc/redis/redis.conf:ro
+      # Persistência em disco REMOVIDA para máxima performance
+      # Redis funciona apenas como cache volátil em RAM
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 5s
+      retries: 5
+      interval: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # WordPress (PHP-FPM)
+  wordpress:
+    build:
+      context: ../../common
+      dockerfile: dockerfiles/wordpress.Dockerfile
+    container_name: ${COMPOSE_STACK_NAME:-site}-dev-wordpress
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # WordPress Core
+      WP_ENV: ${WP_ENV:-dev}
+      WP_HOME: ${WP_HOME:-http://localhost}
+      WP_SITEURL: ${WP_SITEURL:-http://localhost}
+      WP_TABLE_PREFIX: ${WP_TABLE_PREFIX:-wp_}
+      WP_DEBUG: ${WP_DEBUG:-true}
+      WP_DEBUG_LOG: ${WP_DEBUG_LOG:-true}
+      
+      # Database (credenciais do .env raiz)
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME_DEV}
+      DB_USER: ${DB_USER_DEV}
+      DB_PASSWORD: ${DB_PASS_DEV}
+      DB_CHARSET: utf8mb4
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # User permissions
+      WP_UID: ${WP_UID:-33}
+      WP_GID: ${WP_GID:-33}
+      
+      # WordPress Admin (primeira instalação)
+      WP_ADMIN_USER: ${WP_ADMIN_USER:-admin}
+      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD:-admin123dev}
+      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL:-dev@concertacaoamazonia.com.br}
+      
+      # AWS (para plugins)
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      
+      # Development
+      DEBUG: ${DEBUG:-1}
+      PHP_DISPLAY_ERRORS: ${PHP_DISPLAY_ERRORS:-On}
+    volumes:
+      # WordPress files (montados localmente para edição)
+      - ./wordpress:/var/www/html
+
+      # Exports (fora do wordpress/ para separacao de dados)
+      - ./exports:/exports
+
+      # Scripts
+      - ../../common/scripts:/docker-entrypoint.d:ro
+      - ../../../../ec2-deploy/post-deploy:/wp-scripts:ro
+      - ../../../helpers:/usr/local/bin/helpers:ro
+
+      # Logs
+      - ./logs/php:/var/log/php
+      - ../../common/scripts:/usr/local/bin/wp-scripts
+      - ./exports/posts:/var/www/html/imported_posts
+      - ./logs/supervisor:/var/log/supervisor
+
+      # AWS credentials (para upload S3)
+      - ~/.aws:/var/www/.aws:ro
+
+      # Configuration
+      - ./php/php.ini:/usr/local/etc/php/conf.d/99-custom.ini:ro
+      - ./php/php-fpm.conf:/etc/php/8.3/fpm/pool.d/www.conf:ro
+      - ./supervisor/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm8.3 -t || exit 1"]
+      timeout: 10s
+      retries: 3
+      interval: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx Web Server
+  nginx:
+    image: nginx:1.24-alpine
+    container_name: ${COMPOSE_STACK_NAME:-site}-dev-nginx
+    restart: unless-stopped
+    depends_on:
+      - wordpress
+    ports:
+      - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
+    volumes:
+      # Nginx configuration
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+
+      # SSL certificates (compartilhado entre todos os sites)
+      - ../../common/ssl:/etc/nginx/ssl:ro
+
+      # WordPress static files
+      - ./wordpress:/var/www/html:ro
+
+      # Logs
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      timeout: 5s
+      retries: 3
+      interval: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Tileserver - Servidor de Tiles de Mapas Offline
+  tileserver:
+    image: nginx:1.24-alpine
+    container_name: ${COMPOSE_STACK_NAME:-site}-dev-tileserver
+    restart: unless-stopped
+    ports:
+      - "${TILESERVER_PORT:-8080}:80"
+    volumes:
+      # Tiles de mapas (somente leitura)
+      - ./tiles:/usr/share/nginx/html/tiles:ro
+
+      # Configuração customizada do NGINX para tileserver
+      - ./tileserver/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+volumes: {}
+  # redis_data removido - Redis usa apenas RAM para cache
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge

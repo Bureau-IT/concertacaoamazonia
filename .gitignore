@@ -90,3 +90,15 @@ yarn.lock
 # Arquivos de Plano do Claude Code
 # -----------------------------------------------------------------------------
 *.plan.md
+
+# -----------------------------------------------------------------------------
+# Credenciais e Chaves SSH (NUNCA versionar)
+# -----------------------------------------------------------------------------
+totem/aws/totem-credentials.json
+totem/manuais/ssh/totem
+totem/manuais/ssh/totem-modern
+totem/manuais/ssh/totem-modern.pub
+totem/manuais/ssh/totem.pub
+*.pem
+*_rsa
+*_ed25519
