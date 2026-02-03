@@ -22,6 +22,7 @@ wordpress/xmlrpc.php
 .env.*
 !.env.sample
 wordpress/wp-config.php
+.mcp.json
 
 # -----------------------------------------------------------------------------
 # Uploads e Mídia (gerenciados externamente - S3 ou backup)

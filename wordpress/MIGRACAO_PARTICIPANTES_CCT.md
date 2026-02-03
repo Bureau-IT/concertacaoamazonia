@@ -135,6 +135,53 @@ ORDER BY item_title ASC
 
 **Ganho estimado:** 2-5x mais rápido em queries complexas
 
+### Resultados Medidos (2026-02-02)
+
+| Cenário | Antes (CPT) | Depois (CCT) | Ganho |
+|---------|:-----------:|:------------:|:-----:|
+| Página sem cache (OPcache frio) | 112s | 2.7s | **41x** |
+| Página sem cache (OPcache quente) | ~8s | 4.6s | **~2x** |
+| Página com cache | ~4s | 4.2s | similar |
+| Paginação AJAX | ~8s | 5.1s | **~1.6x** |
+
+### Otimizações Aplicadas
+
+1. **Índices SQL** na tabela CCT:
+   ```sql
+   CREATE INDEX idx_cct_status ON wp_jet_cct_participantes_cct (cct_status(20));
+   CREATE INDEX idx_status_title ON wp_jet_cct_participantes_cct (cct_status(20), item_title(50));
+   CREATE INDEX idx_item_title ON wp_jet_cct_participantes_cct (item_title(50));
+   ```
+
+2. **Query 71 limitada** a 25 registros por página (era 0 = sem limite)
+
+---
+
+## Fix: S3 Uploads e Imagens no DEV (2026-02-03)
+
+### Problema
+
+Imagens de background (hero, etc.) não apareciam no ambiente DEV. Causa:
+
+1. `S3_UPLOADS_BUCKET_URL` apontava para S3 direto (`s3.sa-east-1.amazonaws.com`),
+   mas as imagens retornavam **403 Forbidden** (sem permissão pública)
+2. URLs de produção hardcoded no `_elementor_data` de 10+ páginas
+   (`concertacaoamazonia.com.br/assets/` - path que não existe localmente)
+3. Caminhos divergentes entre buckets PRD e DEV
+
+### Correções
+
+| Correção | Local | Impacto |
+|----------|-------|---------|
+| `S3_UPLOADS_BUCKET_URL` → URL local | `wp-config.php` | CSS/imagens servidos localmente |
+| Symlink `concertacaoamazonia.com.br/assets` → `dev-sa/assets/uploads` | `uploads/s3/` | URLs antigas resolvidas |
+| Symlink `prd-sa/assets` → `dev-sa/assets` | `uploads/s3/` | URLs PRD no CSS resolvidas |
+| S3 URLs substituídas em 4 CSS do Elementor | `elementor/css/` | Background images corrigidos |
+
+### Páginas afetadas
+
+3777 (Sobre nós), 4499, 70848, 72684, 72926, 88071, 88161, 88625, 88743, 88750
+
 ---
 
 ## Arquivos Criados/Removidos
