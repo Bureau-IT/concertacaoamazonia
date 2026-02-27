@@ -102,6 +102,11 @@ services:
       # AWS (para plugins)
       AWS_REGION: ${AWS_REGION:-us-east-1}
       
+      # Multisite (opcional, vazio = single-site)
+      WP_MULTISITE_ENABLED: ${WP_MULTISITE_ENABLED:-}
+      WP_MULTISITE_MODE: ${WP_MULTISITE_MODE:-subdirectory}
+      WP_SITE_TITLE: ${WP_SITE_TITLE:-bIT BPO}
+
       # Development
       DEBUG: ${DEBUG:-1}
       PHP_DISPLAY_ERRORS: ${PHP_DISPLAY_ERRORS:-On}
@@ -131,6 +136,7 @@ services:
 
       # Configuration
       - ./php/php.ini:/usr/local/etc/php/conf.d/99-custom.ini:ro
+      - ./php/php.ini:/etc/php/8.3/fpm/conf.d/99-custom.ini:ro
       - ./php/php-fpm.conf:/etc/php/8.3/fpm/pool.d/www.conf:ro
       - ./supervisor/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf:ro
     networks:
