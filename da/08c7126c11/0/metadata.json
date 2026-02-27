@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "da08c7126c11",
+  "session_id": "b2f77701-4260-47fe-9c7a-538166a13594",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T06:14:04.40153Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docker-compose.yml",
+    "nginx/conf.d/wordpress.conf"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "67c056211e2a",
+  "token_usage": {
+    "input_tokens": 124,
+    "cache_creation_tokens": 110863,
+    "cache_read_tokens": 11382924,
+    "output_tokens": 31650,
+    "api_call_count": 120
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T06:14:03.983077Z",
+    "agent_lines": 43,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 43,
+    "agent_percentage": 100
+  }
+}

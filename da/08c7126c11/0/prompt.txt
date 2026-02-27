@@ -1,0 +1,136 @@
+Implement the following plan:
+
+# Plano: Converter www2-concertacao para WordPress Multisite
+
+## Contexto
+
+O site WordPress `www2-concertacao` roda em Docker (NGINX + PHP-FPM + MySQL + Redis) e precisa virar Multisite para hospedar um segundo site no path `/cultura-v2/`. Atualmente é single-site. A conversão será por **subdiretório** (não subdomínio). Além deste site, o bootstrap.sh e template serão atualizados para suportar multisite em novos sites.
+
+## Etapas
+
+### 1. Backup do banco de dados
+
+Antes de qualquer alteração, exportar o banco via `docker-dev.sh export-db`.
+
+### 2. Adicionar constantes multisite ao wp-config.php
+
+**Arquivo:** `wordpress/wp-config.php` (linha ~90, antes do bloco "stop editing")
+
+**Fase 1** — Habilitar a opção de multisite:
+```php
+define('WP_ALLOW_MULTISITE', true);
+```
+
+**Fase 2** — Após converter via WP-CLI, adicionar:
+```php
+define('MULTISITE', true);
+define('SUBDOMAIN_INSTALL', false);
+define('DOMAIN_CURRENT_SITE', 'cambrasmax.local');
+define('PATH_CURRENT_SITE', '/');
+define('SITE_ID_CURRENT_SITE', 1);
+define('BLOG_ID_CURRENT_SITE', 1);
+```
+
+> **Nota:** `DOMAIN_CURRENT_SITE` sem porta. O WP resolve a porta via `$_SERVER['SERVER_PORT']`.
+
+### 3. Converter para multisite via WP-CLI
+
+Dentro do container WordPress:
+```bash
+wp core multisite-convert --title="Concertação pela Amazônia" --subdomains=false
+```
+
+### 4. Atualizar nginx para multisite (subdiretório)
+
+**Arquivo:** `nginx/conf.d/wordpress.conf`
+
+Adicionar rewrite rules no bloco `location /` do server HTTPS (antes do `try_files`):
+
+```nginx
+# WordPress Multisite (subdirectory mode)
+if (!-e $request_filename) {
+    rewrite /wp-admin$ $scheme://$host$uri/ permanent;
+    rewrite ^(/[^/]+)?(/wp-.*) $2 last;
+    rewrite ^(/[^/]+)?(/.*\.php) $2 last;
+}
+```
+
+Adicionar location para uploads de subsites:
+```nginx
+# Multisite: uploads de subsites
+location ~ ^/[_0-9a-zA-Z-]+/files/(.*)$ {
+    try_files /wp-includes/ms-files.php =404;
+    access_log off;
+    log_not_found off;
+    expires max;
+}
+```
+
+### 5. Criar subsite `/cultura-v2/`
+
+Via WP-CLI no container:
+```bash
+wp site create --slug=cultura-v2 --title="Cultura V2"
+```
+
+### 6. Ajustar Redis para multisite
+
+No `wp-config.php`, o `WP_REDIS_PREFIX` atual é `'dev:'`. O plugin Redis Object Cache já suporta multisite nativamente (usa `blog_id` no salt automático). Nenhuma mudança necessária.
+
+### 7. Reiniciar containers
+
+```bash
+docker-dev.sh restart
+```
+
+### 8. Atualizar bootstrap.sh (infraestrutura)
+
+**Arquivo:** `docker-dev/common/scripts/bootstrap.sh`
+
+Na função `setup_wordpress_core()`:
+- Adicionar suporte à variável `WP_MULTISITE_ENABLED` do .env
+- Se `true`, usar `wp core multisite-install` em vez de `wp core install`
+- Adicionar constantes multisite ao bloco `--extra-php`
+
+Na função `setup_essential_plugins()`:
+- Se multisite, usar flag `--network` na ativação de plugins
+
+Na função `cleanup_and_optimize()`:
+- Se multisite, atualizar permalinks com `--url` para cada site
+
+### 9. Atualizar template .env
+
+**Arquivo:** `docker-dev/sites/_template/.env`
+
+Adicionar variáveis opcionais:
+```env
+# Multisite (deixar vazio para single-site)
+WP_MULTISITE_ENABLED=
+REDACTED
+```
+
+## Arquivos modificados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `wordpress/wp-config.php` | Constantes multisite |
+| `nginx/conf.d/wordpress.conf` | Rewrite rules multisite |
+| `docker-dev/common/scripts/bootstrap.sh` | Suporte condicional a multisite |
+| `docker-dev/sites/_template/.env` | Variáveis WP_MULTISITE_* |
+
+## Verificação
+
+1. Acessar `https://cambrasmax.local:8484/wp-admin/network/` — deve mostrar Network Admin
+2. Acessar `https://cambrasmax.local:8484/cultura-v2/` — deve mostrar o subsite
+3. Acessar `https://cambrasmax.local:8484/cultura-v2/wp-admin/` — dashboard do subsite
+4. Verificar que `concertacao.bureau-it.com` continua funcionando via Cloudflare Tunnel
+5. Verificar que `concertacao.bureau-it.com/cultura-v2/` também funciona
+6. Testar Redis: `wp redis status` — deve mostrar cache ativo
+7. Testar página de participantes: `/sobre-nos/participantes/` — filtros CCT devem continuar funcionando
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-www2-concertacao/3036c8da-ff1d-4a94-9398-89147e4f8ea9.jsonl
+
+---
+
+versione e comite as alterações
