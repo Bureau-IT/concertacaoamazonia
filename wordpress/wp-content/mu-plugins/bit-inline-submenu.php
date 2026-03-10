@@ -8,7 +8,7 @@
  *              Cores on-the-box: bg derivado da cor primária via color-mix.
  *              Ativação: CSS class "menu-submenu-inline" no widget Nav Menu do Elementor.
  *              Funciona em qualquer site — sem seletores Elementor por ID.
- * Version:     1.4.1
+ * Version:     1.4.2
  * Author:      Bureau IT
  */
 
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'BIT_INLINE_SUBMENU_VERSION', '1.4.1' );
+define( 'BIT_INLINE_SUBMENU_VERSION', '1.4.2' );
 
 // ── CSS ──────────────────────────────────────────────────────────────────────
 add_action( 'wp_enqueue_scripts', function () {
@@ -41,8 +41,10 @@ add_action( 'wp_footer', function () { ?>
     var header = document.querySelector('.elementor-location-header');
     function updateTop() {
       if (!header) return;
-      var h = header.getBoundingClientRect().height;
-      document.documentElement.style.setProperty('--bit-submenu-top', h + 'px');
+      document.documentElement.style.setProperty(
+        '--bit-submenu-top',
+        header.getBoundingClientRect().bottom + 'px'
+      );
     }
     updateTop();
 

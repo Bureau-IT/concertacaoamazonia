@@ -167,7 +167,15 @@
   border-bottom: 2px solid var(--bis-border-active);
 }
 
-/* ── 8. Ocultar barra in-flow durante hover ─────────────────────────────── */
+/* ── 8. Mobile — ocultar barras abaixo do breakpoint desktop (hamburger) ── */
+@media (max-width: 1024px) {
+  .bit-hover-bar,
+  .bit-subnav-bar {
+    display: none !important;
+  }
+}
+
+/* ── 9. Ocultar barra in-flow durante hover ─────────────────────────────── */
 /* Evita "duas barras verdes" simultâneas. visibility:hidden preserva o layout. */
 body:has(.bit-hover-bar--active) .bit-subnav-bar {
   visibility: hidden;
