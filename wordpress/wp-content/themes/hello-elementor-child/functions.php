@@ -101,7 +101,7 @@ function hello_elementor_child_enqueue_scripts() {
     }
 
     // 9. Artistas / Linha das Artes (post types individuais)
-    if (is_singular(['linha-das-artes', 'artistas'])) {
+    if (is_singular(['linha-das-artes', 'artistas', 'artistas-infantis'])) {
         wp_enqueue_style(
             'conc-page-artistas',
             "$theme_uri/css/pages/artistas.css",
