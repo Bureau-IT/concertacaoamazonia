@@ -1,0 +1,184 @@
+/**
+ * BIT Inline Submenu — Estilos
+ *
+ * Carregado via wp_enqueue_style em bit-inline-submenu.php.
+ * Para customizar cores, sobrescreva as variáveis no child theme:
+ *
+ *   .menu-submenu-inline {
+ *     --bis-bg:                 #0F4C5C;
+ *     --bis-text:               rgba(255,252,247,0.75);
+ *     --bis-text-hover:         #FFFCF7;
+ *     --bis-text-hover-weight:  600;
+ *     --bis-text-active:        #FFFCF7;
+ *     --bis-border-active:      rgba(255,252,247,0.70);
+ *   }
+ */
+
+/* ── 1. Suprimir dropdown nativo do Elementor ──────────────────────────────── */
+/* Elementor gera <nav class="elementor-nav-menu--dropdown"> como clone;
+   ocultamos pois usamos ul.sub-menu direto. */
+.menu-submenu-inline ~ .elementor-nav-menu--dropdown {
+  display: none !important;
+}
+
+/* Ocultar caret dos itens com filhos */
+.menu-submenu-inline .elementor-item-after {
+  display: none !important;
+}
+
+/* ── 2. Posicionamento dos containers ─────────────────────────────────────── */
+.menu-submenu-inline,
+.menu-submenu-inline .elementor-nav-menu--main {
+  overflow: visible !important;
+  position: static !important;
+}
+
+.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children {
+  position: static;
+}
+
+/* ── 3. Variáveis de cores (defaults) ──────────────────────────────────────── */
+.menu-submenu-inline {
+  --bis-bg:                 #d6f395;
+  --bis-text:               #174538;
+  --bis-text-hover:         #0e4a5c;
+  --bis-text-hover-weight:  700;
+  --bis-text-active:        #0e4a5c;
+  --bis-border-active:      #0e4a5c;
+}
+
+/* ── 4. Sub-menu overlay: desliza abaixo do header no hover ────────────────── */
+/* Exibido como overlay — não empurra o conteúdo. Usado apenas no hover. */
+.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children > .sub-menu {
+  /* Fixado abaixo do header — posição calculada pelo JS */
+  position: fixed;
+  top: var(--bit-submenu-top, 80px);
+  left: 0;
+  width: 100%;
+  z-index: 9990;
+
+  /* Layout horizontal */
+  display: flex !important;
+  flex-direction: row;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  list-style: none;
+  margin: 0;
+  padding: 0 16px;
+  box-sizing: border-box;
+
+  /* Altura fixa */
+  height: var(--bit-submenu-height, 72px);
+  overflow: visible;
+
+  /* Fechado: desliza para cima (por trás do header) — sem glitch de overflow */
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.18s ease, opacity 0.15s ease;
+
+  background: var(--bis-bg);
+}
+
+/* ── 5. Hover: abrir barra overlay ─────────────────────────────────────────── */
+/* .bit-hover gerenciado via JS com timeout bridge (header → barra).
+   :hover mantido como fallback CSS para JS desabilitado. */
+.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children:hover > .sub-menu,
+.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children.bit-hover > .sub-menu {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── 5b. Diamante indicador no hover ───────────────────────────────────────── */
+/* Losango na borda superior da barra, metade oculta atrás do header (z-index maior).
+   Posição horizontal via --bit-arrow-x calculado pelo JS no centro do item pai. */
+.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children.bit-hover > .sub-menu::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: var(--bit-arrow-x, 120px);
+  width: 14px;
+  height: 14px;
+  background: var(--bis-bg);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+/* ── 6. Barra in-flow (página ativa) ───────────────────────────────────────── */
+/* .bit-subnav-bar injetado via JS após o header — rola com a página naturalmente */
+.bit-subnav-bar {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  background: var(--bis-bg);
+  height: var(--bit-submenu-height, 72px);
+  padding: 0 16px;
+  box-sizing: border-box;
+  overflow: visible;
+  position: relative;
+  z-index: 9990;
+}
+
+.bit-subnav-bar ul {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bit-subnav-bar li a {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: var(--bit-submenu-height, 72px);
+  color: var(--bis-text);
+  font-size: 0.875rem;
+  font-family: var(--e-global-typography-text-font-family, Roboto), sans-serif;
+  font-weight: 400;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.bit-subnav-bar li a:hover {
+  color: var(--bis-text-hover);
+  font-weight: var(--bis-text-hover-weight, 700);
+}
+
+.bit-subnav-bar li.current-menu-item a {
+  color: var(--bis-text-active);
+  border-bottom: 2px solid var(--bis-border-active);
+}
+
+/* ── 7. Itens do sub-menu overlay ──────────────────────────────────────────── */
+.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li {
+  flex-shrink: 0;
+}
+
+.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li > a {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: var(--bit-submenu-height, 72px);
+  color: var(--bis-text);
+  font-size: 0.875rem;
+  font-family: var(--e-global-typography-text-font-family, Roboto), sans-serif;
+  font-weight: 400;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.15s ease, font-weight 0.15s ease;
+}
+
+.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li > a:hover {
+  color: var(--bis-text-hover);
+  font-weight: var(--bis-text-hover-weight, 700);
+}
+
+.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li.current-menu-item > a {
+  color: var(--bis-text-active);
+  border-bottom: 2px solid var(--bis-border-active);
+}
