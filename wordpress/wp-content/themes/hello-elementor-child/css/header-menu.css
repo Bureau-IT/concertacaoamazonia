@@ -9,22 +9,6 @@
    Migrado de: header.css
    ========================================================================== */
 
-/* --- 9.1 Variáveis do Menu --- */
-/* NOTA: Variáveis movidas para fora do @layer para garantir precedência correta */
-:root {
-    --submenu-texto                  : var(--e-global-color-6f8d79f, #D6F395);
-    --submenu-cultura-texto          : var(--e-global-color-6f8d79f, #D6F395);
-    --submenu-block-size             : 85px;
-    --submenu-gap                    : 0rem;
-    --submenu-background             : var(--header-background-submenu, #900042);
-    --submenu-cultura-background     : var(--header-background-submenu-cultura, #F0C400);
-    --menu-mobile-background         : var(--main-color, #900042);
-    --menu-mobile-cultura-background : var(--header-background-submenu-cultura, #F0C400);
-    --menu-mobile-cultura-text       : var(--main-color, #900042);
-    --menu-mobile-background-hover   : color-mix(in lab, var(--header-background-submenu, #900042) 80%, black 20%);
-    --menu-mobile-background-text    : var(--white, #FFFFFF);
-}
-
 /* --- 9.2 Header Principal --- */
 #ucpaHeader.elementor-element {
     background-color: var(--header-background);
