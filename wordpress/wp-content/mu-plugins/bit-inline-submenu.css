@@ -14,16 +14,18 @@
  *   }
  */
 
-/* ── 1. Suprimir dropdown nativo do Elementor ──────────────────────────────── */
-/* Elementor gera <nav class="elementor-nav-menu--dropdown"> como clone;
-   ocultamos pois usamos barras próprias. */
-.menu-submenu-inline ~ .elementor-nav-menu--dropdown {
-  display: none !important;
-}
+/* ── 1. Suprimir dropdown nativo do Elementor (apenas desktop) ─────────────── */
+/* No desktop usamos barras próprias — escondemos o clone do Elementor.
+   No mobile (hamburger) o clone é o painel de navegação — não esconder. */
+@media (min-width: 1025px) {
+  .menu-submenu-inline ~ .elementor-nav-menu--dropdown {
+    display: none !important;
+  }
 
-/* Ocultar caret dos itens com filhos */
-.menu-submenu-inline .elementor-item-after {
-  display: none !important;
+  /* Ocultar caret dos itens com filhos — apenas desktop */
+  .menu-submenu-inline .elementor-item-after {
+    display: none !important;
+  }
 }
 
 /* ── 2. Posicionamento dos containers ─────────────────────────────────────── */
