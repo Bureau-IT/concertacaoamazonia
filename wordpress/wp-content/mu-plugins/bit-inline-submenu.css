@@ -16,7 +16,7 @@
 
 /* ── 1. Suprimir dropdown nativo do Elementor ──────────────────────────────── */
 /* Elementor gera <nav class="elementor-nav-menu--dropdown"> como clone;
-   ocultamos pois usamos ul.sub-menu direto. */
+   ocultamos pois usamos barras próprias. */
 .menu-submenu-inline ~ .elementor-nav-menu--dropdown {
   display: none !important;
 }
@@ -48,10 +48,10 @@
   --bis-border-active:      #0e4a5c;
 }
 
-/* ── 4. Sub-menu overlay: desliza abaixo do header no hover ────────────────── */
-/* Exibido como overlay — não empurra o conteúdo. Usado apenas no hover. */
-.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children > .sub-menu {
-  /* Fixado abaixo do header — posição calculada pelo JS */
+/* ── 4. Barra hover overlay (div.bit-hover-bar no body) ────────────────────── */
+/* Criada via JS — não usa .sub-menu do Elementor, sem conflito de CSS.
+   position:fixed ancorada abaixo do header, desliza de trás do header. */
+.bit-hover-bar {
   position: fixed;
   top: var(--bit-submenu-top, 80px);
   left: 0;
@@ -59,34 +59,39 @@
   z-index: 9990;
 
   /* Layout horizontal */
-  display: flex !important;
+  display: flex;
   flex-direction: row;
   align-items: stretch;
   justify-content: center;
-  flex-wrap: nowrap;
-  list-style: none;
-  margin: 0;
-  padding: 0 16px;
-  box-sizing: border-box;
 
   /* Altura fixa */
   height: var(--bit-submenu-height, 72px);
+  padding: 0 16px;
+  box-sizing: border-box;
   overflow: visible;
 
-  /* Fechado: desliza para cima (por trás do header) — sem glitch de overflow */
+  background: var(--bis-bg);
+
+  /* Fechado: desliza para cima (por trás do header) */
   transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
   transition: transform 0.18s ease, opacity 0.15s ease;
-
-  background: var(--bis-bg);
 }
 
-/* ── 5. Hover: abrir barra overlay ─────────────────────────────────────────── */
-/* .bit-hover gerenciado via JS com timeout bridge (header → barra).
-   :hover mantido como fallback CSS para JS desabilitado. */
-.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children:hover > .sub-menu,
-.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children.bit-hover > .sub-menu {
+.bit-hover-bar ul {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+/* ── 5. Ativar barra hover ──────────────────────────────────────────────────── */
+.bit-hover-bar.bit-hover-bar--active {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;
@@ -95,7 +100,7 @@
 /* ── 5b. Diamante indicador no hover ───────────────────────────────────────── */
 /* Losango na borda superior da barra, metade oculta atrás do header (z-index maior).
    Posição horizontal via --bit-arrow-x calculado pelo JS no centro do item pai. */
-.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children.bit-hover > .sub-menu::before {
+.bit-hover-bar.bit-hover-bar--active::before {
   content: '';
   position: absolute;
   top: -7px;
@@ -134,37 +139,9 @@
   width: 100%;
 }
 
+/* ── 7. Itens das barras (hover e in-flow) ──────────────────────────────────── */
+.bit-hover-bar li a,
 .bit-subnav-bar li a {
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  height: var(--bit-submenu-height, 72px);
-  color: var(--bis-text);
-  font-size: 0.875rem;
-  font-family: var(--e-global-typography-text-font-family, Roboto), sans-serif;
-  font-weight: 400;
-  white-space: nowrap;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.bit-subnav-bar li a:hover {
-  color: var(--bis-text-hover);
-  font-weight: var(--bis-text-hover-weight, 700);
-  background-color: var(--bis-bg-hover);
-}
-
-.bit-subnav-bar li.current-menu-item a {
-  color: var(--bis-text-active);
-  border-bottom: 2px solid var(--bis-border-active);
-}
-
-/* ── 7. Itens do sub-menu overlay ──────────────────────────────────────────── */
-.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li {
-  flex-shrink: 0;
-}
-
-.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li > a {
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -178,13 +155,14 @@
   transition: color 0.15s ease, font-weight 0.15s ease;
 }
 
-.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li > a:hover {
+.bit-hover-bar li a:hover,
+.bit-subnav-bar li a:hover {
   color: var(--bis-text-hover);
   font-weight: var(--bis-text-hover-weight, 700);
   background-color: var(--bis-bg-hover);
 }
 
-.menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li.current-menu-item > a {
+.bit-subnav-bar li.current-menu-item a {
   color: var(--bis-text-active);
   border-bottom: 2px solid var(--bis-border-active);
 }

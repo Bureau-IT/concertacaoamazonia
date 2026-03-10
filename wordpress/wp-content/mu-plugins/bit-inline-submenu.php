@@ -2,13 +2,13 @@
 /**
  * Plugin Name: BIT Inline Submenu
  * Description: Barra de submenu horizontal abaixo do header.
- *              Hover: barra desliza (overlay) a partir do header, sem reflow.
- *              Página ativa: barra fica aberta e empurra o conteúdo (transição suave).
+ *              Hover: div.bit-hover-bar injetada no body via JS (overlay fixed).
+ *              Página ativa: div.bit-subnav-bar injetada após o header (in-flow).
  *              Diamante indicador: seta acima da barra aponta para o item pai.
  *              Cores on-the-box: bg derivado da cor primária via color-mix.
  *              Ativação: CSS class "menu-submenu-inline" no widget Nav Menu do Elementor.
  *              Funciona em qualquer site — sem seletores Elementor por ID.
- * Version:     1.3.0
+ * Version:     1.4.0
  * Author:      Bureau IT
  */
 
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'BIT_INLINE_SUBMENU_VERSION', '1.3.0' );
+define( 'BIT_INLINE_SUBMENU_VERSION', '1.4.0' );
 
 // ── CSS ──────────────────────────────────────────────────────────────────────
 add_action( 'wp_enqueue_scripts', function () {
@@ -37,10 +37,6 @@ add_action( 'wp_footer', function () { ?>
     var widget = document.querySelector('.menu-submenu-inline');
     if (!widget) return;
 
-    var subH = parseInt(
-      getComputedStyle(document.documentElement).getPropertyValue('--bit-submenu-height')
-    ) || 44;
-
     // ── Calcular posição top = altura do header ────────────────────────────
     var header = document.querySelector('.elementor-location-header');
     function updateTop() {
@@ -54,25 +50,52 @@ add_action( 'wp_footer', function () { ?>
       new ResizeObserver(updateTop).observe(header);
     }
 
-    // ── Hover com bridge ───────────────────────────────────────────────────
-    // position:fixed + CSS :hover quebra quando o mouse sai do li para a barra
-    // (li está no header, barra está abaixo). Solução: classe .bit-hover via JS
-    // com timeout de 400ms que a barra cancela ao receber mouseenter.
+    // ── Hover: div.bit-hover-bar no body ───────────────────────────────────
+    // O CSS do Elementor bloqueia display nos .sub-menu internos com alta
+    // especificidade. Solução: criar um div novo no body — Elementor não tem
+    // regras para esse elemento, sem conflito de CSS.
     var hoverTimeout = null;
+    var hoverBar = document.createElement('div');
+    hoverBar.className = 'bit-hover-bar';
+    document.body.appendChild(hoverBar);
+
+    // Herdar CSS vars do widget (cores configuradas pelo child theme)
+    var wComputed = getComputedStyle(widget);
+    ['--bis-bg','--bis-bg-hover','--bis-text','--bis-text-hover','--bis-text-hover-weight',
+     '--bis-text-active','--bis-border-active','--bit-submenu-height'].forEach(function(v) {
+      var val = wComputed.getPropertyValue(v).trim();
+      if (val) hoverBar.style.setProperty(v, val);
+    });
 
     function openHover(li) {
       clearTimeout(hoverTimeout);
-      li.classList.add('bit-hover');
+
+      var sub = li.querySelector('.sub-menu');
+      if (!sub) return;
+
+      // Clonar itens do sub-menu para a barra hover
+      hoverBar.innerHTML = '';
+      var ul = document.createElement('ul');
+      sub.querySelectorAll('li').forEach(function(item) {
+        ul.appendChild(item.cloneNode(true));
+      });
+      hoverBar.appendChild(ul);
+
       // Posicionar diamante no centro horizontal do item pai
       var rect = li.getBoundingClientRect();
-      li.style.setProperty('--bit-arrow-x', (rect.left + rect.width / 2 - 7) + 'px');
+      hoverBar.style.setProperty('--bit-arrow-x', (rect.left + rect.width / 2 - 7) + 'px');
+      hoverBar.classList.add('bit-hover-bar--active');
     }
 
-    function closeHover(li) {
+    function closeHover() {
       hoverTimeout = setTimeout(function () {
-        li.classList.remove('bit-hover');
+        hoverBar.classList.remove('bit-hover-bar--active');
       }, 400);
     }
+
+    // Cancelar fechamento quando mouse entra na barra hover
+    hoverBar.addEventListener('mouseenter', function() { clearTimeout(hoverTimeout); });
+    hoverBar.addEventListener('mouseleave', closeHover);
 
     widget.querySelectorAll(
       '.elementor-nav-menu > li.menu-item-has-children'
@@ -80,9 +103,7 @@ add_action( 'wp_footer', function () { ?>
       var sub = li.querySelector('.sub-menu');
       if (!sub) return;
       li.addEventListener('mouseenter', function () { openHover(li); });
-      li.addEventListener('mouseleave', function () { closeHover(li); });
-      sub.addEventListener('mouseenter', function () { openHover(li); });
-      sub.addEventListener('mouseleave', function () { closeHover(li); });
+      li.addEventListener('mouseleave', closeHover);
     });
 
     // ── Página ativa ───────────────────────────────────────────────────────
@@ -117,12 +138,6 @@ add_action( 'wp_footer', function () { ?>
 
     if (!activeParent) return;
 
-    document.body.classList.add('bit-submenu-open');
-
-    // Diamante no item ativo
-    var arect = activeParent.getBoundingClientRect();
-    activeParent.style.setProperty('--bit-arrow-x', (arect.left + arect.width / 2 - 7) + 'px');
-
     // Injetar barra in-flow após o header (rola com a página — não é sticky)
     var activeSub = activeParent.querySelector('.sub-menu');
     if (activeSub && header) {
@@ -136,8 +151,7 @@ add_action( 'wp_footer', function () { ?>
       });
       bar.appendChild(ul);
 
-      // Herdar CSS vars do widget (cores e altura configuradas pelo child theme)
-      var wComputed = getComputedStyle(widget);
+      // Herdar CSS vars do widget
       ['--bis-bg','--bis-bg-hover','--bis-text','--bis-text-hover','--bis-text-hover-weight',
        '--bis-text-active','--bis-border-active','--bit-submenu-height'].forEach(function(v) {
         var val = wComputed.getPropertyValue(v).trim();
