@@ -217,3 +217,47 @@
 .elementor-widget-heading.jet-hamburger-panel__close-button .elementor-heading-title {
     cursor: pointer;
 }
+
+/* ==========================================================================
+   12. WPML LANGUAGE SWITCHER — borda e texto visual (sem shared.css)
+   ========================================================================== */
+
+/* Reset wrapper */
+.ucpa-header-icons .wpml-ls { border: 0; }
+.ucpa-header-icons .wpml-ls ul {
+  display: flex; flex-direction: row; align-items: center;
+  gap: 6px; margin: 0 !important; padding: 0; list-style: none;
+}
+.ucpa-header-icons .wpml-ls li { display: flex; }
+.ucpa-header-icons .wpml-ls-link {
+  display: flex; align-items: center; justify-content: center;
+  border: 0 !important; padding: 0; text-decoration: none;
+}
+.ucpa-header-icons .wpml-ls-display,
+.ucpa-header-icons .wpml-ls-bracket,
+.ucpa-header-icons .wpml-ls-flag { display: none !important; }
+
+/* Borda circular e ocultação do texto nativo */
+.ucpa-header-icons .wpml-ls-link .wpml-ls-native {
+  font-size: 0;
+  line-height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.73);
+  transition: background 200ms, color 200ms;
+  cursor: pointer;
+}
+
+/* Texto EN / PT via ::after */
+.ucpa-header-icons .wpml-ls-link .wpml-ls-native::after {
+  font-size: 10px;
+  font-weight: 500;
+  font-family: "Just Sans", sans-serif;
+  line-height: 1;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+.ucpa-header-icons .wpml-ls-item-en .wpml-ls-link .wpml-ls-native::after    { content: "EN"; }
+.ucpa-header-icons .wpml-ls-item-pt-br .wpml-ls-link .wpml-ls-native::after { content: "PT"; }
+
+/* Hover */
+.ucpa-header-icons .wpml-ls-link:hover .wpml-ls-native { background: white; }
+.ucpa-header-icons .wpml-ls-link:hover .wpml-ls-native::after { color: #000; font-weight: 700; }
