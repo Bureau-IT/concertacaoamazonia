@@ -86,10 +86,28 @@ add_action( 'wp_footer', function () { ?>
     });
 
     // ── Página ativa ───────────────────────────────────────────────────────
+    // Primeiro: classes WP (post/page items)
     var activeParent = widget.querySelector(
       '.elementor-nav-menu > li.menu-item-has-children.current-menu-ancestor,' +
-      '.elementor-nav-menu > li.menu-item-has-children.current-menu-parent'
+      '.elementor-nav-menu > li.menu-item-has-children.current-menu-parent,' +
+      '.elementor-nav-menu > li.menu-item-has-children.current-menu-item'
     );
+
+    // Fallback: custom URL items não recebem classes WP — detectar por URL
+    if (!activeParent) {
+      var curPath = window.location.pathname.replace(/\/$/, '') || '/';
+      widget.querySelectorAll(
+        '.elementor-nav-menu > li.menu-item-has-children'
+      ).forEach(function(li) {
+        var a = li.querySelector(':scope > a');
+        if (!a) return;
+        var href = a.getAttribute('href') || '';
+        var linkPath = href.replace(/^https?:\/\/[^\/]+/, '').replace(/\/$/, '') || '/';
+        if (linkPath !== '/' && (curPath === linkPath || curPath.startsWith(linkPath + '/'))) {
+          activeParent = li;
+        }
+      });
+    }
 
     if (!activeParent) return;
 
