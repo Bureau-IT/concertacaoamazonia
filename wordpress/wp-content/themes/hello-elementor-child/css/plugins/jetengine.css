@@ -1,0 +1,83 @@
+/*
+ * jetengine.css — Estilos para JetEngine, JetSearch e filtros dinâmicos
+ * Extraído de: style.css
+ * Tema: hello-elementor-child
+ */
+
+/* ==========================================================================
+   5. PLUGINS - JetEngine / JetSearch
+   ========================================================================== */
+
+/* --- 5.1 Input de Pesquisa --- */
+html .elementor-26826 .elementor-element.elementor-element-9ca8c23 .jet-search-filter__input {
+    border-width: var(--border-width, 0);
+    border-color: var(--border-color, transparent);
+    border-style: var(--border-style, solid);
+}
+
+html body input.jet-search-filter__input {
+    border-radius: 0.6rem;
+    transition   : none;
+}
+
+input.jet-search-filter__input:focus-visible {
+    outline       : solid var(--ucpa-color-main) 2px;
+    outline-offset: 0;
+}
+
+html body.elementor-kit-2553.logged-in input,
+html body.elementor-kit-2553.logged-in .tribe-common input {
+    border-color : transparent;
+    border-radius: 10px;
+}
+
+/* --- 5.2 Hover States --- */
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover {
+    background-color: var(--e-global-color-1de5509);
+    border-width    : 0 !important;
+}
+
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
+    border-width: 0 0 1px 0 !important;
+}
+
+/* --- 5.3 Painel Hamburger (Pesquisa Ajax) --- */
+.jet-hamburger-panel__content[data-template-id="4360"] {
+    position: fixed;
+    inset   : 4rem !important;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav {
+    height  : 100%;
+    overflow: hidden;
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template {
+    height    : 100%;
+    background: color-mix(in lab, var(--ucpa-color-white), transparent 6%);
+}
+
+.jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template::before {
+    animation: giragiraespiralzinha 200s infinite;
+    display  : none;
+}
+
+@keyframes giragiraespiralzinha {
+    to {
+        rotate: 360deg;
+    }
+}
+
+html body .jet-hamburger-panel__inner {
+    background: unset;
+}
+
+/* --- 5.4 Filtro Alfabético --- */
+div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet-alphabet-list__button {
+    display      : grid;
+    height       : fit-content;
+    aspect-ratio : 1;
+    place-content: center;
+    padding      : 0;
+    font-size    : 0.8rem;
+}

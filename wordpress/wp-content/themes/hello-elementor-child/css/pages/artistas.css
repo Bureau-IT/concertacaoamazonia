@@ -1,0 +1,62 @@
+/*
+ * artistas.css — Links dinâmicos e template single de artista (Linha das Artes)
+ * Extraído de: style.css
+ * Tema: hello-elementor-child
+ */
+
+/* ==========================================================================
+   8. PÁGINAS ESPECÍFICAS — Artistas
+   ========================================================================== */
+
+/* --- 8.5 Links Dinâmicos --- */
+.botao_dynamic_link a {
+    display        : flex;
+    justify-content: space-around;
+    flex-direction : row;
+}
+
+/* --- 8.6 Single Artist (Linha das Artes) --- */
+html body .ucpa-highlight {
+    background-color: color-mix(in lab, var(--ucpa-color-offwhite) 80%, var(--ucpa-color-main) 20%);
+}
+
+.ucpa-highlight .is-vertically-aligned-center .wp-block-image {
+    padding: 20px;
+}
+
+@media screen and (min-width: 1024px) {
+    .linha-das-artes-template-default p {
+        line-height: 1.6;
+    }
+
+    .ucpa-highlight {
+        padding-block: 6rem;
+    }
+
+    .ucpa-highlight > div p {
+        line-height: 2;
+    }
+
+    .ucpa-highlight figure {
+        padding: 4rem 4rem 0;
+    }
+
+    .ucpa-highlight figcaption {
+        text-align    : center;
+        padding-inline: 4rem;
+    }
+}
+
+@media screen and (max-width: 1023px) {
+    .ucpa-highlight {
+        padding-inline: 6rem;
+    }
+}
+
+.linha-das-artes-template-default figcaption {
+    color: var(--ucpa-color-text, #333);
+}
+
+.linha-das-artes-template-default figcaption {
+    margin-top: -40px;
+}

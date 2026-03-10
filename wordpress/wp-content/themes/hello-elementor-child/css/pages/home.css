@@ -1,0 +1,78 @@
+/*
+ * home.css — Estilos específicos da página inicial (banner e pêndulo)
+ * Extraído de: style.css
+ * Tema: hello-elementor-child
+ */
+
+/* ==========================================================================
+   8. PÁGINAS ESPECÍFICAS — Home
+   ========================================================================== */
+
+/* --- 8.1 Home - Banner --- */
+.divider_banner {
+    padding: 0.3rem 0rem 0rem 0rem;
+}
+
+.img_banner img {
+    height         : 600px;
+    object-fit     : cover;
+    object-position: center center;
+}
+
+@media (max-width: 1024px) {
+    .img_banner img {
+        object-fit     : cover;
+        object-position: center center;
+    }
+}
+
+@media (max-width: 767px) {
+    .img_banner img {
+        height         : 250px;
+        object-fit     : cover;
+        object-position: center center;
+    }
+}
+
+/* --- 8.2 Home - Pêndulo --- */
+
+.pendulo {
+    -webkit-animation-name: pendulo;
+    -webkit-animation     : rotating 14s ease-in-out infinite;
+    -moz-animation        : rotating 20s ease-in-out infinite;
+    -moz-animation-name   : pendulo;
+    -ms-animation         : rotating 20s ease-in-out infinite;
+    -ms-animation-name    : pendulo;
+    -o-animation          : rotating 20s ease-in-out infinite;
+    -o-animation-name     : pendulo;
+    animation             : rotating 20s ease-in-out infinite;
+    animation-name        : pendulo;
+}
+
+@keyframes pendulo {
+    0% {
+        -ms-transform    : rotate(0deg);
+        -moz-transform   : rotate(0deg);
+        -webkit-transform: rotate(0deg);
+        -o-transform     : rotate(0deg);
+        transform        : rotate(0deg);
+        transform        : translate3d(0px, 10px, 0px);
+    }
+
+    50% {
+        -ms-transform    : rotate(-20deg);
+        -moz-transform   : rotate(-20deg);
+        -webkit-transform: rotate(-20deg);
+        -o-transform     : rotate(-20deg);
+        transform        : rotate(-20deg);
+    }
+
+    100% {
+        -ms-transform    : rotate(30deg);
+        -moz-transform   : rotate(30deg);
+        -webkit-transform: rotate(30deg);
+        -o-transform     : rotate(30deg);
+        transform        : rotate(30deg);
+        transform        : translate3d(0px, 10px, 0px);
+    }
+}

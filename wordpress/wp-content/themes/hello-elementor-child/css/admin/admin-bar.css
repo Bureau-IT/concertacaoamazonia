@@ -1,0 +1,268 @@
+/*
+ * admin-bar.css — Customizações da barra de administração do WordPress
+ * Extraído de: style.css
+ * Tema: hello-elementor-child
+ */
+
+/* ==========================================================================
+   6. ADMIN - WP Admin Bar
+   ========================================================================== */
+
+html #wpadminbar {
+    z-index: 99999999999;
+}
+
+/* --- 6.1 Itens Ocultos --- */
+#wp-admin-bar-elementor_notes,
+#wp-admin-bar-new-content .ab-label,
+#wp-admin-bar-gform-forms,
+#wp-admin-bar-elementor_edit_page > a > .elementor-edit-link-title,
+#wp-admin-bar-elementor_edit_page > div.ab-item > .elementor-edit-link-title,
+#wp-admin-bar-tribe-events {
+    display: none;
+}
+
+li#wp-admin-bar-jet_plugins .ab-item,
+li#wp-admin-bar-tribe-events .ab-item,
+li#wp-admin-bar-customize .ab-item,
+#wp-admin-bar-my-account a.ab-item,
+#wp-admin-bar-site-name > a,
+#wp-admin-bar-edit a {
+    font-size: 0;
+}
+
+#wp-admin-bar-site-name > a {
+    font-size     : 0.8em;
+    letter-spacing: -1px;
+    line-height   : 32px;
+}
+
+/* --- 6.2 WP Rocket --- */
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a {
+    font-size: 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a::before {
+    content    : "WP";
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size  : 0.8rem;
+    line-height: 25px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket > a::after {
+    content    : "?";
+    font-size  : 1rem;
+    line-height: 32px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .ab-sub-wrapper {
+    position: relative;
+    display : block;
+}
+
+#wpadminbar .menupop li.hover > .ab-sub-wrapper,
+#wpadminbar .menupop li:hover > .ab-sub-wrapper {
+    margin-left: 0 !important;
+    margin-top : 0 !important;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket img {
+    max-width: 18px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default {
+    background   : gray;
+    margin       : 0.3rem 0.6rem;
+    border-radius: 1rem;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all > .ab-tem::after {
+    content: ":";
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket ul#wp-admin-bar-purge-all-default a:hover {
+    color: black;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-wp-rocket #wp-admin-bar-purge-all .wp-admin-bar-arrow {
+    display: none;
+}
+
+/* --- 6.3 Redis Cache --- */
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush {
+    background   : gray;
+    margin       : 0.3rem 0.6rem;
+    border-radius: 1rem;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache-default #wp-admin-bar-redis-cache-flush a:hover {
+    color: black;
+}
+
+/* --- 6.4 Overflow de Itens --- */
+#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a,
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item,
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_inspector div.ab-item {
+    max-width    : 80px;
+    white-space  : nowrap;
+    overflow     : hidden;
+    text-overflow: ellipsis;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-redis-cache div.ab-item {
+    max-width: 50px;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-assetcleanup-parent > a {
+    max-width: 50px;
+}
+
+#wpadminbar #wp-toolbar,
+#wpadminbar #wp-toolbar .ab-item {
+    cursor: pointer !important;
+}
+
+/* --- 6.5 Elementor Edit Button --- */
+#wpadminbar #wp-admin-bar-elementor_edit_page > .ab-item::before {
+    content    : "\e813";
+    font-family: eicons;
+    top        : 3.5px;
+    font-size  : 18px;
+    color      : #ad0b0b !important;
+    scale      : 1.5;
+}
+
+#wpadminbar #wp-admin-bar-elementor_edit_page > .ab-item::after {
+    content    : "✨";
+    font-size  : 31px;
+    line-height: 1;
+}
+
+#wpadminbar #wp-admin-bar-elementor_edit_page {
+    padding-inline: 0 !important;
+}
+
+#wpadminbar .elementor-edit-link-type {
+    color: white !important;
+}
+
+.elementor-general-section a span::after {
+    content: unset;
+    display: none;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-submenu .ab-item {
+    width: 100%;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper {
+    width                     : 360px;
+    transform                 : translateX(-50%);
+    padding                   : 0 1rem 1rem !important;
+    border-bottom-left-radius : 1.2rem;
+    border-bottom-right-radius: 1.2rem;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper a {
+    background-color: transparent !important;
+    align-items     : center;
+}
+
+#wp-admin-bar-elementor_edit_page li a:hover {
+    color: #ad0f0c !important;
+}
+
+#wp-admin-bar-elementor_edit_page span.elementor-edit-link-type {
+    margin     : 0 1rem 0 0;
+    line-height: 1;
+    height     : 1em;
+}
+
+li#wp-admin-bar-elementor_edit_page ul.ab-submenu::before {
+    content            : "✨ Seções do Elementor ✨";
+    color              : #c00;
+    font-weight        : bold;
+    font-size          : 1.1rem;
+    margin-inline-start: 4.5rem;
+}
+
+#wp-admin-bar-elementor_edit_page .ab-sub-wrapper ul {
+    padding-top: 0 !important;
+}
+
+/* --- 6.6 Centralização do Elementor --- */
+#wpadminbar #wp-toolbar {
+    display: flex;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-root-default {
+    flex   : 1;
+    display: flex;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-top-secondary {
+    margin-inline: auto 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-edit {
+    margin-inline-end: auto;
+}
+
+#wp-admin-bar-elementor_edit_page {
+    margin-inline: auto;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page ~ * {
+    margin-inline: 0;
+}
+
+#wpadminbar #wp-toolbar #wp-admin-bar-elementor_edit_page + * {
+    margin-inline-start: auto;
+}
+/* --- Interface interna de Configurações do Elementor --- */
+.elementor-control-type-global-style-repeater .elementor-control-title input {
+    max-width: 100%;
+}
+
+
+/* --- 6.7 Responsividade Admin Bar --- */
+@media screen and (max-width: 990px) {
+    #wp-admin-bar-site-name {
+        font-size : 1em;
+        max-width : 4rem !important;
+        background: green !important;
+    }
+
+    #wp-admin-bar-site-name a {
+        text-overflow: ellipsis !important;
+        white-space  : nowrap;
+        overflow     : hidden;
+    }
+
+    #wp-admin-bar-redis-cache {
+        width: 5rem;
+    }
+
+    #wpadminbar #wp-admin-bar-redis-cache .ab-item {
+        word-break : break-word;
+        line-height: 1;
+        font-size  : 10px;
+        text-align : center;
+        display    : flex;
+        align-items: center;
+    }
+}
+
+/* --- 6.8 Translate --- */
+li#wp-admin-bar-translate a {
+    font-size: 0;
+}
+
+li#wp-admin-bar-translate a::after {
+    content  : "? ?";
+    font-size: 0.9rem;
+}
+
+#wpadminbar ul#wp-admin-bar-root-default > li a {
+    padding-inline-start: 16px;
+}

@@ -1,0 +1,110 @@
+/*
+ * base.css — Estilos globais e componentes base do tema
+ * Extraído de: style.css
+ * Tema: hello-elementor-child
+ */
+
+/* ==========================================================================
+   2. ESTILOS GLOBAIS
+   ========================================================================== */
+
+/* --- 2.1 HTML & Body --- */
+html {
+    font-size         : 16px;
+    scrollbar-gutter  : stable;
+    scroll-behavior   : smooth;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    :has(:target) {
+        scroll-behavior   : smooth;
+        scroll-padding-top: 3rem;
+    }
+}
+
+html body.elementor-default {
+    background-color: var(--ucpa-color-offwhite);
+    overflow-x      : hidden;
+    position        : relative;
+}
+
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden;
+    }
+}
+
+html body.elementor-kit-2553.elementor-page-26826 {
+    background-color: var(--ucpa-color-offwhite);
+}
+
+/* --- 2.2 Tipografia --- */
+h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+}
+
+#content .tituloPagina {
+    margin-top: 5rem;
+}
+
+figcaption {
+    text-align: center;
+    color     : var(--e-global-color-text);
+}
+
+/* --- 2.3 Links --- */
+html body a[href*="mailto"]:hover {
+    color: currentColor;
+}
+
+.elementor-kit-2553 a:hover {
+    color: var(--e-global-color-text);
+}
+
+/* --- 2.4 Seleção de Texto --- */
+::selection {
+    background-color: var(--ucpa-color-white);
+    color           : var(--ucpa-color-accent);
+}
+
+@supports (color: color-mix(in oklch, black 50%, white)) {
+    ::selection {
+        background-color: color-mix(in oklch, var(--ucpa-color-main) 90%, black 10%);
+        color           : color-mix(in oklch, var(--ucpa-color-main) 10%, white 90%);
+    }
+}
+
+/* --- 2.5 Outline --- */
+* {
+    outline-color: var(--e-global-color-accent);
+}
+
+/* --- 2.6 Scrollbar --- */
+::-webkit-scrollbar {
+    width    : 7px;
+    transform: width 1s ease;
+}
+
+::-webkit-scrollbar-track {
+    background   : var(--ucpa-color-white);
+    border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb {
+    background   : var(--ucpa-color-accent);
+    border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--ucpa-color-accent);
+}
+
+
+/* ==========================================================================
+   3. COMPONENTES
+   ========================================================================== */
+
+/* --- 3.1 Labels --- */
+html body.elementor-kit-2553 label {
+    color: var(--ucpa-color-main, #000);
+}

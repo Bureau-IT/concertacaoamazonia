@@ -1,0 +1,58 @@
+/*
+ * estudos.css — Estilos para listagens e destaque da seção de Estudos
+ * Extraído de: style.css
+ * Tema: hello-elementor-child
+ */
+
+/* ==========================================================================
+   8. PÁGINAS ESPECÍFICAS — Estudos
+   ========================================================================== */
+
+/* --- 8.3 Listagens de Estudos --- */
+@media (min-width: 1140px) {
+    .listing_container_thumb_bg * {
+        object-position: top;
+    }
+}
+
+@media (max-width: 1024px) {
+    .listing_container_thumb_bg {
+        background-color: var(--e-global-color-text);
+    }
+}
+
+@media (max-width: 767px) {
+    .listing_container_thumb_bg {
+        background-color: var(--e-global-color-text);
+    }
+}
+
+/* --- 8.4 Destaque Estudos --- */
+.listing_destaque .jet-listing-grid__item {
+    order: 1;
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) {
+    order: 1;
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .e-con-inner {
+    background   : var(--ucpa-color-sage);
+    border-radius: 1px;
+    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-sage);
+}
+
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a > .e-con-inner::before {
+    content       : "Em destaque";
+    position      : absolute;
+    top           : -1.6rem;
+    left          : 50%;
+    transform     : translateX(-50%);
+    background    : var(--ucpa-color-sage);
+    padding       : 2px 6px;
+    border-radius : 5px;
+    font-size     : 12px;
+    font-weight   : bold;
+    text-transform: uppercase;
+    color         : #000000;
+}

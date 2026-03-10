@@ -1,0 +1,94 @@
+/*
+ * complianz.css — Cookie banner: estilos legados (cookie-notice) e Complianz GDPR
+ * Extraído de: style.css
+ * Tema: hello-elementor-child
+ */
+
+/* ==========================================================================
+   7. COMPONENTES ESPECIAIS — Cookie Consent (legado)
+   ========================================================================== */
+
+/* --- 7.1 Cookie Consent --- */
+/* Seletor específico para sobrescrever plugin sem !important */
+html body #cn-accept-cookie,
+.cookie-notice-container #cn-accept-cookie {
+    background: var(--ucpa-color-accent);
+    color     : var(--ucpa-color-white);
+}
+
+
+/* ============================================================================
+   COMPLIANZ - Cookie Banner
+   Paleta: Primary #174538 | Petróleo #0F4C5C | Off-white #FFFCF7 | Bege #EFEDE0
+   ============================================================================ */
+
+/* Container */
+.cmplz-cookiebanner {
+  background-color: #FFFCF7 !important;
+  border: 1px solid #EFEDE0 !important;
+  color: #174538 !important;
+}
+
+/* Título */
+.cmplz-cookiebanner .cmplz-header .cmplz-title {
+  color: #174538 !important;
+}
+
+/* Texto */
+.cmplz-cookiebanner .cmplz-body,
+.cmplz-cookiebanner .cmplz-message {
+  color: #174538 !important;
+}
+
+/* Botão Aceitar — fundo sólido */
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-accept {
+  background-color: #174538 !important;
+  color: #FFFCF7 !important;
+  border-color: #174538 !important;
+}
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-accept:hover {
+  background-color: #0F4C5C !important;
+  border-color: #0F4C5C !important;
+}
+
+/* Botões outline — Rejeitar, Personalizar, Salvar */
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-deny,
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-manage-options,
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-view-preferences,
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-save-preferences {
+  background-color: transparent !important;
+  color: #174538 !important;
+  border-color: #174538 !important;
+}
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-deny:hover,
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-manage-options:hover,
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-view-preferences:hover,
+.cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-save-preferences:hover {
+  background-color: #174538 !important;
+  color: #FFFCF7 !important;
+}
+
+/* Links (Aviso de Privacidade) */
+.cmplz-cookiebanner .cmplz-links .cmplz-link {
+  color: #174538 !important;
+  text-decoration-color: #174538 !important;
+}
+.cmplz-cookiebanner .cmplz-links .cmplz-link:hover {
+  color: #0F4C5C !important;
+}
+
+/* Botão fechar (X) */
+.cmplz-cookiebanner .cmplz-close svg {
+  fill: #174538 !important;
+}
+.cmplz-cookiebanner .cmplz-close:hover svg {
+  fill: #0F4C5C !important;
+}
+
+/* Scrollbar */
+.cmplz-cookiebanner .cmplz-body::-webkit-scrollbar-thumb {
+  background-color: #174538 !important;
+}
+.cmplz-cookiebanner .cmplz-body::-webkit-scrollbar-track {
+  background-color: #EFEDE0 !important;
+}
