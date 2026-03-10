@@ -1,0 +1,18 @@
+filtros localidade, estado e area de atuação foram perdidos apos a migração desta página do subsite area de atuação foram perdidos apos a migração desta página
+  do subsite https://cambrasmax.local:8484 para
+  https://cambrasmax.local:8484/cultura. procure-os no subsite https://cambrasmax.local:8484 (mas eu acho que já transferimos para o subsite https://cambrasmax.local:8484/cultura) e reincorpore os filtros à página.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_qIwDQO/Captura de Tela 2026-03-10 às 10.52.53.png]
+
+---
+
+<task-notification>
+<task-id>bvsqq1jor</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-www2-concertacao/tasks/bvsqq1jor.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush all caches" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-www2-concertacao/tasks/bvsqq1jor.output
