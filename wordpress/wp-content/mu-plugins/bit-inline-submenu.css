@@ -166,3 +166,9 @@
   color: var(--bis-text-active);
   border-bottom: 2px solid var(--bis-border-active);
 }
+
+/* ── 8. Ocultar barra in-flow durante hover ─────────────────────────────── */
+/* Evita "duas barras verdes" simultâneas. visibility:hidden preserva o layout. */
+body:has(.bit-hover-bar--active) .bit-subnav-bar {
+  visibility: hidden;
+}
