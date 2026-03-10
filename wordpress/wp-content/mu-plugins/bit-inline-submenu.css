@@ -40,6 +40,7 @@
 /* ── 3. Variáveis de cores (defaults) ──────────────────────────────────────── */
 .menu-submenu-inline {
   --bis-bg:                 #d6f395;
+  --bis-bg-hover:           #d6f395;
   --bis-text:               #174538;
   --bis-text-hover:         #0e4a5c;
   --bis-text-hover-weight:  700;
@@ -61,6 +62,7 @@
   display: flex !important;
   flex-direction: row;
   align-items: stretch;
+  justify-content: center;
   flex-wrap: nowrap;
   list-style: none;
   margin: 0;
@@ -125,9 +127,11 @@
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  justify-content: center;
   list-style: none;
   margin: 0;
   padding: 0;
+  width: 100%;
 }
 
 .bit-subnav-bar li a {
@@ -147,6 +151,7 @@
 .bit-subnav-bar li a:hover {
   color: var(--bis-text-hover);
   font-weight: var(--bis-text-hover-weight, 700);
+  background-color: var(--bis-bg-hover);
 }
 
 .bit-subnav-bar li.current-menu-item a {
@@ -176,6 +181,7 @@
 .menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li > a:hover {
   color: var(--bis-text-hover);
   font-weight: var(--bis-text-hover-weight, 700);
+  background-color: var(--bis-bg-hover);
 }
 
 .menu-submenu-inline .elementor-nav-menu > li > .sub-menu > li.current-menu-item > a {

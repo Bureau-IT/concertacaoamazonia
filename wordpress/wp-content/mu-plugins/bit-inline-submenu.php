@@ -24,7 +24,7 @@ add_action( 'wp_enqueue_scripts', function () {
         'bit-inline-submenu',
         WPMU_PLUGIN_URL . '/bit-inline-submenu.css',
         [],
-        BIT_INLINE_SUBMENU_VERSION
+        filemtime( WPMU_PLUGIN_DIR . '/bit-inline-submenu.css' )
     );
 } );
 
@@ -93,9 +93,12 @@ add_action( 'wp_footer', function () { ?>
       '.elementor-nav-menu > li.menu-item-has-children.current-menu-item'
     );
 
-    // Fallback: custom URL items não recebem classes WP — detectar por URL
+    // Fallback: custom URL items não recebem classes WP — detectar por URL.
+    // Pega o match mais específico (linkPath mais longo) para evitar que
+    // um item pai (/cultura/) sobreponha um filho (/cultura/conhecimento/).
     if (!activeParent) {
       var curPath = window.location.pathname.replace(/\/$/, '') || '/';
+      var bestLen = 0;
       widget.querySelectorAll(
         '.elementor-nav-menu > li.menu-item-has-children'
       ).forEach(function(li) {
@@ -103,8 +106,11 @@ add_action( 'wp_footer', function () { ?>
         if (!a) return;
         var href = a.getAttribute('href') || '';
         var linkPath = href.replace(/^https?:\/\/[^\/]+/, '').replace(/\/$/, '') || '/';
-        if (linkPath !== '/' && (curPath === linkPath || curPath.startsWith(linkPath + '/'))) {
+        if (linkPath !== '/' &&
+            (curPath === linkPath || curPath.startsWith(linkPath + '/')) &&
+            linkPath.length > bestLen) {
           activeParent = li;
+          bestLen = linkPath.length;
         }
       });
     }
@@ -132,7 +138,7 @@ add_action( 'wp_footer', function () { ?>
 
       // Herdar CSS vars do widget (cores e altura configuradas pelo child theme)
       var wComputed = getComputedStyle(widget);
-      ['--bis-bg','--bis-text','--bis-text-hover','--bis-text-hover-weight',
+      ['--bis-bg','--bis-bg-hover','--bis-text','--bis-text-hover','--bis-text-hover-weight',
        '--bis-text-active','--bis-border-active','--bit-submenu-height'].forEach(function(v) {
         var val = wComputed.getPropertyValue(v).trim();
         if (val) bar.style.setProperty(v, val);
