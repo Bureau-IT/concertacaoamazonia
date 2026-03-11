@@ -1,0 +1,157 @@
+mu-plugin bureau svg (bit-elementor-svg-widget.php) não apresenta a imagem Logo Concertação adequadamente. Ela é um svg pronto para wpml que permite apresentar sua versão EN ou PT, conforme seleção de idioma do wpml.
+a imagem não está renderizando.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_kNCEYP/Captura de Tela 2026-03-10 às 23.35.17.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-03-10 às 23.04.48.png]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user reported that the `bit-elementor-svg-widget.php` mu-plugin's "Bureau SVG" widget was not rendering the Logo Concertação SVG in the Elementor header template. The SVG is a WPML-aware logo that shows a PT (Portuguese) or EN (English) version based on the active WPML language, using `html[lang="en"]` CSS selectors. The screenshots showed the widget selected in the Elementor editor with "Logo Concertação" chosen, but nothing rendering in the canvas.
+
+2. Key Technical Concepts:
+   - **Elementor Widget** (`bureau_svg`): Custom Elementor widget defined in a mu-plugin that loads SVGs inline from the child theme's `/svg/` directory
+   - **CSS Class Collision**: When multiple SVGs are inlined in HTML, their `<style>` blocks become global CSS. Two SVGs on the page both defined `.cls-1`, with the second one (`fill: none`) overriding the first (`fill: currentColor`) — making the logo paths transparent
+   - **CSS Scoping with `data-scope`**: Fix technique — inject a unique `data-scope="bsvg-{id}"` attribute on `<svg>` and prefix `.cls-*` rules with `[data-scope="bsvg-..."]` to isolate them, while preserving `html[lang]` rules globally for WPML
+   - **SVG `viewBox` without dimensions**: SVG had `viewBox="0 0 841.89 588.28"` but no explicit `width`/`height` → scaled to fill container (1139×796px)
+   - **`update_post_meta` JSON corruption**: WordPress's `update_post_meta` applies `wp_slash()` which double-escapes backslashes in JSON, corrupting Elementor data. Must use `$wpdb->query` with `$wpdb->prepare()` instead
+   - **Elementor Element Cache** (`_elementor_element_cache` postmeta): Elementor Pro caches rendered HTML in the database separately from WP Rocket. Must be cleared explicitly with `delete_post_meta` or `\Elementor\Plugin::$instance->files_manager->clear_cache()`
+   - **JetEngine Dynamic Visibility (JEDV)**: Container `78591a3` had `jedv_conditions` in its settings, which likely caused it to be hidden when rendered fresh (without cache)
+   - **Elementor Template Revisions**: WordPress keeps post revisions for Elementor library items (`elementor_library` post type), accessible via `get_post_meta($rev_id, '_elementor_data', true)`
+
+3. Files and Code Sections:
+
+   - **`wordpress/wp-content/mu-plugins/bit-elementor-svg-widget.php`** (MODIFIED)
+     - Version bumped: `1.0.0` → `1.1.0`
+     - Added `scope_svg_styles()` private method to isolate CSS rules per SVG instance
+     - Added `svg_width` slider control (default 200px, units: px/%/vw)
+     - Called `scope_svg_styles()` in `render()` after loading SVG content
+     - Full updated file:
+     ```php
+     <?php
+     /**
+      * Plugin Name:  BIT Elementor SVG Widget
+      * Version:      1.1.0
+      * Author:       Bureau IT
+      */
+     
+     // ... (register_controls adds svg_width slider after svg_name:)
+     $this->add_control( 'svg_width', [
+         'label'      => 'Largura',
+         'type'       => \Elementor\Controls_Manager::SLIDER,
+         'size_units' => [ 'px', '%', 'vw' ],
+         'range'      => [
+             'px' => [ 'min' => 50,  'max' => 800, 'step' => 10 ],
+             '%'  => [ 'min' => 5,   'max' => 100, 'step' => 5  ],
+             'vw' => [ 'min' => 1,   'max' => 50,  'step' => 1  ],
+         ],
+         'default'    => [ 'unit' => 'px', 'size' => 200 ],
+         'selectors'  => [
+             '{{WRAPPER}} svg' => 'width: {{SIZE}}{{UNIT}}; height: auto;',
+         ],
+     ] );
+     
+     // New private method:
+     private function scope_svg_styles( string $svg, string $scope_id ): string {
+         $svg = preg_replace( '/<svg\b/', '<svg data-scope="' . esc_attr( $scope_id ) . '"', $svg, 1 );
+         $svg = preg_replace_callback(
+             '/(<style[^>]*>)(.*?)(<\/style>)/is',
+             static function ( $m ) use ( $scope_id ) {
+                 $scoped_css = preg_replace_callback(
+                     '/([^{}]+)\{([^{}]*)\}/s',
+                     static function ( $rule ) use ( $scope_id ) {
+                         $selector = trim( $rule[1] );
+                         if ( strncmp( $selector, 'html', 4 ) === 0 ) {
+                             return $rule[0];
+                         }
+                         return '[data-scope="' . $scope_id . '"] ' . $selector . ' {' . $rule[2] . '}';
+                     },
+                     $m[2]
+                 );
+                 return $m[1] . $scoped_css . $m[3];
+             },
+             $svg
+         );
+         return $svg;
+     }
+     
+     // In render(), after file_get_contents and XML cleanup:
+     $svg = $this->scope_svg_styles( $svg, 'bsvg-' . $this->get_id() );
+     ```
+
+   - **`docker-dev/common/mu-plugins/bit-elementor-svg-widget.php`** (COPIED)
+     - Canonical copy of the mu-plugin for the server-tools repository
+     - Copied via: `cp wordpress/wp-content/mu-plugins/bit-elementor-svg-widget.php docker-dev/common/mu-plugins/`
+
+   - **Elementor Template Post ID 39359** (Header Main Template — DB modified)
+     - Restored from revision 90711 via `$wpdb->query` + `$wpdb->prepare()`
+     - Final structure: 1 top-level container `6c00f09` containing:
+       - `9614518` (Logo container) → `b668a85` (bureau_svg widget, `svg_name=logo-concertacao`)
+       - `51a462e` (Menu) → `58b33f3` (nav-menu)
+       - `25a448b` (WPML/Hamburger) → `9a58c75` + `a6c32a1`
+     - Temp PHP scripts used (in `wordpress/tmp/`):
+       - `find_bureau_svg.php`, `check_svg_context.php`, `check_container.php`, `check_meta.php`, `clear_elementor_cache.php`, `move_svg_widget.php`, `check_data.php`, `restore_template.php`, `restore_and_fix.php`, `verify_final.php`
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/svg/logo-concertacao.svg`** (READ ONLY)
+     - 46KB, 23 lines — very wide SVG lines
+     - `viewBox="0 0 841.89 588.28"`, `fill="currentColor"`, no explicit `width`/`height`
+     - Contains `<style>` block with:
+       ```css
+       html[lang="en"] .logo-pt { display: none; }
+       html:not([lang="en"]) .logo-en { display: none; }
+       .cls-1 { fill: currentColor; }
+       .cls-en-1 { fill: currentColor; }
+       ```
+     - Two `<g>` groups: `.logo-pt` and `.logo-en`
+
+4. Errors and fixes:
+   - **CSS class collision (`fill: none`)**: Another inline SVG on the page defined `.cls-1 { fill: none }` which overrode the logo's `.cls-1 { fill: currentColor }`. Fixed by adding `scope_svg_styles()` in `render()` to prefix CSS rules with `[data-scope="bsvg-{id}"]`.
+   
+   - **SVG oversized (1139×796px)**: No `width`/`height` on SVG → expanded to fill container. Fixed by adding `svg_width` slider control with default 200px.
+   
+   - **`update_post_meta` JSON corruption**: First attempt to move the widget used `update_post_meta($post_id, '_elementor_data', wp_json_encode($decoded))` which corrupted the JSON (WordPress applies `wp_slash()` which double-escapes backslashes). This broke the entire header template. Fixed by using `$wpdb->query($wpdb->prepare("UPDATE {$wpdb->postmeta} SET meta_value = %s WHERE ...", $json, $post_id))` in the restore script.
+   
+   - **Elementor element cache serving stale HTML**: After flushing WP Rocket/Redis/OPcache, the widget still didn't render because `_elementor_element_cache` postmeta was serving cached rendered HTML. Fixed by calling `delete_post_meta(39359, '_elementor_element_cache')` and `\Elementor\Plugin::$instance->files_manager->clear_cache()`.
+   
+   - **Widget in wrong container (hidden by JetEngine DV)**: Widget `520f209` was in a standalone top-level container `78591a3` that had `jedv_conditions` in settings, causing it to be hidden. The proper published state (revision 90711) already had widget `b668a85` inside the correct Logo container `9614518`.
+   
+   - **Header broken after `update_post_meta`**: The entire header template failed to render (no `banner` element in accessibility tree). Fixed by restoring from Elementor revision 90711 using `$wpdb->query` with `json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)`.
+
+5. Problem Solving:
+   - **Diagnosis approach**: Used JavaScript evaluation via Playwright to inspect the live DOM — confirmed SVG was in the DOM but with `fill: none` on paths. Discovered 2 CSS rules for `.cls-1` via `document.styleSheets` iteration.
+   - **Template structure discovery**: Used WP-CLI eval-file PHP scripts to inspect `_elementor_data` JSON structure, finding the widget was in an orphaned container with JetEngine DV conditions.
+   - **Recovery from corruption**: Identified 5 Elementor template revisions in the WordPress database, found revision 90711 already had the correct structure (widget inside Logo container), restored it using safe `$wpdb->query` method.
+   - **Current state**: Header is restored and rendering. The `banner` accessibility element shows `link` → `img` (SVG logo as clickable link). The CSS scoping fix and width control are active in the plugin.
+
+6. All user messages:
+   - Initial message: Reported that `bit-elementor-svg-widget.php` mu-plugin's Bureau SVG widget was not rendering the Logo Concertação image properly. The SVG is WPML-aware (EN/PT versions). Included two screenshots showing the Elementor editor with the widget selected but no logo visible in the canvas.
+   - `/resume` (cancelled)
+   - When asked about approach: Selected "Implementar como planejado" (implement as planned: CSS scoping + width control + copy to common/mu-plugins)
+   - When asked how to proceed: Selected "Sair do modo plano e implementar" (exit plan mode and implement)
+   - Rejected ExitPlanMode tool calls multiple times (3 times total) before the plan file was edited, which was required before ExitPlanMode could succeed.
+
+7. Pending Tasks:
+   - **Visual verification**: Take a screenshot of the frontend to confirm the logo is rendering visually with correct size (~200px wide) and fill color (off-white/cream on dark green background)
+   - **WPML verification**: Check that switching language to `/en/` shows the EN logo version and PT version shows PT logo
+   - **Console error**: Address `Error: <svg> attribute width: Expected len...th, "auto"` — this appears to be from another SVG element using `height: auto` as an SVG presentation attribute (CSS `height: auto` is fine, but SVG `height="auto"` attribute is not valid)
+   - **Cleanup**: Remove temp PHP files from `wordpress/tmp/`
+   - **Commit**: The modified files (mu-plugin v1.1.0) and Elementor template restoration should be committed to the server-tools repository
+
+8. Current Work:
+   After implementing the CSS scoping fix and width control in `bit-elementor-svg-widget.php` (v1.1.0), and after recovering from a JSON corruption incident, the Elementor header template was restored from revision 90711. The header is now rendering correctly with `bureau_svg` widget (`b668a85`) inside the Logo container (`9614518`). The last Playwright navigation to `https://concertacao.bureau-it.com/` showed the `banner` element with `link → img` (SVG logo) rendering correctly in the accessibility tree alongside the navigation menu. There's still a console error `Error: <svg> attribute width: Expected len...th, "auto"` on line 4397, and a visual screenshot has not yet been taken to confirm the logo appearance.
+
+9. Optional Next Step:
+   Take a screenshot to visually confirm the logo is rendering correctly with proper size and fill color. The last navigation showed the header restored with `link → img` in the banner, but no visual confirmation of the actual logo appearance:
+   
+   > "The header is restored and the accessibility snapshot shows: `banner` > `generic` > `link [ref=e5]` > `img [ref=e8]` — which represents the SVG logo rendering as a clickable image inside the Logo container."
+   
+   Next action: Take a screenshot via `mcp__plugin_playwright_playwright__browser_take_screenshot` to confirm visual rendering, then check JS computed styles for the `data-scope` attribute and `fill` value to verify the CSS scoping fix is working correctly on widget `b668a85`.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3b7956f0-27c0-4679-b621-e10207bd5b03.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
