@@ -72,6 +72,14 @@ html body .jet-hamburger-panel__inner {
     background: unset;
 }
 
+/* --- 5.3b Checkbox Filter: reset font-size ---
+ * O Elementor kit define `.elementor-kit-2553 label { font-size: var(--e-global-typography-primary-font-size) }`
+ * aplicando tamanho de heading (~33px) a todos os <label>, inclusive os itens do JetSmartFilters.
+ * Este override corrige para herdado do container pai (tamanho de corpo de texto). */
+html body.elementor-kit-2553 .jet-checkboxes-list__item {
+    font-size: inherit;
+}
+
 /* --- 5.4 Filtro Alfabético --- */
 div.jet-alphabet-list__row.jet-filter-row label.jet-alphabet-list__item span.jet-alphabet-list__button {
     display      : grid;

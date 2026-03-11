@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @author  Daniel Cambría + Warp
- * @version 2.0.0
+ * @version 2.0.1
  */
 
 // Prevent direct access
@@ -399,6 +399,7 @@ function bureau_it_svg_shortcode($atts) {
     return $svg;
 }
 
+
 /**
  * Shortcode para logos como <img> com troca de idioma via WPML/CSS
  *
@@ -527,7 +528,7 @@ function bureau_it_dequeue_unused_jet_assets() {
 
     // Dequeue JetSmartFilters if page doesn't use filter widgets
     $filter_widgets = ['jet-smart-filters-', 'jsfb-'];
-    $needs_filters = false;
+    $needs_filters  = false;
     foreach ($filter_widgets as $widget) {
         if (strpos($data, $widget) !== false) {
             $needs_filters = true;
@@ -538,6 +539,15 @@ function bureau_it_dequeue_unused_jet_assets() {
     if (!$needs_filters) {
         wp_dequeue_script('jet-smart-filters');
         wp_deregister_script('jet-smart-filters');
+    } else {
+        // Força CSS no <head> via fila normal — compatível com WP Rocket.
+        // O mecanismo padrão do JSF imprime CSS mid-body via wp_print_styles(),
+        // que o WP Rocket remove ao combinar CSS. Forçar aqui garante que o
+        // <link> seja emitido pelo wp_head() antes do cache ser gerado.
+        if (function_exists('jet_smart_filters') && wp_style_is('jet-smart-filters', 'registered')) {
+            wp_enqueue_style('jet-smart-filters');
+            jet_smart_filters()->filters_not_used = false; // evita print mid-body duplicado
+        }
     }
 }
 
