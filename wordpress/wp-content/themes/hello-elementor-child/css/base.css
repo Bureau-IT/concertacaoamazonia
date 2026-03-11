@@ -61,6 +61,11 @@ html body a[href*="mailto"]:hover {
     color: var(--e-global-color-text);
 }
 
+/* Widget Bureau SVG: preserva cor no hover para não afetar fill:currentColor */
+.elementor-widget-bureau_svg a:hover {
+    color: inherit !important;
+}
+
 /* --- 2.4 Seleção de Texto --- */
 ::selection {
     background-color: var(--ucpa-color-white);

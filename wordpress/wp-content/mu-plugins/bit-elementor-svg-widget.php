@@ -4,7 +4,7 @@
  * Description:  Widget Elementor "Bureau SVG" — carrega SVGs inline do tema
  *               com preview no editor. Suporta qualquer subsite da rede.
  *               Substitui [wpml_logo] e resolve bug de path do JetElements.
- * Version:      1.0.0
+ * Version:      1.4.0
  * Author:       Bureau IT
  * Network:      true
  */
@@ -26,11 +26,16 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
     public function get_keywords()    { return [ 'svg', 'bureau', 'logo', 'icon', 'inline' ]; }
 
     private function get_svg_options() {
-        $svg_dir = get_stylesheet_directory() . '/svg/';
-        $options = [ '' => '— selecionar —' ];
+        $svg_dir  = get_stylesheet_directory() . '/svg/';
+        $options  = [ '' => '— selecionar —' ];
+        $name_map = [
+            'logo-concertacao'        => 'Logo Concertação',
+            'espiral-concertacao'     => 'Ícone Espiral',
+            'espiral-do-conhecimento' => 'Espiral do Conhecimento',
+        ];
         foreach ( glob( $svg_dir . '*.svg' ) ?: [] as $file ) {
-            $name             = basename( $file, '.svg' );
-            $options[ $name ] = $name;
+            $slug             = basename( $file, '.svg' );
+            $options[ $slug ] = $name_map[ $slug ] ?? $slug;
         }
         return $options;
     }
@@ -42,18 +47,25 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
         ] );
 
         $this->add_control( 'svg_name', [
-            'label'   => 'Arquivo SVG (tema ativo)',
+            'label'   => 'Arquivo SVG',
             'type'    => \Elementor\Controls_Manager::SELECT,
             'options' => $this->get_svg_options(),
             'default' => '',
         ] );
 
-        $this->add_control( 'svg_custom', [
-            'label'       => 'Ou nome customizado',
-            'type'        => \Elementor\Controls_Manager::TEXT,
-            'placeholder' => 'nome-do-arquivo (sem .svg)',
-            'description' => 'Se preenchido, substitui o dropdown acima. Busca em svg/ do tema ativo.',
-            'ai'          => [ 'active' => false ],
+        $this->add_control( 'svg_width', [
+            'label'      => 'Largura',
+            'type'       => \Elementor\Controls_Manager::SLIDER,
+            'size_units' => [ 'px', '%', 'vw' ],
+            'range'      => [
+                'px' => [ 'min' => 50,  'max' => 800, 'step' => 10 ],
+                '%'  => [ 'min' => 5,   'max' => 100, 'step' => 5  ],
+                'vw' => [ 'min' => 1,   'max' => 50,  'step' => 1  ],
+            ],
+            'default'    => [ 'unit' => 'px', 'size' => 200 ],
+            'selectors'  => [
+                '{{WRAPPER}} svg' => 'width: {{SIZE}}{{UNIT}}; height: auto;',
+            ],
         ] );
 
         $this->add_control( 'svg_class', [
@@ -117,7 +129,9 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 'default' => \Elementor\Core\Kits\Documents\Tabs\Global_Colors::COLOR_PRIMARY,
             ],
             'selectors' => [
-                '{{WRAPPER}}' => 'color: {{VALUE}};',
+                '{{WRAPPER}}'     => 'color: {{VALUE}};',
+                '{{WRAPPER}} a'   => 'color: {{VALUE}};',
+                '{{WRAPPER}} svg' => 'color: {{VALUE}};',
             ],
             'description' => 'Funciona em SVGs que usam fill:currentColor (logo-concertacao, espiral-concertacao).',
         ] );
@@ -166,28 +180,67 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
         $this->end_controls_section();
     }
 
+    /**
+     * Isola o <style> interno do SVG com um atributo data-scope único,
+     * evitando conflito de nomes de classes genéricas (ex: .cls-1) entre
+     * múltiplos SVGs inlined na mesma página.
+     *
+     * Escopo APENAS para SVGs que usam classes genéricas .cls-N.
+     * SVGs com classes únicas (ex: .SVGSpiral2026) são retornados sem modificação,
+     * preservando seus controles de estilo do Elementor e CSS interno complexo.
+     */
+    private function scope_svg_styles( string $svg, string $scope_id ): string {
+        // Só aplica scoping em SVGs com classes genéricas .cls-N
+        if ( ! preg_match( '/\.cls-[\w-]+\s*\{/', $svg ) ) {
+            return $svg;
+        }
+
+        // Injetar data-scope no elemento <svg>
+        $svg = preg_replace( '/<svg\b/', '<svg data-scope="' . esc_attr( $scope_id ) . '"', $svg, 1 );
+
+        // Scopar apenas os seletores .cls-* dentro dos blocos <style>
+        $svg = preg_replace_callback(
+            '/(<style[^>]*>)(.*?)(<\/style>)/is',
+            static function ( $m ) use ( $scope_id ) {
+                $scoped = preg_replace_callback(
+                    '/(\.cls-[\w-]+(?:\s*,\s*\.cls-[\w-]+)*)\s*\{/',
+                    static function ( $r ) use ( $scope_id ) {
+                        $selectors = array_map( 'trim', explode( ',', $r[1] ) );
+                        $prefixed  = array_map(
+                            static fn( $s ) => '[data-scope="' . $scope_id . '"] ' . $s,
+                            $selectors
+                        );
+                        return implode( ', ', $prefixed ) . ' {';
+                    },
+                    $m[2]
+                );
+                return $m[1] . $scoped . $m[3];
+            },
+            $svg
+        );
+
+        return $svg;
+    }
+
     protected function render() {
         $s = $this->get_settings_for_display();
 
-        $name = ! empty( $s['svg_custom'] )
-            ? sanitize_file_name( trim( $s['svg_custom'] ) )
-            : ( ! empty( $s['svg_name'] ) ? $s['svg_name'] : '' );
+        $name = ! empty( $s['svg_name'] ) ? $s['svg_name'] : '';
 
         if ( empty( $name ) ) return;
 
         $file = get_stylesheet_directory() . '/svg/' . $name . '.svg';
-        if ( ! file_exists( $file ) ) {
-            if ( \Elementor\Plugin::$instance->editor->is_edit_mode() ) {
-                echo '<p style="color:red;font-size:12px;">SVG não encontrado: ' . esc_html( $name ) . '.svg</p>';
-            }
-            return;
-        }
+
+        if ( ! file_exists( $file ) ) return;
 
         $svg = file_get_contents( $file );
         if ( empty( $svg ) ) return;
 
         // Remover declaração XML (inválida em HTML5 inline)
         $svg = preg_replace( '/<\?xml[^?]*\?>\s*/i', '', $svg );
+
+        // Isolar CSS interno com data-scope para evitar conflitos entre SVGs inlined
+        $svg = $this->scope_svg_styles( $svg, 'bsvg-' . $this->get_id() );
 
         // Injetar class no <svg>
         if ( ! empty( $s['svg_class'] ) ) {
