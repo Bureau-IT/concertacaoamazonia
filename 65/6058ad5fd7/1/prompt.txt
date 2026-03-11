@@ -1,0 +1,199 @@
+Implement the following plan:
+
+# Plano: Corrigir renderização do Logo Concertação no bit-elementor-svg-widget
+
+## Contexto
+
+O widget `bureau_svg` (mu-plugin `bit-elementor-svg-widget.php`) está inserido no header do site concertacao com o SVG `logo-concertacao` selecionado. O SVG IS renderizado no DOM (46KB, presente), mas **completamente invisível** por dois motivos:
+
+### Problema 1 — CSS global conflict (crítico)
+Quando SVGs são inlined em HTML, seus `<style>` blocks se tornam CSS global. O SVG do logo define `.cls-1 { fill: currentColor; }`, mas **outro SVG na mesma página** (das 17 SVGs no header) define `.cls-1 { fill: none; }`. O segundo vence na cascata → paths do logo ficam `fill: none` (transparentes).
+
+Evidência:
+```
+CSS rule 1: .cls-1 { fill: currentcolor }  ← logo SVG
+CSS rule 2: .cls-1 { fill: none }          ← outro SVG (vence)
+computedFill dos paths: "none"              ← resultado
+```
+
+### Problema 2 — SVG sem dimensões (secundário)
+O SVG tem `viewBox="0 0 841.89 588.28"` mas sem `width`/`height` → expande para preencher o container: **1139×796px**. Precisa de controle de tamanho no widget.
+
+---
+
+## Arquivos críticos
+
+- **Modificar**: `wordpress/wp-content/mu-plugins/bit-elementor-svg-widget.php`
+- **Copiar**: `docker-dev/common/mu-plugins/bit-elementor-svg-widget.php` (cópia canônica)
+- **SVG fonte**: `wordpress/wp-content/themes/hello-elementor-child/svg/logo-concertacao.svg`
+
+---
+
+## Solução
+
+### Fix 1 — Auto-scoping de CSS no `render()`
+
+Em `render()`, após `file_get_contents()`, injetar:
+1. Atributo `data-scope="bsvg-{widget_id}"` no elemento `<svg>`
+2. Prefixar as regras `.cls-*` no `<style>` com `[data-scope="bsvg-{widget_id}"]`
+3. **Preservar** as regras `html[lang]` sem modificação (precisam referenciar o `<html>` global)
+
+```php
+// Após carregar o SVG e antes da injeção de class/id:
+$scope_attr = 'bsvg-' . $this->get_id();
+
+// Injetar data-scope no <svg>
+$svg = preg_replace( '/<svg\b/', '<svg data-scope="' . $scope_attr . '"', $svg, 1 );
+
+// Scopar CSS interno (apenas regras .cls-*, não as regras html[lang])
+$svg = preg_replace_callback(
+    '/(<style[^>]*>)(.*?)(<\/style>)/is',
+    function ( $m ) use ( $scope_attr ) {
+        $scoped = preg_replace(
+            '/(?<!\w)(\.(?:cls|en|pt)-[\w-]+)\s*\{/',
+            '[data-scope="' . $scope_attr . '"] $1 {',
+            $m[2]
+        );
+        return $m[1] . $scoped . $m[3];
+    },
+    $svg
+);
+```
+
+> Nota: a regex `(?<!\w)(\.cls-...)` evita modificar seletores que já têm prefixo.
+
+### Fix 2 — Controle de largura no widget
+
+Em `register_controls()`, adicionar no `content_section` após `svg_name`:
+
+```php
+$this->add_control( 'svg_width', [
+    'label'      => 'Largura',
+    'type'       => \Elementor\Controls_Manager::SLIDER,
+    'size_units' => [ 'px', '%', 'vw' ],
+    'range'      => [
+        'px' => [ 'min' => 50, 'max' => 800, 'step' => 10 ],
+        '%'  => [ 'min' => 5,  'max' => 100, 'step' => 5  ],
+    ],
+    'default'    => [ 'unit' => 'px', 'size' => 200 ],
+    'selectors'  => [
+        '{{WRAPPER}} svg' => 'width: {{SIZE}}{{UNIT}}; height: auto;',
+    ],
+] );
+```
+
+---
+
+## Sequência de implementação
+
+1. Ler arquivo atual do widget (`bit-elementor-svg-widget.php`)
+2. Adicionar controle `svg_width` em `register_controls()` (após `svg_name`)
+3. Adicionar bloco de CSS-scoping em `render()` (após `file_get_contents` e antes da injeção de class/id do usuário)
+4. Bump de versão: `1.0.0` → `1.1.0`
+5. Copiar arquivo para `docker-dev/common/mu-plugins/bit-elementor-svg-widget.php`
+6. Flush de cache
+
+---
+
+## Verificação
+
+```bash
+# 1. Limpar caches
+/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh all-cache-flush
+
+# 2. Confirmar que fill não é mais "none" via JS no browser:
+# document.querySelector('.elementor-element-520f209 .logo-pt path').computedStyleMap().get('fill')
+# Deve retornar rgb(255, 252, 247) ou currentColor, NÃO none
+
+# 3. Verificar versão PT (pt-br): logo-pt visível, logo-en hidden
+# Verificar versão EN (/en/): logo-en visível, logo-pt hidden
+
+# 4. Confirmar que espiral e outros SVGs no header continuam renderizando corretamente
+```
+
+Após fix, o usuário deve re-publicar o template no Elementor (o widget está salvo em `elementor-element-520f209`, container `78591a3`).
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3b7956f0-27c0-4679-b621-e10207bd5b03.jsonl
+
+---
+
+no hover a logo some. não é necessário alterar a cor do hover.
+
+---
+
+a espiral ainda está preta! a original tem bg azulada.
+a logo está cortando na letra O, ajuste. a cor da espiral está verde, não respeita o controle de estilo do widget
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-03-11 às 01.26.28.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_qwNjuh/Captura de Tela 2026-03-11 às 01.27.01.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-03-11 às 01.26.58.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_raj7tT/Captura de Tela 2026-03-11 às 01.27.27.png]
+
+---
+
+[Request interrupted by user]
+
+---
+
+ignore os ultimos 2 pedidos de :
+
+- botão x não fecha! tem que fechar
+- rode 3 agentes em paralelo para analisar o novo plano e orientar corretamente o agente para ajustes
+
+mandei errado. continue a execução
+
+---
+
+ainda está cortando o O
+não precisa de padding, a imagem deve ficar justa no canva, como eu já pedi antes!
+ainda está com hover, tira isso.
+elimine todas as classes e ids internos do svg, isso é sujeira
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_cAluof/Captura de Tela 2026-03-11 às 01.58.39.png]
+
+---
+
+teste tudo no playwright com 3 agentes
+
+---
+
+nao importa a cor que eu coloque, nao está alterando a cor do svg da logo.
+na home, a espiral mudou a tonalidade original, preciso que seja preciso e nao altere nada das cores originais. Dispare 3 agentes pra te ajudar
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_a8eZpg/Captura de Tela 2026-03-11 às 02.49.41.png]
+
+---
+
+<task-notification>
+<task-id>btgmsvu47</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/btgmsvu47.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush all caches for the concertacao site" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/btgmsvu47.output
+
+---
+
+<task-notification>
+<task-id>bua5at59u</task-id>
+<tool-use-id>toolu_01GanL8Lwx7QwxNyYyapeRYT</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/bua5at59u.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush Elementor CSS + all caches" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/bua5at59u.output
+
+---
+
+funcionou. versione e comite!
