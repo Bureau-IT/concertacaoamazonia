@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "a8efbfdb197a",
+  "session_id": "bdbd37f8-7eb9-44ec-9fb2-cc1d56ce7992",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T21:20:50.113602Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bit-elementor-svg-widget/svg/logo-concertacao.svg",
+    "wordpress/wp-content/mu-plugins/bit-elementor-svg-widget.php",
+    "wordpress/wp-content/mu-plugins/bit-elementor-svg-widget/bit-elementor-svg-widget.php",
+    "wordpress/wp-content/mu-plugins/bit-elementor-svg-widget/svg/espiral-concertacao.svg",
+    "wordpress/wp-content/themes/hello-elementor-child/svg/espiral-2025.svg",
+    "wordpress/wp-content/themes/hello-elementor-child/svg/espiral-do-conhecimento.svg"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2646f2d2ef1d",
+  "checkpoint_transcript_start": 250,
+  "transcript_lines_at_start": 250,
+  "token_usage": {
+    "input_tokens": 35,
+    "cache_creation_tokens": 100706,
+    "cache_read_tokens": 2667309,
+    "output_tokens": 9227,
+    "api_call_count": 29
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T21:20:49.840264Z",
+    "agent_lines": 596,
+    "human_added": 603,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1199,
+    "agent_percentage": 49.70809007506255
+  }
+}
