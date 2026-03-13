@@ -11,8 +11,8 @@
         <!-- * Spiral variables -->
         <style data-scope="Variables for --spiral2026">
             .SVGSpiral2026 {
-                --spiral2026-backgroundcolor: #307a50d9;
-                --spiral2026-backgroundcolor-hover: #3d9960f0;
+                --spiral2026-backgroundcolor: rgba(10, 38, 102, 0.6);
+                --spiral2026-backgroundcolor-hover: #0E4A5C;
                 --spiral2026-mainline-color: #bdf839e0;
                 --spiral2026-middle-center-color: #d6f395e6;
                 --spiral2026-middle-edge-color: #64d4e96e;
@@ -35,11 +35,11 @@
         /* Correção das cores de fundo dos eixos da espiral */
 
 .spiral26AxisBackground path[id*="eixo-"] {
-    fill: rgba(10, 38, 102, 0.6);
+    fill: var(--spiral2026-backgroundcolor);
 }
 
 .spiral26AxisBackground path[id*="eixo-"]:hover {
-    fill: #0E4A5C;
+    fill: var(--spiral2026-backgroundcolor-hover);
 }
             
         

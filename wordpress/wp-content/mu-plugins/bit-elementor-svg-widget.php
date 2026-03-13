@@ -4,7 +4,7 @@
  * Description:  Widget Elementor "Bureau SVG" — carrega SVGs inline do tema
  *               com preview no editor. Suporta qualquer subsite da rede.
  *               Substitui [wpml_logo] e resolve bug de path do JetElements.
- * Version:      1.4.0
+ * Version:      1.5.0
  * Author:       Bureau IT
  * Network:      true
  */
@@ -46,6 +46,12 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
             'tab'   => \Elementor\Controls_Manager::TAB_CONTENT,
         ] );
 
+        $this->add_control( 'plugin_info', [
+            'type'            => \Elementor\Controls_Manager::RAW_HTML,
+            'raw'             => '<small style="color:#888">BIT Elementor SVG Widget v1.5.0<br>Bureau de Tecnologia</small>',
+            'content_classes' => 'elementor-descriptor',
+        ] );
+
         $this->add_control( 'svg_name', [
             'label'   => 'Arquivo SVG',
             'type'    => \Elementor\Controls_Manager::SELECT,
@@ -53,7 +59,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
             'default' => '',
         ] );
 
-        $this->add_control( 'svg_width', [
+        $this->add_responsive_control( 'svg_width', [
             'label'      => 'Largura',
             'type'       => \Elementor\Controls_Manager::SLIDER,
             'size_units' => [ 'px', '%', 'vw' ],
@@ -118,8 +124,9 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
 
         // ── Cor genérica (para SVGs com fill:currentColor) ──
         $this->start_controls_section( 'style_section', [
-            'label' => 'Cor',
-            'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+            'label'     => 'Cor',
+            'tab'       => \Elementor\Controls_Manager::TAB_STYLE,
+            'condition' => [ 'svg_name!' => 'espiral-do-conhecimento' ],
         ] );
 
         $this->add_control( 'svg_color', [
@@ -173,7 +180,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
             'size_units' => [ 'px' ],
             'range'      => [ 'px' => [ 'min' => 8, 'max' => 32, 'step' => 1 ] ],
             'selectors'  => [
-                '{{WRAPPER}} .SVGSpiral2026' => '--spiral2026-foreignobject-fontsize: {{SIZE}}{{UNIT}};',
+                '{{WRAPPER}} .SVGSpiral2026 foreignObject' => 'font-size: {{SIZE}}{{UNIT}};',
             ],
         ] );
 
