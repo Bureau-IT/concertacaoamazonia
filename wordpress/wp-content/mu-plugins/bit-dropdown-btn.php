@@ -63,6 +63,12 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 'ai'          => [ 'active' => false ],
             ] );
 
+            $this->add_control( 'icon', [
+                'label'   => 'Ícone',
+                'type'    => \Elementor\Controls_Manager::ICONS,
+                'default' => [ 'value' => 'eicon-download', 'library' => 'eicons' ],
+            ] );
+
             $repeater = new \Elementor\Repeater();
 
             $repeater->add_control( 'item_label', [
@@ -221,12 +227,6 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
             $this->start_controls_section( 'style_icon', [
                 'label' => 'Ícone',
                 'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
-            ] );
-
-            $this->add_control( 'icon', [
-                'label'   => 'Ícone',
-                'type'    => \Elementor\Controls_Manager::ICONS,
-                'default' => [ 'value' => 'eicon-download', 'library' => 'eicons' ],
             ] );
 
             $this->add_control( 'icon_size', [
@@ -394,17 +394,17 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                          && function_exists( 'jet_elements_download_handler' )
                          && jet_elements_download_handler() instanceof Jet_Elements_Download_Handler ) {
                         // Link criptografado via JetElements
-                        $href   = esc_url( jet_elements_download_handler()->get_download_link( $attachment_id ) );
-                        $target = '';
+                        $href           = esc_url( jet_elements_download_handler()->get_download_link( $attachment_id ) );
+                        $target_attr = '';
                     } elseif ( ! empty( $fallback_url ) ) {
                         // URL direta (fallback)
-                        $href   = esc_url( $fallback_url );
-                        $target = $is_external ? ' target="_blank"' : '';
+                        $href           = esc_url( $fallback_url );
+                        $target_attr = $is_external ? ' target="_blank"' : '';
                     } else {
                         continue; // nenhuma URL válida — não renderiza este item
                     }
 
-                    echo '<a href="' . $href . '" rel="nofollow noopener"' . $target . '>'
+                    echo '<a href="' . $href . '" rel="nofollow noopener"' . $target_attr . '>'
                        . $item_label . '</a>';
                 }
                 echo '</div>'; // .dropdown-btn-menu
