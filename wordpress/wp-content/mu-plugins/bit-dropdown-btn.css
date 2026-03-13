@@ -1,6 +1,6 @@
 /**
  * BIT Dropdown Button — Estilos
- * Versão: 3.0.0
+ * Versão: 3.1.0
  *
  * CSS variables do child theme (style.css :root):
  *   --btn-normal-bg, --btn-normal-txt, --btn-normal-bdr
@@ -121,7 +121,10 @@
 }
 
 .dropdown-btn-container .dropdown-btn-menu a {
-    display        : block;
+    display        : flex;
+    justify-content: space-between;
+    align-items    : center;
+    gap            : 8px;
     padding        : 12px 20px;
     font-family    : var(--e-global-typography-text-font-family), sans-serif;
     font-size      : 14px;
@@ -141,4 +144,17 @@
 .dropdown-btn-container .dropdown-btn-menu a:hover {
     background-color: var(--btn-normal-bg-hv);
     color           : var(--btn-normal-txt-hv);
+}
+
+/* ==========================================================================
+   FILE SIZE LABEL (v3.1.0)
+   ========================================================================== */
+
+.dropdown-btn-container .dropdown-btn-file-size {
+    font-size     : 0.75em;
+    font-weight   : 400;
+    text-transform: none;
+    opacity       : 0.75;
+    white-space   : nowrap;
+    flex-shrink   : 0;
 }

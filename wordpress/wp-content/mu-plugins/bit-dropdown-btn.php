@@ -5,7 +5,7 @@
  *              arquivos, links criptografados via JetElements Download Handler.
  *              Fallback para URL direta quando JetElements indisponível.
  *              Ícone configurável via Icon Picker nativo do Elementor.
- * Version:     3.0.0
+ * Version:     3.1.0
  * Author:      Bureau IT
  * Network:     true
  */
@@ -82,7 +82,14 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
             $repeater->add_control( 'item_file', [
                 'label'       => 'Arquivo (biblioteca de mídia)',
                 'type'        => \Elementor\Controls_Manager::MEDIA,
-                'description' => 'Selecione um arquivo. O link será criptografado automaticamente via JetElements.',
+                'media_types' => [
+                    'image',
+                    'application/pdf',
+                    'application/zip',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                ],
+                'description' => 'PDF, DOCX, ZIP ou imagem. Link criptografado via JetElements.',
             ] );
 
             $repeater->add_control( 'item_fallback_url', [
@@ -91,6 +98,13 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 'description'   => 'Usada quando nenhum arquivo for selecionado ou JetElements estiver inativo.',
                 'show_external' => true,
                 'ai'            => [ 'active' => false ],
+            ] );
+
+            $repeater->add_control( 'item_file_size', [
+                'label'       => 'Tamanho do arquivo',
+                'type'        => \Elementor\Controls_Manager::TEXT,
+                'placeholder' => '3.2 MB',
+                'ai'          => [ 'active' => false ],
             ] );
 
             $this->add_control( 'links', [
@@ -102,6 +116,74 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                     [ 'item_label' => 'English',   'item_file' => [ 'id' => 0, 'url' => '' ], 'item_fallback_url' => [ 'url' => '' ] ],
                 ],
                 'title_field' => '{{{ item_label }}}',
+                'condition'   => [ 'data_source' => 'static' ],
+            ] );
+
+            // Toggle: download direto quando só 1 item
+            $this->add_control( 'single_direct_download', [
+                'label'        => 'Download direto com 1 item',
+                'type'         => \Elementor\Controls_Manager::SWITCHER,
+                'label_on'     => 'Sim',
+                'label_off'    => 'Não',
+                'return_value' => 'yes',
+                'default'      => 'yes',
+                'description'  => 'Quando ativo e há apenas 1 link configurado, o botão vira um link de download direto (sem dropdown).',
+            ] );
+
+            // Separador visual
+            $this->add_control( 'divider_source', [
+                'type' => \Elementor\Controls_Manager::DIVIDER,
+            ] );
+
+            // Fonte dos dados
+            $this->add_control( 'data_source', [
+                'label'   => 'Fonte dos dados',
+                'type'    => \Elementor\Controls_Manager::SELECT,
+                'default' => 'static',
+                'options' => [
+                    'static'     => 'Estático (Elementor)',
+                    'meta_field' => 'Campo meta (JetEngine)',
+                ],
+            ] );
+
+            $this->add_control( 'meta_key', [
+                'label'       => 'Nome do campo meta',
+                'type'        => \Elementor\Controls_Manager::TEXT,
+                'placeholder' => 'arquivos_download',
+                'condition'   => [ 'data_source' => 'meta_field' ],
+                'ai'          => [ 'active' => false ],
+            ] );
+
+            $this->add_control( 'meta_key_label', [
+                'label'     => 'Sub-campo: rótulo',
+                'type'      => \Elementor\Controls_Manager::TEXT,
+                'default'   => 'label',
+                'condition' => [ 'data_source' => 'meta_field' ],
+                'ai'        => [ 'active' => false ],
+            ] );
+
+            $this->add_control( 'meta_key_file_id', [
+                'label'     => 'Sub-campo: ID do arquivo',
+                'type'      => \Elementor\Controls_Manager::TEXT,
+                'default'   => 'file_id',
+                'condition' => [ 'data_source' => 'meta_field' ],
+                'ai'        => [ 'active' => false ],
+            ] );
+
+            $this->add_control( 'meta_key_fallback_url', [
+                'label'     => 'Sub-campo: URL alternativa',
+                'type'      => \Elementor\Controls_Manager::TEXT,
+                'default'   => 'fallback_url',
+                'condition' => [ 'data_source' => 'meta_field' ],
+                'ai'        => [ 'active' => false ],
+            ] );
+
+            $this->add_control( 'meta_key_file_size', [
+                'label'     => 'Sub-campo: tamanho do arquivo',
+                'type'      => \Elementor\Controls_Manager::TEXT,
+                'default'   => 'file_size',
+                'condition' => [ 'data_source' => 'meta_field' ],
+                'ai'        => [ 'active' => false ],
             ] );
 
             $this->end_controls_section();
@@ -352,22 +434,94 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 'selectors' => [ '{{WRAPPER}} .dropdown-btn-menu a' => 'border-bottom-color: {{VALUE}};' ],
             ] );
 
+            $this->add_control( 'file_size_color', [
+                'label'     => 'Cor do tamanho do arquivo',
+                'type'      => \Elementor\Controls_Manager::COLOR,
+                'selectors' => [
+                    '{{WRAPPER}} .dropdown-btn-file-size' => 'color: {{VALUE}};',
+                ],
+            ] );
+
             $this->end_controls_section();
         }
 
         protected function render() {
             $s     = $this->get_settings_for_display();
             $label = esc_html( ! empty( $s['label'] ) ? $s['label'] : 'Download' );
-            $links = ! empty( $s['links'] ) ? $s['links'] : [];
 
-            echo '<div class="dropdown-btn-wrapper">';
-            echo '<div class="dropdown-btn-container">';
-            echo '<button class="dropdown-btn-toggle" type="button">';
-            echo '<div class="dropdown-btn-content">';
-            echo '<span class="dropdown-btn-label">' . $label . '</span>';
+            // ── Pass 1: Montar $links normalizado a partir da fonte selecionada ───
+            $links = [];
 
-            // Ícone — tenta Icon Picker, cai para SVG padrão
-            echo '<span class="dropdown-btn-icon">';
+            if ( 'meta_field' === ( $s['data_source'] ?? 'static' ) && ! empty( $s['meta_key'] ) ) {
+                $raw = [];
+                if ( function_exists( 'jet_engine' )
+                     && ! empty( jet_engine()->listings )
+                     && ! empty( jet_engine()->listings->data ) ) {
+                    $raw = jet_engine()->listings->data->get_meta( $s['meta_key'] );
+                }
+                if ( empty( $raw ) ) {
+                    $raw = get_post_meta( get_the_ID(), $s['meta_key'], true );
+                }
+                if ( is_string( $raw ) ) {
+                    $raw = maybe_unserialize( $raw );
+                }
+
+                $k_label    = ! empty( $s['meta_key_label'] )        ? $s['meta_key_label']        : 'label';
+                $k_file_id  = ! empty( $s['meta_key_file_id'] )      ? $s['meta_key_file_id']      : 'file_id';
+                $k_fallback = ! empty( $s['meta_key_fallback_url'] )  ? $s['meta_key_fallback_url'] : 'fallback_url';
+                $k_size     = ! empty( $s['meta_key_file_size'] )     ? $s['meta_key_file_size']    : 'file_size';
+
+                foreach ( (array) $raw as $row ) {
+                    $links[] = [
+                        'item_label'        => $row[ $k_label ]    ?? '',
+                        'item_file'         => [ 'id' => (int) ( $row[ $k_file_id ] ?? 0 ), 'url' => '' ],
+                        'item_fallback_url' => [ 'url' => $row[ $k_fallback ] ?? '', 'is_external' => false ],
+                        'item_file_size'    => $row[ $k_size ] ?? '',
+                    ];
+                }
+            } else {
+                $links = $s['links'] ?? [];
+            }
+
+            // ── Pass 2: Resolver URLs, auto-detectar tamanho, filtrar itens sem URL ─
+            $valid_links    = [];
+            $jet_handler_ok = function_exists( 'jet_elements_download_handler' )
+                              && jet_elements_download_handler() instanceof Jet_Elements_Download_Handler;
+
+            foreach ( $links as $link ) {
+                $attachment_id = (int) ( $link['item_file']['id'] ?? 0 );
+                $fallback_url  = $link['item_fallback_url']['url'] ?? '';
+                $is_external   = ! empty( $link['item_fallback_url']['is_external'] );
+
+                if ( $attachment_id > 0 && $jet_handler_ok ) {
+                    $href        = esc_url( jet_elements_download_handler()->get_download_link( $attachment_id ) );
+                    $target_attr = '';
+                } elseif ( ! empty( $fallback_url ) ) {
+                    $href        = esc_url( $fallback_url );
+                    $target_attr = $is_external ? ' target="_blank"' : '';
+                } else {
+                    continue;
+                }
+
+                // Tamanho: manual primeiro; auto-detecta via JetElements quando vazio e attachment presente
+                $file_size = esc_html( $link['item_file_size'] ?? '' );
+                if ( empty( $file_size ) && $attachment_id > 0 && $jet_handler_ok ) {
+                    $auto_size = jet_elements_download_handler()->get_file_size( $attachment_id );
+                    $file_size = $auto_size ? esc_html( $auto_size ) : '';
+                }
+
+                $valid_links[] = [
+                    'label'       => esc_html( $link['item_label'] ?? '' ),
+                    'href'        => $href,
+                    'target_attr' => $target_attr,
+                    'file_size'   => $file_size,
+                ];
+            }
+
+            // ── Pass 3: Decidir modo e renderizar ─────────────────────────────────
+            $single_mode = ( count( $valid_links ) === 1 && 'yes' === ( $s['single_direct_download'] ?? 'yes' ) );
+
+            // Ícone (compartilhado entre modos)
             $icon_settings = $s['icon'] ?? [];
             $icon_html     = '';
             if ( ! empty( $icon_settings['value'] ) ) {
@@ -375,39 +529,51 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 \Elementor\Icons_Manager::render_icon( $icon_settings, [ 'aria-hidden' => 'true' ] );
                 $icon_html = ob_get_clean();
             }
-            echo ! empty( $icon_html ) ? $icon_html : $this->get_default_icon_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-            echo '</span>';
+            $icon_output = ! empty( $icon_html ) ? $icon_html : $this->get_default_icon_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
-            echo '</div>'; // .dropdown-btn-content
-            echo '</button>';
+            echo '<div class="dropdown-btn-wrapper">';
+            echo '<div class="dropdown-btn-container">';
 
-            // Menu dropdown
-            if ( ! empty( $links ) ) {
-                echo '<div class="dropdown-btn-menu">';
-                foreach ( $links as $link ) {
-                    $item_label    = esc_html( $link['item_label'] ?? '' );
-                    $attachment_id = (int) ( $link['item_file']['id'] ?? 0 );
-                    $fallback_url  = $link['item_fallback_url']['url'] ?? '';
-                    $is_external   = ! empty( $link['item_fallback_url']['is_external'] );
-
-                    if ( $attachment_id > 0
-                         && function_exists( 'jet_elements_download_handler' )
-                         && jet_elements_download_handler() instanceof Jet_Elements_Download_Handler ) {
-                        // Link criptografado via JetElements
-                        $href           = esc_url( jet_elements_download_handler()->get_download_link( $attachment_id ) );
-                        $target_attr = '';
-                    } elseif ( ! empty( $fallback_url ) ) {
-                        // URL direta (fallback)
-                        $href           = esc_url( $fallback_url );
-                        $target_attr = $is_external ? ' target="_blank"' : '';
-                    } else {
-                        continue; // nenhuma URL válida — não renderiza este item
-                    }
-
-                    echo '<a href="' . $href . '" rel="nofollow noopener"' . $target_attr . '>'
-                       . $item_label . '</a>';
+            if ( $single_mode ) {
+                // Modo download direto — âncora sem dropdown
+                $item = $valid_links[0];
+                echo '<a class="dropdown-btn-toggle dropdown-btn-single"'
+                   . ' href="' . $item['href'] . '"'
+                   . ' rel="nofollow noopener"'
+                   . $item['target_attr'] . '>';
+                echo '<div class="dropdown-btn-content">';
+                echo '<span class="dropdown-btn-label">' . $label . '</span>';
+                if ( ! empty( $item['file_size'] ) ) {
+                    echo '<span class="dropdown-btn-file-size">' . $item['file_size'] . '</span>';
                 }
-                echo '</div>'; // .dropdown-btn-menu
+                echo '<span class="dropdown-btn-icon">';
+                echo $icon_output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                echo '</span>';
+                echo '</div>'; // .dropdown-btn-content
+                echo '</a>';
+            } else {
+                // Modo dropdown
+                echo '<button class="dropdown-btn-toggle" type="button">';
+                echo '<div class="dropdown-btn-content">';
+                echo '<span class="dropdown-btn-label">' . $label . '</span>';
+                echo '<span class="dropdown-btn-icon">';
+                echo $icon_output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                echo '</span>';
+                echo '</div>'; // .dropdown-btn-content
+                echo '</button>';
+
+                if ( ! empty( $valid_links ) ) {
+                    echo '<div class="dropdown-btn-menu">';
+                    foreach ( $valid_links as $item ) {
+                        echo '<a href="' . $item['href'] . '" rel="nofollow noopener"' . $item['target_attr'] . '>';
+                        echo '<span class="dropdown-btn-item-label">' . $item['label'] . '</span>';
+                        if ( ! empty( $item['file_size'] ) ) {
+                            echo '<span class="dropdown-btn-file-size">' . $item['file_size'] . '</span>';
+                        }
+                        echo '</a>';
+                    }
+                    echo '</div>'; // .dropdown-btn-menu
+                }
             }
 
             echo '</div>'; // .dropdown-btn-container
