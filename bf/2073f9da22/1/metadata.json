@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "bf2073f9da22",
+  "session_id": "7cfd307c-fd3f-4b16-a0af-a92eec2826d5",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T01:10:05.524714Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/superpowers/specs/2026-03-12-bit-dropdown-btn-v3-design.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "12af994d2920",
+  "token_usage": {
+    "input_tokens": 49,
+    "cache_creation_tokens": 81398,
+    "cache_read_tokens": 2006459,
+    "output_tokens": 30654,
+    "api_call_count": 32
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T01:10:05.351748Z",
+    "agent_lines": 225,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 226,
+    "agent_percentage": 99.5575221238938
+  }
+}
