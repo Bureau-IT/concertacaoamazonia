@@ -1,0 +1,144 @@
+/**
+ * BIT Dropdown Button — Estilos
+ * Versão: 3.0.0
+ *
+ * CSS variables do child theme (style.css :root):
+ *   --btn-normal-bg, --btn-normal-txt, --btn-normal-bdr
+ *   --btn-normal-bg-hv, --btn-normal-border-hv, --btn-normal-txt-hv
+ *   --btn-normal-icn, --btn-normal-icon-hv
+ *   --e-global-typography-text-font-family
+ *
+ * Dimensões (width, padding, border-radius) controladas via Elementor.
+ * Ícone: SVG inline ou Font Awesome via Elementor Icon Picker.
+ */
+
+/* ==========================================================================
+   COMPONENTE - DROPDOWN BUTTON (Publicações)
+   ========================================================================== */
+
+.dropdown-btn-wrapper {
+    text-align: center;
+    width     : 100%;
+}
+
+.dropdown-btn-container {
+    position: relative;
+    display : inline-block;
+}
+
+/* Especificidade (0,2,1) > .elementor-kit-2553 button (0,1,1) */
+.dropdown-btn-container button.dropdown-btn-toggle {
+    position        : relative;
+    display         : block;
+    margin          : 0 auto;
+    border          : 2px solid var(--btn-normal-bdr);
+    background-color: var(--btn-normal-bg);
+    color           : var(--btn-normal-txt);
+    font-family     : var(--e-global-typography-text-font-family), sans-serif;
+    font-size       : 16px;
+    font-weight     : 600;
+    text-transform  : uppercase;
+    cursor          : pointer;
+    outline         : none;
+    transition      : background-color 0.3s ease, color 0.3s ease;
+}
+
+.dropdown-btn-container:hover button.dropdown-btn-toggle {
+    background-color: var(--btn-normal-bg-hv);
+    border-color    : var(--btn-normal-border-hv);
+    border-radius   : 4px 4px 0 0;
+    color           : var(--btn-normal-txt-hv);
+}
+
+.dropdown-btn-container button.dropdown-btn-toggle:focus,
+.dropdown-btn-container button.dropdown-btn-toggle:focus-visible {
+    outline         : none;
+    border-color    : var(--btn-normal-bdr);
+    background-color: var(--btn-normal-bg);
+    color           : var(--btn-normal-txt);
+}
+
+.dropdown-btn-container:hover button.dropdown-btn-toggle:focus {
+    background-color: var(--btn-normal-bg-hv);
+    border-radius   : 4px 4px 0 0;
+    color           : var(--btn-normal-txt-hv);
+}
+
+.dropdown-btn-container .dropdown-btn-content {
+    display        : flex;
+    align-items    : center;
+    justify-content: space-between;
+    width          : 100%;
+}
+
+.dropdown-btn-container .dropdown-btn-label {
+    flex-shrink: 0;
+}
+
+.dropdown-btn-container .dropdown-btn-icon {
+    display     : inline-flex;
+    align-items : center;
+    width       : 30px;
+    height      : 30px;
+    flex-shrink : 0;
+    color       : var(--btn-normal-icn);
+    transition  : color 0.3s ease;
+}
+
+.dropdown-btn-container .dropdown-btn-icon svg,
+.dropdown-btn-container .dropdown-btn-icon i {
+    display : block;
+    width   : 100%;
+    height  : 100%;
+}
+
+.dropdown-btn-container:hover .dropdown-btn-icon {
+    color: var(--btn-normal-icon-hv);
+}
+
+.dropdown-btn-container:not(:hover) .dropdown-btn-icon {
+    color: var(--btn-normal-icn);
+}
+
+.dropdown-btn-container .dropdown-btn-menu {
+    position        : absolute;
+    background-color: var(--btn-normal-bg);
+    min-width       : 100%;
+    border          : 2px solid var(--btn-normal-bdr);
+    border-top      : none;
+    border-radius   : 0 0 4px 4px;
+    top             : 100%;
+    left            : 50%;
+    transform       : translateX(-50%);
+    z-index         : 1000;
+    display         : none;
+    box-shadow      : 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow        : hidden;
+}
+
+.dropdown-btn-container:hover .dropdown-btn-menu {
+    display: block;
+}
+
+.dropdown-btn-container .dropdown-btn-menu a {
+    display        : block;
+    padding        : 12px 20px;
+    font-family    : var(--e-global-typography-text-font-family), sans-serif;
+    font-size      : 14px;
+    font-weight    : 600;
+    text-transform : uppercase;
+    text-decoration: none;
+    color          : var(--btn-normal-txt);
+    background     : transparent;
+    border-bottom  : 1px solid rgba(0, 0, 0, 0.1);
+    transition     : all 0.2s ease;
+}
+
+.dropdown-btn-container .dropdown-btn-menu a:last-child {
+    border-bottom: none;
+}
+
+.dropdown-btn-container .dropdown-btn-menu a:hover {
+    background-color: var(--btn-normal-bg-hv);
+    color           : var(--btn-normal-txt-hv);
+}
