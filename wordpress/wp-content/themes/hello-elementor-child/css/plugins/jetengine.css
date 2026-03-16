@@ -42,6 +42,7 @@ html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
 }
 
 /* --- 5.3 Painel Hamburger (Pesquisa Ajax) --- */
+/* TODO: mover para css/pages/participantes.css (template ID específico da página /participantes/) */
 .jet-hamburger-panel__content[data-template-id="4360"] {
     position: fixed;
     inset   : 4rem !important;
