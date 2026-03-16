@@ -774,7 +774,10 @@ function bureau_it_tec_cls_critical_inline_css() {
        (breakpoint-full + breakpoint-medium), estabilizando o layout desde
        o primeiro byte renderizado. */
 
-    /* Padding do container — valores finais do estado breakpoint-medium */
+    /* Padding do container — valores finais do estado breakpoint-medium (>=768px):
+       padding-top: --tec-spacer-13 = 96px (vs 64px sem breakpoint)
+       padding-bottom: --tec-spacer-14 = 160px (vs 80px sem breakpoint)
+       padding-left/right: --tec-grid-gutter-page = 42px (vs 19.5px sem breakpoint) */
     .tribe-common .tribe-common-l-container {
         padding-left: 42px !important;
         padding-right: 42px !important;
@@ -782,10 +785,12 @@ function bureau_it_tec_cls_critical_inline_css() {
     .tribe-events .tribe-events-l-container {
         min-height: 0 !important;
         padding-top: 96px !important;
+        padding-bottom: 160px !important;
     }
     .tribe-common--breakpoint-medium.tribe-events .tribe-events-l-container {
         min-height: 0 !important;
         padding-top: 96px !important;
+        padding-bottom: 160px !important;
     }
 
     /* Datepicker toggle — estado breakpoint-full (≥960px):
