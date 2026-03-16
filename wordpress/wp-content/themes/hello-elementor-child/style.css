@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.2.0
+Version: 2.2.1
 Template: hello-elementor
 */
 
@@ -233,5 +233,20 @@ Template: hello-elementor
     --menu-mobile-cultura-text       : var(--main-color, #900042);
     --menu-mobile-background-hover   : color-mix(in lab, var(--header-background-submenu, #900042) 80%, black 20%);
     --menu-mobile-background-text    : var(--white, #FFFFFF);
+}
+
+/* =============================================================================
+   Footer — Formulário de inscrição (ambos os subsites)
+   Garante herança de Franie Bold do kit global para labels.
+   Cancela text-transform: uppercase que o kit Primary herda para labels
+   (Primary é para headings; labels de form não devem ser uppercase).
+   ============================================================================= */
+.elementor-89361 .elementor-element-5b3f4378 .elementor-field-subgroup label,
+.elementor-89361 .elementor-element-5b3f4378 .elementor-field-group label,
+.elementor-location-footer .elementor-field-group label,
+.elementor-location-footer .elementor-field-subgroup label {
+    font-family: var(--e-global-typography-primary-font-family), sans-serif;
+    font-weight: var(--e-global-typography-primary-font-weight);
+    text-transform: none;
 }
 

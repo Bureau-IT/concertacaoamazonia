@@ -250,15 +250,51 @@ function bureau_it_custom_fonts_css() {
 }
 
 /**
- * Preload critical fonts (Franie-Regular + JustSans-Regular)
+ * Preload critical fonts (Franie-Regular + JustSans-Regular + Roboto na espiral)
  *
- * @since 2.1.0
+ * Roboto é usada exclusivamente no SVG da espiral (--spiral2026-foreignobject-fontfamily).
+ * Sem preload, o browser só descobre a necessidade da fonte ao renderizar o foreignObject,
+ * causando FOUT que desloca os textos e gera CLS. O preload condicional evita carregar
+ * Roboto em páginas que não exibem a espiral.
+ *
+ * @since 2.2.1
  */
 add_action('wp_head', 'bureau_it_preload_critical_fonts', 2);
 function bureau_it_preload_critical_fonts() {
     $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Franie-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/JustSans-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+
+    // Preload Roboto apenas em páginas que renderizam o widget espiral
+    if ( bureau_it_page_has_espiral_widget() ) {
+        echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Roboto-VariableFont.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+    }
+}
+
+/**
+ * Detecta se a página atual contém o widget bit-elementor-espiral no _elementor_data.
+ *
+ * Usa $wp_query->get_queried_object_id() — mais confiável que get_queried_object_id()
+ * no contexto do wp_head, onde a query pode não estar completamente inicializada.
+ *
+ * @since 2.2.1
+ * @return bool
+ */
+function bureau_it_page_has_espiral_widget(): bool {
+    global $wp_query;
+    $post_id = $wp_query ? $wp_query->get_queried_object_id() : 0;
+    if ( ! $post_id ) {
+        // Fallback: front page usa get_option
+        if ( is_front_page() || is_home() ) {
+            $post_id = (int) get_option( 'page_on_front' );
+        }
+    }
+    if ( ! $post_id ) {
+        return false;
+    }
+    $data = get_post_meta( $post_id, '_elementor_data', true );
+    // Widget type registrado no Elementor como "bureau_espiral"
+    return ! empty( $data ) && str_contains( $data, 'bureau_espiral' );
 }
 
 /**
@@ -510,6 +546,82 @@ function bureau_it_logo_shortcode($atts) {
     $output .= '</div>';
 
     return $output;
+}
+
+/**
+ * ============================================================================
+ * PERFORMANCE: reCAPTCHA diferido — carrega sob demanda (interação/formulário)
+ * ============================================================================
+ *
+ * O Elementor Pro injeta recaptcha/api.js em TODAS as páginas via wp_enqueue_scripts,
+ * mesmo páginas sem formulário. O script pesa 360 KB (60% não utilizado) e bloqueia
+ * o TTI e o LCP da home e outras páginas.
+ *
+ * Estratégia:
+ * 1. Remover o script da fila padrão do WP (evita <script src> síncrono no <head>)
+ * 2. Salvar a URL original do script
+ * 3. Injetar um loader JS no footer que carrega o reCAPTCHA sob demanda:
+ *    - Ao primeiro mouseenter/touchstart/keydown (interação geral)
+ *    - Ao IntersectionObserver detectar um formulário Gravity Forms no viewport
+ *    Ambos garantem que o reCAPTCHA esteja pronto antes do usuário submeter.
+ *
+ * Compatibilidade: Gravity Forms + Elementor Pro reCAPTCHA v3.
+ * Não aplicar em /wp-admin/ ou quando WP_DEBUG está ativo no admin.
+ *
+ * @since 2.2.1
+ */
+/**
+ * Intercepta o reCAPTCHA no wp_footer (antes de wp_print_footer_scripts).
+ *
+ * O Elementor Pro enfileira recaptcha/api.js via render_field() durante the_content,
+ * portanto wp_enqueue_scripts:999 ainda não tem o handle. O wp_footer:1 é o primeiro
+ * hook após the_content onde o handle já existe e pode ser removido da fila.
+ *
+ * A URL é capturada do registro WP antes do dequeue e passada ao loader inline.
+ */
+/**
+ * Substitui o <script src="recaptcha/api.js"> síncrono por um loader JS inline.
+ *
+ * O Elementor Pro enfileira o reCAPTCHA durante o render do footer (wp_footer > 20),
+ * impossibilitando wp_dequeue antes de wp_print_footer_scripts. Em vez disso,
+ * usamos o filtro script_loader_tag — que é aplicado no momento da impressão —
+ * para substituir o <script src> padrão pelo loader assíncrono sob demanda.
+ *
+ * @since 2.2.1
+ */
+add_filter( 'script_loader_tag', 'bureau_it_defer_recaptcha', 10, 2 );
+function bureau_it_defer_recaptcha( string $tag, string $handle ): string {
+    // O handle real do Elementor Pro é 'elementor-recaptcha_v3-api' (sem sufixo -js)
+    if ( 'elementor-recaptcha_v3-api' !== $handle ) {
+        return $tag;
+    }
+
+    // Extrair a URL do src do tag original
+    if ( ! preg_match( '/src=[\'"]([^\'"]+)[\'"]/', $tag, $m ) ) {
+        return $tag;
+    }
+
+    $url = esc_url( $m[1] );
+
+    return '<script id="bureau-recaptcha-deferred">
+(function(){
+    var loaded=false;
+    function load(){
+        if(loaded)return;loaded=true;
+        var s=document.createElement("script");
+        s.src=' . wp_json_encode( $url ) . ';
+        s.async=true;
+        document.head.appendChild(s);
+    }
+    ["mouseenter","touchstart","keydown","scroll"].forEach(function(ev){
+        document.addEventListener(ev,load,{once:true,passive:true});
+    });
+    if("IntersectionObserver" in window){
+        var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)load();});},{rootMargin:"200px"});
+        document.querySelectorAll(".gform_wrapper,.elementor-form").forEach(function(f){o.observe(f);});
+    }
+})();
+</script>' . "\n";
 }
 
 /**
