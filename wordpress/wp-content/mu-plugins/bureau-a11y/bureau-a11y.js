@@ -1,6 +1,6 @@
 /**
  * Bureau A11y - Accessibility Module
- * Version: 2.5.23
+ * Version: 2.5.24
  * Author: Bureau de Tecnologia Ltda.
  *
  * Modules: Store, Panel, FilterMutex, Features (Zoom, Magnifier, DyslexicFont,
@@ -1249,17 +1249,26 @@
                         if (!vwBtn) return;
                         var vwWrapper = document.querySelector('[vw-plugin-wrapper]');
                         var isOpen = vwWrapper && vwWrapper.classList.contains('active');
-                        if (active !== isOpen) {
+                        if (!active) {
                             // Ao desativar: sai do modo selectText (cursor de tradução)
                             // antes de fechar o widget para não deixar o cursor ativo na página.
-                            if (!active) {
-                                var selectTextControls = document.querySelector('[vp] .vpw-controls.vpw-selectText');
-                                if (selectTextControls) {
-                                    var ctrlBtn = selectTextControls.querySelector('.vpw-controls-button');
-                                    if (ctrlBtn) ctrlBtn.click();
-                                }
+                            var selectTextControls = document.querySelector('[vp] .vpw-controls.vpw-selectText');
+                            if (selectTextControls) {
+                                var ctrlBtn = selectTextControls.querySelector('.vpw-controls-button');
+                                if (ctrlBtn) ctrlBtn.click();
                             }
-                            vwBtn.click();
+                            // Remove classes que o VLibras injeta no body/html
+                            document.body.classList.remove('vp-selected', 'vp-text-selected', 'vp-activated');
+                            document.documentElement.classList.remove('vp-activated');
+                            // Fecha o widget apenas se estiver aberto
+                            if (vwWrapper && vwWrapper.classList.contains('active')) {
+                                vwBtn.click();
+                            }
+                        } else {
+                            // Abre o widget apenas se estiver fechado
+                            if (vwWrapper && !vwWrapper.classList.contains('active')) {
+                                vwBtn.click();
+                            }
                         }
                         // Ativar legenda por padrão ao abrir VLibras
                         if (active) {
@@ -1530,8 +1539,20 @@
         var resetBtn = document.getElementById('ba-reset-btn');
         if (resetBtn) {
             _addInteraction(resetBtn, function () {
+                // 1. Limpa store e localStorage
                 Store.reset();
-                location.reload();
+                // 2. Remove todas as classes a11y do <html> imediatamente
+                var html = document.documentElement;
+                ['a11y', 'ba-high-contrast', 'ba-dark-mode', 'ba-grayscale', 'ba-invert',
+                 'ba-stop-animations', 'ba-dyslexic', 'ba-text-spacing', 'ba-hide-images',
+                 'ba-larger-cursor', 'ba-highlight-links', 'ba-focus-guide',
+                 'ba-color-blind-protanopia', 'ba-color-blind-deuteranopia', 'ba-color-blind-tritanopia'
+                ].forEach(function (c) { html.classList.remove(c); });
+                // 3. Remove filtro SVG do body se aplicado
+                document.body.style.filter = '';
+                document.body.style.webkitFilter = '';
+                // 4. Reload após micro-task (garante que localStorage foi escrito)
+                setTimeout(function () { location.reload(); }, 0);
             });
         }
 

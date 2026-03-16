@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.5.10
+ * Version: 2.5.12
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -12,9 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.5.10' );
+define( 'BUREAU_A11Y_VERSION', '2.5.12' );
 define( 'BUREAU_A11Y_CSS_VERSION', '2.5.21' );
-define( 'BUREAU_A11Y_JS_VERSION', '2.5.23' );
+define( 'BUREAU_A11Y_JS_VERSION', '2.5.24' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
 define( 'BUREAU_A11Y_URL', plugin_dir_url( __FILE__ ) . 'bureau-a11y/' );
@@ -200,18 +200,7 @@ function bureau_a11y_render_buttons() {
 					</div>
 				</div>
 
-				<!-- Lupa -->
-				<button class="ba-toggle" id="ba-toggle-magnifier" data-feature="magnifier"
-					data-tooltip="<?php esc_attr_e( 'Amplia área sob o cursor', 'bureau-a11y' ); ?>"
-					data-desc="<?php esc_attr_e( 'Cria uma lente de aumento circular que segue o cursor pela página. Muito útil para textos pequenos, tabelas e detalhes visuais difíceis de ler.', 'bureau-a11y' ); ?>"
-					aria-pressed="false">
-					<span class="ba-toggle__icon">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-							<circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-						</svg>
-					</span>
-					<span class="ba-toggle__label"><?php esc_html_e( 'Lupa de cursor', 'bureau-a11y' ); ?></span>
-				</button>
+				<!-- TODO: reimplementar Lupa de cursor com melhorias de acessibilidade e performance -->
 
 				<!-- Sem imagens -->
 				<button class="ba-toggle" id="ba-toggle-hideImages" data-feature="hideImages"
@@ -274,18 +263,7 @@ function bureau_a11y_render_buttons() {
 					<span class="ba-toggle__label"><?php esc_html_e( 'Alto Contraste', 'bureau-a11y' ); ?></span>
 				</button>
 
-				<!-- Modo Escuro -->
-				<button class="ba-toggle" id="ba-toggle-darkMode" data-feature="darkMode"
-					data-tooltip="<?php esc_attr_e( 'Inverte cores mantendo imagens', 'bureau-a11y' ); ?>"
-					data-desc="<?php esc_attr_e( 'Inverte as cores da página transformando fundos claros em escuros, preservando as imagens. Reduz a fadiga visual em ambientes com pouca luz.', 'bureau-a11y' ); ?>"
-					aria-pressed="false">
-					<span class="ba-toggle__icon">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-						</svg>
-					</span>
-					<span class="ba-toggle__label"><?php esc_html_e( 'Modo Escuro', 'bureau-a11y' ); ?></span>
-				</button>
+				<!-- TODO: reimplementar Dark Mode como feature nativa do tema (não via CSS filter) -->
 
 				<!-- Escala de Cinza -->
 				<button class="ba-toggle" id="ba-toggle-grayscale" data-feature="grayscale"
@@ -302,19 +280,6 @@ function bureau_a11y_render_buttons() {
 					<span class="ba-toggle__label"><?php esc_html_e( 'Escala de Cinza', 'bureau-a11y' ); ?></span>
 				</button>
 
-				<!-- Invertido -->
-				<button class="ba-toggle" id="ba-toggle-invert" data-feature="invert"
-					data-tooltip="<?php esc_attr_e( 'Inverte todas as cores', 'bureau-a11y' ); ?>"
-					data-desc="<?php esc_attr_e( 'Inverte completamente todas as cores da página, incluindo imagens. Útil como alternativa ao modo escuro ou combinado com outras configurações.', 'bureau-a11y' ); ?>"
-					aria-pressed="false">
-					<span class="ba-toggle__icon">
-						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26" width="26" height="26" fill="none" aria-hidden="true" focusable="false">
-							<circle cx="13" cy="13" r="10" stroke="currentColor" stroke-width="1.5"/>
-							<path d="M13 3 A10 10 0 0 1 13 23 Z" fill="currentColor"/>
-						</svg>
-					</span>
-					<span class="ba-toggle__label"><?php esc_html_e( 'Invertido', 'bureau-a11y' ); ?></span>
-				</button>
 
 				<!-- Daltonismo -->
 				<div class="ba-feature--full">
