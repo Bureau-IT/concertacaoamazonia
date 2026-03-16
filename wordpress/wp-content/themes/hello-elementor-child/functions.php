@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @author  Daniel Cambría + Warp
- * @version 2.1.1
+ * @version 2.2.0
  */
 
 // Prevent direct access
@@ -227,8 +227,8 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Roboto';
-    src: url('{$fonts_woff}/Roboto-VariableFont_wdth,wght.woff2') format('woff2'),
-         url('{$fonts_url}/Roboto-VariableFont_wdth,wght.ttf') format('truetype');
+    src: url('{$fonts_woff}/Roboto-VariableFont.woff2') format('woff2'),
+         url('{$fonts_url}/Roboto-VariableFont.ttf') format('truetype');
     font-weight: 100 900;
     font-style: normal;
     font-display: swap;
@@ -236,8 +236,8 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Roboto';
-    src: url('{$fonts_woff}/Roboto-Italic-VariableFont_wdth,wght.woff2') format('woff2'),
-         url('{$fonts_url}/Roboto-Italic-VariableFont_wdth,wght.ttf') format('truetype');
+    src: url('{$fonts_woff}/Roboto-Italic-VariableFont.woff2') format('woff2'),
+         url('{$fonts_url}/Roboto-Italic-VariableFont.ttf') format('truetype');
     font-weight: 100 900;
     font-style: italic;
     font-display: swap;
@@ -259,6 +259,34 @@ function bureau_it_preload_critical_fonts() {
     $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Franie-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/JustSans-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+}
+
+/**
+ * Preload LCP background-image da homepage
+ *
+ * O elemento LCP da homepage é um background-image CSS num container Elementor
+ * (attachment ID 89988). O browser não descobre background-images até o CSS ser
+ * parseado e o layout calculado — causando LCP > 8 s. Preload explícito no <head>
+ * (priority 1) instrui o browser a buscar a imagem junto com o HTML, antes do CSS.
+ *
+ * LIMITAÇÃO: URL hardcoded via wp_get_attachment_url() — se a imagem hero for
+ * trocada no Elementor, atualizar o attachment ID abaixo (ou trocar para
+ * um img widget com fetchpriority="high" para eliminar essa dependência).
+ *
+ * @since 2.2.0
+ */
+add_action( 'wp_head', 'bureau_it_preload_homepage_lcp', 1 );
+function bureau_it_preload_homepage_lcp() {
+    if ( ! ( is_front_page() || is_home() ) ) {
+        return;
+    }
+    // Attachment ID do container hero (A-floresta-e-seus-misterios...)
+    $attachment_id = 89988;
+    $url = wp_get_attachment_url( $attachment_id );
+    if ( ! $url ) {
+        return;
+    }
+    echo '<link rel="preload" href="' . esc_url( $url ) . '" as="image" fetchpriority="high">' . "\n";
 }
 
 /**
@@ -678,6 +706,37 @@ function bureau_it_ensure_shared_upload_symlinks() {
 }
 
 /**
+ * Preload LCP image de /cultura/ (blog_id=2)
+ *
+ * A imagem hero Sapopema (attachment ID 89985 no blog 1) é um image widget
+ * Elementor — o Lighthouse a identifica como LCP. Preload explícito no <head>
+ * instrui o browser a buscar a imagem antes do CSS ser parseado.
+ *
+ * O preload usa switch_to_blog(1) porque o attachment pertence ao blog 1
+ * (imagens compartilhadas via Network Media Library).
+ *
+ * @since 2.2.0
+ */
+add_action( 'wp_head', 'bureau_it_cultura_preload_lcp', 1 );
+function bureau_it_cultura_preload_lcp() {
+    if ( ! is_multisite() || get_current_blog_id() !== 2 ) {
+        return;
+    }
+    // Só preload na front page do blog 2 (/cultura/)
+    if ( ! ( is_front_page() || is_home() ) ) {
+        return;
+    }
+    // Attachment ID 89985 vive no blog 1 (blog 2 compartilha via NML)
+    switch_to_blog( 1 );
+    $url = wp_get_attachment_url( 89985 );
+    restore_current_blog();
+    if ( ! $url ) {
+        return;
+    }
+    echo '<link rel="preload" href="' . esc_url( $url ) . '" as="image" fetchpriority="high">' . "\n";
+}
+
+/**
  * Fix LCP /cultura/: remove loading="lazy" da imagem hero via output buffer
  *
  * O Elementor injeta loading="lazy" diretamente em image-size.php, contornando
@@ -754,11 +813,19 @@ function bureau_it_tec_cls_disable_live_refresh( $data ) {
 }
 
 // Fix Fase 3: CSS crítico inline no <head> para eliminar CLS causado por
-// common-skeleton.css injetado no <body> pelo shortcode TEC.
-// O problema: common-skeleton.css carrega DENTRO do <body> (linha ~613),
-// portanto sua regra de padding chega APÓS o first paint sob CPU throttle.
-// Solução: injetar CSS inline no <head> (priority 1) com os valores finais
-// de padding, tornando o layout estável desde o primeiro byte renderizado.
+// common-skeleton.css e views-skeleton.css injetados no <body> pelo shortcode TEC.
+// O problema: ambos os skeleton CSS carregam DENTRO do <body> (linhas ~660-666),
+// portanto suas regras chegam APÓS o first paint sob CPU throttle, causando:
+//   - Shift do container (padding 19.5px→42px, min-height 0→700px)
+//   - Shift do header TEC (128px→156px): negative margin no mobile, margin:0 no breakpoint-medium
+//   - Shift da nav: padding-top spacer-4→spacer-6
+//   - Datepicker mobile/desktop toggle
+//   - Loader, top-bar, events-bar margin e flex layout changes
+// Solução: replicar TODOS os valores finais do estado breakpoint-full+medium no <head>
+// (priority 1), tornando o layout estável desde o primeiro byte renderizado.
+// Como o PHP (Fase 1) já pré-adiciona as classes breakpoint-*, os seletores
+// com .tribe-common--breakpoint-medium e .tribe-common--breakpoint-full já
+// se aplicam imediatamente, sem esperar pelo skeleton CSS do body.
 add_action( 'wp_head', 'bureau_it_tec_cls_critical_inline_css', 1 );
 function bureau_it_tec_cls_critical_inline_css() {
     // Aplica em toda página onde o plugin TEC estiver ativo
@@ -768,20 +835,29 @@ function bureau_it_tec_cls_critical_inline_css() {
     }
     ?>
     <style id="bureau-it-tec-cls-fix">
-    /* CLS fix: TEC skeleton CSS (common-skeleton.css, views-skeleton.css) é
-       injetado no <body> pelo shortcode, chegando APÓS o first paint sob
-       CPU throttle. Replicamos aqui os valores finais do estado ≥960px
-       (breakpoint-full + breakpoint-medium), estabilizando o layout desde
-       o primeiro byte renderizado. */
+    /* ================================================================
+       TEC CLS Fix — Bureau IT
+       Replica os valores finais do estado breakpoint-full + breakpoint-medium
+       no <head> para eliminar layout shifts causados por skeleton CSS
+       injetado no <body> pelo shortcode TEC (Assets.php print: true).
+       PHP (Fase 1) já pré-adiciona as classes ao container no server-render.
+       ================================================================ */
 
-    /* Padding do container — valores finais do estado breakpoint-medium (>=768px):
-       padding-top: --tec-spacer-13 = 96px (vs 64px sem breakpoint)
-       padding-bottom: --tec-spacer-14 = 160px (vs 80px sem breakpoint)
-       padding-left/right: --tec-grid-gutter-page = 42px (vs 19.5px sem breakpoint) */
+    /* --- common-skeleton.css: l-container padding ---
+       Base: --tec-grid-gutter-page-small = 19.5px
+       Final (breakpoint-medium): --tec-grid-gutter-page = 42px */
     .tribe-common .tribe-common-l-container {
         padding-left: 42px !important;
         padding-right: 42px !important;
     }
+    .tribe-common--breakpoint-medium.tribe-common .tribe-common-l-container {
+        padding-left: 42px !important;
+        padding-right: 42px !important;
+    }
+
+    /* --- views-skeleton.css: l-container min-height e padding ---
+       Base: min-height 600px, padding-top 64px, padding-bottom 80px
+       Final: min-height 0 (override), padding-top 96px, padding-bottom 160px */
     .tribe-events .tribe-events-l-container {
         min-height: 0 !important;
         padding-top: 96px !important;
@@ -793,11 +869,77 @@ function bureau_it_tec_cls_critical_inline_css() {
         padding-bottom: 160px !important;
     }
 
-    /* Datepicker toggle — estado breakpoint-full (≥960px):
-       views-skeleton.css define display:none/block via .tribe-common--breakpoint-full,
-       mas esse CSS só chega no <body>. Como o PHP já pré-adiciona a classe,
-       replicamos as regras aqui para que o estado final já esteja ativo no
-       first paint, evitando o shift de altura do header TEC (+120px). */
+    /* --- views-skeleton.css: tribe-events-header layout ---
+       Base (mobile): margin: 0 calc(-19.5px); padding: 0 19.5px spacer-3
+       Final (breakpoint-medium): margin: 0; padding: 0
+       Esta mudança é responsável pelo shift de altura 128px→156px do header. */
+    .tribe-events .tribe-events-header {
+        align-items: center;
+        display: flex;
+        flex-direction: row-reverse;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin: 0;
+        padding: 0;
+        position: relative;
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-header {
+        margin: 0;
+        padding: 0;
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-header--has-event-search {
+        flex-direction: row;
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-header--has-event-search .tribe-events-header__events-bar {
+        margin-left: 0;
+        width: 100%;
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-header--has-event-search .tribe-events-header__top-bar {
+        width: 100%;
+    }
+
+    /* --- views-skeleton.css: top-bar flex layout ---
+       Final (breakpoint-medium): flex row, wrap */
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-top-bar {
+        align-items: center;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    /* --- views-skeleton.css: events-bar margin ---
+       Base: flex none, no margin
+       Final (breakpoint-medium): margin-bottom spacer-7, margin-left spacer-3 */
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-header__events-bar {
+        margin-bottom: var(--tec-spacer-7);
+        margin-left: var(--tec-spacer-3);
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-header__top-bar {
+        margin-bottom: var(--tec-spacer-7);
+    }
+
+    /* --- views-skeleton.css: nav padding-top ---
+       Base: --tec-spacer-4 = 16px
+       Final (breakpoint-medium): --tec-spacer-6 = 24px */
+    .tribe-events .tribe-events-c-nav {
+        padding-top: var(--tec-spacer-6);
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-nav {
+        padding-top: var(--tec-spacer-6);
+    }
+
+    /* --- views-skeleton.css: list-nav padding-top ---
+       Base: --tec-spacer-5 = 20px
+       Final (breakpoint-medium): --tec-spacer-7 = 32px */
+    .tribe-events .tribe-events-calendar-list-nav {
+        padding-top: var(--tec-spacer-7);
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-calendar-list-nav {
+        padding-top: var(--tec-spacer-7);
+    }
+
+    /* --- views-skeleton.css: datepicker toggle (breakpoint-full ≥960px) ---
+       Mobile element oculto, desktop visível — evita altura extra do datepicker */
     .tribe-common--breakpoint-full.tribe-events .tribe-events-c-top-bar__datepicker-mobile {
         display: none !important;
         visibility: hidden !important;
@@ -805,6 +947,49 @@ function bureau_it_tec_cls_critical_inline_css() {
     .tribe-common--breakpoint-full.tribe-events .tribe-events-c-top-bar__datepicker-desktop {
         display: block !important;
         visibility: visible !important;
+    }
+
+    /* --- views-skeleton.css: top-bar nav/today/actions visibility ---
+       Ocultos sem breakpoint-medium; visíveis com. Afeta altura do header. */
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-top-bar__nav {
+        display: block !important;
+        flex: none;
+        visibility: visible;
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-top-bar__today-button {
+        display: block !important;
+        flex: none;
+        margin-right: 15px;
+        visibility: visible;
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-top-bar__actions {
+        display: block !important;
+        flex: none;
+        margin-left: auto;
+        visibility: visible;
+    }
+
+    /* --- views-skeleton.css: events-bar search-container ---
+       Base: display none (mobile, absolute)
+       Final (breakpoint-medium): display flex (inline) */
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-events-bar__search-container {
+        align-items: center;
+        display: flex;
+        flex: auto;
+        padding: 0;
+        position: static;
+        z-index: auto;
+    }
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-events-bar__search {
+        display: flex;
+        flex: auto;
+    }
+
+    /* --- views-skeleton.css: subscribe dropdown float ---
+       Final (breakpoint-medium): float right */
+    .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-subscribe-dropdown {
+        float: right;
+        margin-left: auto;
     }
     </style>
     <?php
