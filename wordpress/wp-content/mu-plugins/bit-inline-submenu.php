@@ -8,7 +8,7 @@
  *              Cores on-the-box: bg derivado da cor primária via color-mix.
  *              Ativação: CSS class "menu-submenu-inline" no widget Nav Menu do Elementor.
  *              Funciona em qualquer site — sem seletores Elementor por ID.
- * Version:     1.4.2
+ * Version:     1.4.9
  * Author:      Bureau IT
  */
 
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'BIT_INLINE_SUBMENU_VERSION', '1.4.2' );
+define( 'BIT_INLINE_SUBMENU_VERSION', '1.4.9' );
 
 // ── CSS ──────────────────────────────────────────────────────────────────────
 add_action( 'wp_enqueue_scripts', function () {
@@ -64,7 +64,7 @@ add_action( 'wp_footer', function () { ?>
     // Herdar CSS vars do widget (cores configuradas pelo child theme)
     var wComputed = getComputedStyle(widget);
     ['--bis-bg','--bis-bg-hover','--bis-text','--bis-text-hover','--bis-text-hover-weight',
-     '--bis-text-active','--bis-border-active','--bit-submenu-height'].forEach(function(v) {
+     '--bis-text-active','--bis-border-active','--bis-diamond','--bit-submenu-height'].forEach(function(v) {
       var val = wComputed.getPropertyValue(v).trim();
       if (val) hoverBar.style.setProperty(v, val);
     });
@@ -79,7 +79,10 @@ add_action( 'wp_footer', function () { ?>
       hoverBar.innerHTML = '';
       var ul = document.createElement('ul');
       sub.querySelectorAll('li').forEach(function(item) {
-        ul.appendChild(item.cloneNode(true));
+        var cloned = item.cloneNode(true);
+        var a = cloned.querySelector('a');
+        if (a) { a.dataset.text = a.textContent.trim(); }
+        ul.appendChild(cloned);
       });
       hoverBar.appendChild(ul);
 
@@ -149,7 +152,10 @@ add_action( 'wp_footer', function () { ?>
       // Clonar itens do sub-menu para a barra in-flow
       var ul = document.createElement('ul');
       activeSub.querySelectorAll('li').forEach(function(li) {
-        ul.appendChild(li.cloneNode(true));
+        var cloned = li.cloneNode(true);
+        var a = cloned.querySelector('a');
+        if (a) { a.dataset.text = a.textContent.trim(); }
+        ul.appendChild(cloned);
       });
       bar.appendChild(ul);
 

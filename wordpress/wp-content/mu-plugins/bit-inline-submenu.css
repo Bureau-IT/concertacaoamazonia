@@ -18,7 +18,7 @@
 /* No desktop usamos barras próprias — escondemos o clone do Elementor.
    No mobile (hamburger) o clone é o painel de navegação — não esconder. */
 @media (min-width: 1025px) {
-  .menu-submenu-inline ~ .elementor-nav-menu--dropdown {
+  .menu-submenu-inline .elementor-nav-menu--dropdown {
     display: none !important;
   }
 
@@ -48,6 +48,7 @@
   --bis-text-hover-weight:  700;
   --bis-text-active:        #0e4a5c;
   --bis-border-active:      #0e4a5c;
+  --bis-diamond:            var(--bis-bg);
 }
 
 /* ── 4. Barra hover overlay (div.bit-hover-bar no body) ────────────────────── */
@@ -109,7 +110,7 @@
   left: var(--bit-arrow-x, 120px);
   width: 14px;
   height: 14px;
-  background: var(--bis-bg);
+  background: var(--bis-diamond);
   transform: rotate(45deg);
   pointer-events: none;
 }
@@ -145,7 +146,9 @@
 .bit-hover-bar li a,
 .bit-subnav-bar li a {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 0 16px;
   height: var(--bit-submenu-height, 72px);
   color: var(--bis-text);
@@ -154,7 +157,22 @@
   font-weight: 400;
   white-space: nowrap;
   text-decoration: none;
-  transition: color 0.15s ease, font-weight 0.15s ease;
+  transition: color 0.15s ease;
+}
+
+/* Ghost text — reserva espaço do texto bold sem exibi-lo, eliminando layout shift no hover */
+.bit-hover-bar li a::after,
+.bit-subnav-bar li a::after {
+  content: attr(data-text);
+  font-weight: var(--bis-text-hover-weight, 700);
+  font-family: var(--e-global-typography-text-font-family, Roboto), sans-serif;
+  font-size: 0.875rem;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
 }
 
 .bit-hover-bar li a:hover,
@@ -164,9 +182,33 @@
   background-color: var(--bis-bg-hover);
 }
 
+.bit-hover-bar li.current-menu-item a,
+.bit-hover-bar li.current_page_item a {
+  color: var(--bis-text-active);
+  font-weight: var(--bis-text-hover-weight, 700);
+  background-color: transparent !important;
+  border-bottom: 2px solid var(--bis-border-active);
+}
+
 .bit-subnav-bar li.current-menu-item a {
   color: var(--bis-text-active);
+  font-weight: var(--bis-text-hover-weight, 700);
+  background-color: transparent;
   border-bottom: 2px solid var(--bis-border-active);
+}
+
+/* ── 7b. Item ativo do menu principal — mesmo peso que o submenu ───────────── */
+.menu-submenu-inline .elementor-nav-menu > li:is(
+  .current-page-ancestor,
+  .current-menu-ancestor,
+  .current-menu-parent,
+  .current-menu-item,
+  .current-page-parent,
+  .current_page_parent,
+  .current_page_ancestor
+) > a {
+  font-weight: var(--bis-text-hover-weight, 700) !important;
+  background-color: transparent !important;
 }
 
 /* ── 8. Mobile — ocultar barras abaixo do breakpoint desktop (hamburger) ── */

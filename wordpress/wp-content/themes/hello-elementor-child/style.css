@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.0.1
+Version: 2.1.1
 Template: hello-elementor
 */
 
@@ -235,18 +235,3 @@ Template: hello-elementor
     --menu-mobile-background-text    : var(--white, #FFFFFF);
 }
 
-/* ============================================================================
-   WPML Language Switcher — botão circular perfeito
-   ============================================================================ */
-.ucpa-header-icons .wpml-ls-link .wpml-ls-native {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  border-radius: 50% !important;
-  aspect-ratio: 1 / 1;
-  flex-shrink: 0;
-  overflow: hidden;
-}

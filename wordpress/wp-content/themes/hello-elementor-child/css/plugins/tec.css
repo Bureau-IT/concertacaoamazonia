@@ -5,6 +5,36 @@
  */
 
 /* ==========================================================================
+   Fix CLS — The Events Calendar layout shifts
+   Causa raiz (3 camadas):
+   1. min-height: views-skeleton.css define 700px via .tribe-common--breakpoint-medium
+   2. padding: common-skeleton.css muda padding-left (19.5px→42px) e padding-top (64px→96px)
+      via seletor .tribe-common--breakpoint-medium.tribe-common .tribe-common-l-container,
+      que depende de CSS carregado depois do FCP sob throttle (Lighthouse CPU 4x).
+   3. live_refresh: filtro PHP (functions.php) desativa o re-fetch REST inicial.
+   Solução: fixar valores finais diretamente no child theme CSS (carregado mais cedo),
+   tornando o layout independente de quando o skeleton CSS do TEC é aplicado.
+   ========================================================================== */
+
+/* Fase 1 — Elimina min-height do skeleton (0px em vez de 700px) */
+.tribe-events .tribe-events-l-container,
+.tribe-common--breakpoint-medium.tribe-events .tribe-events-l-container {
+    min-height: 0 !important;
+}
+
+/* Fase 2 — Fixa o padding do container no valor final (equivale ao estado breakpoint-medium)
+   sem depender do skeleton CSS carregar antes do FCP.
+   Valores: padding-top=96px (--tec-spacer-13), padding-left/right=42px (--tec-grid-gutter-page),
+   padding-bottom=160px (valor original da views-skeleton.css) */
+.tribe-common .tribe-common-l-container {
+    padding-left  : 42px !important;
+    padding-right : 42px !important;
+}
+.tribe-events .tribe-events-l-container {
+    padding-top   : 96px !important;
+}
+
+/* ==========================================================================
    4. PLUGINS - The Events Calendar
    ========================================================================== */
 
