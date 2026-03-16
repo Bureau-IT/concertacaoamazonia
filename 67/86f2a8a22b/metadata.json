@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "6786f2a8a22b",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-Bold.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-BoldItalic.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-Italic.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-Regular.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/JustSans-ExBold.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/JustSans-Regular.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-Italic-VariableFont.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-Italic-VariableFont_wdth,wght.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-VariableFont.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-VariableFont_wdth,wght.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-Bold.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-BoldItalic.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-Italic.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-Regular.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/JustSans-ExBold.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/JustSans-Regular.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-Italic-VariableFont.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-Italic-VariableFont_wdth,wght.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-VariableFont.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-VariableFont_wdth,wght.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/functions.php",
+    "wordpress/wp-content/themes/hello-elementor-child/style.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/67/86f2a8a22b/0/metadata.json",
+      "transcript": "/67/86f2a8a22b/0/full.jsonl",
+      "context": "/67/86f2a8a22b/0/context.md",
+      "content_hash": "/67/86f2a8a22b/0/content_hash.txt",
+      "prompt": "/67/86f2a8a22b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 72724,
+    "cache_read_tokens": 5114390,
+    "output_tokens": 27672,
+    "api_call_count": 76
+  }
+}

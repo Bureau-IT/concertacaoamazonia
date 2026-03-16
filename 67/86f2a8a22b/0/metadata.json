@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "6786f2a8a22b",
+  "session_id": "2e74a29e-2e4c-4362-817b-4be8f8aef358",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T07:28:30.837618Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-Italic.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/JustSans-Regular.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-Italic-VariableFont.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-Italic-VariableFont_wdth,wght.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/JustSans-Regular.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-VariableFont_wdth,wght.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/style.css",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-Bold.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-Regular.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/JustSans-ExBold.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-VariableFont.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-Regular.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-Italic-VariableFont_wdth,wght.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Franie-BoldItalic.otf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-Italic.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/JustSans-ExBold.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-VariableFont.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/Roboto-VariableFont_wdth,wght.ttf",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-Bold.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Franie-BoldItalic.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-Italic-VariableFont.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/functions.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "396af52e180d",
+  "checkpoint_transcript_start": 265,
+  "transcript_lines_at_start": 265,
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 72724,
+    "cache_read_tokens": 5114390,
+    "output_tokens": 27672,
+    "api_call_count": 76
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T07:28:30.424443Z",
+    "agent_lines": 0,
+    "human_added": 185,
+    "human_modified": 25,
+    "human_removed": 0,
+    "total_committed": 185,
+    "agent_percentage": 0
+  }
+}
