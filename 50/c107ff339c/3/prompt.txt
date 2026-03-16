@@ -1,0 +1,317 @@
+corriga o css do mapa de plataformas. algum código está destruindo o layout, analise qual é https://concertacao.bureau-it.com/conhecimento/mapa-das-plataformas/
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested: "corriga o css do mapa de plataformas. algum código está destruindo o layout, analise qual é https://concertacao.bureau-it.com/conhecimento/mapa-das-plataformas/"
+   Translation: Fix the CSS of the platform map page. Some code is destroying the layout, analyze which one it is.
+   The user believes a specific CSS code is causing layout destruction on the Mapa de Plataformas page.
+
+2. Key Technical Concepts:
+   - WordPress Multisite with Elementor Pro page builder
+   - JetEngine listing grid (template ID 14035) for platform cards
+   - JetEngine Dynamic Visibility (JEDV) - conditionally renders/hides elements based on data conditions
+   - JetSmartFilters - checkbox filter on left column
+   - `jedv-enabled--yes` class marks elements with conditional visibility
+   - `.elementor-element-9077fd6` - tags section with icon (JEDV conditional - renders only when tags exist)
+   - `.elementor-element-ad809c8` > `.elementor-element-5c26ac8` - description container
+   - `.elementor-element-31f7e61` - second section of each card containing tags + description
+   - `.elementor-element-60b7db6` - main card container (flex, column)
+   - CSS parsing bug in tec.css: unclosed rule block due to multi-line comment
+   - The Events Calendar (TEC) plugin CSS
+   - bit-inline-submenu: fixed-position submenu bar for header navigation
+   - bureau-a11y: accessibility plugin with panel overlay
+
+3. Files and Code Sections:
+   - **`wordpress/wp-content/themes/hello-elementor-child/css/plugins/tec.css`** (MODIFIED in git status)
+     - Contains a critical CSS parsing bug at lines 154-166: An unclosed rule block caused by a multi-line comment being placed inside the opening `{`:
+     ```css
+     html body.tribe_events-template-default,
+     html #tribe-events-pg-template {
+      /*   background-color: var(--ucpa-color-offwhite) !important;
+     }
+     html #epta-template.epta-template-1 .epta-sidebar-area {
+         background-color: var(--ucpa-color-white) !important;
+     }body #epta-template.epta-template-1 .epta-share-area a {    color: var(--ucpa-color-main) !important;}
+     */
+     body #epta-template...
+     ```
+     The `}` at line 158 is INSIDE the comment, so the rule `tribe_events-template-default` is never closed. All CSS rules from line 167 to 319 are parsed as invalid declarations inside this unclosed rule.
+     - Also has: `border: 2px solid /*var(--ucpa-color-text)*/ !important;` (comment inside property value, removes color from border)
+     - Also has: `.tec-events-calendar-list__event-categories, .event-category { display: block !important; visibility: visible !important; opacity: 1 !important; }` - overly broad `.event-category` selector
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/css/plugins/jetengine.css`**
+     - Contains hover rule for elements not on this page: `html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover { background-color: var(--e-global-color-1de5509); border-width: 0 !important; }` - confirmed these elements are NOT on the mapa-das-plataformas page
+     - Confirmed via DOM inspection: el1=`NOT ON PAGE`, el2=`NOT ON PAGE`
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/functions.php`** (MODIFIED in git status)
+     - Conditional CSS loading: tec.css loads if `class_exists('Tribe__Events__Main')`, jetengine.css loads if `class_exists('Jet_Engine')`
+     - No CSS specific to the mapa-das-plataformas page URL
+
+   - **`wordpress/wp-content/mu-plugins/bit-inline-submenu.css`** (MODIFIED in git status)
+     - Manages `.bit-hover-bar` (position:fixed, z-index:9990) and `.bit-subnav-bar` (position:relative, z-index:9990)
+     - Both hidden on mobile via `@media (max-width: 1024px) { display: none !important; }`
+     - On desktop (1440px): subnavBar `display: none` (no submenu content visible)
+
+   - **`wordpress/wp-content/mu-plugins/bureau-a11y/bureau-a11y.css`** (MODIFIED in git status)
+     - Fixed-position accessibility panel - does NOT affect page layout
+     - Contains SVG with `width="auto"` in `.ba-footer-logo` causing browser console error
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/style.css`**
+     - CSS custom properties/variables for Elementor Global Colors
+     - WPML language switcher circle fix
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/css/base.css`**
+     - Global styles, no platform-map specific rules
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/css/pages/estudos.css`**
+     - Only applies to `is_singular('estudos') || is_post_type_archive('estudos') || is_page('estudos')` - NOT loaded on mapa-das-plataformas
+
+4. Errors and Fixes:
+   - **`mcp__plugin_playwright_playwright__browser_navigate` and `browser_run_code` failed**: Browser tools using persistent Chrome profile returned exit code 0 error. Fixed by using `mcp__MCP_DOCKER__browser_navigate` instead.
+   - **`mcp__MCP_DOCKER__browser_evaluate` with `code` parameter failed**: The correct parameter name is `function`, not `code`. Fixed by using `function` parameter.
+   - **`mcp__MCP_DOCKER__browser_take_screenshot` with `fullPage: true` failed**: The `fullPage` parameter expected boolean but received string from JSON context. Fixed by omitting the parameter.
+   - **`mcp__MCP_DOCKER__browser_evaluate` returning scrollY = 0**: The `document.documentElement.scrollTop` approach wasn't working; had to use incremental scrolling by setting to intermediate values.
+
+5. Problem Solving:
+   **Root cause analysis in progress:**
+   
+   Platform cards split into two categories:
+   - **Cards 0-3 (normal)**: Heights 241-384px, have `.elementor-element-9077fd6 jedv-enabled--yes` with tags (e.g., "FLORESTAS, MINERAÇÃO") + `.elementor-element-ad809c8` with full description text
+   - **Cards 4-7 (broken)**: Heights 96-134px, COMPLETELY MISSING `.elementor-element-9077fd6` from DOM (not hidden, literally absent), `.elementor-element-ad809c8` shows wrong content ("Plataforma Espalha!" as description) or empty
+   
+   **Confirmed findings:**
+   - Both `5a1231d` and `bec826a` elements from jetengine.css hover rule are NOT on the page
+   - tec.css unclosed rule bug affects only TEC-specific rules (lines 167-319), not the platform map
+   - `jet-checkboxes-list__decorator` is 15x15px with `overflow:hidden`, SVG icon is 28x28px (clipped but not causing layout issue)
+   - The overall 2-column layout is working: listing grid is `display:flex, flex-direction:row, flex-wrap:wrap, width:851px`
+   - The two-column container (elementor-26827) is `display:block, width:1433px`
+   
+   **NOT yet identified**: The specific CSS rule that the user believes is "destroying the layout". Investigation points to a DATA issue (platforms 4-7 missing taxonomy tags + descriptions) rather than a CSS issue, but the cause hasn't been definitively established and no fix has been applied.
+
+6. All User Messages:
+   - "corriga o css do mapa de plataformas. algum código está destruindo o layout, analise qual é https://concertacao.bureau-it.com/conhecimento/mapa-das-plataformas/"
+   (Translation: Fix the CSS of the platform map. Some code is destroying the layout, analyze which one it is.)
+
+7. Pending Tasks:
+   - Identify the specific CSS code that is destroying the layout of the mapa-das-plataformas page
+   - Fix the identified CSS issue
+   - The tec.css CSS parsing bug (unclosed rule block at lines 154-166) should be fixed as a secondary issue even though it doesn't affect this specific page
+
+8. Current Work:
+   Investigating whether the layout destruction on `/conhecimento/mapa-das-plataformas/` is caused by CSS or data issues. Most recent analysis:
+   - Confirmed listing grid structure: `jet-listing-grid--14035`, display:flex, flex-direction:row
+   - Confirmed the two-column layout is structurally correct
+   - Cards 4-7 are missing the JEDV tags element entirely (data issue: no taxonomy terms assigned)
+   - SVG in ba-footer-logo has `width="auto"` (not a layout issue, just console error)
+   - Last evaluate confirmed `el1` (.elementor-element-5a1231d) and `el2` (.elementor-element-bec826a) are NOT ON PAGE
+   - The listing parent container: `jet-listing-grid jet-listing`, display:block, width:835px
+
+9. Optional Next Step:
+   Continue investigating the mapa-das-plataformas layout issue. The user said "algum código está destruindo o layout" - since the structural CSS appears correct, the next step should be to:
+   1. Check the Elementor template (ID 14035) inline styles for any rule that might cause cards without tags to display incorrectly
+   2. Look specifically at the `elementor-element-31f7e61` container which should have a minimum height or different display when only the description is present
+   3. Fix the `tec.css` CSS parsing bug (unclosed rule at lines 154-166) which is a definite CSS bug in the modified file, even if it doesn't directly affect this page
+   
+   Current investigation state: "Confirmed that elements `.elementor-element-5a1231d` and `.elementor-element-bec826a` are NOT ON PAGE, and the listing grid layout structure appears correct at desktop (1440px viewport). Cards 4-7 display differently due to missing JEDV tags element - this appears to be a data issue, but the user believes it's CSS."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/8eec02cb-4fd9-4c5e-93a9-0bdd33762b91.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+algo está sobrepondo o font-size dos itens do checkbox filter inadvertidamente.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_ogGfiX/Captura de Tela 2026-03-11 às 01.41.11.png]
+
+---
+
+<task-notification>
+<task-id>bw9rnzyh8</task-id>
+<tool-use-id>toolu_01KiQtVAo7tXJwNZsyN8oMNy</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/bw9rnzyh8.output</output-file>
+<status>completed</status>
+<summary>Background command "/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh all-cache-flush 2>&1 | tail -5" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/bw9rnzyh8.output
+
+---
+
+<task-notification>
+<task-id>bgfoqu6lt</task-id>
+<tool-use-id>toolu_0136ruTasaTCxY6avHqvCk3f</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/bgfoqu6lt.output</output-file>
+<status>completed</status>
+<summary>Background command "/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh all-cache-flush" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/tasks/bgfoqu6lt.output
+
+---
+
+testou?
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-03-11 às 01.52.46.png]
+
+---
+
+funcionou. mas ainda tem checkbox duplicado e pesquisa desfigurada com x solto
+tem css atrapalhando, remova o que está prejudicando a renderização
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_VPmqfV/Captura de Tela 2026-03-11 às 02.20.00.png]
+
+---
+
+tem alguma coisa errada com o checkbox
+se o O jet-smart-filters/public.css não está sendo carregado, resolve o carregamento! nao quero mais css, quero menos!
+Checkbox duplicado - pessimo, 
+X solto - entenda pq o plugin não está acionando o css!
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-03-11 às 02.40.13.png]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **Initial request**: Fix CSS layout destruction on `https://concertacao.bureau-it.com/conhecimento/mapa-das-plataformas/`
+   - **Then**: Fix oversized font on checkbox filter labels (Elementor kit `label` rule applying heading-size ~33.6px)
+   - **Then**: Fix duplicate native checkbox appearing alongside styled decorator, and floating "×" button in search
+   - **User's explicit directive**: "Entenda por que o plugin não está acionando o CSS!" — resolve the ROOT CAUSE (jet-smart-filters/public.css not being loaded), NOT add more CSS patches. User said "quero menos CSS, não mais!"
+
+2. Key Technical Concepts:
+   - WordPress Multisite network (4 blogs: root + /5anos/ + /rota26-30/ + /100-dias/)
+   - Elementor Pro page builder with JetEngine + JetSmartFilters
+   - JetSmartFilters CSS loading mechanism: `jet_smart_filters()->set_filters_used()` → `print_registered_style()` → `wp_enqueue_style()` + `wp_print_styles()` (mid-body)
+   - `Jet_Smart_Filters_Elementor_Manager::on_first_filter_widget()` hooks to `elementor/frontend/widget/before_render`, checks widget category `'jet-smart-filters'` (from `jet_smart_filters()->post_type->slug()`)
+   - `$filters_not_used = true` by default; only set to false when first filter widget renders
+   - WP Rocket caching: CSS `<link>` tags printed mid-body via `wp_print_styles()` may not be included in WP Rocket's cached HTML
+   - `bureau_it_dequeue_unused_jet_assets()` in functions.php (priority 999, `wp_enqueue_scripts`): checks `_elementor_data` for `jet-smart-filters-` to decide whether to keep/dequeue JS — but NOT the CSS
+   - Dev database (`cambrasmax.local:8490`) does NOT contain production page IDs (26827-26828 don't exist in dev DB, max ~82853)
+   - tec.css CSS parsing bug: unclosed rule block at lines 154-166
+
+3. Files and Code Sections:
+   - **`wordpress/wp-content/themes/hello-elementor-child/css/plugins/tec.css`** (FIXED)
+     - Bug: Rule `html body.tribe_events-template-default, html #tribe-events-pg-template {` was never closed because the `}` was inside a `/* ... */` comment at lines 154-166. This made CSS rules 167-319 invalid.
+     - Fix applied:
+     ```css
+     html body.tribe_events-template-default,
+     html #tribe-events-pg-template {
+         /* background-color: var(--ucpa-color-offwhite) !important; */
+     }
+     /* html #epta-template.epta-template-1 .epta-sidebar-area {
+         background-color: var(--ucpa-color-white) !important;
+     } */
+     /* body #epta-template.epta-template-1 .epta-share-area a {
+         color: var(--ucpa-color-main) !important;
+     } */
+     ```
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/css/plugins/jetengine.css`** (MODIFIED — CSS patch added then reverted)
+     - Added section 5.3b: `html body.elementor-kit-2553 .jet-checkboxes-list__item { font-size: inherit; }` — fixes Elementor kit applying heading-size (33.6px) to all `<label>` elements including JetSmartFilters checkbox items
+     - CSS patchwork for missing public.css was added (hiding native input, positioning clear button) then REVERTED at user's request
+     - Current state includes ONLY the font-size fix:
+     ```css
+     /* --- 5.3b Checkbox Filter: reset font-size --- */
+     html body.elementor-kit-2553 .jet-checkboxes-list__item {
+         font-size: inherit;
+     }
+     ```
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/functions.php`** (READ ONLY — not modified)
+     - Contains `bureau_it_dequeue_unused_jet_assets()` at line 486, priority 999:
+     ```php
+     add_action('wp_enqueue_scripts', 'bureau_it_dequeue_unused_jet_assets', 999);
+     function bureau_it_dequeue_unused_jet_assets() {
+         if (is_admin() || !is_singular()) return;
+         $post_id = get_the_ID();
+         $data = get_post_meta($post_id, '_elementor_data', true);
+         // ... checks for jet-smart-filters- in $data
+         if (!$needs_filters) {
+             wp_dequeue_script('jet-smart-filters');
+             wp_deregister_script('jet-smart-filters');
+         }
+         // NOTE: CSS is NOT dequeued here
+     }
+     ```
+     - Confirmed: `_elementor_data` for the mapa-das-plataformas page (prod ID ~26828) does NOT contain `jet-smart-filters-` strings in the DEV DB (dev DB has different/older page IDs)
+
+   - **`wordpress/wp-content/plugins/jet-smart-filters/jet-smart-filters.php`** (READ ONLY)
+     - Line 82: `public $filters_not_used = true;`
+     - Line 109: `add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));` (priority 10)
+     - Lines 260-265: Registers `jet-smart-filters` stylesheet
+     - Lines 287-295: `set_filters_used()` sets flag false + calls `print_registered_style('jet-smart-filters')`
+     - Lines 487-495: `print_registered_style()` calls `wp_enqueue_style($handle)` + `wp_print_styles($handle)`
+
+   - **`wordpress/wp-content/plugins/jet-smart-filters/includes/elementor/manager.php`** (READ ONLY)
+     - Lines 24-25: `add_action('elementor/frontend/widget/before_render', array($this, 'on_first_filter_widget'));`
+     - Lines 49-58: `on_first_filter_widget()` checks widget category is `'jet-smart-filters'`, then calls `set_filters_used()`
+
+   - **`wordpress/wp-content/plugins/jet-smart-filters/includes/filters/manager.php`** (READ ONLY)
+     - Lines 194-201: `filter_styles()` on `wp_footer` — only calls `wp_enqueue_style('jet-smart-filters')` if `$filters_not_used === false`
+
+   - **`wordpress/wp-content/plugins/jet-smart-filters/includes/elementor/widgets.php`** (READ ONLY)
+     - Line 57: `get_category()` returns `jet_smart_filters()->post_type->slug()` = `'jet-smart-filters'`
+
+   - **`wordpress/wp-content/wp-rocket-config/concertacao.bureau-it.com.php`** (READ ONLY)
+     - No CSS exclusions or combining settings that would explain the missing CSS
+
+4. Errors and fixes:
+   - **`mcp__MCP_DOCKER__browser_evaluate` parameter name**: Used `code` instead of `function` — fixed by using `function` parameter
+   - **WP-CLI eval with backslash-escaped quotes**: Parse error when using `\"` in eval string — fixed by using single quotes
+   - **CSS patch approach rejected by user**: Added CSS to jetengine.css to compensate for missing public.css → user said "quero menos CSS, quero resolver o carregamento" — reverted the patch, kept only font-size fix
+   - **DB queries finding wrong page**: Dev DB has different/older IDs than production; post 26828 doesn't exist in dev DB
+
+5. Problem Solving:
+   **Solved:**
+   - tec.css unclosed rule block (lines 154-166) — fixed
+   - Checkbox label font-size 33.6px → 16px (Elementor kit `label` rule) — fixed in jetengine.css
+
+   **Active investigation (plan mode):**
+   - Why `jet-smart-filters/public.css` never loads on the mapa-das-plataformas page
+   - Confirmed: CSS `<link>` tag appears ZERO times in full HTML (25 mentions of `jet-smart-filters` in HTML but none are CSS links)
+   - Confirmed: `set_filters_used()` is never being called
+   - Hypothesis: `on_first_filter_widget()` either (a) not firing because Elementor widget category check fails, or (b) plugin's Elementor manager not initializing for this page, or (c) some other mechanism preventing detection
+   - Last read: `jet-smart-filters.php` lines 165-214 showing Elementor manager initialization at line 177
+
+6. All user messages:
+   - "corriga o css do mapa de plataformas. algum código está destruindo o layout, analise qual é https://concertacao.bureau-it.com/conhecimento/mapa-das-plataformas/"
+   - "algo está sobrepondo o font-size dos itens do checkbox filter inadvertidamente." [with screenshot showing large checkbox labels]
+   - "funcionou. mas ainda tem checkbox duplicado e pesquisa desfigurada com x solto / tem css atrapalhando, remova o que está prejudicando a renderização" [with screenshot]
+   - "tem alguma coisa errada com o checkbox / se o jet-smart-filters/public.css não está sendo carregado, resolve o carregamento! nao quero mais css, quero menos! / Checkbox duplicado - pessimo, / X solto - entenda pq o plugin não está acionando o css!" [with screenshot showing all checkboxes appearing filled]
+
+7. Pending Tasks:
+   - **PRIMARY**: Fix why `jet-smart-filters/public.css` is not being loaded — resolve at the PHP/enqueue level, not by adding CSS patches
+   - Ensure the fix works with WP Rocket caching
+   - Copy any modified mu-plugins to `docker-dev/common/mu-plugins/` (per CLAUDE.md rules) — not applicable here since only theme CSS/PHP modified
+
+8. Current Work:
+   In **plan mode**, investigating the root cause of `jet-smart-filters/public.css` not loading. Current investigation state:
+   - The plugin registers CSS during `wp_enqueue_scripts` (priority 10)
+   - CSS is only enqueued via `print_registered_style()` called from `set_filters_used()`
+   - `set_filters_used()` is triggered by `on_first_filter_widget()` hook on `elementor/frontend/widget/before_render`
+   - `on_first_filter_widget()` checks: `in_array('jet-smart-filters', $widget->get_categories())`
+   - Despite JetSmartFilters widgets rendering on page (25 HTML references), `set_filters_used()` is never called
+   - Last read: `jet-smart-filters.php` line 177: `new Jet_Smart_Filters_Elementor_Manager();` — confirming the Elementor manager IS initialized
+   - Plan file has not yet been written
+
+9. Optional Next Step:
+   Continue plan mode investigation. The next step is to determine WHY `on_first_filter_widget()` is not detecting the JetSmartFilters widgets, despite them rendering. Key hypotheses to verify:
+   1. The JetSmartFilters widgets on this page may be rendered inside a JetEngine listing template (not as direct Elementor page widgets), meaning `elementor/frontend/widget/before_render` may fire with a different widget context where the category check fails
+   2. OR the `bureau_it_dequeue_unused_jet_assets()` function may be dequeuing the JS (because `_elementor_data` of the page doesn't directly contain `jet-smart-filters-`), and while CSS is registered, perhaps the deregistration affects something downstream
+
+   User's directive: "Entenda por que o plugin não está acionando o CSS!" — must trace the exact PHP execution path that prevents `set_filters_used()` from being called, then fix it at the source.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/8eec02cb-4fd9-4c5e-93a9-0bdd33762b91.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
