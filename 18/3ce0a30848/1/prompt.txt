@@ -1,0 +1,243 @@
+Implement the following plan:
+
+# Plano: Migrar Smart Filters para Atlas Cultural /cultura/
+
+## Contexto
+
+A página "Atlas Cultural das Amazônias" (post 57548, subsite blog_id=2 `/cultura/`) tem widgets de filtro JetSmartFilters configurados com IDs do **site raiz** (blog_id=1). No admin do subsite `/cultura/`, esses filtros não aparecem na lista porque o JetSmartFilters usa WPML para listar os filtros via JOIN com `wp_2_icl_translations`.
+
+### Causa raiz confirmada
+
+O JetSmartFilters (v3.7.5) usa esta query para listar os filtros no admin:
+```sql
+SELECT posts.ID, ... FROM wp_2_posts
+LEFT JOIN wp_2_icl_translations ON posts.ID = translations.element_id
+WHERE posts.post_type = 'jet-smart-filters'
+AND translations.language_code = 'pt-br'
+```
+
+Os filtros 89876-89881 existem em `wp_2_posts` e `wp_2_postmeta` com configuração correta, mas **não têm entrada em `wp_2_icl_translations`**. Por isso o LEFT JOIN os filtra pela condição `language_code = 'pt-br'` — sem registro WPML, ficam invisíveis.
+
+O único filtro visível (90039) tem seu registro WPML:
+`(translation_id=2003, element_type='post_jet-smart-filters', element_id=90039, trid=2138390, language_code='pt-br', source_language_code=NULL)`
+
+Os filtros equivalentes **já foram criados** no subsite cultura com novos IDs (89876-89881) e estão corretamente configurados em `wp_2_postmeta`. O trabalho necessário é:
+1. Inserir registros em `wp_2_icl_translations` para os 6 filtros
+2. Atualizar o `_elementor_data` da página 57548 para usar os IDs do subsite cultura
+3. Corrigir o widget 26e2194 (Tema Prioritário) que tem query_id vazio
+
+## Mapeamento: IDs raiz → IDs cultura
+
+| Filtro | ID raiz (atual) | ID cultura (correto) |
+|--------|----------------|----------------------|
+| Pesquisa artistas | 40843 | 89876 |
+| Localidade/Cidade | 51448 | 89877 |
+| Estado | 51434 | 89878 |
+| Área de atuação/Tema | 40789 | 89879 |
+| Temas Prioritários | 83225 | 89880 |
+| 4 Amazônias | 79472 | 89881 |
+
+## Widgets na página 57548 que precisam ser atualizados
+
+| Widget ID Elementor | Título | filter_id atual | filter_id correto | Problemas extras |
+|--------------------|--------|-----------------|-------------------|-----------------|
+| 01f2e58 | Search | 40843 | 89876 | nenhum |
+| cd6f8a3 | Localidade | ['51448'] | ['89877'] | nenhum |
+| f96f457 | Estados | ['51434'] | ['89878'] | nenhum |
+| 2c8be92 | Checkboxes Tema | ['40789'] | ['89879'] | nenhum |
+| **26e2194** | **Tema Prioritário** | **['83225']** | **['89880']** | **query_id vazio → 'artista-mapa'** + **additional_provider 'jsf-listing' → 'jet-engine-maps'** |
+| 6719a39 | 4 Amazônias | ['79472'] | ['89881'] | nenhum |
+
+## Implementação
+
+### Passo 1: Inserir registros em wp_2_icl_translations
+
+Via `wp db query` — inserir 6 registros, um por filtro:
+
+```sql
+INSERT INTO wp_2_icl_translations (element_type, element_id, trid, language_code, source_language_code)
+VALUES
+  ('post_jet-smart-filters', 89876, <novo_trid_1>, 'pt-br', NULL),
+  ('post_jet-smart-filters', 89877, <novo_trid_2>, 'pt-br', NULL),
+  ('post_jet-smart-filters', 89878, <novo_trid_3>, 'pt-br', NULL),
+  ('post_jet-smart-filters', 89879, <novo_trid_4>, 'pt-br', NULL),
+  ('post_jet-smart-filters', 89880, <novo_trid_5>, 'pt-br', NULL),
+  ('post_jet-smart-filters', 89881, <novo_trid_6>, 'pt-br', NULL);
+```
+
+Os `trid` precisam ser únicos — usar `SELECT MAX(trid) FROM wp_2_icl_translations` para obter o próximo disponível.
+
+### Passo 2: Atualizar _elementor_data da página 57548
+
+Via `wp eval` no container, fazer as substituições de filter_id + corrigir widget 26e2194:
+
+```php
+global $wpdb;
+$data_raw = $wpdb->get_var("SELECT meta_value FROM wp_2_postmeta WHERE post_id=57548 AND meta_key='_elementor_data'");
+$data = json_decode($data_raw, true);
+
+// Percorrer widgets e substituir filter_ids + corrigir widget 26e2194
+// filter_id: 40843→89876, 51448→89877, 51434→89878, 40789→89879, 83225→89880, 79472→89881
+// Widget 26e2194: query_id='' → 'artista-mapa', additional_provider='jsf-listing' → 'jet-engine-maps'
+
+$wpdb->update('wp_2_postmeta',
+  ['meta_value' => wp_slash(json_encode($data))],
+  ['post_id' => 57548, 'meta_key' => '_elementor_data']
+);
+wp_cache_flush();
+```
+
+## Arquivos/DB a modificar
+
+- `wp_2_icl_translations` — INSERT 6 novos registros (89876-89881)
+- `wp_2_postmeta` onde `post_id=57548` e `meta_key='_elementor_data'` — atualizar filter_ids + corrigir widget 26e2194
+
+## Verificação
+
+1. Acessar admin: `https://concertacao.bureau-it.com/cultura/wp-admin/admin.php?page=jet-smart-filters#` — confirmar 6+ filtros Atlas visíveis na lista
+2. Acessar a página: `https://concertacao.bureau-it.com/cultura/atlas-cultural-das-amazonias/` — mapa carrega, 5 filtros dropdown funcionam
+3. Testar: selecionar um Estado no filtro — mapa filtra artistas por estado
+4. No Elementor editor (post 57548): cada widget Checkboxes tem "Select filter" preenchido com o filtro correto
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/844abafa-a6af-4b06-8f3c-1c7632ca4bd7.jsonl
+
+---
+
+vinculei ao mapa, mas os filtros não mostram nenhum resultado! teste com playwright
+
+---
+
+nao voltou. analise com playwright...
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - Implement the Smart Filters migration plan for Atlas Cultural /cultura/ (blog_id=2, post 57548): insert WPML translation records for 6 new filter IDs (89876-89881) and update `_elementor_data` to replace root site filter IDs with cultura subsite IDs
+   - Fix widget 26e2194 (Tema Prioritário): set `query_id='artista-mapa'` and `additional_provider='jet-engine-maps'`
+   - Test with Playwright after migration
+   - Investigate why filters show no results after linking to map
+   - Investigate missing glossários (CSV files in /uploads)
+   - Fix broken CSS (page displaying without styles)
+
+2. Key Technical Concepts:
+   - WordPress Multisite: blog_id=1 (root, tables `wp_*`) and blog_id=2 (cultura, tables `wp_2_*`)
+   - JetSmartFilters v3.7.5: uses `wp_2_icl_translations` (WPML JOIN) to list filters in admin
+   - JetEngine Glossaries: stored in `wp_2_jet_post_types` table (NOT wp_posts), CPT `jet-smart-filters-glossary` is separate; reads CSV via `get_attached_file($file_id)` using WP attachment IDs
+   - Elementor `_elementor_data`: stored in `wp_2_postmeta`, serialized with WordPress slashes (`\"` not `"`)
+   - Critical: must use `wp_unslash()` before `json_decode()` and save raw (already-slashed) value back without re-applying `wp_slash()`
+   - WP Rocket cache: admin users see uncached pages; public users see cached HTML
+   - Elementor CSS files (`post-{ID}.css`): stored in `/wp-content/uploads/sites/2/elementor/css/`, generated per-page; `update()` fails silently if dir has wrong ownership
+
+3. Files and Code Sections:
+   - `/tmp/fix-atlas-filters.php` (BUGGY — caused double-slashing):
+     ```php
+     // BUG: used json_decode($data_raw) without wp_unslash, then wp_slash(json_encode(...))
+     // This double-escaped the JSON
+     $data = json_decode($data_raw, true); // WRONG
+     $wpdb->update('wp_2_postmeta', ['meta_value' => wp_slash(json_encode($data))], ...);
+     ```
+   - `/tmp/fix-atlas-v2.php` (corrective script — fixed incorrect query_id on checkboxes):
+     ```php
+     // Removed incorrect query_id='artista-mapa' from cd6f8a3,f96f457,2c8be92,6719a39,01f2e58
+     // Set correct query_id='artista-mapa' and additional_provider='jet-engine-maps' on 26e2194
+     ```
+   - `/tmp/restore-elementor-data.php` (key recovery — restored from revision 90221):
+     ```php
+     // Read revision 90221 raw value (already slashed)
+     $rev_raw = $wpdb->get_var("SELECT meta_value FROM wp_2_postmeta WHERE post_id=90221 AND meta_key='_elementor_data'");
+     // Save raw directly — do NOT re-apply wp_slash
+     $result = $wpdb->update('wp_2_postmeta', ['meta_value' => $rev_raw], ['post_id' => 57548, 'meta_key' => '_elementor_data']);
+     ```
+   - `/tmp/fix-glossary-urls.php`: Fixed URLs in `wp_2_jet_post_types` args (cambrasmax.local → concertacao.bureau-it.com)
+   - `/tmp/create-attachments.php`: Created attachment records (IDs 87334, 87339, 87340) in `wp_2_posts` copying from `wp_posts` so `get_attached_file()` resolves correctly in cultura subsite context
+   - `/tmp/create-glossaries.php`: Created `jet-smart-filters-glossary` posts (IDs 67, 68, 69) in `wp_2_posts` — but this turned out to be wrong; JetEngine uses `wp_2_jet_post_types` not wp_posts. These were created but are unused.
+   - DB table `wp_2_icl_translations`: 6 rows inserted:
+     ```sql
+     INSERT INTO wp_2_icl_translations (element_type, element_id, trid, language_code, source_language_code)
+     VALUES
+       ('post_jet-smart-filters', 89876, 2138494, 'pt-br', NULL),
+       ('post_jet-smart-filters', 89877, 2138495, 'pt-br', NULL),
+       ('post_jet-smart-filters', 89878, 2138496, 'pt-br', NULL),
+       ('post_jet-smart-filters', 89879, 2138497, 'pt-br', NULL),
+       ('post_jet-smart-filters', 89880, 2138498, 'pt-br', NULL),
+       ('post_jet-smart-filters', 89881, 2138499, 'pt-br', NULL);
+     ```
+   - `/var/www/html/wp-content/uploads/sites/2/elementor/css/`: ownership fixed to www-data, CSS file `post-57548.css` written directly (73992 bytes) but owned by root
+
+4. Errors and fixes:
+   - **Double-slashing of `_elementor_data`**: `fix-atlas-filters.php` used `json_decode($data_raw)` without `wp_unslash`, then saved with `wp_slash(json_encode(...))`. This corrupted the JSON with `\\"` double escapes. Fix: recovered from revision 90221 by saving `$rev_raw` directly without re-slashing.
+   - **`query_id` incorrectly applied to all checkboxes**: The original script set `query_id='artista-mapa'` on all checkboxes. Fix: `fix-atlas-v2.php` removed it from all except 26e2194.
+   - **Widget IDs not found by `find_widget()`**: When `json_decode()` fails (error 4), the data is null. Fix: always use `wp_unslash($data_raw)` before `json_decode()`.
+   - **Elementor CSS not regenerating**: Directory `/var/www/html/wp-content/uploads/sites/2/elementor/css/` owned by root → www-data (Elementor/PHP-FPM user) couldn't write. `wp elementor flush-css` cleared the old CSS but new one couldn't be written. Fix: `chown -R www-data:www-data` on that directory, then wrote CSS directly via `file_put_contents()` (73992 bytes written).
+   - **Glossary attachment IDs not found in subsite**: `get_attached_file(87334)` returned empty because attachment records 87334/87339/87340 existed only in `wp_posts` (root), not `wp_2_posts` (cultura). Fix: created attachment records in `wp_2_posts` by copying from root site. Files already existed at correct path (`/uploads/sites/2/2025/10/` is same inode as `/uploads/2025/10/`).
+   - **Playwright playwright MCP failed**: Chrome launched externally. Used `mcp__MCP_DOCKER__browser_*` tools instead.
+   - **`wp elementor flush-css` causing CSS loss**: This command deleted the existing CSS file. Since the dir was root-owned, it couldn't be regenerated, leaving the page without styles for logged-in users.
+
+5. Problem Solving:
+   - **WPML translations**: Successfully inserted 6 records; filters now visible in admin
+   - **`_elementor_data` filter IDs**: Successfully updated via revision recovery; verified all 6 widgets have correct IDs
+   - **Glossaries in subsite**: Identified JetEngine stores glossaries in `wp_2_jet_post_types` (not wp_posts); attachment records created in `wp_2_posts`; glossaries now return correct item counts (122 cidades, 11 estados, 15 áreas)
+   - **CSS broken** (ongoing): File written but owned by root; need to verify it's served correctly and that WP Rocket cache is cleared for logged-in users
+   - **Filters with glossary still rendering empty** (ongoing): Despite glossaries loading correctly server-side, the HTML rendered for filters cd6f8a3 (Localidade), f96f457 (Estado), 2c8be92 (Área), 26e2194 (Tema Prioritário) shows only plain text labels inside `<p>` without checkbox structure or `data-filter-id` attributes
+
+6. All user messages:
+   - "Implement the following plan: [full plan for Smart Filters migration]"
+   - "vinculei ao mapa, mas os filtros não mostram nenhum resultado! teste com playwright"
+   - "estão faltando os glossários?" (during Playwright testing)
+   - "glossários geralmente ficam dentro do /uploads, são arquivos .csv"
+   - "a página tá toda quebrada, sem o css aqui pra mim..."
+   - "nao voltou. analise com playwright..."
+   - (Summary request message)
+
+7. Pending Tasks:
+   - Fix CSS display for logged-in users: `post-57548.css` was written but owned by root; WP Rocket cache not cleared for admin users
+   - Fix filters with glossary source (89877=Localidade, 89878=Estado, 89879=Área, 89880=Tema Prioritário) rendering as empty plain text instead of dropdowns with checkboxes
+   - Verify that clicking a filter (e.g., Estado=Pará) actually filters the map markers
+   - Clear WP Rocket cache properly for admin/logged-in users
+
+8. Current Work:
+   Immediately before the summary request, was debugging why:
+   1. The Elementor CSS for `post-57548.css` wasn't being generated (permission issue — directory owned by root). Fixed ownership, wrote CSS directly via `file_put_contents` (73992 bytes). The file now exists but is owned by root (`-rw-r--r-- 1 root root 73992 Mar 16 07:28 post-57548.css`).
+   2. The filters using glossary data source (cd6f8a3/f96f457/2c8be92 — Localidade/Estado/Área) render as plain text labels without any checkbox structure in the HTML. The rendered HTML shows:
+      ```html
+      <p>FILTROS AVANÇADOS<br />
+      <input class="jet-search-filter__input" ...>
+      Filtrar por localidade<br />
+      Filtrar por Estado<br />
+      Filtrar por área de atuação<br />
+      Filtrar por Tema Prioritário</p>
+      ```
+      This is a JSF rendering issue — when no items are returned from the glossary during page render, JSF outputs only the label without the dropdown structure. Despite server-side tests showing glossaries return items correctly, the actual page render is not calling the glossary reader correctly.
+
+9. Optional Next Step:
+   Fix the CSS ownership issue first (quick win), then investigate why glossary-based filters render empty in the page HTML despite server-side glossary reads working.
+   
+   From the last assistant message: "O arquivo foi criado: `-rw-r--r-- 1 root root 73992 Mar 16 07:28 post-57548.css`" — next step is to fix ownership of that file and clear WP Rocket minification cache so the CSS is actually served:
+   ```bash
+   docker exec concertacao-dev-wordpress chown www-data:www-data /var/www/html/wp-content/uploads/sites/2/elementor/css/post-57548.css
+   # Clear WP Rocket cache including minified files
+   docker exec concertacao-dev-wordpress rm -rf /var/www/html/wp-content/cache/
+   ```
+   Then investigate the glossary rendering: the JSF checkboxes widget (`jet-smart-filters-checkboxes`) with `_data_source=glossary` is producing no output — need to check if the `jet_engine/glossaries/filters` hook is being called in the subsite context.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/43dbc5d1-1a1e-40f8-a72c-71248bf72c18.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>bqcwj2xxj</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/844abafa-a6af-4b06-8f3c-1c7632ca4bd7/tasks/bqcwj2xxj.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush all caches: Redis, WP Rocket, OPcache" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/844abafa-a6af-4b06-8f3c-1c7632ca4bd7/tasks/bqcwj2xxj.output
