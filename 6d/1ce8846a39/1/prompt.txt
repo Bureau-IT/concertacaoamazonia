@@ -1,0 +1,371 @@
+Implement the following plan:
+
+# Plano: Corrigir botão Redefinir e desativação do VLibras no bureau-a11y
+
+## Context
+
+Dois bugs no plugin bureau-a11y (JS):
+
+1. **Botão "Redefinir" não funciona**: O handler chama `Store.reset()` + `location.reload()`. O problema é que com VLibras ativo, o click bypass (`_baInterceptActive`) despacha `ba:click`, mas o botão de reset usa `_addInteraction` que ouve tanto `click` quanto `ba:click` — então tecnicamente deveria funcionar. O problema real é que o `location.reload()` **não é chamado dentro do contexto correto quando VLibras está ativo** porque o VLibras intercepta o click antes do DOMContentLoaded. Mais provável: o `Store.reset()` zera `_data = {}` mas **não invalida o cache em memória que já foi aplicado** — as classes CSS continuam no `<html>` até o reload, e o reload pode estar sendo bloqueado em algum cenário. Segundo diagnóstico: o botão também emite `ba:click` custom event, que por ser `cancelable: false` pode não fazer o comportamento esperado em todos os browsers.
+
+2. **VLibras não para ao desativar**: O código faz `vwBtn.click()` para fechar, mas o VLibras SDK continua rodando no DOM. O `[vw-plugin-wrapper]` perde a classe `active` mas o iframe permanece carregado. O cursor de tradução (`vpw-selectText`) pode continuar ativo se a desativação acontecer fora desse estado. A desativação funciona como "fechar janela" mas não "desligar widget".
+
+## Arquivos a modificar
+
+- `wordpress/wp-content/mu-plugins/bureau-a11y/bureau-a11y.js` (site local)
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/bureau-a11y/bureau-a11y.js` (cópia canônica)
+- Bump de versão em `bureau-a11y.js` e `.php` (ambos locais + canônico)
+
+## Bug 1: Botão Redefinir
+
+### Causa raiz
+O `Store.reset()` limpa o localStorage mas **não remove as classes CSS já aplicadas no `<html>`**. O `location.reload()` deve resolver isso, mas o problema é que o handler está registrado com `_addInteraction` que escuta `click` E `ba:click`. Com VLibras ativo, o click chega via `ba:click` (custom event) — isso funciona. Sem VLibras, via `click` normal.
+
+O bug mais provável: quando **algum feature está ativo** (ex: HighContrast, Zoom > 100%), o `location.reload()` funciona, mas a página recarrega **com as classes sendo reaplicadas** pelo `applyEarlyClasses()` (linha 104) antes do `Store.reset()` limpar o localStorage. O reset apaga o store em memória (`_data = {}`), mas `localStorage.removeItem` acontece **na mesma macro-task** do reload — em alguns browsers o reload cancela operações pendentes.
+
+### Fix
+Garantir que `localStorage.removeItem` seja síncrono antes do reload, e que as classes CSS sejam removidas imediatamente do DOM **antes** do reload (para usuários que veem o flash):
+
+```javascript
+// Reset button
+var resetBtn = document.getElementById('ba-reset-btn');
+if (resetBtn) {
+    _addInteraction(resetBtn, function () {
+        // 1. Limpa store e localStorage
+        Store.reset();
+        // 2. Remove todas as classes a11y do <html> imediatamente
+        var html = document.documentElement;
+        ['a11y', 'ba-high-contrast', 'ba-dark-mode', 'ba-grayscale', 'ba-invert',
+         'ba-stop-animations', 'ba-dyslexic', 'ba-text-spacing', 'ba-hide-images',
+         'ba-larger-cursor', 'ba-highlight-links', 'ba-focus-guide',
+         'ba-color-blind-protanopia', 'ba-color-blind-deuteranopia', 'ba-color-blind-tritanopia'
+        ].forEach(function (c) { html.classList.remove(c); });
+        // 3. Remove filtro SVG do body se aplicado
+        document.body.style.filter = '';
+        document.body.style.webkitFilter = '';
+        // 4. Reload após micro-task (garante que localStorage foi escrito)
+        setTimeout(function () { location.reload(); }, 0);
+    });
+}
+```
+
+## Bug 2: VLibras não desativa
+
+### Causa raiz
+O VLibras SDK carrega um iframe e listeners persistentes. `vwBtn.click()` fecha a janela mas o cursor de tradução pode permanecer ativo na página (classe no `<body>` ou listener de mousemove do próprio SDK). O código atual tenta sair do modo `vpw-selectText` mas só se esse elemento existir no DOM naquele momento.
+
+### Fix
+Ao desativar, além do click no `vwBtn`, remover a classe de cursor ativo do body que o VLibras injeta, e resetar qualquer estado de tradução pendente:
+
+```javascript
+if (!active) {
+    // Sair do modo selectText se ativo
+    var selectTextControls = document.querySelector('[vp] .vpw-controls.vpw-selectText');
+    if (selectTextControls) {
+        var ctrlBtn = selectTextControls.querySelector('.vpw-controls-button');
+        if (ctrlBtn) ctrlBtn.click();
+    }
+    // Remover classes que o VLibras injeta no body/html
+    document.body.classList.remove('vp-selected', 'vp-text-selected', 'vp-activated');
+    document.documentElement.classList.remove('vp-activated');
+    // Fechar o widget
+    if (vwWrapper && vwWrapper.classList.contains('active')) {
+        vwBtn.click();
+    }
+} else {
+    // Abrir o widget
+    if (vwWrapper && !vwWrapper.classList.contains('active')) {
+        vwBtn.click();
+    }
+}
+```
+
+A lógica atual não verifica o estado antes de clicar (`if (active !== isOpen)`), o que pode causar duplo-click acidental. O fix torna a condição explícita para cada caso.
+
+## Verificação
+1. Ativar Alto Contraste + Escala de Cinza no painel
+2. Clicar Redefinir → página deve recarregar sem as classes ativas
+3. Ativar Libras → VLibras abre
+4. Desativar Libras → VLibras fecha, cursor de tradução não fica ativo na página
+5. Repetir ativação/desativação do Libras 3x para checar estabilidade do toggle
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/492b4b72-5273-441b-a66f-1bd211669502.jsonl
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/skills/executing-plans
+
+# Executing Plans
+
+## Overview
+
+Load plan, review critically, execute all tasks, report when complete.
+
+**Announce at start:** "I'm using the executing-plans skill to implement this plan."
+
+**Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (such as Claude Code or Codex). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
+
+## The Process
+
+### Step 1: Load and Review Plan
+1. Read plan file
+2. Review critically - identify any questions or concerns about the plan
+3. If concerns: Raise them with your human partner before starting
+4. If no concerns: Create TodoWrite and proceed
+
+### Step 2: Execute Tasks
+
+For each task:
+1. Mark as in_progress
+2. Follow each step exactly (plan has bite-sized steps)
+3. Run verifications as specified
+4. Mark as completed
+
+### Step 3: Complete Development
+
+After all tasks complete and verified:
+- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
+- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
+- Follow that skill to verify tests, present options, execute choice
+
+## When to Stop and Ask for Help
+
+**STOP executing immediately when:**
+- Hit a blocker (missing dependency, test fails, instruction unclear)
+- Plan has critical gaps preventing starting
+- You don't understand an instruction
+- Verification fails repeatedly
+
+**Ask for clarification rather than guessing.**
+
+## When to Revisit Earlier Steps
+
+**Return to Review (Step 1) when:**
+- Partner updates the plan based on your feedback
+- Fundamental approach needs rethinking
+
+**Don't force through blockers** - stop and ask.
+
+## Remember
+- Review plan critically first
+- Follow plan steps exactly
+- Don't skip verifications
+- Reference skills when plan says to
+- Stop when blocked, don't guess
+- Never start implementation on main/master branch without explicit user consent
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/skills/finishing-a-development-branch
+
+# Finishing a Development Branch
+
+## Overview
+
+Guide completion of development work by presenting clear options and handling chosen workflow.
+
+**Core principle:** Verify tests → Present options → Execute choice → Clean up.
+
+**Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
+
+## The Process
+
+### Step 1: Verify Tests
+
+**Before presenting options, verify tests pass:**
+
+```bash
+# Run project's test suite
+npm test / cargo test / pytest / go test ./...
+```
+
+**If tests fail:**
+```
+Tests failing (<N> failures). Must fix before completing:
+
+[Show failures]
+
+Cannot proceed with merge/PR until tests pass.
+```
+
+Stop. Don't proceed to Step 2.
+
+**If tests pass:** Continue to Step 2.
+
+### Step 2: Determine Base Branch
+
+```bash
+# Try common base branches
+git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
+```
+
+Or ask: "This branch split from main - is that correct?"
+
+### Step 3: Present Options
+
+Present exactly these 4 options:
+
+```
+Implementation complete. What would you like to do?
+
+1. Merge back to <base-branch> locally
+2. Push and create a Pull Request
+3. Keep the branch as-is (I'll handle it later)
+4. Discard this work
+
+Which option?
+```
+
+**Don't add explanation** - keep options concise.
+
+### Step 4: Execute Choice
+
+#### Option 1: Merge Locally
+
+```bash
+# Switch to base branch
+git checkout <base-branch>
+
+# Pull latest
+git pull
+
+# Merge feature branch
+git merge <feature-branch>
+
+# Verify tests on merged result
+<test command>
+
+# If tests pass
+git branch -d <feature-branch>
+```
+
+Then: Cleanup worktree (Step 5)
+
+#### Option 2: Push and Create PR
+
+```bash
+# Push branch
+git push -u origin <feature-branch>
+
+# Create PR
+gh pr create --title "<title>" --body "$(cat <<'EOF'
+## Summary
+<2-3 bullets of what changed>
+
+## Test Plan
+- [ ] <verification steps>
+EOF
+)"
+```
+
+Then: Cleanup worktree (Step 5)
+
+#### Option 3: Keep As-Is
+
+Report: "Keeping branch <name>. Worktree preserved at <path>."
+
+**Don't cleanup worktree.**
+
+#### Option 4: Discard
+
+**Confirm first:**
+```
+This will permanently delete:
+- Branch <name>
+- All commits: <commit-list>
+- Worktree at <path>
+
+Type 'discard' to confirm.
+```
+
+Wait for exact confirmation.
+
+If confirmed:
+```bash
+git checkout <base-branch>
+git branch -D <feature-branch>
+```
+
+Then: Cleanup worktree (Step 5)
+
+### Step 5: Cleanup Worktree
+
+**For Options 1, 2, 4:**
+
+Check if in worktree:
+```bash
+git worktree list | grep $(git branch --show-current)
+```
+
+If yes:
+```bash
+git worktree remove <worktree-path>
+```
+
+**For Option 3:** Keep worktree.
+
+## Quick Reference
+
+| Option | Merge | Push | Keep Worktree | Cleanup Branch |
+|--------|-------|------|---------------|----------------|
+| 1. Merge locally | ✓ | - | - | ✓ |
+| 2. Create PR | - | ✓ | ✓ | - |
+| 3. Keep as-is | - | - | ✓ | - |
+| 4. Discard | - | - | - | ✓ (force) |
+
+## Common Mistakes
+
+**Skipping test verification**
+- **Problem:** Merge broken code, create failing PR
+- **Fix:** Always verify tests before offering options
+
+**Open-ended questions**
+- **Problem:** "What should I do next?" → ambiguous
+- **Fix:** Present exactly 4 structured options
+
+**Automatic worktree cleanup**
+- **Problem:** Remove worktree when might need it (Option 2, 3)
+- **Fix:** Only cleanup for Options 1 and 4
+
+**No confirmation for discard**
+- **Problem:** Accidentally delete work
+- **Fix:** Require typed "discard" confirmation
+
+## Red Flags
+
+**Never:**
+- Proceed with failing tests
+- Merge without verifying tests on result
+- Delete work without confirmation
+- Force-push without explicit request
+
+**Always:**
+- Verify tests before offering options
+- Present exactly 4 options
+- Get typed confirmation for Option 4
+- Clean up worktree for Options 1 & 4 only
+
+## Integration
+
+**Called by:**
+- **subagent-driven-development** (Step 7) - After all tasks complete
+- **executing-plans** (Step 5) - After all batches complete
+
+**Pairs with:**
+- **using-git-worktrees** - Cleans up worktree created by that skill
+
+---
+
+1
+
+---
+
+1
