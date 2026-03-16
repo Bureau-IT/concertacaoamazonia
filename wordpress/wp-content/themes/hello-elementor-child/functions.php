@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @author  Daniel Cambría + Warp
- * @version 2.2.0
+ * @version 2.2.1
  */
 
 // Prevent direct access
@@ -157,6 +157,7 @@ function bureau_it_print_slick_js() {
 /**
  * ============================================================================
  * CUSTOM FONTS: Franie, Just Sans, Roboto (local, no Google Fonts)
+ * Roboto: subset Latin, wght 400-700 (36 KB vs 204 KB Variable Font original)
  * ============================================================================
  *
  * @since 1.6.0
@@ -227,20 +228,11 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Roboto';
-    src: url('{$fonts_woff}/Roboto-VariableFont.woff2') format('woff2'),
-         url('{$fonts_url}/Roboto-VariableFont.ttf') format('truetype');
-    font-weight: 100 900;
+    src: url('{$fonts_woff}/Roboto-latin-w400-700.woff2') format('woff2');
+    font-weight: 400 700;
     font-style: normal;
     font-display: swap;
-}
-
-@font-face {
-    font-family: 'Roboto';
-    src: url('{$fonts_woff}/Roboto-Italic-VariableFont.woff2') format('woff2'),
-         url('{$fonts_url}/Roboto-Italic-VariableFont.ttf') format('truetype');
-    font-weight: 100 900;
-    font-style: italic;
-    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 ";
 
@@ -267,7 +259,7 @@ function bureau_it_preload_critical_fonts() {
 
     // Preload Roboto apenas em páginas que renderizam o widget espiral
     if ( bureau_it_page_has_espiral_widget() ) {
-        echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Roboto-VariableFont.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+        echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Roboto-latin-w400-700.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
     }
 }
 
@@ -651,6 +643,11 @@ function bureau_it_dequeue_homepage_assets() {
     // Slick.js: Elementor ja tem Swiper nativo
     wp_dequeue_script('jet-slick');
     wp_dequeue_script('jquery-slick');
+
+    // TEC Pro Swiper (34 KB, 90% unused): usado apenas na view de mapa de eventos.
+    // A home exibe listagem de eventos, não o mapa — Swiper é desnecessário aqui.
+    wp_dequeue_script('tribe-swiper');
+    wp_deregister_script('tribe-swiper');
 }
 
 // Dequeue tambem no wp_print_footer_scripts (JetEngine/JetSearch podem enfileirar tarde)
