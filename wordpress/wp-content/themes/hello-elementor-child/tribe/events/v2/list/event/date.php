@@ -7,7 +7,7 @@
  *
  * @author Daniel Cambría + Claude Code
  * @since 5.1.1
- * @version 5.2.0
+ * @version 5.3.0
  *
  * @var WP_Post $event The event post object with properties added by the `tribe_get_event` function.
  */
@@ -16,7 +16,6 @@ use Tribe__Date_Utils as Dates;
 
 $event_date_attr = $event->dates->start->format( Dates::DBDATEFORMAT );
 
-// Usa função centralizada do tema
 $date_text = bureau_it_format_event_date( $event, true );
 
 ?>

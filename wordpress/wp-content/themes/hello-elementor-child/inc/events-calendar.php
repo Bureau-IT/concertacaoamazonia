@@ -4,6 +4,7 @@
  *
  * @package HelloElementorChild
  * @since   2.0.0
+ * @version 2.2.0
  */
 
 if (!defined('ABSPATH')) {
@@ -131,24 +132,6 @@ function bureau_it_tec_dequeue_on_non_tec_pages() {
     }
 }
 
-add_action('tribe_events_single_event_before_the_content', 'bureau_it_custom_event_display');
-add_action('tribe_events_list_widget_before_the_event_title', 'bureau_it_custom_event_display');
-
-function bureau_it_custom_event_display($event = null) {
-    $event = $event ?? tribe_get_event();
-    if (!$event) return;
-
-    $categories = wp_get_post_terms($event->ID, 'tribe_events_cat');
-    if (!is_wp_error($categories)) {
-        foreach ($categories as $category) {
-            if (strtolower($category->slug) === 'edital') {
-                // Custom logic here
-                break;
-            }
-        }
-    }
-}
-
 add_filter('tec_events_get_time_range_separator', function($separator) {
     return (strpos($separator, '#') !== false) ? ' - ' : $separator;
 });
@@ -158,59 +141,149 @@ add_filter('tec_events_get_date_time_separator', function($separator) {
 });
 
 /**
- * Verifica se um evento é da categoria "edital"
+ * Resolve um occurrence ID do TEC Custom Tables V1 para o post_id real.
  *
- * @param WP_Post|int $event Objeto do evento ou ID
- * @return bool
+ * O TEC V1 usa IDs provisórios (ex: 10001315) nas templates em vez dos post IDs
+ * reais (ex: 89737). O offset interno é 10.000.000 + occurrence_id.
+ *
+ * @since 2.2.0
+ * @param int $event_id ID que pode ser provisório ou real
+ * @return int ID real do post (ou o $event_id original se não for possível resolver)
  */
-function bureau_it_is_edital($event) {
-    $event_id = is_object($event) ? $event->ID : $event;
-    return has_term('edital', 'tribe_events_cat', $event_id);
+function bureau_it_tec_resolve_post_id( $event_id ) {
+    $event_id = (int) $event_id;
+
+    if ( $event_id <= 0 ) {
+        return $event_id;
+    }
+
+    // Verificar cache antes de qualquer consulta
+    $cache_key = 'bureau_it_tec_post_id_' . $event_id;
+    $cached = wp_cache_get( $cache_key, 'bureau_it_tec' );
+    if ( false !== $cached ) {
+        return (int) $cached;
+    }
+
+    $resolved = $event_id;
+
+    if ( function_exists( 'tec_get_post_id_from_occurrence_id' ) ) {
+        // TEC API oficial (se disponível)
+        $real = tec_get_post_id_from_occurrence_id( $event_id );
+        if ( $real ) {
+            $resolved = (int) $real;
+        }
+    } else {
+        // Fallback: consulta direta em wp_tec_occurrences
+        global $wpdb;
+        $table = $wpdb->prefix . 'tec_occurrences';
+
+        // Verificar existência da tabela via information_schema (SQL-safe)
+        $table_exists = (bool) $wpdb->get_var( $wpdb->prepare(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s LIMIT 1",
+            $table
+        ) );
+
+        if ( $table_exists ) {
+            // Tentar direto pelo occurrence_id
+            $real = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT post_id FROM {$table} WHERE occurrence_id = %d LIMIT 1",
+                $event_id
+            ) );
+
+            if ( ! $real ) {
+                // TEC provisional IDs: offset interno de 10.000.000 + occurrence_id
+                // Ex: 10001315 - 10000000 = 1315 (occurrence_id real)
+                $candidate = $event_id - 10000000;
+                if ( $candidate > 0 ) {
+                    $real = (int) $wpdb->get_var( $wpdb->prepare(
+                        "SELECT post_id FROM {$table} WHERE occurrence_id = %d LIMIT 1",
+                        $candidate
+                    ) );
+                }
+            }
+
+            if ( $real > 0 ) {
+                $resolved = $real;
+            }
+        }
+    }
+
+    wp_cache_set( $cache_key, $resolved, 'bureau_it_tec', 3600 );
+
+    return $resolved;
 }
 
 /**
- * Filtro para modificar a data exibida dos eventos na lista
- * Funciona para eventos da categoria "edital" em qualquer view/shortcode
+ * Verifica se um evento é da categoria "edital"
+ *
+ * Suporta IDs provisórios do TEC Custom Tables V1, onde $event->ID pode ser
+ * um occurrence ID composto (ex: 10001315) em vez do post_id real (ex: 89737).
+ *
+ * @since 1.0.0
+ * @param WP_Post|int $event Objeto do evento ou ID (real ou provisório)
+ * @return bool
+ */
+function bureau_it_is_edital( $event ) {
+    $event_id = is_object( $event ) ? (int) $event->ID : (int) $event;
+
+    if ( $event_id <= 0 ) {
+        return false;
+    }
+
+    $event_id = bureau_it_tec_resolve_post_id( $event_id );
+
+    return has_term( 'edital', 'tribe_events_cat', $event_id );
+}
+
+/**
+ * Filtro para modificar a data exibida dos eventos na lista.
+ * Usado em views legadas / shortcodes V1.
+ *
+ * Para V2 (list view, widget), o template override date.php já aplica a lógica.
+ * Este filtro mantém compatibilidade com shortcodes antigos e V1.
  *
  * @since 1.4.2
  */
 add_filter('tribe_events_event_schedule_details', 'bureau_it_filter_edital_schedule', 10, 2);
-function bureau_it_filter_edital_schedule($schedule, $event_id) {
-    if (!bureau_it_is_edital($event_id)) {
+function bureau_it_filter_edital_schedule( $schedule, $event_id ) {
+    if ( ! bureau_it_is_edital( $event_id ) ) {
         return $schedule;
     }
 
-    $event = tribe_get_event($event_id);
-    if (!$event || !isset($event->dates->end)) {
+    // Usar ID resolvido para buscar o evento
+    $real_id = bureau_it_tec_resolve_post_id( (int) $event_id );
+    $event   = tribe_get_event( $real_id );
+
+    if ( ! $event || ! isset( $event->dates->end ) ) {
         return $schedule;
     }
 
-    $end_date = $event->dates->end;
-    $formatted = wp_date('j \d\e F', $end_date->getTimestamp());
+    $formatted = wp_date( 'j \d\e F', $event->dates->end->getTimestamp() );
 
-    return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html($formatted) . '</span>';
+    return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html( $formatted ) . '</span>';
 }
 
 /**
- * Filtro alternativo para short_schedule_details (usado em widgets)
+ * Filtro para short_schedule_details (usado em widgets legados).
  *
  * @since 1.4.2
  */
 add_filter('tribe_events_event_short_schedule_details', 'bureau_it_filter_edital_short_schedule', 10, 2);
-function bureau_it_filter_edital_short_schedule($schedule, $event_id) {
-    if (!bureau_it_is_edital($event_id)) {
+function bureau_it_filter_edital_short_schedule( $schedule, $event_id ) {
+    if ( ! bureau_it_is_edital( $event_id ) ) {
         return $schedule;
     }
 
-    $event = tribe_get_event($event_id);
-    if (!$event || !isset($event->dates->end)) {
+    $real_id = bureau_it_tec_resolve_post_id( (int) $event_id );
+    $event   = tribe_get_event( $real_id );
+
+    if ( ! $event || ! isset( $event->dates->end ) ) {
         return $schedule;
     }
 
-    $end_date = $event->dates->end;
-    $formatted = wp_date('j \d\e F', $end_date->getTimestamp());
+    $formatted = wp_date( 'j \d\e F', $event->dates->end->getTimestamp() );
 
-    return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html($formatted) . '</span>';
+    return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html( $formatted ) . '</span>';
 }
 
 /**
@@ -219,38 +292,42 @@ function bureau_it_filter_edital_short_schedule($schedule, $event_id) {
  * Para editais: "Edital disponível até: X de Mês"
  * Para eventos: Formato padrão com correções de localização
  *
- * @param WP_Post $event Objeto do evento com propriedades do tribe_get_event()
+ * @since 1.0.0
+ * @param WP_Post $event      Objeto do evento com propriedades do tribe_get_event()
  * @param bool    $add_prefix Adicionar "De " no início para eventos normais
  * @return string HTML formatado da data
  */
-function bureau_it_format_event_date($event, $add_prefix = true) {
-    if (bureau_it_is_edital($event)) {
-        $end_date = $event->dates->end;
-        $formatted = wp_date('j \d\e F', $end_date->getTimestamp());
-        return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html($formatted) . '</span>';
+function bureau_it_format_event_date( $event, $add_prefix = true ) {
+    if ( bureau_it_is_edital( $event ) ) {
+        if ( ! isset( $event->dates->end ) ) {
+            return '';
+        }
+        $formatted = wp_date( 'j \d\e F', $event->dates->end->getTimestamp() );
+
+        return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html( $formatted ) . '</span>';
     }
 
     // Eventos normais: aplicar correções de formato
-    $date_text = $event->schedule_details->value();
+    $date_text = wp_kses_post( $event->schedule_details->value() );
 
     // Correções de localização pt-BR
-    $date_text = str_replace('Virtual Evento', 'Evento Virtual', $date_text);
-    $date_text = str_replace('-3', 'Horário de São Paulo', $date_text);
+    $date_text = str_replace( 'Virtual Evento', 'Evento Virtual', $date_text );
+    $date_text = preg_replace( '/\(UTC-3\)/i', 'Horário de São Paulo', $date_text );
 
     // Corrigir formato da data: "Month DD @ HH:MM" → "DD de Month às HH:MM"
     $date_text = preg_replace_callback(
         '/(\w+)\s(\d+)\s@\s(\d+):(\d+)/i',
-        function($matches) {
+        function ( $matches ) {
             return $matches[2] . ' de ' . $matches[1] . ' às ' . $matches[3] . ':' . $matches[4];
         },
         $date_text
     );
 
     // Substituir separador de intervalo
-    $date_text = str_replace('</span> - <span', '</span> até <span', $date_text);
+    $date_text = str_replace( '</span> - <span', '</span> até <span', $date_text );
 
     // Adicionar prefixo "De " se solicitado
-    if ($add_prefix && strpos($date_text, '<span class="tribe-event-date-start">') !== false) {
+    if ( $add_prefix && strpos( $date_text, '<span class="tribe-event-date-start">' ) !== false ) {
         $date_text = 'De ' . $date_text;
     }
 
