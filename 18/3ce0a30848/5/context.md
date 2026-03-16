@@ -1,0 +1,89 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+faça uma cópia de todos os posts de post_type=estudos a partir de 27/11/2025 (ssh concertacaoamazonia-hml-sa) e transfira para o servidor (ssh concertacaoamazonia.com.br-prod-sa)
+
+### Prompt 2
+
+[Request interrupted by user]
+
+### Prompt 3
+
+faça uma cópia de todos os posts de post_type=estudos a partir de 27/11/2025 (ssh concertacaoamazonia-hml-sa) e transfira para o servidor local (https://cambrasmax.local:8484, tunnel local https://concertacao.bureau-it.com)
+
+### Prompt 4
+
+[Request interrupted by user]
+
+### Prompt 5
+
+faça uma cópia de todos os posts de post_type=estudos e post_type=plataformas a partir de 27/11/2025 (ssh concertacaoamazonia-hml-sa) e transfira para o servidor local (https://cambrasmax.local:8484, tunnel local https://concertacao.bureau-it.com)
+
+### Prompt 6
+
+[Request interrupted by user]
+
+### Prompt 7
+
+faça uma cópia de todos os posts de post_type=estudos, post_type=plataformas post_type=plenarias a partir de 27/11/2025 (ssh concertacaoamazonia-hml-sa) e transfira para o servidor local (https://cambrasmax.local:8484, tunnel local https://concertacao.bureau-it.com)
+
+### Prompt 8
+
+[Request interrupted by user]
+
+### Prompt 9
+
+faça uma cópia de todos os posts de:
+
+post_type=estudos
+post_type=plataformas 
+post_type=plenarias 
+post_type=notas_amazonicas
+
+a partir de 27/11/2025 (ssh concertacaoamazonia-hml-sa) e transfira para o servidor local (https://cambrasmax.local:8484, tunnel local https://concertacao.bureau-it.com)
+
+Vincule os posts com as imagens originais
+
+### Prompt 10
+
+faça uma cópia de todos os posts 
+ 
+post_type=notas-amazonicas
+
+a partir de 27/11/2025 (ssh concertacaoamazonia-hml-sa) e transfira para o servidor local (https://cambrasmax.local:8484, tunnel local https://concertacao.bureau-it.com)
+
+Vincule os posts com as imagens originais
+
+### Prompt 11
+
+<task-notification>
+<task-id>bahn403q1</task-id>
+<tool-use-id>toolu_01Rk2b5x2VsV2i1Na3P221Xb</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/96beec12-d7b6-4910-96c8-c84d83d2c5b7/tasks/bahn403q1.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush all caches" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcamb...
+
+### Prompt 12
+
+faça uma cópia de todos os posts do organizador e remapeie os eventos importados localmente
+ 
+post_type=tribe_organizer
+
+a partir de 27/11/2025 (ssh concertacaoamazonia-hml-sa) e transfira para o servidor local (https://cambrasmax.local:8484, tunnel local https://concertacao.bureau-it.com)
+
+Vincule os posts com as imagens originais
+
+### Prompt 13
+
+[Request interrupted by user]
+
+### Prompt 14
+
+ok, deu tudo certo localmente!
+Agora, prepare um plano para subirmos tudo em produção (ssh concertacaoamazonia.com.br-prod-sa)
+
