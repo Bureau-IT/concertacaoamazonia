@@ -1,0 +1,502 @@
+Implement the following plan:
+
+# Plano: Remapeamento dos links da Espiral de Conhecimento
+
+## Context
+
+O SVG da espiral (`espiral-do-conhecimento.svg`) contém 21 segmentos clicáveis que redirecionam para a página de estudos com filtro JetEngine por taxonomia `eixos`. Os IDs de termo no SVG não correspondem aos IDs reais cadastrados — alguns apontam para o termo errado (ID 182/Infraestrutura para segmentos sem termo ainda).
+
+A consulta `wp term list eixos` revelou que existem termos "Espiral:" novos criados recentemente com count=0, que correspondem exatamente aos segmentos 17-21 e outros ainda não mapeados:
+
+- `2463` → Espiral: Biodiversidade (count=0)
+- `2464` → Espiral: Direitos humanos (count=3)
+- `2466` → Espiral: Povos indígenas quilombolas e comunidades tradicionais (count=0)
+- `2406` → Cidades (count=0) — mas `1130` Cidades (count=33) também existe
+- `2413` → Saúde (count=0)
+
+**Atenção:** O `<select>` do filtro frontend (fornecido pelo usuário) lista apenas os termos com estudos cadastrados. Os novos termos (count=0) ainda não aparecem no filtro, mas os IDs existem e podem ser usados nos links da espiral para quando estudos forem adicionados.
+
+## Mapeamento completo: SVG → ID correto
+
+| Seg | ID SVG | Label no SVG | ID atual | ID correto | Term (banco) | Count |
+|---|---|---|---|---|---|---|
+| 1 | Spiral26Text-1 | Governança | 172 | **172** ✅ | Espiral: Governança e mapeamento político... | 59 |
+| 2 | Spiral26Text-2 | Instrumentos de financiamento | 174 | **174** ✅ | Espiral: Novos instrumentos financeiros... | 48 |
+| 3 | Spiral26Text-3 | Planos e políticas públicas | 175 | **175** ✅ | Espiral: Planos e políticas públicas | 138 |
+| 4 | Spiral26Text-4 | Negócios | 176 | **176** ✅ | Espiral: Atuação Empresarial | 87 |
+| 5 | Spiral26Text-5 | Sociedade civil | 177 | **177** ✅ | Espiral: Sociedade civil | 45 |
+| 6 | Spiral26Text-6 | Ciência, tecnologia e inovação | 187 | **187** ✅ | Espiral: Ciência, Tecnologia e Inovação | 31 |
+| 7 | Spiral26Text-7 | Cultura | 178 | **178** ✅ | Espiral: Sociedade e Cultura | 54 |
+| 8 | Spiral26Text-8 | Mudança do uso do solo | 179 | **180** ⚠️ | ID 179 = "Espiral: Indicadores de desenvolvimento" (45 estudos); ID 180 = "Espiral: Uso do solo e desmatamento" (85 estudos) |
+| 9 | Spiral26Text-9 | Ordenamento territorial... | 1823 | **1823** ✅ | Espiral: Ordenamento territorial e regularização fundiária | 12 |
+| 10 | Spiral26Text-10 | Infraestrutura | 182 | **182** ✅ | Espiral: Infraestrutura | 30 |
+| 11 | Spiral26Text-11 | Comunicação e mídia | 183 | **183** ✅ | Espiral: Comunicação e mídia | 8 |
+| 12 | Spiral26Text-12 | Mudanças Climáticas | 184 | **184** ✅ | Espiral: Mudanças Climáticas | 65 |
+| 13 | Spiral26Text-13 | Agenda Internacional | 185 | **185** ✅ | Espiral: Agenda Internacional | 34 |
+| 14 | Spiral26Text-14 | Educação | 1819 | **1819** ✅ | Espiral: Educação | 15 |
+| 15 | Spiral26Text-15 | Bioeconomia | 604 | **604** ✅ | Espiral: Bioeconomia | 108 |
+| 16 | Spiral26Text-16 | Segurança | 598 | **598** ✅ | Espiral: Ilegalidades | 39 |
+| 17 | Spiral26Text-17 | Saúde | 182 ❌ | **NOVO** | Criar "Espiral: Saúde" como filho de 1148 |
+| 18 | Spiral26Text-18 | Cidades | 182 ❌ | **1130** | Cidades (parent=1148/Espiral, count=33) ✅ |
+| 19 | Spiral26Text-19 | Biodiversidade | 182 ❌ | **2463** | Espiral: Biodiversidade (parent=1148, slug=eixo-19) |
+| 20 | Spiral26Text-20 | Povos indígenas... | 182 ❌ | **2466** | Espiral: Povos indígenas quilombolas e comunidades tradicionais (parent=1148, slug=eixo-20) |
+| 21 | Spiral26Text-21 | Direitos humanos | 182 ❌ | **2464** | Espiral: Direitos humanos (parent=1148, slug=eixo-21, count=3) ✅ |
+
+## Passos de implementação
+
+### Passo 1: Criar termo "Espiral: Saúde" no banco
+
+```bash
+std wp term create eixos "Espiral: Saúde" --slug=eixo-17 --parent=1148 --porcelain
+```
+→ Anotar o ID gerado (será usado no SVG como `tax=eixos:<ID>`)
+
+### Passo 2: Editar o SVG
+
+Arquivo: `wordpress/wp-content/themes/hello-elementor-child/svg/espiral-do-conhecimento.svg`
+
+**Alterações nos atributos `href` dos elementos `<a>`:**
+
+| Linha | Segmento | De | Para |
+|---|---|---|---|
+| ~311 | Spiral26Text-8 | `eixo=eixo8&...tax=eixos:179` | `eixo=eixo8&...tax=eixos:180` |
+| ~455 | Spiral26Text-17 | `eixo=eixo11&...tax=eixos:182` | `eixo=eixo17&...tax=eixos:<ID_NOVO_SAUDE>` |
+| ~471 | Spiral26Text-18 | `eixo=eixo11&...tax=eixos:182` | `eixo=eixo18&...tax=eixos:1130` |
+| ~487 | Spiral26Text-19 | `eixo=eixo11&...tax=eixos:182` | `eixo=eixo19&...tax=eixos:2463` |
+| ~503 | Spiral26Text-20 | `eixo=eixo11&...tax=eixos:182` | `eixo=eixo20&...tax=eixos:2466` |
+| ~519 | Spiral26Text-21 | `eixo=eixo11&...tax=eixos:182` | `eixo=eixo21&...tax=eixos:2464` |
+
+### Passo 3: Verificação
+
+```bash
+# Confirmar termo criado
+std wp term list eixos --fields=term_id,name,slug,parent --format=table | grep "Espiral:"
+
+# Testar links no browser local
+# https://concertacaoamazonia.local/conhecimento/espiral-de-conhecimento/?jsf=jet-engine:estudos&tax=eixos:2464
+# https://concertacaoamazonia.local/conhecimento/espiral-de-conhecimento/?jsf=jet-engine:estudos&tax=eixos:180
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/afbdd0dd-0d9a-4132-9685-a1160544cfea.jsonl
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/skills/executing-plans
+
+# Executing Plans
+
+## Overview
+
+Load plan, review critically, execute all tasks, report when complete.
+
+**Announce at start:** "I'm using the executing-plans skill to implement this plan."
+
+**Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (such as Claude Code or Codex). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
+
+## The Process
+
+### Step 1: Load and Review Plan
+1. Read plan file
+2. Review critically - identify any questions or concerns about the plan
+3. If concerns: Raise them with your human partner before starting
+4. If no concerns: Create TodoWrite and proceed
+
+### Step 2: Execute Tasks
+
+For each task:
+1. Mark as in_progress
+2. Follow each step exactly (plan has bite-sized steps)
+3. Run verifications as specified
+4. Mark as completed
+
+### Step 3: Complete Development
+
+After all tasks complete and verified:
+- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
+- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
+- Follow that skill to verify tests, present options, execute choice
+
+## When to Stop and Ask for Help
+
+**STOP executing immediately when:**
+- Hit a blocker (missing dependency, test fails, instruction unclear)
+- Plan has critical gaps preventing starting
+- You don't understand an instruction
+- Verification fails repeatedly
+
+**Ask for clarification rather than guessing.**
+
+## When to Revisit Earlier Steps
+
+**Return to Review (Step 1) when:**
+- Partner updates the plan based on your feedback
+- Fundamental approach needs rethinking
+
+**Don't force through blockers** - stop and ask.
+
+## Remember
+- Review plan critically first
+- Follow plan steps exactly
+- Don't skip verifications
+- Reference skills when plan says to
+- Stop when blocked, don't guess
+- Never start implementation on main/master branch without explicit user consent
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+---
+
+rode 3 agentes para validar os links da espiral
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.2/skills/dispatching-parallel-agents
+
+# Dispatching Parallel Agents
+
+## Overview
+
+You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
+
+**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
+
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
+```
+
+**Use when:**
+- 3+ test files failing with different root causes
+- Multiple subsystems broken independently
+- Each problem can be understood without context from others
+- No shared state between investigations
+
+**Don't use when:**
+- Failures are related (fix one might fix others)
+- Need to understand full system state
+- Agents would interfere with each other
+
+## The Pattern
+
+### 1. Identify Independent Domains
+
+Group failures by what's broken:
+- File A tests: Tool approval flow
+- File B tests: Batch completion behavior
+- File C tests: Abort functionality
+
+Each domain is independent - fixing tool approval doesn't affect abort tests.
+
+### 2. Create Focused Agent Tasks
+
+Each agent gets:
+- **Specific scope:** One test file or subsystem
+- **Clear goal:** Make these tests pass
+- **Constraints:** Don't change other code
+- **Expected output:** Summary of what you found and fixed
+
+### 3. Dispatch in Parallel
+
+```typescript
+// In Claude Code / AI environment
+Task("Fix agent-tool-abort.test.ts failures")
+Task("Fix batch-completion-behavior.test.ts failures")
+Task("Fix tool-approval-race-conditions.test.ts failures")
+// All three run concurrently
+```
+
+### 4. Review and Integrate
+
+When agents return:
+- Read each summary
+- Verify fixes don't conflict
+- Run full test suite
+- Integrate all changes
+
+## Agent Prompt Structure
+
+Good agent prompts are:
+1. **Focused** - One clear problem domain
+2. **Self-contained** - All context needed to understand the problem
+3. **Specific about output** - What should the agent return?
+
+```markdown
+Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+
+1. "should abort tool with partial output capture" - expects 'interrupted at' in message
+2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
+3. "should properly track pendingToolCount" - expects 3 results but gets 0
+
+These are timing/race condition issues. Your task:
+
+1. Read the test file and understand what each test verifies
+2. Identify root cause - timing issues or actual bugs?
+3. Fix by:
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
+
+Do NOT just increase timeouts - find the real issue.
+
+Return: Summary of what you found and what you fixed.
+```
+
+## Common Mistakes
+
+**❌ Too broad:** "Fix all the tests" - agent gets lost
+**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+
+**❌ No context:** "Fix the race condition" - agent doesn't know where
+**✅ Context:** Paste the error messages and test names
+
+**❌ No constraints:** Agent might refactor everything
+**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
+
+**❌ Vague output:** "Fix it" - you don't know what changed
+**✅ Specific:** "Return summary of root cause and changes"
+
+## When NOT to Use
+
+**Related failures:** Fixing one might fix others - investigate together first
+**Need full context:** Understanding requires seeing entire system
+**Exploratory debugging:** You don't know what's broken yet
+**Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Real Example from Session
+
+**Scenario:** 6 test failures across 3 files after major refactoring
+
+**Failures:**
+- agent-tool-abort.test.ts: 3 failures (timing issues)
+- batch-completion-behavior.test.ts: 2 failures (tools not executing)
+- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
+
+**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
+
+**Dispatch:**
+```
+Agent 1 → Fix agent-tool-abort.test.ts
+Agent 2 → Fix batch-completion-behavior.test.ts
+Agent 3 → Fix tool-approval-race-conditions.test.ts
+```
+
+**Results:**
+- Agent 1: Replaced timeouts with event-based waiting
+- Agent 2: Fixed event structure bug (threadId in wrong place)
+- Agent 3: Added wait for async tool execution to complete
+
+**Integration:** All fixes independent, no conflicts, full suite green
+
+**Time saved:** 3 problems solved in parallel vs sequentially
+
+## Key Benefits
+
+1. **Parallelization** - Multiple investigations happen simultaneously
+2. **Focus** - Each agent has narrow scope, less context to track
+3. **Independence** - Agents don't interfere with each other
+4. **Speed** - 3 problems solved in time of 1
+
+## Verification
+
+After agents return:
+1. **Review each summary** - Understand what changed
+2. **Check for conflicts** - Did agents edit same code?
+3. **Run full suite** - Verify all fixes work together
+4. **Spot check** - Agents can make systematic errors
+
+## Real-World Impact
+
+From debugging session (2025-10-03):
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes
+
+---
+
+<task-notification>
+<task-id>a81dbbc9abc65519a</task-id>
+<tool-use-id>toolu_01VG5fguMhwAG5B9V658QErD</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/afbdd0dd-0d9a-4132-9685-a1160544cfea/tasks/a81dbbc9abc65519a.output</output-file>
+<status>completed</status>
+<summary>Agent "Validar links seg 17-18 espiral" completed</summary>
+<result>Todos os checks passaram. Aqui está o resultado consolidado:
+
+---
+
+## Resultado da Validacao — Segmentos 17 e 18
+
+### 1. SVG — Verificacao dos href
+
+| Segmento | ID | href | Status |
+|---|---|---|---|
+| Saude (17) | `Spiral26Text-17` | `?eixo=eixo17&jsf=jet-engine:estudos&tax=eixos:2479` | OK |
+| Cidades (18) | `Spiral26Text-18` | `?eixo=eixo18&jsf=jet-engine:estudos&tax=eixos:1130` | OK |
+
+### 2. Banco de Dados — Termos na taxonomia `eixos`
+
+| term_id | name | slug | parent | Status |
+|---|---|---|---|---|
+| 2479 | Espiral: Saude | eixo-17-2 | 1148 | OK |
+| 1130 | Cidades | cidades | 1150 | OK |
+
+### 3. HTTP — Acesso as URLs
+
+| URL | HTTP Final | Status |
+|---|---|---|
+| `.../espiral-de-conhecimento/?eixo=eixo17&tax=eixos:2479` | 200 | OK |
+| `.../espiral-de-conhecimento/?eixo=eixo18&tax=eixos:1130` | 200 | OK |
+
+(Ambas retornam 302 inicial — redirect HTTPS padrao — seguido de 200 no destino final.)
+
+---
+
+Tudo validado e funcionando. Os links dos segmentos 17 e 18 estao corretos no SVG, os term_ids existem na taxonomia `eixos` com os nomes esperados (Saude e Cidades), e as paginas retornam HTTP 200.</result>
+<usage><total_tokens>25557</total_tokens><tool_uses>10</tool_uses><duration_ms>66007</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/afbdd0dd-0d9a-4132-9685-a1160544cfea/tasks/a81dbbc9abc65519a.output
+
+---
+
+<task-notification>
+<task-id>a89c9a6deb0e8a991</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/afbdd0dd-0d9a-4132-9685-a1160544cfea/tasks/a89c9a6deb0e8a991.output</output-file>
+<status>completed</status>
+<summary>Agent "Validar links seg 19-21 espiral" completed</summary>
+<result>Todas as verificações concluídas. Resultado:
+
+---
+
+## Validacao — Segmentos 19, 20 e 21 da Espiral de Conhecimento
+
+### 1. SVG — hrefs
+
+| ID | aria-label | eixo param | tax param | Status |
+|----|-----------|------------|-----------|--------|
+| Spiral26Text-19 | Biodiversidade | `eixo=eixo19` | `tax=eixos:2463` | OK |
+| Spiral26Text-20 | Povos indígenas, quilombolas e comunidades tradicionais | `eixo=eixo20` | `tax=eixos:2466` | OK |
+| Spiral26Text-21 | Direitos humanos | `eixo=eixo21` | `tax=eixos:2464` | OK |
+
+Os hrefs batem exatamente com os valores esperados.
+
+### 2. Termos na taxonomia `eixos` (WordPress DB)
+
+| term_id | name | slug | parent |
+|---------|------|------|--------|
+| 2463 | Espiral: Biodiversidade | eixo-19 | 1148 | OK |
+| 2466 | Espiral: Povos indígenas quilombolas e comunidades tradicionais | eixo-20 | 1148 | OK |
+| 2464 | Espiral: Direitos humanos | eixo-21 | 1148 | OK |
+
+Os três term_ids existem na taxonomia `eixos`.
+
+### 3. HTTP — URLs ao vivo (via `https://cambrasmax.local:8484`)
+
+| URL | HTTP Status |
+|-----|-------------|
+| `?eixo=eixo19&tax=eixos:2463` | **200** |
+| `?eixo=eixo20&tax=eixos:2466` | **200** |
+| `?eixo=eixo21&tax=eixos:2464` | **200** |
+
+Nota: o dominio local real e `cambrasmax.local:8484` (definido em `DEV_FQDN`). A URL `concertacaoamazonia.local` nao esta mapeada no `/etc/hosts`.
+
+---
+
+**Conclusao: todos os tres segmentos estao corretos.** SVG OK, termos OK, HTTP 200 em todas as URLs.</result>
+<usage><total_tokens>26390</total_tokens><tool_uses>9</tool_uses><duration_ms>78849</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/afbdd0dd-0d9a-4132-9685-a1160544cfea/tasks/a89c9a6deb0e8a991.output
+
+---
+
+<task-notification>
+<task-id>a7085d6ba96b1db35</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/afbdd0dd-0d9a-4132-9685-a1160544cfea/tasks/a7085d6ba96b1db35.output</output-file>
+<status>completed</status>
+<summary>Agent "Validar seg 8 e regressão segs 1-7 espiral" completed</summary>
+<result>All data is in hand. Here is the full validation report.
+
+---
+
+## Validacao: Espiral de Conhecimento — Segmentos 1–10
+
+### 1. Validacao dos hrefs no SVG
+
+| Seg | ID (Spiral26Text-N) | Term ID esperado | Term ID no SVG | Status |
+|-----|---------------------|-----------------|----------------|--------|
+| 1   | Spiral26Text-1 (Governança)                     | eixos:172  | eixos:172  | OK |
+| 2   | Spiral26Text-2 (Instrumentos de financiamento)  | eixos:174  | eixos:174  | OK |
+| 3   | Spiral26Text-3 (Planos e políticas públicas)    | eixos:175  | eixos:175  | OK |
+| 4   | Spiral26Text-4 (Negócios)                       | eixos:176  | eixos:176  | OK |
+| 5   | Spiral26Text-5 (Sociedade civil)                | eixos:177  | eixos:177  | OK |
+| 6   | Spiral26Text-6 (Ciência, tecnologia e inovação) | eixos:187  | eixos:187  | OK |
+| 7   | Spiral26Text-7 (Cultura)                        | eixos:178  | eixos:178  | OK |
+| 8   | Spiral26Text-8 (Mudança do uso do solo)         | eixos:180  | eixos:180  | OK |
+| 9   | Spiral26Text-9 (Ordenamento territorial)        | eixos:1823 | eixos:1823 | OK |
+| 10  | Spiral26Text-10 (Infraestrutura)                | eixos:182  | eixos:182  | OK |
+
+Todos os 10 hrefs batem exatamente com o mapeamento esperado.
+
+---
+
+### 2. Validacao do term_id 180 no banco de dados
+
+```
+term_id : 180
+name    : Espiral: Uso do solo e desmatamento
+slug    : eixo-9
+parent  : 1148
+```
+
+O term 180 existe, é do tipo `eixos` e corresponde ao eixo "Uso do solo e desmatamento" — confirmando que o segmento 8 está corretamente apontando para esse termo após a correção de 179 → 180.
+
+---
+
+### 3. Teste de regressão HTTP (amostragem)
+
+| Segmento | URL testada | HTTP Status | Resultado |
+|----------|-------------|-------------|-----------|
+| 1 (Governança)          | `?eixo=eixo1&tax=eixos:172` | **200** | OK |
+| 8 (Mudança uso do solo) | `?eixo=eixo8&tax=eixos:180` | **200** | OK |
+
+Base de teste: `https://cambrasmax.local:8484/conhecimento/espiral-de-conhecimento/` (o site local roda nesse domínio, não em `concertacaoamazonia.local`).
+
+---
+
+### Conclusao
+
+- Segmento 8 corrigido: href `tax=eixos:180` confirmado no SVG, term 180 existe no banco.
+- Segmentos 1–7 sem regressao: hrefs intactos no SVG e segmento 1 retorna HTTP 200.
+- Segmentos 9 e 10: hrefs conferem com o mapeamento esperado (validado via leitura do SVG).</result>
+<usage><total_tokens>41457</total_tokens><tool_uses>9</tool_uses><duration_ms>82823</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/afbdd0dd-0d9a-4132-9685-a1160544cfea/tasks/a7085d6ba96b1db35.output
+
+---
+
+perfeito! versione e comite a espiral, atualize em /common/mu-plugins
