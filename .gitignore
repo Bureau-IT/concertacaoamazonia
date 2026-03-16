@@ -48,6 +48,7 @@ wordpress/wp-content/themes/developer*/
 mysql/
 logs/
 redis/
+tiles/
 
 # -----------------------------------------------------------------------------
 # Backups e Exports (gerenciados externamente)
