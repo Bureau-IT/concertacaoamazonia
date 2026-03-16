@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "01061de5be7e",
+  "session_id": "85ab9284-da7e-45e5-af0d-487988c1e907",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T15:21:36.698276Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bureau-a11y.php",
+    "wordpress/wp-content/mu-plugins/ses-mailer.php",
+    "wordpress/wp-content/themes/hello-elementor-child/css/header-menu.css",
+    "wordpress/wp-content/themes/hello-elementor-child/css/pages/estudos.css",
+    "wordpress/wp-content/themes/hello-elementor-child/css/plugins/jetengine.css",
+    "php/php-fpm.conf",
+    "php/php.ini"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ed04c939d6cc",
+  "checkpoint_transcript_start": 166,
+  "transcript_lines_at_start": 166,
+  "token_usage": {
+    "input_tokens": 61,
+    "cache_creation_tokens": 119617,
+    "cache_read_tokens": 2726608,
+    "output_tokens": 11544,
+    "api_call_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T15:21:35.93559Z",
+    "agent_lines": 34,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 34,
+    "agent_percentage": 100
+  }
+}
