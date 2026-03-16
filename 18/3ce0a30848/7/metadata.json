@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "183ce0a30848",
+  "session_id": "cc6868f8-e93f-4514-98ca-93323c030ce0",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T12:14:43.337618Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-latin-w400-700.woff2"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "88215d2c2993",
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 81472,
+    "cache_read_tokens": 2155416,
+    "output_tokens": 8538,
+    "api_call_count": 46
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T12:14:43.161127Z",
+    "agent_lines": 0,
+    "human_added": 79,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 79,
+    "agent_percentage": 0
+  }
+}

@@ -1,0 +1,239 @@
+Implement the following plan:
+
+# Deploy DB Local → Produção (concertacaoamazonia.com.br)
+
+## Contexto
+
+O banco de dados local Docker (cambrasmax.local:8484) precisa ser enviado para o servidor EC2 de produção (52.67.96.50, SSH alias: `concertacaoamazonia.com.br-prod-sa`). Após o import, é necessário executar search-replace das URLs locais pelas URLs de produção.
+
+## Passos
+
+### 1. Exportar DB local
+```bash
+/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh export-db --save-local
+```
+- Gera arquivo em `./exports/databases/{TIMESTAMP}_concertacao.sql.gz`
+- Registrar o nome exato do arquivo gerado
+
+### 2. Enviar arquivo para EC2 via SCP
+```bash
+scp ./exports/databases/{ARQUIVO}.sql.gz concertacaoamazonia.com.br-prod-sa:/tmp/
+```
+
+### 3. Importar DB no EC2
+```bash
+ssh concertacaoamazonia.com.br-prod-sa \
+  "cd /var/www/concertacaoamazonia.com.br && \
+   sudo -u www-data wp db import /tmp/{ARQUIVO}.sql --allow-root 2>/dev/null || \
+   mysql -u{DB_USER_PROD} -p{DB_PASS_PROD} {DB_NAME_PROD} < /tmp/{ARQUIVO_DESCOMPACTADO}.sql"
+```
+> Preferir usar o script `09-importdatabase.sh` do post-deploy se disponível no EC2.
+
+**Alternativa mais limpa via script do servidor:**
+```bash
+ssh concertacaoamazonia.com.br-prod-sa "ls /home/ubuntu/scripts/ 2>/dev/null || ls /tmp/wp-post-deploy/ 2>/dev/null"
+```
+
+### 4. Search-replace das URLs
+No EC2, após import:
+```bash
+ssh concertacaoamazonia.com.br-prod-sa \
+  "cd /var/www/concertacaoamazonia.com.br && \
+   sudo -u www-data wp search-replace 'cambrasmax.local:8484' 'concertacaoamazonia.com.br' --all-tables --network"
+```
+Também fazer replace de `http://` → `https://` se necessário:
+```bash
+sudo -u www-data wp search-replace 'http://concertacaoamazonia.com.br' 'https://concertacaoamazonia.com.br' --all-tables --network
+```
+
+### 5. Enviar mu-plugins para EC2
+```bash
+rsync -avz --delete \
+  wordpress/wp-content/mu-plugins/ \
+  concertacaoamazonia.com.br-prod-sa:/var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/
+```
+Corrigir permissões após rsync:
+```bash
+ssh concertacaoamazonia.com.br-prod-sa \
+  "sudo chown -R www-data:www-data /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/"
+```
+
+### 6. Enviar tema hello-elementor-child para EC2
+```bash
+rsync -avz --delete \
+  wordpress/wp-content/themes/hello-elementor-child/ \
+  concertacaoamazonia.com.br-prod-sa:/var/www/concertacaoamazonia.com.br/wp-content/themes/hello-elementor-child/
+```
+Corrigir permissões:
+```bash
+ssh concertacaoamazonia.com.br-prod-sa \
+  "sudo chown -R www-data:www-data /var/www/concertacaoamazonia.com.br/wp-content/themes/hello-elementor-child/"
+```
+
+### 7. Limpar cache de produção
+```bash
+ssh concertacaoamazonia.com.br-prod-sa \
+  "cd /var/www/concertacaoamazonia.com.br && \
+   sudo rm -rf wp-content/cache/wp-rocket/ && \
+   sudo -u www-data wp cache flush"
+```
+
+## Arquivos Relevantes
+
+- Export script: `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/scripts/export-db.sh`
+- Import EC2 script: `/Users/dcambria/scripts/server-tools/v2/ec2-deploy/post-deploy/09-importdatabase.sh`
+- ENV do site: `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/.env`
+- ENV de produção: `/Users/dcambria/scripts/server-tools/v2/.env.concertacaoamazonia.com.br.sa`
+
+## Variáveis Chave
+
+- `SSH_ALIAS_PROD="concertacaoamazonia.com.br-prod-sa"` (IP: 52.67.96.50)
+- `FQDN_PROD="concertacaoamazonia.com.br"`
+- `WP_ROOT="/var/www/concertacaoamazonia.com.br"`
+- URLs locais: `cambrasmax.local:8484` e `https://cambrasmax.local:8484`
+
+## Verificação
+
+1. Após search-replace, checar URLs no DB:
+   ```bash
+   ssh concertacaoamazonia.com.br-prod-sa \
+     "cd /var/www/concertacaoamazonia.com.br && \
+      sudo -u www-data wp option get siteurl && \
+      sudo -u www-data wp option get home && \
+      sudo -u www-data wp --url=concertacaoamazonia.com.br/cultura option get siteurl"
+   ```
+2. Acessar via browser (MCP Playwright):
+   - https://concertacaoamazonia.com.br — site principal
+   - https://concertacaoamazonia.com.br/cultura — subsite
+3. Verificar que não há URLs `cambrasmax.local` residuais:
+   ```bash
+   ssh concertacaoamazonia.com.br-prod-sa \
+     "cd /var/www/concertacaoamazonia.com.br && \
+      sudo -u www-data wp search-replace 'cambrasmax.local' 'concertacaoamazonia.com.br' --all-tables --network --dry-run"
+   ```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/f1e4c3c2-e6fa-464b-b622-b417d4f388e0.jsonl
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/save-report
+
+# Skill: save-report
+
+## Quando usar
+
+Sempre que um relatório for gerado durante uma conversa — seja de saúde de infraestrutura, análise de performance, diagnóstico, otimização, migração, ou qualquer documento de entrega técnica.
+
+## Estrutura de diretórios obrigatória
+
+```
+~/scripts/reports/[área bureau]/[nome do programa]/relatorio-[tipo]-YYYY-MM-DD.[ext]
+```
+
+## Áreas bureau válidas
+
+| Código | Nome |
+|--------|------|
+| `01 - Governança` | Políticas, processos, compliance |
+| `02 - Infraestrutura` | AWS, servidores, redes, banco de dados |
+| `03 - Web` | Sites, deploys, frontend, CDN |
+| `04 - Consultoria e Suporte` | Tickets, suporte a clientes |
+| `05 - Ambiente: Educação, Cultura e Treinamento` | Documentação educacional, tutoriais |
+| `06 - Comercialização Software e Hardware` | Licenças, produtos, cotações |
+| `07 - Automação` | Scripts, pipelines, CI/CD, bots |
+| `08 - Segurança` | Auditorias, firewall, incidentes, pentest |
+
+## Regras de nomenclatura
+
+- Formato obrigatório: `relatorio-[tipo]-YYYY-MM-DD.[ext]`
+- Tipos comuns: `saude`, `migracao`, `otimizacao`, `diagnostico`, `auditoria`, `performance`
+- Extensões: `.html` (principal), `.pdf` (quando possível), `.md` (alternativo)
+- Usar data real do dia em que o relatório foi gerado (não a data do período analisado)
+
+## Exemplos de caminhos válidos
+
+```
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.html
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.pdf
+~/scripts/reports/08 - Segurança/cloudflare/relatorio-auditoria-waf-2026-03-20.html
+~/scripts/reports/03 - Web/mfb/relatorio-performance-2026-04-01.html
+~/scripts/reports/07 - Automação/backup-s3/relatorio-diagnostico-2026-03-10.md
+```
+
+## Processo de execução
+
+1. **Identificar área bureau** com base no contexto do relatório
+2. **Identificar nome do programa** — usar o diretório do projeto em `~/scripts/` (ex: `plesk`, `mfb`, `elos-dev`)
+3. **Criar diretório** se não existir:
+   ```bash
+   mkdir -p "~/scripts/reports/[área]/[programa]"
+   ```
+4. **Salvar HTML** com design consistente Bureau (fundo escuro, glassmorphism):
+   - Fundo: `#0a0a0b`
+   - Glassmorphism: `backdrop-filter: blur(12px)`
+   - Fontes: Inter + JetBrains Mono
+   - Floating orbs, animações CSS
+   - Footer com "Bureau de Tecnologia"
+5. **Converter para PDF** via Playwright MCP quando disponível:
+   ```
+   mcp__playwright__playwright_navigate → file:///Users/dcambria/scripts/reports/[área]/[programa]/[arquivo].html
+   mcp__playwright__playwright_save_as_pdf → [mesmo caminho].pdf
+   ```
+6. **Confirmar** ao usuário com os caminhos dos arquivos gerados
+
+## Design padrão Bureau
+
+Os relatórios devem seguir o design das páginas do Plesk (default, maintenance, 404, suspended):
+- Background escuro (`#0a0a0b`) com gradientes animados
+- Glassmorphism (`backdrop-filter: blur`)
+- Status dots coloridos (verde OK, amarelo atenção, vermelho erro)
+- Tabelas com hover sutil
+- Badges de área e data no header
+- Responsivo para mobile
+
+---
+
+<task-notification>
+<task-id>b91kf43xq</task-id>
+<tool-use-id>toolu_01LfkhyeemSTJoRCZcmZWMVZ</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/f1e4c3c2-e6fa-464b-b622-b417d4f388e0/tasks/b91kf43xq.output</output-file>
+<status>completed</status>
+<summary>Background command "Upload DB dump to EC2 via SCP" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/f1e4c3c2-e6fa-464b-b622-b417d4f388e0/tasks/b91kf43xq.output
+
+---
+
+algumas imagens estao faltando no servidor, como https://concertacaoamazonia.com.br/wp-content/uploads/2026/03/ACFP_Logos_Color.jpg, entre outras. rode um rsync pra transferir as imagens que estao faltando
+
+---
+
+o a11y também está desatualizado
+
+---
+
+<task-notification>
+<task-id>bw626auu4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/f1e4c3c2-e6fa-464b-b622-b417d4f388e0/tasks/bw626auu4.output</output-file>
+<status>completed</status>
+<summary>Background command "Rsync uploads to EC2 (background, only missing files)" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/f1e4c3c2-e6fa-464b-b622-b417d4f388e0/tasks/bw626auu4.output
+
+---
+
+sim, lupa de cursor (magnifier) do bureau-a11y. o a11y mais atualizado está rodando localmente em https://concertacao.bureau-it.com/
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_LR2GRC/Captura de Tela 2026-03-16 às 09.11.13.png]
+
+---
+
+[Request interrupted by user]
+
+---
+
+local está certo!
