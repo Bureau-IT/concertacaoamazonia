@@ -3,7 +3,7 @@
   "checkpoint_id": "183ce0a30848",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "nginx/conf.d/wordpress.conf",
     "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-latin-w400-700.woff2",
@@ -30,13 +30,20 @@
       "context": "/18/3ce0a30848/2/context.md",
       "content_hash": "/18/3ce0a30848/2/content_hash.txt",
       "prompt": "/18/3ce0a30848/2/prompt.txt"
+    },
+    {
+      "metadata": "/18/3ce0a30848/3/metadata.json",
+      "transcript": "/18/3ce0a30848/3/full.jsonl",
+      "context": "/18/3ce0a30848/3/context.md",
+      "content_hash": "/18/3ce0a30848/3/content_hash.txt",
+      "prompt": "/18/3ce0a30848/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 615,
-    "cache_creation_tokens": 574876,
-    "cache_read_tokens": 46369552,
-    "output_tokens": 170975,
-    "api_call_count": 531
+    "input_tokens": 676,
+    "cache_creation_tokens": 694493,
+    "cache_read_tokens": 49096160,
+    "output_tokens": 182519,
+    "api_call_count": 575
   }
 }
