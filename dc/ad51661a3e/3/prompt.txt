@@ -1,0 +1,696 @@
+Implement the following plan:
+
+# Plano: Módulo Attack Monitoring — bit-monitoring
+
+## Context
+
+O site concertacaoamazonia.com.br sofreu um ataque ativo (CloudFront 5XX Rate 27.5%) via distribuição CloudFront de terceiros apontando para o ALB como origin. Identificou-se que:
+- 38.419 bloqueios em 7 dias (CloudFront WAF — ACL-WPAdminHML)
+- 17.406 bloqueios em 7 dias (ALB WAF — amazonia-waf, sem logging ativo)
+- atacante usa `Apache-HttpClient/4.5.2 (Java/1.8.0_161)` via IPs CLOUDFRONT_ORIGIN_FACING
+- O bit-monitoring (`~/scripts/bit-monitoring`) é uma plataforma FastAPI + Next.js 14 + Celery + PostgreSQL/TimescaleDB + Redis
+
+**Objetivo:** Criar módulo `security_events` no bit-monitoring para consolidar e visualizar todos os ataques bloqueados pelos recursos AWS (WAF CloudFront, WAF ALB).
+
+---
+
+## Arquitetura do bit-monitoring (estado atual)
+
+```
+backend/
+├── app/
+│   ├── models/              # SQLAlchemy (TimescaleDB hypertables)
+│   ├── schemas/             # Pydantic
+│   ├── services/            # Lógica de negócio
+│   ├── providers/aws/       # AWSClientFactory — USAR (não boto3.Session direto)
+│   ├── api/v1/endpoints/    # FastAPI endpoints (NÃO app/routers/)
+│   ├── api/v1/__init__.py   # Registro de routers aqui
+│   └── notifications/       # 5 canais: email, slack, clickup, twilio, webhook
+├── workers/
+│   ├── celery_app.py        # beat_schedule + include list definidos aqui
+│   └── tasks/               # 13 módulos Celery periódicos
+└── alembic/versions/        # Migrações
+frontend/
+└── src/
+    ├── app/security/        # NOVO — dashboard de ataques
+    └── lib/hooks/           # Hooks REST API (TanStack Query, NÃO SWR)
+```
+
+**Padrão de módulo:** model → schema → service → Celery task → endpoint em `api/v1/endpoints/` → registro em `api/v1/__init__.py` → frontend page
+
+**Frontend stack verificado:** TanStack Query (`@tanstack/react-query`) + `api` axios client (`@/lib/api`) — não SWR.
+
+**WebSocket stack:** Socket.IO (singleton em `useWebSocket.ts`). Frontend detecta dev por porta (`window.location.port === '3000'`), não usa `NEXT_PUBLIC_WS_URL`.
+
+---
+
+## Fontes de dados
+
+| Fonte | Dados disponíveis | Coleta |
+|-------|-------------------|--------|
+| CloudWatch Logs `aws-waf-logs-concertacao` | WAF CloudFront: rule, action, URI, IP, UA (30d retenção) | CloudWatch Logs Insights |
+| CloudWatch Logs `aws-waf-logs-amazonia-alb` | WAF ALB (após Passo 0 habilitar logging) | CloudWatch Logs Insights |
+
+**Campos WAF validados** (confirmados no waf-report.sh):
+- `@timestamp`, `action`, `terminatingRuleId`, `httpRequest.clientIp`, `httpRequest.uri`, `httpRequest.headers.0.value`
+- `httpRequest.country`, `httpRequest.httpMethod` — **confirmar com query de descoberta no Passo 0**
+
+---
+
+## Plano de implementação
+
+### Passo 0: Habilitar logging WAF ALB + confirmar campos
+
+```bash
+# Criar log group
+AWS_PROFILE="Concertação" aws logs create-log-group \
+  --log-group-name "aws-waf-logs-amazonia-alb" --region sa-east-1
+
+# Habilitar logging no WAF ALB
+WAF_ALB_ARN=$(AWS_PROFILE="Concertação" aws wafv2 list-web-acls \
+  --scope REGIONAL --region sa-east-1 \
+  --query "WebACLs[?Name=='amazonia-waf'].ARN" --output text)
+ACCOUNT_ID=$(AWS_PROFILE="Concertação" aws sts get-caller-identity \
+  --query Account --output text)
+AWS_PROFILE="Concertação" aws wafv2 put-logging-configuration \
+  --logging-configuration "{
+    \"ResourceArn\": \"$WAF_ALB_ARN\",
+    \"LogDestinationConfigs\": [\"arn:aws:logs:sa-east-1:${ACCOUNT_ID}:log-group:aws-waf-logs-amazonia-alb\"]
+  }" --region sa-east-1
+
+# Query de descoberta — confirmar campos disponíveis
+QUERY_ID=$(AWS_PROFILE="Concertação" aws logs start-query \
+  --log-group-name "aws-waf-logs-concertacao" \
+  --start-time $(date -v-1H +%s 2>/dev/null || date -d '1 hour ago' +%s) \
+  --end-time $(date +%s) \
+  --query-string 'fields @timestamp, action, terminatingRuleId, httpRequest.clientIp, httpRequest.country, httpRequest.httpMethod, httpRequest.uri | filter action="BLOCK" | limit 3' \
+  --region sa-east-1 --query queryId --output text)
+sleep 5
+AWS_PROFILE="Concertação" aws logs get-query-results \
+  --query-id "$QUERY_ID" --region sa-east-1
+```
+
+### Passo 1: Model SQLAlchemy (`backend/app/models/security_event.py`)
+
+```python
+from sqlalchemy import Column, String, Integer, DateTime, Float
+from app.core.database import Base  # padrão do projeto
+
+class SecurityEvent(Base):
+    __tablename__ = "security_events"
+
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+    source = Column(String(32))        # "waf_cloudfront" | "waf_alb"
+    rule_name = Column(String(128))
+    action = Column(String(16))        # "BLOCK"
+    country_code = Column(String(2))
+    ip_address = Column(String(45))
+    user_agent = Column(String(512))
+    uri = Column(String(1024))
+    http_method = Column(String(8))
+    status_code = Column(Integer)
+    bot_category = Column(String(64))  # AWS WAF BotCategory
+    ip_org = Column(String(128))       # enriquecido async via Redis
+    ip_city = Column(String(64))
+    ip_asn = Column(String(64))
+    threat_score = Column(Float)
+```
+
+### Passo 2: Schema Pydantic (`backend/app/schemas/security_event.py`)
+
+```python
+from pydantic import BaseModel
+from datetime import datetime
+
+class SecurityEventBase(BaseModel):
+    timestamp: datetime
+    source: str
+    rule_name: str | None
+    action: str
+    country_code: str | None
+    ip_address: str | None
+    user_agent: str | None
+    uri: str | None
+    status_code: int | None
+    bot_category: str | None
+
+class SecurityEventCreate(SecurityEventBase): pass
+
+class SecurityEventRead(SecurityEventBase):
+    id: int
+    ip_org: str | None
+    ip_city: str | None
+    ip_asn: str | None
+    threat_score: float | None
+
+class AttackSummary(BaseModel):
+    period_hours: int
+    total_blocks: int
+    top_rules: list[dict]
+    top_countries: list[dict]
+    top_ips: list[dict]
+    top_asns: list[dict]
+    timeline: list[dict]   # consulta attack_timeline_1h (continuous aggregate)
+    sources: list[dict]
+```
+
+### Passo 3: IP Enrichment Service (`backend/app/services/ip_enrichment.py`)
+
+Cache em **Redis** (não SQLite — sem lock contention entre workers Celery):
+
+```python
+import json, httpx, redis, time
+from app.core.config import settings
+
+class IpEnrichmentService:
+    """ip-api.com: 45 req/min. Redis cache 7 dias. Multi-worker safe."""
+    def __init__(self):
+        self.redis = redis.from_url(settings.REDIS_URL)
+        self.cache_ttl = 7 * 86400
+
+    def enrich(self, ip: str) -> dict:
+        cache_key = f"ip:enrichment:{ip}"
+        cached = self.redis.get(cache_key)
+        if cached:
+            return json.loads(cached)
+        try:
+            resp = httpx.get(f"http://ip-api.com/json/{ip}",
+                params={"fields": "country,countryCode,city,org,as,query"},
+                timeout=3.0)
+            data = resp.json()
+            self.redis.setex(cache_key, self.cache_ttl, json.dumps(data))
+            return data
+        except Exception:
+            return {}
+
+    def enrich_batch(self, ips: list[str]) -> dict[str, dict]:
+        """Respeita rate limit: lotes de 9 IPs a cada 12s (< 45/min)."""
+        results = {}
+        new_ips = [ip for ip in ips if not self.redis.get(f"ip:enrichment:{ip}")]
+        for i in range(0, len(new_ips), 9):
+            batch = new_ips[i:i+9]
+            for ip in batch:
+                results[ip] = self.enrich(ip)
+            if i + 9 < len(new_ips):
+                time.sleep(12)
+        for ip in ips:
+            if ip not in results:
+                results[ip] = self.enrich(ip)
+        return results
+```
+
+### Passo 4: WAF Collector Service (`backend/app/services/waf_collector.py`)
+
+Usa **AWSClientFactory** (não boto3.Session — mantém credential caching do projeto):
+
+```python
+from datetime import datetime
+from app.providers.aws import AWSClientFactory
+from app.models.cloud_account import CloudAccount
+
+class WafCollectorService:
+    def __init__(self, cloud_account: CloudAccount):
+        self.client_factory = AWSClientFactory(cloud_account)
+        self.region = "sa-east-1"
+
+    def query_cloudfront_waf(self, since_timestamp: datetime) -> list[dict]:
+        return self._query_waf_logs("aws-waf-logs-concertacao", since_timestamp)
+
+    def query_alb_waf(self, since_timestamp: datetime) -> list[dict]:
+        return self._query_waf_logs("aws-waf-logs-amazonia-alb", since_timestamp)
+
+    def _query_waf_logs(self, log_group: str, since_timestamp: datetime) -> list[dict]:
+        """
+        CloudWatch Logs Insights é ASYNC — start_query + polling obrigatório.
+        Watermark cursor: busca desde since_timestamp (não janela fixa).
+        """
+        logs_client = self.client_factory.get_client("logs", region=self.region)
+        query = """
+        fields @timestamp, action, terminatingRuleId,
+               httpRequest.clientIp, httpRequest.uri,
+               httpRequest.headers.0.value as user_agent
+        | filter action = 'BLOCK'
+        | sort @timestamp asc
+        | limit 10000
+        """
+        response = logs_client.start_query(
+            logGroupName=log_group,
+            startTime=int(since_timestamp.timestamp()),
+            endTime=int(datetime.utcnow().timestamp()),
+            queryString=query,
+        )
+        return self._poll_query(logs_client, response["queryId"])
+
+    def _poll_query(self, client, query_id: str, timeout: int = 60) -> list[dict]:
+        import time as t
+        for _ in range(timeout):
+            result = client.get_query_results(queryId=query_id)
+            if result["status"] == "Complete":
+                return result["results"]
+            if result["status"] in ("Failed", "Cancelled"):
+                return []
+            t.sleep(1)
+        return []
+```
+
+### Passo 5: Celery Task (`backend/workers/tasks/waf_collector.py`)
+
+```python
+from datetime import datetime, timedelta
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from app.models.security_event import SecurityEvent
+from app.models.cloud_account import CloudAccount
+from app.services.waf_collector import WafCollectorService
+from app.services.ip_enrichment import IpEnrichmentService
+from app.core.sync_database import sync_db_session
+from workers.celery_app import celery_app
+
+def _get_cloud_account(db) -> CloudAccount:
+    """Busca a CloudAccount da Concertação (primary AWS account)."""
+    from app.core.config import settings
+    return db.execute(
+        select(CloudAccount).where(CloudAccount.id == settings.CONCERTACAO_AWS_ACCOUNT_ID)
+    ).scalar_one()
+
+def _parse_events(raw_events: list, source: str) -> list[SecurityEvent]:
+    """
+    CloudWatch Logs Insights retorna: [{'field': '@timestamp', 'value': '...'}, ...]
+    Converte para objetos SecurityEvent.
+    """
+    parsed = []
+    for event in raw_events:
+        fields = {f["field"]: f["value"] for f in event}
+        try:
+            parsed.append(SecurityEvent(
+                timestamp=datetime.fromisoformat(fields.get("@timestamp", "").replace("Z", "+00:00")),
+                source=source,
+                rule_name=fields.get("terminatingRuleId"),
+                action=fields.get("action", "BLOCK"),
+                ip_address=fields.get("httpRequest.clientIp"),
+                user_agent=fields.get("user_agent"),
+                uri=fields.get("httpRequest.uri"),
+            ))
+        except (ValueError, KeyError):
+            continue
+    return parsed
+
+@celery_app.task(name="workers.tasks.waf_collector.collect_waf_events")
+def collect_waf_events():
+    """
+    A cada 5 min. Watermark cursor: busca apenas eventos NOVOS desde
+    último timestamp processado por source (não janela fixa de 6h).
+    Upsert com on_conflict_do_nothing para deduplicação.
+    """
+    with sync_db_session() as db:
+        collector = WafCollectorService(_get_cloud_account(db))
+        enricher = IpEnrichmentService()
+
+        for source, fetch_fn in [
+            ("waf_cloudfront", collector.query_cloudfront_waf),
+            ("waf_alb", collector.query_alb_waf),
+        ]:
+            last_ts = db.execute(
+                select(func.max(SecurityEvent.timestamp)).where(
+                    SecurityEvent.source == source
+                )
+            ).scalar() or (datetime.utcnow() - timedelta(hours=6))
+
+            raw = fetch_fn(since_timestamp=last_ts)
+            if not raw:
+                continue
+
+            parsed = _parse_events(raw, source)
+            unique_ips = list({e.ip_address for e in parsed if e.ip_address})
+            enrichments = enricher.enrich_batch(unique_ips)
+
+            for event in parsed:
+                if event.ip_address and event.ip_address in enrichments:
+                    geo = enrichments[event.ip_address]
+                    event.ip_org = geo.get("org")
+                    event.ip_city = geo.get("city")
+                    event.ip_asn = geo.get("as")
+
+            # Upsert: on_conflict_do_nothing evita duplicatas
+            if parsed:
+                stmt = pg_insert(SecurityEvent).values(
+                    [{"timestamp": e.timestamp, "source": e.source,
+                      "rule_name": e.rule_name, "action": e.action,
+                      "ip_address": e.ip_address, "user_agent": e.user_agent,
+                      "uri": e.uri, "ip_org": e.ip_org, "ip_city": e.ip_city,
+                      "ip_asn": e.ip_asn}
+                     for e in parsed]
+                ).on_conflict_do_nothing()
+                db.execute(stmt)
+        db.commit()
+
+
+@celery_app.task(name="workers.tasks.waf_collector.detect_attack_spike")
+def detect_attack_spike():
+    """A cada 15 min. Spike = atual > baseline 7d + 3σ."""
+    with sync_db_session() as db:
+        from app.services.alert_service_sync import SyncAlertService
+        from app.models.notification_rule import TriggerType, Severity
+        alert_service = SyncAlertService(db)
+        # ... lógica de spike detection
+        # alert_service.trigger_alert(
+        #     trigger_type=TriggerType.SECURITY_ATTACK,
+        #     severity=Severity.HIGH,
+        #     title=f"Attack Spike: {spike_count} bloqueios em 15min",
+        #     message=f"Top rule: {top_rule}. Top IP: {top_ip}.",
+        # )
+```
+
+**Modificar `backend/workers/celery_app.py`:**
+```python
+# 1. Adicionar ao include list:
+include=[
+    ...  # tasks existentes
+    "workers.tasks.waf_collector",  # NOVO
+]
+
+# 2. Adicionar ao beat_schedule:
+"collect-waf-events": {
+    "task": "workers.tasks.waf_collector.collect_waf_events",
+    "schedule": crontab(minute="*/5"),
+},
+"detect-attack-spike": {
+    "task": "workers.tasks.waf_collector.detect_attack_spike",
+    "schedule": crontab(minute="*/15"),
+},
+```
+
+**Adicionar ao `backend/app/core/config.py`:**
+```python
+CONCERTACAO_AWS_ACCOUNT_ID: int  # ID da CloudAccount da Concertação no DB
+```
+
+### Passo 6: FastAPI Endpoint (`backend/app/api/v1/endpoints/security.py`)
+
+```python
+from fastapi import APIRouter, Query
+router = APIRouter()  # SEM prefix (adicionado no __init__.py)
+
+@router.get("/summary")
+async def get_attack_summary(hours: int = Query(24, ge=1, le=720)):
+    ...
+
+@router.get("/events")
+async def list_events(hours: int = 24, source: str | None = None,
+                      rule: str | None = None, page: int = 1, page_size: int = 100):
+    ...
+
+@router.get("/timeline")
+async def get_attack_timeline(hours: int = 24):
+    """Consulta VIEW attack_timeline_1h (continuous aggregate — 100x mais rápido)."""
+    ...
+
+@router.get("/top-attackers")
+async def get_top_attackers(hours: int = 24, limit: int = 20):
+    ...
+```
+
+**Modificar `backend/app/api/v1/__init__.py`:**
+```python
+from app.api.v1.endpoints import security
+router.include_router(security.router, prefix="/security", tags=["Security"])
+```
+
+### Passo 7: Adicionar TriggerType ao enum
+
+**Arquivo:** `backend/app/models/notification_rule.py`
+```python
+class TriggerType(str, enum.Enum):
+    ...  # existentes
+    SECURITY_ATTACK = "security_attack"  # ADICIONAR
+```
+
+### Passo 8: Migração Alembic
+
+```bash
+cd ~/scripts/bit-monitoring/backend
+alembic revision --autogenerate -m "add_security_events_table"
+```
+
+**Editar migration gerada** com o seguinte conteúdo:
+
+```python
+def upgrade() -> None:
+    # 1. Habilitar TimescaleDB (OBRIGATÓRIO antes de create_hypertable)
+    op.execute("CREATE EXTENSION IF NOT EXISTS timescaledb;")
+
+    # 2. Criar tabela
+    op.create_table(
+        'security_events',
+        sa.Column('id', sa.Integer(), primary_key=True),
+        sa.Column('timestamp', sa.DateTime(timezone=True), nullable=False),
+        sa.Column('source', sa.String(32)),
+        sa.Column('rule_name', sa.String(128)),
+        sa.Column('action', sa.String(16)),
+        sa.Column('country_code', sa.String(2)),
+        sa.Column('ip_address', sa.String(45)),
+        sa.Column('user_agent', sa.String(512)),
+        sa.Column('uri', sa.String(1024)),
+        sa.Column('http_method', sa.String(8)),
+        sa.Column('status_code', sa.Integer()),
+        sa.Column('bot_category', sa.String(64)),
+        sa.Column('ip_org', sa.String(128)),
+        sa.Column('ip_city', sa.String(64)),
+        sa.Column('ip_asn', sa.String(64)),
+        sa.Column('threat_score', sa.Float()),
+    )
+    op.create_index('ix_se_timestamp', 'security_events', ['timestamp'])
+    op.create_index('ix_se_source_ts', 'security_events', ['source', 'timestamp'])
+    op.create_index('ix_se_ip_ts', 'security_events', ['ip_address', 'timestamp'])
+
+    # 3. Hypertable (1 dia por chunk — adequado para ~5k eventos/dia)
+    op.execute("""
+        SELECT create_hypertable('security_events', 'timestamp',
+            chunk_time_interval => INTERVAL '1 day',
+            if_not_exists => TRUE)
+    """)
+
+    # 4. Compressão automática após 7 dias (~60% de economia de storage)
+    op.execute("""
+        SELECT add_compression_policy('security_events',
+            INTERVAL '7 days', if_not_exists => true)
+    """)
+
+    # 5. Retenção: 90 dias (compliance)
+    op.execute("""
+        SELECT add_retention_policy('security_events',
+            INTERVAL '90 days', if_not_exists => true)
+    """)
+
+    # 6. Continuous aggregate para timeline (frontend consulta esta view)
+    try:
+        op.execute("""
+            CREATE MATERIALIZED VIEW IF NOT EXISTS attack_timeline_1h
+            WITH (timescaledb.continuous) AS
+            SELECT time_bucket('1 hour', timestamp) AS hour,
+                   source, action, count(*) AS block_count
+            FROM security_events
+            GROUP BY hour, source, action;
+        """)
+        op.execute("""
+            SELECT add_continuous_aggregate_policy(
+                'attack_timeline_1h',
+                start_offset => INTERVAL '3 hours',
+                end_offset => INTERVAL '0 seconds',
+                schedule_interval => INTERVAL '5 minutes',
+                if_not_exists => true)
+        """)
+    except Exception:
+        # Fallback: view regular (sem continuous aggregate)
+        op.execute("""
+            CREATE OR REPLACE VIEW attack_timeline_1h AS
+            SELECT date_trunc('hour', timestamp) AS hour,
+                   source, action, count(*) AS block_count
+            FROM security_events
+            GROUP BY hour, source, action;
+        """)
+
+
+def downgrade() -> None:
+    # Remover políticas antes de dropar (evita órfãos)
+    for stmt in [
+        "SELECT remove_continuous_aggregate_policy('attack_timeline_1h', if_exists => true)",
+        "SELECT remove_retention_policy('security_events', if_exists => true)",
+        "SELECT remove_compression_policy('security_events', if_exists => true)",
+    ]:
+        try:
+            op.execute(stmt)
+        except Exception:
+            pass
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS attack_timeline_1h CASCADE")
+    op.execute("DROP VIEW IF EXISTS attack_timeline_1h CASCADE")
+    op.drop_table('security_events')
+```
+
+### Passo 9: Frontend — `/security` page
+
+**Hook de dados** (`frontend/src/lib/hooks/useSecurityEvents.ts`):
+```typescript
+// Padrão do projeto: TanStack Query + api axios client
+import { useQuery } from '@tanstack/react-query'
+import api from '@/lib/api'
+
+export function useAttackSummary(hours: number = 24) {
+  return useQuery({
+    queryKey: ['security', 'summary', hours],
+    queryFn: () => api.get(`/security/summary?hours=${hours}`).then(r => r.data),
+    refetchInterval: 30_000,
+  })
+}
+
+export function useSecurityEvents(filters?: { hours?: number; source?: string; rule?: string }) {
+  return useQuery({
+    queryKey: ['security', 'events', filters],
+    queryFn: () => api.get('/security/events', { params: filters }).then(r => r.data),
+    refetchInterval: 30_000,
+  })
+}
+
+export function useAttackTimeline(hours: number = 24) {
+  return useQuery({
+    queryKey: ['security', 'timeline', hours],
+    queryFn: () => api.get(`/security/timeline?hours=${hours}`).then(r => r.data),
+    refetchInterval: 60_000,
+  })
+}
+```
+
+**WebSocket real-time** — integrar em `useWebSocket.ts` existente (não criar novo):
+```typescript
+// Adicionar ao useWebSocket.ts existente (singleton do projeto):
+socket.on('security_event', (data: SecurityEventPayload) => {
+  queryClient.invalidateQueries({ queryKey: ['security'] })
+})
+```
+
+**Backend** — publicar evento após inserção em waf_collector.py:
+```python
+from app.services.realtime import RealtimeService
+RealtimeService.publish_event_sync("security_event", {
+    "source": source,
+    "count": len(parsed),
+    "timestamp": datetime.utcnow().isoformat(),
+})
+```
+
+**URL WebSocket** — padrão do projeto (NÃO usar `NEXT_PUBLIC_WS_URL`):
+```typescript
+// useWebSocket.ts já usa este padrão — NÃO MODIFICAR:
+const isDev = typeof window !== 'undefined' && window.location.port === '3000'
+const socketUrl = isDev
+  ? `${window.location.protocol}//${window.location.hostname}:8000`
+  : undefined  // same-origin via nginx em produção
+```
+
+**Página** (`frontend/src/app/security/page.tsx`):
+```typescript
+'use client'
+// Importar Sidebar (padrão de todas as páginas)
+// Layout responsivo: p-4 md:p-8 pt-20 md:pt-20 lg:pt-8 (mesma estrutura de incidents)
+// Componentes: AttackKpiCards, AttackTimeline, TopAttackersTable,
+//              AttackRulesBreakdown (donut), GeoHeatmap, RecentEventsTable
+```
+
+### Passo 10: Script de Relatório Semanal
+
+```
+~/scripts/server-tools/v2/helpers/waf-attack-report.sh
+```
+
+- Segue padrão de `waf-report.sh` (shell + Python3 heredoc + Bureau IT glassmorphism)
+- Cron: toda segunda-feira 9h
+- Output: `~/scripts/reports/08 - Segurança/concertacao-aws/relatorio-ataques-YYYY-MM-DD.html`
+- Seções: KPIs, top 20 IPs com geo, top rules, série temporal, países
+
+---
+
+## Arquivos a criar/modificar
+
+| Arquivo | Ação |
+|---------|------|
+| `backend/app/models/security_event.py` | Criar |
+| `backend/app/models/notification_rule.py` | Modificar: `SECURITY_ATTACK` em TriggerType |
+| `backend/app/schemas/security_event.py` | Criar |
+| `backend/app/services/waf_collector.py` | Criar |
+| `backend/app/services/ip_enrichment.py` | Criar |
+| `backend/app/services/security_service.py` | Criar |
+| `backend/app/api/v1/endpoints/security.py` | Criar |
+| `backend/app/api/v1/__init__.py` | Modificar: incluir router |
+| `backend/app/core/config.py` | Modificar: adicionar `CONCERTACAO_AWS_ACCOUNT_ID` |
+| `backend/workers/tasks/waf_collector.py` | Criar |
+| `backend/workers/celery_app.py` | Modificar: include list + beat_schedule |
+| `backend/alembic/versions/xxx_security_events.py` | Criar via alembic |
+| `frontend/src/lib/hooks/useSecurityEvents.ts` | Criar |
+| `frontend/src/app/security/page.tsx` | Criar |
+| `frontend/src/app/security/components/` | Criar componentes |
+| `frontend/src/lib/hooks/useWebSocket.ts` | Modificar: adicionar listener `security_event` |
+| `helpers/waf-attack-report.sh` | Criar |
+
+---
+
+## Correções aplicadas (6 agentes de revisão)
+
+| Problema | Correção |
+|----------|----------|
+| Router em `app/routers/` | Mover para `app/api/v1/endpoints/` |
+| Prefix no router | Remover do router, colocar em `__init__.py` |
+| Nomes de task Celery | `workers.tasks.waf_collector.*` (não `tasks.*`) |
+| boto3 Session direto | Usar `AWSClientFactory` |
+| SQLite cache para IPs | Usar Redis (multi-worker safe) |
+| Janela fixa de 6h | Watermark cursor por source |
+| CloudWatch Logs Insights bloqueante | Async: `start_query` + `_poll_query()` |
+| `bulk_save_objects` sem dedup | `pg_insert().on_conflict_do_nothing()` |
+| `_get_cloud_account()` indefinida | Buscar `CloudAccount` por `settings.CONCERTACAO_AWS_ACCOUNT_ID` |
+| `_parse_events()` indefinida | Implementada com conversão de formato CloudWatch |
+| `query_alb_waf()` ausente | Implementada via método compartilhado `_query_waf_logs()` |
+| `CREATE EXTENSION timescaledb` ausente | Adicionado como primeira instrução do `upgrade()` |
+| Continuous aggregate sem fallback | try/except com fallback para `CREATE VIEW` regular |
+| `downgrade()` incompleto | Remove políticas antes de dropar tabela |
+| `NEXT_PUBLIC_WS_URL` inexistente | WebSocket via padrão do projeto (port detection) |
+| WebSocket hook separado | Integrar listener em `useWebSocket.ts` existente (singleton) |
+| SWR (não existe no projeto) | TanStack Query + axios `api` client |
+
+---
+
+## Pré-requisito crítico
+
+**Passo 0 DEVE ser executado antes de qualquer código:**
+1. Habilitar logging WAF ALB → `aws-waf-logs-amazonia-alb`
+2. Confirmar campos `httpRequest.country` e `httpRequest.httpMethod` com query de descoberta
+
+Sem Passo 0, o módulo cobre apenas CloudFront WAF (50% da superfície de ataque).
+
+---
+
+## Verificação
+
+1. `celery -A workers.celery_app inspect active` → tasks `collect_waf_events` + `detect_attack_spike` ativas
+2. `GET /api/v1/security/summary?hours=24` → JSON com `total_blocks > 0`
+3. Frontend `/security` carrega, charts renderizam, Sidebar visível
+4. Abrir DevTools → Network → WebSocket → confirmar frame `security_event` chega
+5. Spike test → alerta Slack via `SyncAlertService.trigger_alert(TriggerType.SECURITY_ATTACK, ...)`
+6. `waf-attack-report.sh` → HTML em `~/scripts/reports/08 - Segurança/concertacao-aws/`
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/cb0c99d5-d4f4-4030-a3ea-31e52e56d6ff.jsonl
+
+---
+
+ótimo. revise com 3 agentes e depois faça um pull request para que o desenvolvedor possa implementar.
+
+---
+
+<task-notification>
+<task-id>brr0mb6ts</task-id>
+<tool-use-id>toolu_01KtYReeoKfYSMDBmrSp1Jyv</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/brr0mb6ts.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit waf-attack-report.sh in server-tools" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/brr0mb6ts.output
