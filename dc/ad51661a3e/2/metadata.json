@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "dcad51661a3e",
+  "session_id": "558be14d-2ee3-4969-a19d-1d35ce380f33",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-21T17:15:43.73701Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bit-crossblog-attachment-fix.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "440cd3edd32e",
+  "token_usage": {
+    "input_tokens": 158,
+    "cache_creation_tokens": 262277,
+    "cache_read_tokens": 14231109,
+    "output_tokens": 31532,
+    "api_call_count": 139
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-21T17:15:43.364011Z",
+    "agent_lines": 243,
+    "human_added": 99,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 342,
+    "agent_percentage": 71.05263157894737
+  }
+}
