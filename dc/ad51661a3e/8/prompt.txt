@@ -1,0 +1,971 @@
+Implement the following plan:
+
+# Plano: Resize EC2 t3.large → t3.medium + Página de Manutenção via ALB
+
+## Context
+
+O servidor EC2 de produção (`52.67.96.50`, t3.large, 8GB RAM) opera com CPU 2.4% e RAM 13% — sub-utilizado. O resize para t3.medium (4GB) economiza ~$67/mês. Durante o downtime (~2–5 min enquanto a instância está parada), o ALB precisa servir uma página de manutenção personalizada com identidade visual do cliente (em vez de erro 502 genérico).
+
+**Identidade visual real do site:**
+- Fundo: `#fffcf7` (creme)
+- Verde escuro: `#0b4334` (header, títulos)
+- Amarelo-lima botões: `rgb(189, 248, 57)` = `#bdf839`
+- Tipografia headings: `Franie` (local/customizada) → fallback `Plus Jakarta Sans` (Google Fonts)
+- Tipografia body: `Plus Jakarta Sans`, sans-serif
+- Estilo: limpo, uppercase em títulos, sem glassmorphism
+- Logo: `https://concertacaoamazonia.com.br/wp-content/uploads/2026/03/concertacao-logo.svg`
+
+**AWS:**
+- AWS_PROFILE: `Concertação`
+- Região: `sa-east-1`
+- ALB: `amazonia-alb`, Target Group: `concertacao-prod-tg`
+- CloudFront Distribution: `E2F1QD7E7YOYEB`
+- Instance ID: obter via `aws ec2 describe-instances` pelo IP `52.67.96.50`
+
+---
+
+## Fase 1 — Criar página de manutenção (HTML)
+
+**Identidade visual verificada no site real:**
+- Fundo: `#f0f0e8` (creme)
+- Verde escuro: `#0b4334`
+- Verde-lima decorativo: `#c8d84b`
+- Fonte: `Plus Jakarta Sans` (Google Fonts, disponível)
+- Logo real: `https://concertacaoamazonia.com.br/wp-content/uploads/2026/03/concertacao-logo.svg`
+- Layout: 2 colunas — espiral decorativa grande à esquerda, conteúdo à direita
+- Nome correto: **Uma Concertação Pela Amazônia**
+
+**Preview validado via Playwright** ✅ (screenshot confirmado fiel ao estilo do site)
+
+**HTML final da página de manutenção (v4 — aprovada ✅):**
+
+Alterações:
+- Espiral SVG oficial completo (viewBox="28 190 212 216", 2 paths completos fornecidos pelo cliente)
+- Rotação anti-horária lenta (60s, CSS `@keyframes spin-ccw`)
+- Footer: copyright à esquerda, "Desenvolvido por + ícone Bureau IT (34px)" à direita
+- Ícone Bureau IT: bureau_ico.svg inline com fills #232526 (fundo claro)
+- Texto: "Estamos realizando uma atualização em nossos serviços e retornaremos em instantes."
+- Sem botão "Em manutenção"
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Em Manutenção — Uma Concertação Pela Amazônia</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f0f0e8; color: #0b4334; min-height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 28px 52px; display: flex; align-items: center; }
+  header img { height: 56px; width: auto; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: center; min-height: 0; }
+  .left { display: flex; align-items: center; justify-content: center; padding: 20px 0 20px 0; overflow: hidden; }
+  .spiral-bg { width: min(520px, 95%); height: auto; color: #c8d84b; animation: spin-ccw 60s linear infinite; transform-origin: center; }
+  @keyframes spin-ccw { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+  .right { display: flex; flex-direction: column; justify-content: center; padding: 40px 64px 40px 20px; }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 18px; opacity: 0.55; }
+  h1 { font-size: clamp(34px, 4.5vw, 56px); font-weight: 800; text-transform: uppercase; line-height: 1.0; letter-spacing: -0.5px; }
+  .divider { width: 220px; height: 2px; background: #0b4334; opacity: 0.18; margin: 22px 0; }
+  p { font-size: 15px; line-height: 1.75; opacity: 0.72; max-width: 380px; margin-bottom: 32px; }
+  .status { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.5; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #0b4334; animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  footer { padding: 14px 52px; font-size: 11px; opacity: 0.35; border-top: 1px solid rgba(11,67,52,0.1); display: flex; align-items: center; gap: 6px; }
+  footer .bureau-logo { height: 22px; width: auto; }
+  @media (max-width: 680px) { main { grid-template-columns: 1fr; } .left { display: none; } .right { padding: 40px 28px; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="https://concertacaoamazonia.com.br/wp-content/uploads/2026/03/concertacao-logo.svg" alt="Uma Concertação Pela Amazônia">
+</header>
+<main>
+  <div class="left">
+    <svg class="spiral-bg" xmlns="http://www.w3.org/2000/svg" viewBox="28 190 212 216" fill="currentColor">
+      <path d="M198.69,312.14l12.78,4.39c3.09-9.04,4.74-18.72,4.74-28.8,0-6.68-.77-13.18-2.21-19.43l-12.98,3.27c1.23,5.3,1.88,10.82,1.88,16.48,0,8.5-1.42,16.67-4.21,24.09ZM188.76,295.42l-24.44-1.54c.98,1.68,1.81,3.42,2.48,5.21l21.96-3.67Z"/>
+      <path d="M132.97,396.1l.1,3.45c1.73.05,3.46.08,5.2.08,33.53,0,63.45-14.85,84.15-38.43l-10.12-8.55c-18.33,21.05-45.14,34.33-75.07,34.33-1.34,0-2.67-.03-4-.08l-.26,9.2ZM195,379.39l-6.42-8.07c-2.5,2.64-5.2,5.11-8.07,7.41l3.74,7.67c3.78-2.05,7.38-4.34,10.76-7ZM166.68,392.94l-1.83-9.05c-3.41,1.18-6.93,2.16-10.53,2.93l.82,9.43c3.94-.9,7.78-2.05,11.53-3.32ZM138.27,399.54c-1.67-.05-3.34-.14-5-.26l-.84,9.18c1.93.17,3.88.28,5.84.33v-9.25ZM210.61,363.82l-8.94-5.96c-2.06,3.08-4.32,6.01-6.77,8.77l7.27,6.52c2.75-3.08,5.3-6.35,7.44-9.34ZM180.12,386.94l-4.98-8.1c-3.09,2.02-6.33,3.84-9.67,5.45l2.94,8.74c3.66-1.78,7.22-3.78,10.71-6.09ZM222.16,344.18l-10.77-3.31c-1.35,3.59-2.93,7.06-4.72,10.4l9.52,4.95c2.01-3.66,3.77-7.48,5.26-12.04ZM228.5,316.18l-12.77-2.69c-.38,3.73-.99,7.39-1.82,10.97l12.7,3.24c.96-3.77,1.65-7.58,2.08-11.7ZM226.21,287.73c.17,2.14.25,4.3.25,6.48,0,4.15-.27,8.23-.8,12.23l12.77,1.77c.61-4.57.93-9.24.93-13.99,0-2.51-.09-5-.27-7.46l-12.89.97ZM181.49,232.23l6.15-11.39c-3.83-2.29-7.83-4.33-11.97-6.08l-4.69,11.9c3.65,1.57,7.18,3.37,10.5,5.58ZM195.37,243.34l8.62-9.74c-3.12-2.96-6.43-5.72-9.9-8.24l-7.4,10.57c3.01,2.22,5.86,4.63,8.68,7.41ZM206.49,257.17l10.6-7.39c-2.32-3.63-4.86-7.1-7.59-10.37l-9.87,7.96c2.41,2.94,4.64,6.05,6.86,9.8ZM214.96,272.97l12.31-5.01c-1.62-4.26-3.47-8.39-5.55-12.36l-11.53,5.97c1.84,3.6,3.46,7.37,4.77,11.4ZM161.6,224.34l3.52-12.47c-4.26-1.31-8.64-2.35-13.1-3.1l-2.1,12.79c3.91.66,7.74,1.6,11.68,2.78ZM138.27,218.94v-13c-2.24,0-4.47.07-6.68.2l.71,12.99c1.98-.12,3.97-.19,5.97-.19ZM113.44,221.75l-2.49-12.73c-4.48.95-8.85,2.21-13.08,3.76l4.25,12.27c3.68-1.38,7.49-2.49,11.31-3.3ZM90.96,231.57l-5.65-11.61c-4.01,2.12-7.87,4.52-11.53,7.16l7.56,10.6c3.18-2.34,6.54-4.44,9.62-6.15ZM72.66,246.17l-8.77-9.69c-3.26,3.19-6.31,6.6-9.11,10.21l10.27,7.71c2.44-3.17,5.1-6.12,7.61-8.23ZM58.79,264.73l-11.35-6.66c-2.29,3.93-4.33,8.03-6.09,12.27l12.01,4.7c1.55-3.73,3.33-7.34,5.44-10.31ZM49.68,285.91l-12.82-3.2c-1.17,4.43-1.97,9-2.4,13.66l12.97,1.2c.37-4.07,1.07-8.07,2.24-11.66ZM46.44,308.27l-13-.37c.13,4.75.64,9.41,1.51,13.94l12.84-2.27c-.73-3.86-1.19-7.84-1.34-11.3ZM49.21,330.01l-12.38,4.09c1.37,4.5,3.06,8.86,5.04,13.06l11.89-5.44c-1.7-3.74-3.16-7.64-4.55-11.71ZM57.57,350.41l-11.14,6.95c2.52,4.09,5.32,8,8.36,11.7l10.14-7.98c-2.66-3.25-5.14-6.72-7.36-10.67ZM70.95,368.08l-9.4,9.09c3.51,3.48,7.28,6.74,11.24,9.73l7.78-10.39c-3.42-2.64-6.65-5.53-9.62-8.43ZM88.42,382.91l-7,10.8c3.96,2.74,8.11,5.2,12.41,7.35l5.71-11.65c-3.81-1.96-7.49-4.16-11.12-6.49ZM109.11,393.75l-4.38,12.24c4.27,1.68,8.69,3.06,13.21,4.12l2.86-12.75c-3.97-.96-7.85-2.18-11.69-3.62ZM138.27,209.94c-16.14,0-31.39,3.65-44.96,10.16l5.79,11.59c11.95-5.74,25.36-8.97,39.54-8.97,6.06,0,11.98.6,17.71,1.73l2.49-12.73c-6.63-1.29-13.48-1.97-20.57-1.97v.19ZM57.36,261.64c-1.95,3.82-3.66,7.78-5.1,11.86l12.14,3.99c1.28-3.55,2.79-7.01,4.5-10.36l-11.54-5.49ZM104.85,229.05l-3.99-12.14c-4.16,1.5-8.18,3.31-12.02,5.41l6.01,11.52c3.41-1.87,6.94-3.47,10.01-4.79ZM78.61,246.46l-7.75-10.07c-3.39,2.81-6.58,5.87-9.53,9.14l9.43,8.22c2.55-2.84,5.29-5.49,7.85-7.29ZM44.38,308.7c.12,4.07.57,8.07,1.29,11.96l12.71-2.69c-.59-3.29-.97-6.66-1.07-10.1l-12.93.83ZM46.63,332.24c1.37,4.08,3.02,8.04,4.95,11.85l11.56-5.75c-1.65-3.42-3.06-6.98-4.21-10.65l-12.31,4.55ZM60.04,354.28c2.38,3.76,5.03,7.36,7.91,10.77l9.86-7.65c-2.53-3.03-4.84-6.25-6.9-9.61l-10.86,6.5ZM136.58,399.51l.23,12.98c4.74-.09,9.4-.5,13.95-1.22l-1.89-12.83c-3.99.62-8.09.99-12.29,1.07ZM77.01,379.48c3.23,3.12,6.67,6.02,10.28,8.67l7.48-10.47c-3.14-2.3-6.14-4.79-8.94-7.47l-8.82,9.27ZM97.5,394.38c3.75,2.09,7.63,3.93,11.62,5.5l4.65-12.09c-3.52-1.4-6.94-3.04-10.23-4.87l-6.04,11.47ZM50.75,284.12c1.52-4.03,3.34-7.94,5.44-11.69l-11.63-5.56c-2.44,4.29-4.56,8.79-6.3,13.46l12.49,3.79ZM63.36,241.11c2.66-2.9,5.49-5.63,8.47-8.18l-7.87-9.84c-3.52,2.99-6.83,6.23-9.93,9.66l9.33,8.35ZM84.61,223.87c3.52-1.99,7.18-3.77,10.96-5.31l-4.48-11.91c-4.31,1.7-8.51,3.7-12.53,5.97l6.06,11.25ZM156.47,223.64c3.63,1.36,7.16,2.94,10.56,4.73l6.06-11.25c-3.92-2.12-8-3.95-12.19-5.49l-4.43,11.99ZM178.45,236.77c2.96,2.58,5.77,5.36,8.38,8.3l9.73-8.06c-3.05-3.55-6.37-6.88-9.88-9.95l-8.23,9.71ZM196.5,254.35c2.05,3.08,3.91,6.3,5.55,9.64l11.54-5.49c-1.88-3.9-4-7.65-6.35-11.24l-10.74,7.09ZM209.02,274.85c1.15,3.49,2.1,7.07,2.84,10.73l12.79-2.49c-.84-4.22-1.95-8.36-3.31-12.39l-12.32,4.15ZM215.63,296.86c.22,2.47.33,4.96.33,7.47,0,3.96-.29,7.87-.85,11.7l12.8,1.86c.65-4.35.98-8.8.98-13.33,0-2.85-.12-5.67-.36-8.46l-12.9.76ZM212.04,326.5c-1.23,3.62-2.66,7.16-4.3,10.58l11.65,5.56c1.87-4.02,3.51-8.16,4.9-12.42l-12.25-3.73ZM201.21,349.46c-2.13,3.15-4.44,6.16-6.91,9.01l9.68,8.15c2.8-3.22,5.4-6.63,7.78-10.2l-10.55-6.96ZM184.49,368.55c-2.87,2.47-5.89,4.77-9.04,6.88l6.71,10.83c3.62-2.36,7.1-4.93,10.38-7.73l-8.05-9.98ZM163.15,382.35c-3.35,1.58-6.8,2.97-10.33,4.16l3.74,12.44c4.03-1.33,7.96-2.91,11.78-4.7l-5.19-11.89ZM138.27,218.94c-6.65,0-13.15.71-19.44,2.06l2.71,12.74c5.48-1.2,11.18-1.83,17.01-1.83.97,0,1.94.02,2.9.06l.53-12.99c-1.24-.05-2.47-.07-3.71-.07v.03ZM43.09,295.96l-12.91-.93c-.35,4.62-.37,9.31-.06,13.95l12.98-.88c-.25-4.03-.24-8.13-.01-12.14ZM100.28,400.78l-2.44,12.79c4.47,1,9.03,1.72,13.66,2.14l1.18-12.97c-4.05-.37-8.03-.99-12.41-1.96ZM125.01,411.94l.22,12.98c4.72.07,9.39-.16,13.97-.7l-1.54-12.89c-4.13.5-8.37.69-12.65.61ZM149.96,409.17l2.68,12.76c4.56-1.05,9.03-2.43,13.32-4.11l-4.55-12.2c-3.72,1.47-7.56,2.66-11.46,3.55ZM174.15,399.5l4.95,12.01c4.19-1.87,8.24-4.04,12.11-6.48l-6.99-10.87c-3.3,2.21-6.76,4.17-10.07,5.34ZM195.81,385.03l7.59,10.41c3.58-2.79,6.98-5.85,10.17-9.14l-9.05-9.25c-2.76,2.89-5.68,5.58-8.71,7.98ZM213.71,365.65l9.86,7.65c2.89-3.99,5.52-8.21,7.85-12.6l-11.47-5.9c-1.99,3.85-4.25,7.58-6.23,10.85ZM226.92,341.5l11.86,4.96c1.88-4.35,3.48-8.86,4.76-13.5l-12.61-3.31c-1.12,4.09-2.49,8.06-4.02,11.85ZM235.08,314.69l12.55,2.35c.96-4.56,1.61-9.24,1.93-14.01l-12.95-.93c-.28,4.26-.83,8.44-1.53,12.59ZM237.44,286.3c.06,1.64.1,3.28.1,4.93,0,4.33-.22,8.62-.65,12.85l12.92,1.35c.48-4.67.73-9.41.73-14.21,0-1.83-.04-3.65-.11-5.47l-12.99.55ZM233.96,257.66l12.42-4.54c-1.52-4.49-3.31-8.87-5.36-13.11l-11.76,5.62c1.79,3.8,3.37,7.75,4.7,12.03ZM224.37,231.81l11.06-6.86c-2.56-4.1-5.38-8.02-8.44-11.72l-9.98,8.03c2.7,3.25,5.2,6.69,7.35,10.55ZM209.34,209.34l9.47-9.18c-3.35-3.46-6.93-6.72-10.7-9.75l-7.99,10.27c3.3,2.71,6.42,5.64,9.22,8.67ZM189.96,191.13l7.31-10.63c-3.91-2.79-7.99-5.33-12.22-7.6l-5.86,11.49c3.75,2.06,7.34,4.37,10.77,6.74ZM167.27,177.73l4.79-11.99c-4.23-1.87-8.59-3.46-13.06-4.77l-3.1,12.59c3.95,1.15,7.8,2.57,11.37,4.17ZM142.42,169.73l1.99-12.89c-4.5-.76-9.1-1.16-13.78-1.2l-.2,13c4.09.04,8.12.4,11.99,1.09ZM116.71,170.03l-1.02-12.97c-4.57.41-9.07,1.14-13.46,2.2l2.7,12.74c3.82-.92,7.77-1.56,11.78-1.97ZM92.26,177.58l-3.38-12.52c-4.27,1.27-8.45,2.84-12.5,4.69l5.03,11.86c3.56-1.64,7.22-3.04,10.85-4.03ZM70.28,190.83l-5.64-11.59c-3.84,2.03-7.54,4.31-11.08,6.82l7.5,10.63c3.08-2.26,6.3-4.31,9.23-5.86ZM51.7,209.15l-8.18-10.31c-3.3,2.77-6.44,5.75-9.4,8.9l9.37,8.89c2.61-2.82,5.38-5.47,8.21-7.48ZM36.65,231.19l-10.28-7.94c-2.61,3.56-5.04,7.27-7.24,11.12l11.44,5.94c1.93-3.44,4.05-6.77,6.08-9.11ZM25.49,256.47l-12.2-4.35c-1.68,4.19-3.11,8.51-4.26,12.93l12.66,2.99c.99-3.87,2.24-7.69,3.8-11.58ZM18.68,283.61l-12.96-.79c-.35,4.71-.4,9.48-.15,14.22l12.99-.62c-.21-4.32-.17-8.63.12-12.81ZM16.92,311.25l-12.77,2.65c.96,4.67,2.25,9.25,3.86,13.69l12.22-4.56c-1.39-3.92-2.52-7.99-3.31-11.78ZM21.47,338.72l-12.08,5.35c1.94,4.33,4.14,8.53,6.58,12.56l11.09-6.72c-2.13-3.59-4.04-7.31-5.59-11.2ZM31.44,363.77l-11.01,7.08c2.77,4.04,5.78,7.94,9,11.64l9.7-8.14c-2.84-3.27-5.51-6.69-7.69-10.58ZM46.65,385.93l-9.45,9.18c3.44,3.4,7.07,6.61,10.87,9.62l7.92-10.34c-3.31-2.68-6.45-5.55-9.34-8.46ZM66.41,404.89l-7.35,10.62c3.95,2.84,8.06,5.44,12.3,7.76l6.03-11.46c-3.81-2.14-7.47-4.49-10.98-6.93ZM90.29,419.66l-4.64,12.09c4.27,1.85,8.67,3.43,13.16,4.72l3.23-12.55c-3.98-1.16-7.87-2.58-11.75-4.26ZM117.07,429.43l-1.83,12.87c4.57.72,9.22,1.08,13.92,1.08h.1v-13h-.1c-4.1,0-8.17-.33-12.09-.95ZM143.94,428.62l.92,12.97c4.69-.38,9.32-1.09,13.83-2.11l-2.81-12.73c-3.93.92-7.96,1.55-11.94,1.87ZM169.82,422.79l3.52,12.47c4.44-1.42,8.75-3.16,12.89-5.18l-5.63-11.6c-3.57,1.81-7.26,3.36-10.78,4.31ZM193.88,411.27l5.94,11.51c3.97-2.23,7.79-4.72,11.41-7.46l-7.52-10.6c-3.13,2.43-6.41,4.67-9.83,6.55ZM214.9,394.87l8.29,10.16c3.44-3.04,6.7-6.32,9.75-9.8l-9.65-8.14c-2.65,3.12-5.47,6.04-8.39,7.79ZM232.18,374.02l10.36,7.54c2.67-3.79,5.13-7.75,7.34-11.86l-11.38-6.04c-1.93,3.64-4.07,7.18-6.32,10.36ZM245.62,349.33l11.82,5.08c1.92-4.22,3.59-8.58,4.98-13.06l-12.38-3.68c-1.23,3.98-2.67,7.89-4.42,11.66ZM254.47,321.79l12.62,3.21c1.03-4.47,1.76-9.05,2.18-13.72l-12.92-1.29c-.37,3.98-1,7.91-1.88,11.8ZM257.84,293.18c.02,1.22.03,2.44.03,3.66,0,4.01-.17,7.99-.51,11.93l12.94,1.13c.36-4.29.55-8.65.55-13.06,0-1.29-.01-2.58-.04-3.87l-12.98.2ZM255.81,264.07l12.73-2.72c-.93-4.56-2.17-9.04-3.69-13.39l-12.25,4.46c1.33,3.87,2.42,7.85,3.21,11.65ZM248.32,236.44l11.99-5.15c-1.87-4.22-4.01-8.32-6.39-12.26l-11.08,6.82c2.09,3.5,3.97,7.15,5.49,10.59ZM235.77,211.49l10.8-7.64c-2.77-3.79-5.77-7.41-8.98-10.83l-9.43,8.92c2.84,3.03,5.52,6.26,7.61,9.55ZM218.55,189.81l9.03-9.72c-3.37-3.2-6.95-6.19-10.69-8.94l-7.66,10.47c3.29,2.47,6.43,5.16,9.31,8.19ZM197.51,172.07l7.07-10.93c-3.85-2.64-7.85-5.05-11.96-7.21l-5.93,11.51c3.65,2.0,7.15,4.22,10.82,6.63ZM173.64,158.74l4.73-12.02c-4.17-1.78-8.47-3.29-12.86-4.52l-3.18,12.57c3.87,1.1,7.64,2.44,11.31,3.97ZM147.7,150.48l1.97-12.9c-4.55-.73-9.19-1.1-13.88-1.1-.71,0-1.42,0-2.13.02l.32,13c.6-.02,1.2-.02,1.81-.02,4.05,0,8.05.34,11.91,1ZM121.11,151.63l-1.36-12.94c-4.57.55-9.06,1.42-13.43,2.6l3.25,12.53c3.8-1.07,7.72-1.83,11.54-2.18ZM95.83,159.72l-3.65-12.44c-4.3,1.42-8.49,3.14-12.54,5.13l5.44,11.67c3.57-1.79,7.26-3.32,10.74-4.36ZM73.34,173.84l-5.97-11.49c-3.82,2.2-7.5,4.66-10.99,7.35l7.81,10.38c3.0-2.39,6.13-4.57,9.15-6.23ZM54.37,192.88l-8.31-9.88c-3.29,2.99-6.4,6.18-9.28,9.54l9.89,7.77c2.5-2.92,5.15-5.68,7.71-7.43ZM39.19,216.34l-10.59-7.4c-2.5,3.63-4.79,7.43-6.84,11.36l11.52,5.71c1.76-3.43,3.7-6.78,5.91-9.67ZM28.17,242.66l-12.3-4.39c-1.6,4.31-2.93,8.74-3.99,13.27l12.71,2.61c.93-3.98,2.07-7.92,3.58-11.49ZM21.64,270.58l-12.99.37c.04,4.67.39,9.34,1.04,13.94l12.91-1.72c-.57-4.02-.87-8.12-.96-12.59ZM20.75,299.14c-.06-1.77-.09-3.54-.09-5.31,0-2.85.08-5.69.24-8.51l-12.99-.72c-.18,3.07-.27,6.16-.27,9.23,0,1.87.03,3.74.1,5.59l13-.28ZM25.79,327.28l-12.74,3.1c1.11,4.53,2.52,8.97,4.22,13.27l12.12-4.86c-1.49-3.8-2.74-7.72-3.6-11.51ZM36.51,353.56l-11.59-5.77c-2.03,4.06-3.82,8.25-5.35,12.55l12.31,4.38c1.34-3.77,2.89-7.48,4.63-11.15ZM52.49,376.91l-10.1-8.02c-2.75,3.53-5.28,7.22-7.55,11.05l11.13,6.67c1.97-3.36,4.17-6.6,6.52-9.71ZM73.14,396.66l-8.3,10.16c3.6,3.02,7.38,5.82,11.31,8.38l6.83-10.97c-3.47-2.33-6.81-4.86-9.84-7.56ZM97.76,411.95l-5.86,11.5c4.09,2.31,8.33,4.37,12.7,6.14l4.47-12.04c-3.87-1.57-7.65-3.41-11.31-5.6ZM125.25,422.48l-2.66,12.77c4.42.96,8.95,1.62,13.54,1.98l1.03-12.97c-4.0-.33-7.96-.91-11.91-1.78ZM153.84,420.28c-3.96.94-8.02,1.6-12.15,1.97l1.04,12.97c4.58-.41,9.09-1.14,13.49-2.18l-2.39-12.76ZM181.04,408.58c-3.41,1.83-6.93,3.45-10.54,4.84l4.6,12.17c4.1-1.59,8.09-3.44,11.95-5.5l-6.01-11.51ZM205.07,389.92c-2.83,2.52-5.81,4.88-8.91,7.05l7.16,10.74c3.55-2.48,6.96-5.18,10.21-8.06l-8.46-9.73ZM224.86,365.37c-1.99,3.06-4.12,6.01-6.4,8.83l10.08,8.07c2.58-3.19,5.0-6.52,7.23-9.97l-10.91-6.93ZM239.99,336.85c-1.23,3.4-2.62,6.73-4.15,9.97l11.79,5.3c1.7-3.73,3.25-7.55,4.64-11.44l-12.28-3.83ZM250.14,305.85c-.45,3.95-1.12,7.84-2.01,11.65l12.64,2.9c1.01-4.36,1.77-8.81,2.28-13.34l-12.91-1.21ZM255.24,273.71c.41,3.56.68,7.17.81,10.82l13-.47c-.14-3.97-.44-7.9-.9-11.78l-12.91,1.43ZM254.58,241.46c-.74-3.59-1.66-7.14-2.74-10.62l-12.41,4.09c.98,3.11,1.81,6.27,2.47,9.47l12.68-2.94ZM247.56,211.07c-1.61-3.29-3.38-6.51-5.29-9.63l-11.16,6.7c1.72,2.8,3.31,5.71,4.74,8.69l11.71-5.76ZM234.47,183.74c-2.34-2.91-4.83-5.72-7.44-8.41l-9.19,9.13c2.33,2.42,4.55,4.93,6.63,7.52l10.01-8.23ZM215.93,160.16c-3.0-2.42-6.12-4.72-9.34-6.87l-6.97,10.87c2.91,2,5.72,4.1,8.41,6.31l7.9-10.32ZM192.95,141.02c-3.51-1.87-7.13-3.59-10.83-5.13l-4.79,11.98c3.27,1.4,6.47,2.93,9.6,4.6l6.02-11.44ZM166.79,127.41c-3.84-1.24-7.77-2.28-11.76-3.1l-2.47,12.74c3.52.74,6.99,1.67,10.39,2.79l3.83-12.44ZM138.61,119.9c-3.51-.41-7.08-.62-10.69-.62-1.14,0-2.27.02-3.4.06l.41,12.99c1-.04,2-.06,3-.06,2.95,0,5.88.18,8.77.52l1.91-12.89Z"/>
+    </svg>
+  </div>
+  <div class="right">
+    <p class="eyebrow">Manutenção Programada</p>
+    <h1>Voltamos<br>em breve</h1>
+    <div class="divider"></div>
+    <p>Estamos realizando uma atualização em nossos serviços e retornaremos em instantes.</p>
+    <div class="status"><span class="dot"></span>Previsão de retorno: ~5 minutos</div>
+  </div>
+</main>
+<footer>
+  © 2026 Uma Concertação Pela Amazônia — Desenvolvido por&nbsp;
+  <svg class="bureau-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 107.96 95.83" aria-label="Bureau IT">
+    <polygon fill="#232526" points="0.5 15.53 0.5 94.36 22.75 65.48 53.97 65.48 0.5 15.53"/>
+    <path fill="#a6e22e" d="M94.73,66.32q-9.14,0-13.87-4.27T76.11,48.77V31.86H70.35V16.11h5.76V3.79H96.63V16.11H108V31.86H96.63V44.21q0,2.77,1.26,3.9a5.41,5.41,0,0,0,3.68,1.11,15.72,15.72,0,0,0,6.21-1.44V63.53a23.86,23.86,0,0,1-5.84,2A33,33,0,0,1,94.73,66.32Z"/>
+    <rect fill="#a6e22e" x="45.61" width="20.51" height="12.6"/>
+    <polygon fill="#a6e22e" points="45.61 16.11 45.61 51.08 60.89 65.24 66.13 65.24 66.13 16.11 45.61 16.11"/>
+  </svg>
+</footer>
+</body>
+</html>
+```
+
+**Decisão de hospedagem:** S3 + CloudFront Custom Error Response.
+- HTML salvo em bucket S3 `concertacao-manutencao` (privado, acesso via CloudFront OAC)
+- CloudFront intercepta erros 502/503 do origin e serve `/manutencao.html` com status 503
+- `ErrorCachingMinTTL: 30s` (curto para remover rapidamente após o resize)
+- Distribuição CloudFront existente: `E2F1QD7E7YOYEB`
+
+---
+
+## Fase 2 — Sequência de execução
+
+### Passo 0: Preparar S3 + CloudFront para página de manutenção
+
+```bash
+# Criar bucket S3 (região sa-east-1, bloqueio público)
+AWS_PROFILE="Concertação" aws s3api create-bucket \
+  --bucket concertacao-manutencao \
+  --region sa-east-1 \
+  --create-bucket-configuration LocationConstraint=sa-east-1
+
+# Bloquear acesso público direto (acesso só via CloudFront OAC)
+AWS_PROFILE="Concertação" aws s3api put-public-access-block \
+  --bucket concertacao-manutencao \
+  --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
+# Upload do HTML (usar arquivo já salvo)
+AWS_PROFILE="Concertação" aws s3 cp \
+  /Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/manutencao.html \
+  s3://concertacao-manutencao/manutencao.html \
+  --content-type "text/html; charset=utf-8"
+
+# Configurar CloudFront Custom Error Response (502 e 503 → /manutencao.html)
+# Nota: será feito via update-distribution com ETag atual
+```
+
+**HTML final aprovado:** `docker-dev/sites/concertacao/manutencao.html` (arquivo já salvo — fonte de verdade)
+
+### Passo 1: Descobrir Instance ID
+```bash
+AWS_PROFILE="Concertação" aws ec2 describe-instances \
+  --filters "Name=ip-address,Values=52.67.96.50" \
+  --query 'Reservations[0].Instances[0].InstanceId' \
+  --output text \
+  --region sa-east-1
+```
+
+### Passo 2: Ajustar PHP-FPM antes de parar (via SSH)
+```bash
+# Conectar no servidor ainda ligado
+ssh concertacaoamazonia.com.br-prod-sa "
+  sudo bash /var/www/concertacaoamazonia.com.br/wp-scripts/d1-php-fpm-tuning.sh
+  # O script já recalcula automaticamente baseado na RAM disponível após resize
+  # Para t3.medium (4GB): max_children ≈ 53
+"
+# Apenas verificar valor atual — o script roda automaticamente no resize
+ssh concertacaoamazonia.com.br-prod-sa \
+  "grep 'pm.max_children' /etc/php/8.3/fpm/pool.d/wordpress.conf"
+```
+
+### Passo 3: Ativar página de manutenção no ALB (Fixed Response)
+
+Obter ARN do listener HTTPS do ALB:
+```bash
+ALB_ARN=$(AWS_PROFILE="Concertação" aws elbv2 describe-load-balancers \
+  --names amazonia-alb --region sa-east-1 \
+  --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+
+LISTENER_ARN=$(AWS_PROFILE="Concertação" aws elbv2 describe-listeners \
+  --load-balancer-arn "$ALB_ARN" --region sa-east-1 \
+  --query 'Listeners[?Port==`443`].ListenerArn' --output text)
+```
+
+Criar regra de manutenção (priority 1, acima de todas as outras):
+```bash
+AWS_PROFILE="Concertação" aws elbv2 create-rule \
+  --listener-arn "$LISTENER_ARN" \
+  --region sa-east-1 \
+  --priority 1 \
+  --conditions '[{"Field":"path-pattern","PathPatternConfig":{"Values":["/*"]}}]' \
+  --actions '[{
+    "Type": "fixed-response",
+    "FixedResponseConfig": {
+      "StatusCode": "503",
+      "ContentType": "text/html",
+      "MessageBody": "<HTML_MINIFICADO_AQUI>"
+    }
+  }]'
+```
+→ Salvar o RuleArn retornado para deletar depois.
+
+### Passo 4: Parar instância EC2
+```bash
+AWS_PROFILE="Concertação" aws ec2 stop-instances \
+  --instance-ids "$INSTANCE_ID" --region sa-east-1
+# Aguardar parada completa
+AWS_PROFILE="Concertação" aws ec2 wait instance-stopped \
+  --instance-ids "$INSTANCE_ID" --region sa-east-1
+```
+
+### Passo 5: Criar snapshot AMI (segurança)
+```bash
+AWS_PROFILE="Concertação" aws ec2 create-image \
+  --instance-id "$INSTANCE_ID" \
+  --name "concertacao-pre-resize-$(date +%Y%m%d)" \
+  --no-reboot \
+  --region sa-east-1
+```
+
+### Passo 6: Mudar tipo de instância
+```bash
+AWS_PROFILE="Concertação" aws ec2 modify-instance-attribute \
+  --instance-id "$INSTANCE_ID" \
+  --instance-type '{"Value":"t3.medium"}' \
+  --region sa-east-1
+```
+
+### Passo 7: Iniciar instância
+```bash
+AWS_PROFILE="Concertação" aws ec2 start-instances \
+  --instance-ids "$INSTANCE_ID" --region sa-east-1
+
+AWS_PROFILE="Concertação" aws ec2 wait instance-running \
+  --instance-ids "$INSTANCE_ID" --region sa-east-1
+```
+
+### Passo 8: Aguardar health check do ALB ficar healthy
+```bash
+AWS_PROFILE="Concertação" aws elbv2 describe-target-health \
+  --target-group-arn "$(AWS_PROFILE='Concertação' aws elbv2 describe-target-groups \
+    --names concertacao-prod-tg --region sa-east-1 \
+    --query 'TargetGroups[0].TargetGroupArn' --output text)" \
+  --region sa-east-1
+# Aguardar status = healthy
+```
+
+### Passo 9: Remover regra de manutenção do ALB
+```bash
+AWS_PROFILE="Concertação" aws elbv2 delete-rule \
+  --rule-arn "$MAINTENANCE_RULE_ARN" \
+  --region sa-east-1
+```
+
+### Passo 10: Ajustar PHP-FPM para nova RAM
+```bash
+ssh concertacaoamazonia.com.br-prod-sa \
+  "sudo bash /var/www/concertacaoamazonia.com.br/wp-scripts/d1-php-fpm-tuning.sh"
+# Para t3.medium (4GB): max_children ≈ 53 (vs 106 atual)
+```
+
+---
+
+## Arquivos envolvidos
+
+| Arquivo/Recurso | Ação |
+|-----------------|------|
+| `ec2-deploy/post-deploy/d1-php-fpm-tuning.sh` | Reusar script existente para recalcular PHP-FPM |
+| ALB Listener Rule (nova) | Criar + deletar (temporária) |
+| EC2 Instance `52.67.96.50` | stop → modify-instance-type → start |
+| `tmp/maintenance-preview.html` | Preview local (já criado, pode deletar depois) |
+
+---
+
+## HTML mínimo para ALB (< 1024 bytes)
+
+O ALB Fixed Response aceita no máximo **1024 bytes**. O HTML completo com Google Fonts não cabe. Versão compacta com system fonts e identidade visual preservada:
+
+```html
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Em Manutenção</title><style>*{margin:0;box-sizing:border-box}body{font-family:sans-serif;background:#fffcf7;color:#0b4334;min-height:100vh;display:flex;flex-direction:column}header{background:#0b4334;padding:18px 32px}header span{color:#bdf839;font-weight:700;font-size:18px;letter-spacing:1px}main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px}h1{font-size:2.2rem;font-weight:700;text-transform:uppercase;margin-bottom:12px}hr{width:50px;border:2px solid #bdf839;margin:16px auto}p{opacity:.7;max-width:400px;line-height:1.6}footer{background:#0b4334;color:rgba(255,255,255,.4);text-align:center;padding:12px;font-size:11px}</style></head><body><header><span>CONCERTAÇÃO AMAZÔNICA</span></header><main><h1>Em Manutenção</h1><hr><p>Estamos atualizando nossa infraestrutura. Voltamos em instantes.</p></main><footer>© 2026 Concertação Amazônica</footer></body></html>
+```
+
+---
+
+## Verificação
+
+1. **Durante manutenção:** `curl -sI https://concertacaoamazonia.com.br | grep -E 'HTTP|content-type'` → deve retornar `503`
+2. **Visualmente:** browser mostra `manutencao.html` — fundo `#f0f0e8` (creme), espiral lima girando à esquerda, "VOLTAMOS EM BREVE" em verde `#0b4334`, logo Concertação no header, footer com copyright e ícone Bureau IT 34px
+3. **Após resize:** `curl -s https://concertacaoamazonia.com.br | head -5` → retorna HTML do WordPress
+4. **PHP-FPM:** `ssh concertacaoamazonia.com.br-prod-sa "grep pm.max_children /etc/php/8.3/fpm/pool.d/wordpress.conf"` → deve mostrar ~53
+5. **RAM:** `ssh concertacaoamazonia.com.br-prod-sa "free -h"` → total ~3.8GB
+6. **Playwright health check:** navegar pelas 4 URLs principais e verificar 200 OK
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21.jsonl
+
+---
+
+nossa meta é t3.large neste momento
+
+---
+
+a pagina de manutencao estava assim durante o resize
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-03-19 às 23.28.00.png]
+
+---
+
+levante o custo total dessa conta aws --profile Concertacao
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/save-report
+
+# Skill: save-report
+
+## Quando usar
+
+Sempre que um relatório for gerado durante uma conversa — seja de saúde de infraestrutura, análise de performance, diagnóstico, otimização, migração, ou qualquer documento de entrega técnica.
+
+## Estrutura de diretórios obrigatória
+
+```
+~/scripts/reports/[área bureau]/[nome do programa]/relatorio-[tipo]-YYYY-MM-DD.[ext]
+```
+
+## Áreas bureau válidas
+
+| Código | Nome |
+|--------|------|
+| `01 - Governança` | Políticas, processos, compliance |
+| `02 - Infraestrutura` | AWS, servidores, redes, banco de dados |
+| `03 - Web` | Sites, deploys, frontend, CDN |
+| `04 - Consultoria e Suporte` | Tickets, suporte a clientes |
+| `05 - Ambiente: Educação, Cultura e Treinamento` | Documentação educacional, tutoriais |
+| `06 - Comercialização Software e Hardware` | Licenças, produtos, cotações |
+| `07 - Automação` | Scripts, pipelines, CI/CD, bots |
+| `08 - Segurança` | Auditorias, firewall, incidentes, pentest |
+
+## Regras de nomenclatura
+
+- Formato obrigatório: `relatorio-[tipo]-YYYY-MM-DD.[ext]`
+- Tipos comuns: `saude`, `migracao`, `otimizacao`, `diagnostico`, `auditoria`, `performance`
+- Extensões: `.html` (principal), `.pdf` (quando possível), `.md` (alternativo)
+- Usar data real do dia em que o relatório foi gerado (não a data do período analisado)
+
+## Exemplos de caminhos válidos
+
+```
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.html
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.pdf
+~/scripts/reports/08 - Segurança/cloudflare/relatorio-auditoria-waf-2026-03-20.html
+~/scripts/reports/03 - Web/mfb/relatorio-performance-2026-04-01.html
+~/scripts/reports/07 - Automação/backup-s3/relatorio-diagnostico-2026-03-10.md
+```
+
+## Processo de execução
+
+1. **Identificar área bureau** com base no contexto do relatório
+2. **Identificar nome do programa** — usar o diretório do projeto em `~/scripts/` (ex: `plesk`, `mfb`, `elos-dev`)
+3. **Criar diretório** se não existir:
+   ```bash
+   mkdir -p "~/scripts/reports/[área]/[programa]"
+   ```
+4. **Salvar HTML** com design consistente Bureau (fundo escuro, glassmorphism):
+   - Fundo: `#0a0a0b`
+   - Glassmorphism: `backdrop-filter: blur(12px)`
+   - Fontes: Inter + JetBrains Mono
+   - Floating orbs, animações CSS
+   - Footer com "Bureau de Tecnologia"
+5. **Converter para PDF** via Playwright MCP quando disponível:
+   ```
+   mcp__playwright__playwright_navigate → file:///Users/dcambria/scripts/reports/[área]/[programa]/[arquivo].html
+   mcp__playwright__playwright_save_as_pdf → [mesmo caminho].pdf
+   ```
+6. **Confirmar** ao usuário com os caminhos dos arquivos gerados
+
+## Design padrão Bureau
+
+Os relatórios devem seguir o design das páginas do Plesk (default, maintenance, 404, suspended):
+- Background escuro (`#0a0a0b`) com gradientes animados
+- Glassmorphism (`backdrop-filter: blur`)
+- Status dots coloridos (verde OK, amarelo atenção, vermelho erro)
+- Tabelas com hover sutil
+- Badges de área e data no header
+- Responsivo para mobile
+
+---
+
+<task-notification>
+<task-id>b7vcuig0b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/b7vcuig0b.output</output-file>
+<status>completed</status>
+<summary>Background command "Servir relatório via HTTP local para o Playwright" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/b7vcuig0b.output
+
+---
+
+vamos manter a instancia COP por mais uma semana.
+verifique se há necessidade de usar aurora reader.
+
+---
+
+b.
+antes, confira os sites wordpress dentro das demais instancias dessa VPC:
+
+acessos por ssh:
+
+Host www.concertacaoamazonia.com.br-prod-sa
+Host cop30casamazonia.com.br-prod-sa
+
+---
+
+pode sim. Faça um backup do banco antes.
+
+---
+
+analise o que mais podemos enxugar nessa infraestrutura.
+paralelamente, gere novo report financeiro da conta aws --profile Concertação, utilizando o branding do Bureau de Tecnologia :) 
+Utilize gráficos.
+Últimos 4 meses.
+
+---
+
+<task-notification>
+<task-id>bpogd17ob</task-id>
+<tool-use-id>toolu_01Y6WpLtsYe1V4q6YSf9TsR8</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/bpogd17ob.output</output-file>
+<status>completed</status>
+<summary>Background command "Aguardar deleção do Aurora reader" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/bpogd17ob.output
+
+---
+
+<task-notification>
+<task-id>bs1nl9tt5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/bs1nl9tt5.output</output-file>
+<status>completed</status>
+<summary>Background command "Get S3 bucket sizes" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/bs1nl9tt5.output
+
+---
+
+<task-notification>
+<task-id>a287b3e6bab524339</task-id>
+<tool-use-id>toolu_01NLEH5KkbWGEvxEvKnouNis</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/a287b3e6bab524339.output</output-file>
+<status>completed</status>
+<summary>Agent "Coletar dados AWS para relatório financeiro" completed</summary>
+<result>Relatório gerado com sucesso. Aqui está o resumo completo dos dados coletados e do relatório produzido:
+
+---
+
+**Relatórios salvos em:**
+- HTML: `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao/relatorio-financeiro-aws-2026-03-20.html` (51 KB)
+- PDF: `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao/relatorio-financeiro-aws-2026-03-20.pdf` (97 KB)
+
+---
+
+**Resumo dos dados coletados (11 comandos AWS CLI executados):**
+
+**Custos mensais (BlendedCost + Tax, sem refunds):**
+| Mês | Total |
+|-----|-------|
+| Nov/2025 | $960,63 (inclui refund -$59,10 do AWS Support cancelado) |
+| Dez/2025 | $836,74 |
+| Jan/2026 | $847,44 |
+| Fev/2026 | $856,84 |
+| Mar/2026 (até dia 19) | $570,66 estimado |
+| **Previsão Mar completo** | **$876,96** (AWS Cost Forecast) |
+
+**Top 3 maiores custos em Fevereiro:**
+1. Aurora RDS: $309,49 (36,1%) — 2x db.t3.medium (writer + reader)
+2. EC2 Compute: $236,96 (27,7%) — inclui t3.xlarge + t3.small + t3.micro
+3. Tax (Brasil): $104,20 (12,2%)
+
+**Infraestrutura ativa (sa-east-1):**
+- 5 instâncias EC2 (4 running, 1 stopped t3.large COP)
+- Aurora cluster: writer available + reader em "deleting" (iniciado hoje)
+- 37 snapshots Aurora (1 manual pré-remoção do reader + 36 automated)
+- 9 volumes EBS — 3 não utilizados (120 GB, ~$9,60/mês desperdiçado)
+- 7 Elastic IPs — 1 sem associação (54.207.84.130, ~$3,65/mês desperdiçado)
+- 0 NAT Gateways ativos
+- 9 buckets S3
+- 3 alarmes CloudWatch obsoletos (instância inexistente)
+
+**Potencial de economia identificado: ~$149-157 USD/mês** (~$1.800/ano), sendo a maior oportunidade a remoção do Aurora reader (em andamento).</result>
+<usage><total_tokens>80627</total_tokens><tool_uses>25</tool_uses><duration_ms>495007</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/7689e410-c081-4ff2-a055-18e0771d2b21/tasks/a287b3e6bab524339.output
+
+---
+
+há risco em mudar o nome de CreatedByCloudFront-97a0d585 para ACL-WPAdminPRD?
+coloque retention em Log group RDS sem retention
+pode limpar os 3 alarmes CloudWatch
+reduza os snapshots para 12 semanas
+
+---
+
+verifique o que houve:
+
+🔴 [CRITICAL] RDS Freeable Memory Alert: CloudWatch - Concertação Amazônia
+
+
+
+RDS Freeable Memory is 0 B (threshold: < 64 MB) on CloudWatch - Concertação Amazônia
+
+
+
+Details:
+
+• metric: aws.rds.freeable_memory
+
+• rule_id: 10
+
+• value: 0.0
+
+• threshold: 67108864
+
+• operator: <
+
+• duration_seconds: 600
+
+• agent_name: CloudWatch - Concertação Amazônia
+
+• agent_hostname: cloudwatch.379590274801.amazonaws.com
+
+• evaluation_count: 1
+
+• consecutive_ok: 0
+
+• has_override: False
+
+• rule_name: CloudWatch Metric Alert
+
+
+
+— BIT Monitoring
+
+---
+
+o dimensionamento do rds esta correto para os recursos dessa vpc?
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - Implement resize plan: EC2 t3.xlarge → t3.large (corrected from t3.large→t3.medium in plan) with maintenance page via ALB during downtime
+   - Maintenance page (manutencao.html) already approved in previous session with Concertação branding
+   - Cost analysis of AWS account profile "Concertação" with Bureau IT branding, charts, last 4 months
+   - Analyze what else can be optimized in the infrastructure
+   - Verify if Aurora reader was necessary → confirmed not used → remove it (with backup first)
+   - Keep COP instance stopped for 1 more week
+   - Reduce snapshots to 12 weeks retention
+   - Set retention on RDS log group
+   - Delete 3 obsolete CloudWatch alarms
+   - Question about renaming WAF ACL "CreatedByCloudFront-97a0d585" to "ACL-WPAdminPRD"
+   - Investigate CRITICAL alert: RDS FreeableMemory = 0B
+   - Analyze if RDS dimensioning is correct for VPC resources
+
+2. Key Technical Concepts:
+   - AWS EC2 instance resize (stop → modify-instance-attribute → start)
+   - ALB Fixed Response rules (priority 1, 503, HTML < 1024 bytes)
+   - CloudFront Custom Error Response (502/503 → /manutencao.html, TTL 30s)
+   - CloudFront OAC (Origin Access Control) for S3 private bucket access
+   - S3 bucket policy with cloudfront.amazonaws.com principal + SourceArn condition
+   - Aurora MySQL cluster (writer + reader) on db.t3.medium
+   - HyperDB WordPress plugin — requires wp-content/db.php bootstrap to activate
+   - PHP-FPM tuning (pm.max_children based on available RAM)
+   - AWS Cost Explorer API (get-cost-and-usage, get-cost-forecast)
+   - CloudWatch metrics: FreeableMemory, CPUUtilization, DatabaseConnections, DiskQueueDepth, Read/WriteLatency
+   - EBS snapshots lifecycle (DLM policy)
+   - CloudWatch log group retention policies
+   - WAFv2 — rename not natively supported (requires recreate)
+   - WordPress Multisite (subdirectory mode, blog_id 1 and 2)
+   - False positive monitoring alert: metric aggregation including deleted instance returns 0
+
+3. Files and Code Sections:
+   - `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/manutencao.html`
+     - Pre-approved maintenance page with Concertação branding (fundo #f0f0e8, verde #0b4334, espiral SVG animada)
+     - Used as source for S3 upload (18.1KB)
+   - `/tmp/alb-actions.json`
+     - Generated via Python to avoid shell escaping issues with HTML containing double quotes
+     - ALB Fixed Response action: StatusCode 503, ContentType text/html, MessageBody 912-byte compact HTML
+   - `/tmp/cf-dist-config*.json`
+     - CloudFront distribution config snapshots for update operations
+     - v1: added CustomErrorResponses (502/503 → /manutencao.html, TTL 30s)
+     - v2: added CacheBehavior manutencao.html → S3 origin
+     - fixed: removed OriginRequestPolicyId from S3 behavior, changed CachePolicyId to CachingOptimized (658327ea)
+   - `/tmp/s3-bucket-policy-updated.json`
+     - Added statement AllowCloudFrontOACMainutencao:
+     ```json
+     {
+       "Sid": "AllowCloudFrontOACMainutencao",
+       "Effect": "Allow",
+       "Principal": {"Service": "cloudfront.amazonaws.com"},
+       "Action": "s3:GetObject",
+       "Resource": "arn:aws:s3:::concertacaoamazonia-com-br-wp-static-prd-sa/manutencao.html",
+       "Condition": {"StringEquals": {"AWS:SourceArn": "arn:aws:cloudfront::379590274801:distribution/E2F1QD7E7YOYEB"}}
+     }
+     ```
+   - `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao-aws/relatorio-custos-2026-03-19.html`
+     - First cost report (basic, no charts)
+   - `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao-aws/relatorio-custos-2026-03-20.html`
+     - Full cost report with Bureau IT branding, charts (stacked bars, donut, line chart via Canvas)
+     - Data: Nov/2025→Mar/2026, 4 months + partial March
+     - Includes: KPI grid, monthly stacked bar chart (JS), donut chart (SVG), line chart (Canvas API), service breakdown table, resource inventory, optimization insights, projection table
+   - `/etc/php/8.3/fpm/pool.d/wordpress.conf` (on prod server)
+     - pm.max_children: 40 → 55
+     - pm.min_spare_servers: 8 → 6
+     - pm.max_spare_servers: 20 → 25
+
+4. Errors and Fixes:
+   - **Maintenance page showed S3 XML PermanentRedirect error during resize:**
+     - Cause: CacheBehavior for manutencao.html used OriginRequestPolicyId "216adef6" (All Viewer) which forwarded the viewer's Host header to S3, causing S3 to redirect to correct regional endpoint
+     - Fix: Removed OriginRequestPolicyId from the behavior, changed CachePolicyId to CachingOptimized (658327ea), added OAC permission to bucket policy, invalidated CloudFront cache for /manutencao.html
+   - **ALB create-rule JSON parsing error:**
+     - Cause: HTML body contained double quotes that broke inline JSON in shell command
+     - Fix: Generated actions JSON via Python to file `/tmp/alb-actions.json`, used `file://` reference
+   - **mysqldump FLUSH TABLES permission denied:**
+     - Cause: User `concertacao-v2` lacks RELOAD/FLUSH_TABLES privilege on Aurora RDS
+     - Fix: Used `--lock-tables=false --no-tablespaces` flags, removing `--single-transaction`
+   - **CloudFront Custom Error Response serving from wrong origin:**
+     - Cause: Default cache behavior points to ALB; Custom Error Response fetches ResponsePagePath from default origin (ALB), not S3
+     - Fix: Created separate CacheBehavior for `manutencao.html` path targeting S3 origin with proper OAC setup
+   - **d1-php-fpm-tuning.sh not found on production:**
+     - Cause: Script path referenced in plan doesn't exist on the server
+     - Fix: Manually adjusted PHP-FPM values via sed + systemctl reload
+   - **30-day memory trend CloudWatch query failed:**
+     - Cause: `$END` variable was empty (set in subshell context that had exited)
+     - Not yet fixed — was in progress when summary requested
+
+5. Problem Solving:
+   - **EC2 was t3.xlarge not t3.large:** Plan said t3.large/8GB but actual instance was t3.xlarge/16GB. User confirmed target is t3.large. Resize completed successfully, same EIP (52.67.96.50) retained.
+   - **Aurora reader not being used:** Verified all 3 servers (concertacao v2, 5anos, cop30) — none had `wp-content/db.php` (HyperDB bootstrap). All `db-config.php` files had reader configured but inactive. Reader deleted after Aurora cluster snapshot + mysqldump backup.
+   - **False positive RDS alert (FreeableMemory=0):** Monitoring system averaged writer+reader metrics. After reader deletion, reader metric returned 0, pulling average down. Writer itself had 970MB free throughout. Recommendation: update monitoring rule to filter only `amazonia-aurora-db-writer`.
+   - **WAF rename not possible:** WAFv2 has no rename API. Would require recreate+migrate. ACL has no associated resources currently, so zero production risk but deferred.
+   - **Snapshot retention:** DLM policy created 17 weeks of history without expiration. Reduced to 12 weeks by deleting 5 oldest policy snapshots (220GB, ~$11/mês savings).
+
+6. All User Messages:
+   - "Implement the following plan: [full resize + maintenance page plan]"
+   - "nossa meta é t3.large neste momento" (correcting t3.medium to t3.large)
+   - "a pagina de manutencao estava assim durante o resize [screenshot showing S3 XML error]"
+   - "levante o custo total dessa conta aws --profile Concertacao"
+   - "analise o que mais podemos enxugar nessa infraestrutura. paralelamente, gere novo report financeiro da conta aws --profile Concertação, utilizando o branding do Bureau de Tecnologia :) Utilize gráficos. Últimos 4 meses."
+   - "vamos manter a instancia COP por mais uma semana. verifique se há necessidade de usar aurora reader."
+   - "b. antes, confira os sites wordpress dentro das demais instancias dessa VPC: [ssh hosts]"
+   - "pode sim. Faça um backup do banco antes."
+   - "há risco em mudar o nome de CreatedByCloudFront-97a0d585 para ACL-WPAdminPRD? coloque retention em Log group RDS sem retention / pode limpar os 3 alarmes CloudWatch / reduza os snapshots para 12 semanas"
+   - "verifique o que houve: 🔴 [CRITICAL] RDS Freeable Memory Alert [alert details]"
+   - "o dimensionamento do rds esta correto para os recursos dessa vpc?" (sent twice with slight variation)
+
+7. Pending Tasks:
+   - **RDS dimensioning analysis:** Was in progress — collected 7-day metrics, need to complete 30-day memory trend and provide final recommendation on whether db.t3.medium is correctly sized for the VPC workload
+   - **3 orphaned EBS volumes:** Identified (vol-062b 50GB, vol-003 50GB, vol-0d3 20GB, ~$10.56/mês) — user not yet asked to delete
+   - **EIP eip-concertacao-hml (54.207.84.130):** Unassociated, $3.65/mês — user not yet asked to release
+   - **WAF ACL-WPAdminHML:** Potentially idle — user not yet asked to act
+   - **COP instance (i-0450b4bb01221ea24):** Keep stopped for 1 week, then evaluate termination
+
+8. Current Work:
+   Analyzing whether `db.t3.medium` (2 vCPU, 4GB RAM) is correctly sized for the Aurora writer serving all WordPress sites in the VPC. Collected 7-day CloudWatch metrics:
+   - FreeableMemory: avg 977MB free (of ~3GB usable), min ever 931MB → memory is healthy, ~24% used
+   - CPUUtilization: avg 15.3%, but peaked at 73% on 2026-03-16 (12:45) with sustained bursts 30-40% for several hours
+   - DatabaseConnections: avg 4, peaked at 52 (max for db.t3.medium is ~90)
+   - DiskQueueDepth: peaked at 14 on 16/03 (concerning — indicates I/O saturation during that event)
+   - WriteLatency: avg 2ms, peak 7.29ms (acceptable)
+   - ReadLatency: avg 0.05ms, peak 4.9ms (good)
+   - BufferCacheHitRatio: 100% consistently (excellent)
+   The 16/03 event showed CPU spikes 30-73% with DiskQueueDepth up to 14 — correlated with the deploy activity (commit bc18a6399 "chore: ajustes PHP, ses-mailer, CSS tema e bureau-a11y"). The 30-day memory trend query failed due to `$END` variable being empty.
+
+9. Optional Next Step:
+   Complete the RDS dimensioning analysis by collecting the 30-day memory trend data and providing the final recommendation. The user asked: "o dimensionamento do rds esta correto para os recursos associados à essa vpc?"
+   
+   The next step is to re-run the 30-day FreeableMemory query with a properly set END date variable, then cross-reference the 16/03 CPU spike event with deployment logs to determine if the spike was a one-off operational event or a recurring pattern, and deliver the final sizing verdict on whether db.t3.medium is adequate or if a change is warranted.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/cb0c99d5-d4f4-4030-a3ea-31e52e56d6ff.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+nao esta superdimensionado?
+
+---
+
+considerando o historico ec2, poderíamos reduzir ainda mais a instancia para t3.medium?
+
+---
+
+qual o custo previsto para março e projeçao para abril com o estado atual da conta?
+
+---
+
+nós precisamos mesmo de um load balancer?
+
+---
+
+quero ver o que estamos gastando de   │ RDS Aurora (writer only)                     │ ~$124          │
+
+---
+
+gere relatorios:
+- comparação de custos atuais com o equivalente na região us-east-1
+- média geral dos ultimos 3 meses e projeçao proximos 2 meses
+
+---
+
+peça para um agente analisar a saude do rds nas ultimas 12 horas. Estou recebendo inumeras mensagens do bit-monitor, nao sei se sao falsos positivos. confira:
+
+🔴 [CRITICAL] RDS Freeable Memory Alert: CloudWatch - Concertação Amazônia
+
+
+
+RDS Freeable Memory is 0 B (threshold: < 64 MB) on CloudWatch - Concertação Amazônia
+
+
+
+Details:
+
+• metric: aws.rds.freeable_memory
+
+• rule_id: 10
+
+• value: 0.0
+
+• threshold: 67108864
+
+• operator: <
+
+• duration_seconds: 600
+
+• agent_name: CloudWatch - Concertação Amazônia
+
+• agent_hostname: cloudwatch.379590274801.amazonaws.com
+
+• evaluation_count: 1
+
+• consecutive_ok: 0
+
+• has_override: False
+
+• rule_name: CloudWatch Metric Alert
+
+
+
+— BIT Monitoring
+
+---
+
+isso se ajusta direto no Cloudwatch ou no bit-monitor?
+
+---
+
+mas ao ler o cluster, ele não deveria identificar somente o DBInstanceIdentifier=amazonia-aurora-db-writer? pq está tentando ler o reader também? nao entendi
+
+---
+
+analise o problema apresentado:
+
+🔴 [CRITICAL] CloudFront 5XX Rate Alert: concertacaoamazonia.com.br (CloudWatch - Concertação Amazônia)
+
+
+
+CloudFront 5XX Rate is 27.5% (threshold: > 10.0%) on concertacaoamazonia.com.br (CloudWatch - Concertação Amazônia)
+
+
+
+Details:
+
+• metric: aws.cloudfront.5xx_error_rate
+
+• rule_id: 10
+
+• value: 27.4707
+
+• threshold: 10
+
+• operator: >
+
+• duration_seconds: 600
+
+• agent_name: CloudWatch - Concertação Amazônia
+
+• agent_hostname: cloudwatch.379590274801.amazonaws.com
+
+• resource_name: concertacaoamazonia.com.br
+
+• evaluation_count: 1
+
+• consecutive_ok: 0
+
+• has_override: False
+
+• rule_name: CloudWatch Metric Alert
+
+
+
+— BIT Monitoring
+
+---
+
+rode 3 agentes para reanalisar o caso
+
+---
+
+p1 e p2.
+
+---
+
+[Request interrupted by user]
+
+---
+
+antes de continuar, reanalise o caso com 3 agentes, principalmente as implicações da p1-3
+
+---
+
+P1-3 - mesmo assim, deixe aberto para o range do wpml (pesquise qual é)
+P1-2 - revise
+aplique o restante
+
+---
+
+muito interessante.
+coloque 3 agentes para revisar antes de aplicar o plano
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **RDS dimensioning analysis**: User asked if db.t3.medium was over-provisioned for the VPC workload. Concluded: adequately sized, not over-provisioned (buffer pool would be halved on t3.small).
+   - **EC2 further downsizing to t3.medium**: User asked if the recently-resized t3.large could be further reduced. Analysis showed CPU credit balance hit 1/288 on 16/03 deploy event — t3.medium would throttle. t3.large is the minimum safe tier.
+   - **Cost forecasts**: March (~$820 estimated) and April (~$506 projected post-optimizations). AWS Forecast shows $877/$879 because it hasn't "seen" the resize yet.
+   - **ALB necessity**: User asked if the load balancer was necessary. Concluded: essential — serving 5 sites, SSL termination, wp-admin IP allowlist, origin for CloudFront, and multi-instance routing.
+   - **RDS Aurora cost breakdown**: User asked to see real RDS cost. Discovered $8.06/day = 2× db.t3.medium instances (writer + reader running until reader was deleted today). Real Aurora price: $0.168/hr (not $0.097 — Aurora has separate pricing from RDS MySQL).
+   - **CloudFront 5XX CRITICAL alert (27.5%)**: Three rounds of multi-agent analysis. Cause: nginx rate limiting on `/xmlrpc.php` returning 503 (default) instead of 429. CloudFront counts 5XX as origin errors. Attack via CLOUDFRONT_ORIGIN_FACING IPs — attacker created a CloudFront distribution pointing to the ALB as origin. Site is UP and healthy.
+   - **P1 remediation plan** (3 rounds of agent review):
+     - P1-1: Add `limit_req_status 429` to nginx.conf http block
+     - P1-3: Replace `/xmlrpc.php` location block with `return 403` (WPML comment in nginx is outdated — WPML uses REST API now, not XML-RPC; 100% of xmlrpc hits are attack traffic)
+     - Custom Error Response removal: Resize is done, TTL 30s was amplifying 503s into manutencao.html for users
+     - P1-2 (revised): Block by CIDR won't work — attacker IPs are CloudFront origin-facing pool. Correct solution: Secret Header (X-Origin-Verify token) added to CloudFront origin config + WAF rule on ALB blocking requests without the header.
+   - **bit-monitoring attack module**: User asked to plan a new module in `~/scripts/bit-monitoring` to monitor all blocked attacks across resources. Requested 10 agents to deeply analyze the scenario and develop the module pointing to the state of the art. Currently in plan mode writing the plan.
+
+2. Key Technical Concepts:
+   - **Aurora MySQL pricing**: $0.168/hr for db.t3.medium in sa-east-1 (not $0.097 — Aurora has different pricing than RDS MySQL). Writer + reader = $8.06/day constant.
+   - **T-instance CPU credits**: t3.large accumulates 288 credits/hour. Hit 1 credit on 16/03 deploy. t3.medium accumulates only 144 credits/hour — would throttle faster/longer on same events.
+   - **CloudFront CLOUDFRONT_ORIGIN_FACING IP pool**: AWS uses these IPs when CloudFront contacts origins. Attacker created own CloudFront distribution pointing to the ALB — attack traffic appears to come from these IPs. Cannot be blocked at WAF layer (WAF sees viewer IP, not origin-facing IP).
+   - **Secret Header pattern**: Add `X-Origin-Verify: <token>` as CloudFront custom origin header → WAF rule on ALB blocks any request missing the correct header. Blocks all third-party CloudFront distributions from using the ALB as origin.
+   - **WPML XML-RPC**: WPML no longer uses XML-RPC (switched to REST API `/wp-json/wpml/tm/v1`). The comment `# NÃO bloquear (WPML usa para sync multilíngue)` in nginx is outdated.
+   - **nginx `limit_req_status`**: Directive (available since 1.3.15, server has 1.24.0) that changes the HTTP status returned when rate limit is exceeded. Default is 503 — should be 429.
+   - **CloudFront Custom Error Response**: Configured 502/503 → `/manutencao.html` with TTL 30s during resize. POST requests not cached by CloudFront, but GET 503s could serve maintenance page to real users for 30s.
+   - **bit-monitoring architecture**: FastAPI + Next.js 14 + Celery + PostgreSQL/TimescaleDB + Redis. Module pattern: SQLAlchemy model → Pydantic schema → Service → Celery task → FastAPI endpoint → Frontend page.
+   - **WAF data sources**: ACL-WPAdminHML (CloudFront) has active logging to CloudWatch Logs (`aws-waf-logs-concertacao`, 30-day retention, ~165MB). amazonia-waf (ALB/regional) has NO logging. ALB access logs in S3 (`concertacao-logs`).
+   - **IP enrichment stack**: ip-api.com (45 req/min free) + SQLite cache (7-day TTL) + MaxMind GeoLite2 as primary (standard used by Fail2Ban, Graylog, Suricata).
+   - **WAF metrics dimensions**: WebACL, Rule, Country, BotCategory, BotName, Intent, Organization — granular per-rule per-country data available via CloudWatch.
+   - **waf-report.sh**: Existing helper at `~/scripts/server-tools/v2/helpers/waf-report.sh` — shell script with embedded Python3 (heredoc PYEOF), queries CloudWatch Logs Insights, generates Bureau IT glassmorphism HTML report. Cron runs Sundays 11h for 7-day report.
+   - **Bureau IT HTML report pattern**: Dark bg (#0a0a0b), glassmorphism (backdrop-filter blur), 3 animated orbs, Inter font, KPI cards, tables, Canvas API charts.
+
+3. Files and Code Sections:
+   - `/etc/nginx/sites-available/concertacaoamazonia.com.br` (on prod server):
+     - Current xmlrpc block (lines 93-101) with outdated WPML comment:
+     ```nginx
+     # xmlrpc.php: rate limit moderado — NÃO bloquear (WPML usa para sync multilíngue)
+     location = /xmlrpc.php {
+         limit_req zone=wp_login burst=5 nodelay;
+         try_files $uri =404;
+         include /etc/nginx/snippets/php-fpm.conf;
+         fastcgi_param HTTPS $fastcgi_https;
+         fastcgi_read_timeout 60;
+         fastcgi_send_timeout 60;
+     }
+     ```
+     - Planned replacement: `location = /xmlrpc.php { return 403; }`
+   - `/etc/nginx/nginx.conf` (on prod server):
+     - Contains: `limit_req_zone $binary_remote_addr zone=wp_login:10m rate=5r/m;`
+     - Planned addition: `limit_req_status 429;` immediately after the zone declaration
+   - `~/scripts/server-tools/v2/helpers/waf-report.sh`: Template for new module. Shell + Python3 heredoc, CloudWatch Logs Insights queries, glassmorphism HTML output.
+   - `~/scripts/bit-monitoring/`: Full FastAPI+Next.js platform. Key paths:
+     - `backend/app/providers/aws/cloudwatch.py` — CloudWatch polling
+     - `backend/workers/tasks/` — Celery periodic tasks (13 modules)
+     - `backend/app/notifications/` — 5 channels (email, slack, clickup, twilio, webhook)
+     - `backend/app/services/alert_service_sync.py` — Alert orchestration
+   - `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao-aws/relatorio-dimensionamento-rds-2026-03-20.html`: Generated RDS sizing report
+   - `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao-aws/relatorio-comparativo-regioes-2026-03-20.html`: sa-east-1 vs us-east-1 comparison report
+   - `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao-aws/relatorio-tendencia-custos-2026-03-20.html`: 3-month trend + 2-month projection report
+   - `/Users/dcambria/.claude/plans/synchronous-sniffing-fog.md`: Plan file (currently being written for bit-monitoring attack module)
+
+4. Errors and fixes:
+   - **FreeableMemory CRITICAL alert (false positive)**: Monitor uses `DBClusterIdentifier` without Role filter. After reader deletion, CloudWatch stopped receiving reader data → monitor interpreted null as 0 → average (writer+reader)/2 ≈ 0 → CRITICAL. Fix: Change BIT Monitor rule to use `DBInstanceIdentifier=amazonia-aurora-db-writer`.
+   - **CloudFront 5XX alert — initial wrong diagnosis**: First agent round concluded "attack of brute force, fix with limit_req_status 429." Second round revealed it had been active for 4+ hours (since 16:24 BRT), not a spike. Third round (WAF agent) found the WAF protecting CloudFront PROD is `ACL-WPAdminHML` (confusing name) and AWSManagedRulesAmazonIpReputationList is NOT in the ACL (was misidentified earlier).
+   - **CIDR blocking ineffective**: Initial P1-2 plan was to block `3.172.105.0/24` and `15.158.36.0/24` at WAF. Revised analysis revealed these are `CLOUDFRONT_ORIGIN_FACING` IPs — blocking them would be in the wrong layer (WAF sees viewer IP, not origin-facing IP). Correct solution is Secret Header pattern.
+   - **WPML XML-RPC comment in nginx**: nginx config had comment `# NÃO bloquear (WPML usa para sync multilíngue)` blocking xmlrpc cleanup. Multiple agent rounds confirmed WPML now uses REST API, not XML-RPC. No legitimate xmlrpc hits in logs.
+
+5. Problem Solving:
+   - **RDS $8.06/day mystery**: Aurora db.t3.medium in sa-east-1 costs $0.168/hr (not $0.097 for regular RDS MySQL). Writer + reader = exactly $8.06/day. Resolved by checking AWS Pricing API.
+   - **Attack vector identification**: Attackers use `Apache-HttpClient/4.5.2 (Java/1.8.0_161)` via CloudFront origin-facing IP pool, meaning they created their own CloudFront distribution pointing to the ALB. Standard IP blocking won't work.
+   - **Custom Error Response amplification**: The 502/503→manutencao.html config from the resize was amplifying 503s from rate-limiting into full maintenance page responses. TTL 30s meant cached errors served to legitimate users. Need to remove this now that resize is complete.
+
+6. All user messages:
+   - "nao esta superdimensionado?" (RDS db.t3.medium)
+   - "considerando o historico ec2, poderíamos reduzir ainda mais a instancia para t3.medium?"
+   - "qual o custo previsto para março e projeçao para abril com o estado atual da conta?"
+   - "nós precisamos mesmo de um load balancer?"
+   - "quero ver o que estamos gastando de │ RDS Aurora (writer only) │ ~$124 │"
+   - "gere relatorios: - comparação de custos atuais com o equivalente na região us-east-1 / - média geral dos ultimos 3 meses e projeçao proximos 2 meses"
+   - "peça para um agente analisar a saude do rds nas ultimas 12 horas. Estou recebendo inumeras mensagens do bit-monitor, nao sei se sao falsos positivos. confira: [RDS FreeableMemory CRITICAL alert]"
+   - "isso se ajusta direto no Cloudwatch ou no bit-monitor?"
+   - "analise o problema apresentado: [CloudFront 5XX Rate Alert 27.5%]"
+   - "rode 3 agentes para reanalisar o caso"
+   - "muito interessante. coloque 3 agentes para revisar antes de aplicar o plano"
+   - "antes de continuar, reanalise o caso com 3 agentes, principalmente as implicações da p1-3"
+   - "P1-3 - mesmo assim, deixe aberto para o range do wpml (pesquise qual é) / P1-2 - revise / aplique o restante"
+   - "coloque 3 agentes para revisar antes de aplicar o plano" (second review round)
+   - "muito interessante. coloque 3 agentes para revisar antes de aplicar o plano" (asking for final review before apply)
+   - "depois, planeje a criação de um módulo para bit-monitoring ~/scripts/bit-monitoring para gerar um monitoramento de todos os ataques bloqueados pelos recursos. Utilize 10 agentes para analisar profundamente o cenário e desenvolver o módulo apontando para o estado-da-arte para monitoramente desse tipo de atividade."
+
+7. Pending Tasks:
+   - **Apply nginx changes** (P1-1 + P1-3):
+     - Add `limit_req_status 429;` to nginx.conf http block
+     - Replace xmlrpc.php location block with `return 403;`
+     - `nginx -t && nginx -s reload`
+   - **Remove CloudFront Custom Error Response** (manutencao.html 502/503 redirect)
+   - **P1-2 Secret Header implementation** (separate task, more elaborate):
+     - Generate token in AWS Parameter Store
+     - Add `X-Origin-Verify: <token>` to CloudFront origin custom headers
+     - Add WAF rule to amazonia-waf (ALB) blocking requests without header
+     - Test in COUNT mode first for 30 min, then switch to BLOCK
+   - **Activate WAF logging for amazonia-waf** (ALB regional — currently no logging)
+   - **Delete 3 orphaned EBS volumes** (~$10.56/mês)
+   - **Release unassociated EIP** eip-concertacao-hml ($3.65/mês)
+   - **COP30 instance decision** after 1 week
+   - **Write and implement bit-monitoring attack monitoring module** (currently being planned)
+
+8. Current Work:
+   Currently in plan mode after 10 agents completed deep research on the bit-monitoring attack monitoring module. The agents gathered:
+   - **Full bit-monitoring architecture**: FastAPI 0.125 + Next.js 14 + Celery 5.3 + PostgreSQL/TimescaleDB + Redis. Module pattern: model → schema → service → endpoint → Celery task → frontend page.
+   - **Available data sources**: WAF CloudWatch Logs (`aws-waf-logs-concertacao`, ACL-WPAdminHML active, amazonia-waf NO logging), ALB access logs in S3, CloudWatch metrics (BlockedRequests by Rule/Country/BotCategory).
+   - **WAF stats**: 38,419 blocks in 7 days (CloudFront), 17,406 blocks in 7 days (ALB). US = 34.5% block rate. BR = 0.002%. Top attack: RestrictedExtensions (60% of ALB blocks).
+   - **Existing template**: `waf-report.sh` shell + Python3 heredoc + CloudWatch Logs Insights queries → Bureau IT glassmorphism HTML.
+   - **IP enrichment**: ip-api.com (45 req/min free) + SQLite cache + MaxMind GeoLite2.
+   - **State-of-the-art**: WAF logs (primary) → CloudWatch Logs Insights queries → enrich with geo/ASN/threat intel → timeline charts + geo map + top attackers + attack type breakdown → HTML report + alerts via existing notification channels.
+   - The plan file at `/Users/dcambria/.claude/plans/synchronous-sniffing-fog.md` needs to be written with the complete module design.
+
+9. Optional Next Step:
+   Write the plan file for the bit-monitoring attack monitoring module. The user's explicit request was: "planeje a criação de um módulo para bit-monitoring ~/scripts/bit-monitoring para gerar um monitoramento de todos os ataques bloqueados pelos recursos. Utilize 10 agentes para analisar profundamente o cenário e desenvolver o módulo apontando para o estado-da-arte para monitoramente desse tipo de atividade."
+
+   The 10 agents have completed their research. The next step is to write the complete implementation plan to the plan file covering:
+   - New Celery task for WAF log collection (CloudWatch Logs Insights queries)
+   - New SQLAlchemy model `SecurityEvent` (TimescaleDB hypertable)
+   - New FastAPI endpoints for attack data
+   - IP enrichment service (ip-api.com + SQLite cache + MaxMind)
+   - New frontend page `/security` with timeline, geo breakdown, top attackers, attack type charts
+   - Enable WAF logging for amazonia-waf (ALB)
+   - Integration with existing alert_service for spike detection
+   - HTML batch report generation following waf-report.sh pattern
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/cb0c99d5-d4f4-4030-a3ea-31e52e56d6ff.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+[Request interrupted by user for tool use]
