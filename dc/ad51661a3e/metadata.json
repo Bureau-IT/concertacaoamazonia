@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "dcad51661a3e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "manutencao.html",
+    "wordpress/wp-content/mu-plugins/bit-crossblog-attachment-fix.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/dc/ad51661a3e/0/metadata.json",
+      "transcript": "/dc/ad51661a3e/0/full.jsonl",
+      "context": "/dc/ad51661a3e/0/context.md",
+      "content_hash": "/dc/ad51661a3e/0/content_hash.txt",
+      "prompt": "/dc/ad51661a3e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 72724,
+    "cache_read_tokens": 5114390,
+    "output_tokens": 27672,
+    "api_call_count": 76
+  }
+}
