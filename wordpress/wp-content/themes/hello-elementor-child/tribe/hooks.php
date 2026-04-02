@@ -7,7 +7,7 @@
  *
  * @package HelloElementorChild
  * @subpackage TEC
- * @author Daniel Cambría + Claude Code
+ * @author Daniel Cambría
  * @version 1.1.0
  */
 

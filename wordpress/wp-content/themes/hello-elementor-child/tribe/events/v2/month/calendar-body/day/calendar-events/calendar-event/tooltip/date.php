@@ -3,7 +3,7 @@
  * OVERRIDE DO TEMPLATE THE EVENTS CALENDAR (TEC)
  *
  * Data: 08/12/2025
- * Autor: Daniel Cambría + Claude Code
+ * Autor: Daniel Cambría
  * Motivo: Customizar exibição de data para eventos com categoria "edital"
  *         e aplicar correções de formato pt-BR
  *

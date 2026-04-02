@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @author  Daniel Cambría + Warp
- * @version 2.2.1
+ * @version 2.2.2
  */
 
 // Prevent direct access
@@ -966,16 +966,16 @@ function bureau_it_tec_cls_critical_inline_css() {
 
     /* --- views-skeleton.css: l-container min-height e padding ---
        Base: min-height 600px, padding-top 64px, padding-bottom 80px
-       Final: min-height 0 (override), padding-top 96px, padding-bottom 160px */
+       Final: min-height 0 (override), padding-top 96px, padding-bottom 0 */
     .tribe-events .tribe-events-l-container {
         min-height: 0 !important;
         padding-top: 96px !important;
-        padding-bottom: 160px !important;
+        padding-bottom: 0 !important;
     }
     .tribe-common--breakpoint-medium.tribe-events .tribe-events-l-container {
         min-height: 0 !important;
         padding-top: 96px !important;
-        padding-bottom: 160px !important;
+        padding-bottom: 0 !important;
     }
 
     /* --- views-skeleton.css: tribe-events-header layout ---

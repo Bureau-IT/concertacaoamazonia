@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @since   2.0.0
- * @version 2.2.0
+ * @version 2.4.0
  */
 
 if (!defined('ABSPATH')) {
@@ -332,4 +332,128 @@ function bureau_it_format_event_date( $event, $add_prefix = true ) {
     }
 
     return $date_text;
+}
+
+// === POSICIONAMENTO DE EDITAIS PELO MÊS DE TÉRMINO (v2.3.0) ===
+
+/**
+ * Adiciona controle "Editais: agrupar pelo mês de término" ao painel Content
+ * do widget Elementor TEC Events View.
+ *
+ * Quando ativo, Editais aparecem no grupo do mês em que terminam (EndDate)
+ * em vez do mês em que começam (StartDate — padrão TEC).
+ * O agrupamento é implementado via template override em
+ * tribe/events/v2/list/month-separator.php.
+ *
+ * @since 2.3.0
+ */
+add_action(
+    'elementor/element/tec_elementor_widget_events_view/content_section/before_section_end',
+    'bureau_it_tec_widget_add_edital_group_control'
+);
+function bureau_it_tec_widget_add_edital_group_control( $widget ) {
+    $widget->add_control( 'bit_edital_group_by_end', [
+        'label'        => __( 'Editais: agrupar pelo mês de término', 'hello-elementor-child' ),
+        'description'  => __( 'Editais aparecem no mês em que terminam, não no mês em que começam.', 'hello-elementor-child' ),
+        'type'         => \Elementor\Controls_Manager::SWITCHER,
+        'label_on'     => __( 'Sim', 'hello-elementor-child' ),
+        'label_off'    => __( 'Não', 'hello-elementor-child' ),
+        'return_value' => 'yes',
+        'default'      => '',
+    ] );
+}
+
+/**
+ * Captura o setting do widget antes do render.
+ *
+ * O render() do Widget_Events_View usa whitelist para o shortcode, então controles
+ * customizados não chegam ao pipeline do TEC automaticamente. Armazenamos em global
+ * temporário lido pelo template override month-separator.php.
+ *
+ * @since 2.3.0
+ * @param \Elementor\Widget_Base $widget Widget sendo renderizado
+ */
+add_action( 'elementor/widget/before_render_content', 'bureau_it_tec_capture_edital_group_setting' );
+function bureau_it_tec_capture_edital_group_setting( $widget ) {
+    if ( 'tec_elementor_widget_events_view' !== $widget->get_name() ) {
+        return;
+    }
+    $settings                               = $widget->get_settings_for_display();
+    $GLOBALS['bit_tec_edital_group_by_end'] = ( 'yes' === ( $settings['bit_edital_group_by_end'] ?? '' ) );
+}
+
+/**
+ * Pré-ordena os eventos da List View por grupo-mês antes do render.
+ *
+ * O TEC entrega eventos em start_date ASC. Editais de longa duração (ex: início Mar,
+ * fim Dez) ficam intercalados entre eventos do mês corrente, quebrando os separadores.
+ * Este filtro reordena o array para que todos os eventos de um mesmo grupo-mês
+ * apareçam consecutivos — o month-separator.php tracker então funciona corretamente.
+ *
+ * Grupo-mês: end_display para Editais (quando toggle ativo), start_display para demais.
+ * Sort estável (bubble): preserva ordem relativa dentro do mesmo grupo-mês.
+ *
+ * @since 2.3.0
+ */
+add_filter( 'tribe_events_views_v2_view_list_template_vars', 'bureau_it_tec_sort_events_by_group_month' );
+function bureau_it_tec_sort_events_by_group_month( $template_vars ) {
+    if ( empty( $GLOBALS['bit_tec_edital_group_by_end'] ) ) {
+        return $template_vars;
+    }
+
+    if ( empty( $template_vars['events'] ) || ! is_array( $template_vars['events'] ) ) {
+        return $template_vars;
+    }
+
+    $request_date = $template_vars['request_date'] ?? null;
+    $is_past      = $template_vars['is_past'] ?? false;
+
+    // Pré-calcular grupo-mês de cada evento.
+    // Chave = $event->ID original (pode ser occurrence ID provisório do TEC V1).
+    // O sort abaixo usa o mesmo ID, então as chaves devem ser consistentes.
+    $group_dates = [];
+    foreach ( $template_vars['events'] as $event ) {
+        $original_id = $event->ID;
+        $hydrated    = tribe_get_event( $event );
+        if ( ! $hydrated instanceof WP_Post ) {
+            $group_dates[ $original_id ] = $event->dates->start_display ?? null;
+            continue;
+        }
+
+        $use_end = function_exists( 'bureau_it_is_edital' )
+                   && bureau_it_is_edital( $hydrated )
+                   && isset( $hydrated->dates->end_display );
+
+        if ( $use_end ) {
+            $group_dates[ $original_id ] = $hydrated->dates->end_display;
+        } elseif ( empty( $is_past ) && ! empty( $request_date ) ) {
+            $group_dates[ $original_id ] = max( $hydrated->dates->start_display, $request_date );
+        } else {
+            $group_dates[ $original_id ] = $hydrated->dates->start_display;
+        }
+    }
+
+    // Ordenar por grupo-data ASC (primário: Y-m, secundário: Y-m-d).
+    // usort não é estável em PHP < 8.0; para garantir estabilidade, adicionamos
+    // índice original como terceiro critério de desempate.
+    $indexed = array_values( $template_vars['events'] );
+    $order   = array_keys( $indexed ); // índices originais para desempate estável
+
+    usort( $indexed, function ( $a, $b ) use ( $group_dates, $order ) {
+        $date_a = $group_dates[ $a->ID ] ?? null;
+        $date_b = $group_dates[ $b->ID ] ?? null;
+
+        if ( ! $date_a || ! $date_b ) {
+            return 0;
+        }
+
+        $ts_a = $date_a->format( 'Y-m-d' );
+        $ts_b = $date_b->format( 'Y-m-d' );
+
+        return strcmp( $ts_a, $ts_b );
+    } );
+
+    $template_vars['events'] = $indexed;
+
+    return $template_vars;
 }

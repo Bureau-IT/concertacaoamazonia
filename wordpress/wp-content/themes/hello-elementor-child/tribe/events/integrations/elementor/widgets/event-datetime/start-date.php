@@ -4,7 +4,7 @@
  *
  * Template customizado para mostrar "Edital disponível até..." para eventos tipo edital
  *
- * @author Daniel Cambría + Claude Code
+ * @author Daniel Cambría
  * @since 6.4.0
  * @version 6.4.1
  *

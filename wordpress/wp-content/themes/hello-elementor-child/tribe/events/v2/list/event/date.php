@@ -5,7 +5,7 @@
  * Template customizado para exibir texto especial para eventos da categoria "Edital"
  * e aplicar correções de formato pt-BR
  *
- * @author Daniel Cambría + Claude Code
+ * @author Daniel Cambría
  * @since 5.1.1
  * @version 5.3.0
  *

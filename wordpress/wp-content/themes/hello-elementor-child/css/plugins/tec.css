@@ -311,25 +311,28 @@ button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path
 }
 
 /* --- 4.10 Navegação Eventos --- */
+
+/* Ocultar o texto original ("Eventos") e substituir por "Anteriores" / "Próximos" */
 .tribe-events-c-nav__prev-label {
     font-size: 0;
 }
-
 .tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide {
+    font-size: 0;
+}
+.tribe-events-c-nav__prev-label::before {
+    content  : "Anteriores";
     font-size: 1rem;
     color    : var(--e-global-color-text);
-}
-
-.tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide::after {
-    content  : " passados";
-    font-size: 1rem;
 }
 
 .tribe-events-c-nav__next-label {
     font-size: 0;
 }
-
 .tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide {
+    font-size: 0;
+}
+.tribe-events-c-nav__next-label::before {
+    content  : "Próximos";
     font-size: 1rem;
     color    : var(--e-global-color-text);
 }
@@ -342,7 +345,3 @@ a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
     color: var(--e-global-color-accent);
 }
 
-.tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide::after {
-    content  : " seguintes";
-    font-size: 1rem;
-}
