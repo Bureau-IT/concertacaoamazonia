@@ -1,0 +1,1782 @@
+analise a customização do plugin the events calendar (está dentro do tema child em dev).
+Verifique usando diff que havia um código que deixave a listagem de eventos em ordem cronologia reversa, os eventos que terminavam antes apareciam primeiro.
+
+---
+
+quanto tiver mais de uma categoria, alem de Edital (corrija o nome da categoria: o correto é "Edital"), somente os editais sao ordenados por data de fim, as demais categorias, ordenadas normalmente.
+
+---
+
+me diga como ficaria com diversos eventos em diversos meses, incluindo Edital e outras categorias
+
+---
+
+quero isso aqui:
+
+  O TEC List View agrupa eventos por mês assim:
+
+  ── Abril 2026 ──────────────────────────
+    [Evento A]  início: 05 abr
+    [Edital X]  término: 10 abr
+    [Evento B]  início: 20 abr
+
+  ── Maio 2026 ────────────────────────────
+    [Edital Y]  término: 03 mai
+    [Evento C]  início: 15 mai
+
+---
+
+confirmado!
+
+---
+
+sim, controle no widget
+
+---
+
+[Image #1] porque esses 2 primeiros editais aparecem com data errada?
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-01 às 18.10.01.png]
+
+---
+
+<task-notification>
+<task-id>bbu8gw29l</task-id>
+<tool-use-id>toolu_01BEgLXyoESuwKNHveE89w2d</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bbu8gw29l.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush de cache para ver as mudanças" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+[Image #2] está aparecendo um edital do dia 31 de dezembro, em abril. Dispare 3 agentes para auditar o código
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_dDXGB6/Captura de Tela 2026-04-01 às 22.31.24.png]
+
+---
+
+<task-notification>
+<task-id>bk5pht6zn</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bk5pht6zn.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush de cache" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+[Image #3] não funcionou. agora já aparece dezembro 2027 logo na sequencia com o Fundo Flora, depois os itens de abril ainda em dezembro... analise com 3 agentes, de maneira minuciosa e profunda
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_QDS87B/Captura de Tela 2026-04-01 às 22.46.52.png]
+
+---
+
+<task-notification>
+<task-id>bmw3nu4gx</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bmw3nu4gx.output</output-file>
+<status>completed</status>
+<summary>Background command "Verificar sintaxe e flush de cache" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+na linha       16   * @author Daniel Cambría + Claude Code
+deixe só @author Daniel Cambría
+
+---
+
+[Image #4] ainda continua com problema. Faça um plano e analise com calma. Testar com playwright.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_YLM6X2/Captura de Tela 2026-04-01 às 22.59.11.png]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user wants Edital-category events in The Events Calendar (TEC) list view to be **positioned by their end date** (`_EventEndDate`) rather than their start date. Specifically:
+   - Editais should appear under the month group in which they **terminate** (not start)
+   - A toggle control in the Elementor TEC widget (`bit_edital_group_by_end`) activates this behavior
+   - Non-Edital events use default TEC behavior (grouped by start date)
+   - The "Edital" category slug is `edital`, taxonomy `tribe_events_cat`
+   - The date-tag (weekday + day number in left column) must also reflect the end date for Editais
+
+2. Key Technical Concepts:
+   - **The Events Calendar Pro** (TEC) Views V2 — List View, `Separators::should_have_month()`, `tribe_get_event()`, `tribe_get_event_after`, `tribe_events_views_v2_view_list_template_vars`
+   - **Elementor widget hooks**: `elementor/element/{widget}/content_section/before_section_end`, `elementor/widget/before_render_content`
+   - **Widget name**: `tec_elementor_widget_events_view` (content section ID: `content_section`)
+   - **TEC event dates**: `$event->dates->start_display`, `$event->dates->end_display` (both `Date_I18n_Immutable`)
+   - **Template overrides**: `tribe/events/v2/list/month-separator.php`, `tribe/events/v2/list/event/date-tag.php`
+   - **Global variable bridge**: `$GLOBALS['bit_tec_edital_group_by_end']` set by `elementor/widget/before_render_content`, read in templates
+   - **bureau_it_is_edital()** — existing function in `inc/events-calendar.php` that detects Edital category (handles TEC V1 occurrence IDs via `bureau_it_tec_resolve_post_id()`)
+   - **TEC event ordering**: repository fetches events by `event_date ASC, event_duration ASC` (start date, then duration)
+   - **ends_after query**: TEC uses `ends_after` (not `starts_after`) so ongoing events (started before today, ending after) are included
+
+3. Files and Code Sections:
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/inc/events-calendar.php`**
+     - Version bumped to `2.3.0`
+     - Added 2 functions for the Elementor widget control:
+     ```php
+     add_action(
+         'elementor/element/tec_elementor_widget_events_view/content_section/before_section_end',
+         'bureau_it_tec_widget_add_edital_group_control'
+     );
+     function bureau_it_tec_widget_add_edital_group_control( $widget ) {
+         $widget->add_control( 'bit_edital_group_by_end', [
+             'label'        => __( 'Editais: agrupar pelo mês de término', 'hello-elementor-child' ),
+             'description'  => __( 'Editais aparecem no mês em que terminam, não no mês em que começam.', 'hello-elementor-child' ),
+             'type'         => \Elementor\Controls_Manager::SWITCHER,
+             'label_on'     => __( 'Sim', 'hello-elementor-child' ),
+             'label_off'    => __( 'Não', 'hello-elementor-child' ),
+             'return_value' => 'yes',
+             'default'      => '',
+         ] );
+     }
+
+     add_action( 'elementor/widget/before_render_content', 'bureau_it_tec_capture_edital_group_setting' );
+     function bureau_it_tec_capture_edital_group_setting( $widget ) {
+         if ( 'tec_elementor_widget_events_view' !== $widget->get_name() ) {
+             return;
+         }
+         $settings                               = $widget->get_settings_for_display();
+         $GLOBALS['bit_tec_edital_group_by_end'] = ( 'yes' === ( $settings['bit_edital_group_by_end'] ?? '' ) );
+     }
+     ```
+     - NOTE: The `tribe_get_event_after` approach (`bureau_it_tec_regroup_edital_by_end_date`) was **tried and removed** because `Separators::should_have_month()` re-calls `tribe_get_event()` internally, causing unpredictable behavior.
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/tribe/events/v2/list/month-separator.php`** (CREATED)
+     - Current version 5.4.1 — uses a "rendered months tracker" pattern:
+     ```php
+     $edital_group_by_end = ! empty( $GLOBALS['bit_tec_edital_group_by_end'] );
+
+     $get_group_date = function ( WP_Post $ev ) use ( $edital_group_by_end, $request_date, $is_past ) {
+         if (
+             $edital_group_by_end
+             && function_exists( 'bureau_it_is_edital' )
+             && bureau_it_is_edital( $ev )
+             && isset( $ev->dates->end_display )
+         ) {
+             return $ev->dates->end_display;
+         }
+         return empty( $is_past ) && ! empty( $request_date )
+             ? max( $ev->dates->start_display, $request_date )
+             : $ev->dates->start_display;
+     };
+
+     $hydrated_event = tribe_get_event( $event );
+     $event_month = $get_group_date( $hydrated_event )->format( 'Y-m' );
+
+     $all_events   = $this->get( 'events' );
+     $rendered_key = 'bit_tec_rendered_months_' . md5( implode( ',', wp_list_pluck( $all_events, 'ID' ) ) );
+     if ( ! isset( $GLOBALS[ $rendered_key ] ) ) {
+         $GLOBALS[ $rendered_key ] = [];
+     }
+     if ( in_array( $event_month, $GLOBALS[ $rendered_key ], true ) ) {
+         return;
+     }
+     $GLOBALS[ $rendered_key ][] = $event_month;
+     $sep_date = $get_group_date( $hydrated_event );
+     // ... render the <li> separator
+     ```
+     - **STILL BUGGY**: This tracker approach fails because TEC renders events in start_date order. Fundo Flora (start: 2026-03-31, end: 2027-12-31) appears 2nd in the list, creating a "dezembro 2027" separator. Subsequent April events (Comitê Nacional, InovaClima) have "2026-04" already registered by Revista Juventude, so they get no separator and visually appear under "dezembro 2027".
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/tribe/events/v2/list/event/date-tag.php`** (CREATED)
+     - Overrides the left-column date tag (weekday abbreviation + day number)
+     - For Editais: uses `end_display` instead of `start_display`
+     ```php
+     if ( function_exists( 'bureau_it_is_edital' ) && bureau_it_is_edital( $event ) && isset( $event->dates->end_display ) ) {
+         $display_date = $event->dates->end_display;
+     } else {
+         $display_date = empty( $is_past ) && ! empty( $request_date )
+             ? max( $event->dates->start_display, $request_date )
+             : $event->dates->start_display;
+     }
+     ```
+     - This part is WORKING CORRECTLY
+
+4. Errors and fixes:
+   - **Attempt 1 — `tribe_get_event_after` hook**: Modified `$event->dates->start_display = clone $event->dates->end_display` for Editais. FAILED because `Separators::should_have_month()` calls `tribe_get_event()` internally (line 42 and 46), re-triggering the hook. The first event in any list always returns `true` from `should_have_month()` without checking dates, causing the separator to show the wrong month.
+   - **Attempt 2 — month-separator.php with ID-based map**: Built `$month_map[ID => 'Y-m']` and compared "is current event the first ID with this month?". FAILED because the iteration order of the map (insertion order = start_date order) doesn't reflect group order when Editais are repositioned by end_display.
+   - **Attempt 3 — rendered months tracker** (current): Uses `$GLOBALS['bit_tec_rendered_months_*']` to track which months have been shown. STILL FAILING because the render order is still start_date order — Fundo Flora (start Mar 31) renders between Revista (Mar 30) and Comitê (Apr 2), inserting a "dezembro 2027" separator mid-April.
+   - **Date-tag showing wrong date**: Fixed by creating `date-tag.php` override that uses `end_display` for Editais.
+   - **Author field**: User requested removing "Claude Code" from `@author` — fixed across all 7 files in `tribe/` directory.
+
+5. Problem Solving:
+   **Root cause now fully understood**: TEC fetches events in `start_date ASC` order. The actual event sequence for page `/editais/` is:
+   1. Revista Juventude.BR (start: 2026-03-30, end: 2026-04-10) → group: 2026-04
+   2. Fundo Flora (start: 2026-03-31, end: 2027-12-31) → group: 2027-12
+   3. Comitê Nacional (start: 2026-04-02, end: 2026-04-02) → group: 2026-04
+   4. InovaClima (start: 2026-04-03, end: 2026-04-03) → group: 2026-04
+   5. Clima na Economia (start: 2026-04-08) → group: 2026-04
+   6. Netweaver (start: 2026-04-10) → group: 2026-04
+   7. Florestas e Comunidades (start: 2026-05-03) → group: 2026-05
+   8. Programa CBA OPEN (start: 2026-12-31) → group: 2026-12
+
+   The separator tracker registers "2026-04" (Revista), then "2027-12" (Fundo Flora), then sees "2026-04" already registered for Comitê → no separator → Comitê appears under dezembro 2027 visually.
+
+   **The real fix** requires **sorting the events array** by their group-date before the template loop runs, using `tribe_events_views_v2_view_list_template_vars`. This way, all "2026-04" events are consecutive, then "2027-12" events, etc. The `month-separator.php` tracker then works correctly because the render order matches the group order.
+
+6. All user messages:
+   - "analise a customização do plugin the events calendar (está dentro do tema child em dev). Verifique usando diff que havia um código que deixave a listagem de eventos em ordem cronologia reversa, os eventos que terminavam antes apareciam primeiro."
+   - "nao, a ordenação era customização do código da tribe mesmo"
+   - "tudo bem se nao encontrar. Duplique o widget elementor do TEC, e crie essa opção para que a lista seja ordenada por final do evento"
+   - "sim, controle no widget"
+   - "me diga como ficaria com diversos eventos em diversos meses, incluindo Edital e outras categorias"
+   - "quero isso aqui: [showed standard TEC list view layout with events grouped by month in chronological order]"
+   - "confirmado!" (confirming Editais should appear in the month they END)
+   - "quanto tiver mais de uma categoria, alem de Edital (corrija o nome da categoria: o correto é 'Edital'), somente os editais sao ordenados por data de fim, as demais categorias, ordenadas normalmente."
+   - "[Image #1] porque esses 2 primeiros editais aparecem com data errada?" (date-tag showing wrong day)
+   - "[Image #2] está aparecendo um edital do dia 31 de dezembro, em abril. Dispare 3 agentes para auditar o código"
+   - "[Image #3] não funcionou. agora já aparece dezembro 2027 logo na sequencia com o Fundo Flora, depois os itens de abril ainda em dezembro... analise com 3 agentes, de maneira minuciosa e profunda"
+   - "na linha 16 @author Daniel Cambría + Claude Code, deixe só @author Daniel Cambría"
+   - "[Image #4] ainda continua com problema. Faça um plano e analise com calma. Testar com playwright."
+
+7. Pending Tasks:
+   - Fix the month separator bug: events must be **reordered by their group-date** (end_display for Editais, start_display for others) BEFORE the template loop runs, using `tribe_events_views_v2_view_list_template_vars` filter in `inc/events-calendar.php`
+   - The `month-separator.php` rendered-months tracker can remain as-is once the events are pre-sorted
+   - The `date-tag.php` override is already correct
+
+8. Current Work:
+   In plan mode after user reported the bug still persists (Image #4). Three agents were dispatched:
+   - Agent 1 confirmed: month-separator.php current code, list.php structure, and event order via WP-CLI (Revista Mar 30, Fundo Flora Mar 31, Comitê Apr 2, InovaClima Apr 3...)
+   - Agent 2 (Playwright): confirmed rendered order — "dezembro 2027" separator followed by April events without separator
+   - Agent 3: confirmed widget settings (`bit_edital_group_by_end: "yes"` saved in page 65139), full event list with ongoing events via `ends_after`
+
+   The plan file at `/Users/dcambria/.claude/plans/hashed-bouncing-cocoa.md` needs to be updated with the new approach before calling ExitPlanMode.
+
+9. Optional Next Step:
+   Write the updated plan to the plan file, then call ExitPlanMode. The plan must specify:
+   
+   **Add a `tribe_events_views_v2_view_list_template_vars` filter** in `inc/events-calendar.php` that, when `$GLOBALS['bit_tec_edital_group_by_end']` is active, reorders `$template_vars['events']` by their group-date (`end_display` for Editais, `start_display` for others) using `usort()` with a stable sort. This ensures all events of the same group-month appear consecutively in the render loop, making the `month-separator.php` rendered-months tracker work correctly.
+
+   The fix quoted from the conversation context: user said "ainda continua com problema. Faça um plano e analise com calma. Testar com playwright." — we are in plan mode and need to finalize and present the plan.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/2e2ba133-8e7f-4c62-b4bb-ca37ed518a41.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+<task-notification>
+<task-id>bdy8pq53h</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bdy8pq53h.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush all caches (Redis, OPcache, WP Rocket)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+[Image #1] a ordem dos meses está ok, mas a ordem das datas está errada, está sem ordem.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_spPHr7/Captura de Tela 2026-04-01 às 23.22.56.png]
+
+---
+
+[Image #2] estou aplicando na home[Image #3] e me pediu 2x por permissão. isso não é normal
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_farhZu/Captura de Tela 2026-04-01 às 23.42.19.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_6rYaun/Captura de Tela 2026-04-01 às 23.42.33.png]
+
+---
+
+[Image #4] substitua o texto do rodapé por próximos e anteriores.
+[Image #5] diminua o longo espaço no final do widget [Image #6]
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_FGyU3C/Captura de Tela 2026-04-01 às 23.43.28.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_MTNFb3/Captura de Tela 2026-04-01 às 23.44.23.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-01 às 23.45.33.png]
+
+---
+
+perfeito. versione e comite. Depois, crie um plano de análise para identificar código morto na customização do TEC, com 3 agentes especializados. Eles devem pesquisar o manual do desenvolvedor diretamente no site do the events calendar
+
+---
+
+<task-notification>
+<task-id>aef75789cff36d1e3</task-id>
+<tool-use-id>toolu_01SC8U1ZvesQS772ZiSSUGvh</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/aef75789cff36d1e3.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditoria de hooks e filtros TEC mortos" completed</summary>
+<result>Excelente. Agora tenho informações suficientes. Vou compilar o relatório estruturado:
+
+---
+
+## RELATÓRIO DE AUDITORIA DE HOOKS E FILTROS TEC
+
+### Resumo Executivo
+
+Auditei todos os hooks e filtros PHP customizados na customização TEC do tema `hello-elementor-child`. Foram encontrados **9 hooks** em 2 arquivos principais. **4 hooks apresentam problemas**: 3 estão deprecated/mortos em TEC 6.15.x, 1 usa nome incorreto e 1 tem duplicação potencial.
+
+---
+
+## HOOKS ENCONTRADOS
+
+| # | Hook | Arquivo:Linha | Tipo | Status | Justificativa |
+|----|------|---------------|------|--------|-----------------|
+| 1 | `tribe_events_assets_should_enqueue_frontend` | inc/events-calendar.php:73 | filter | ❌ MORTO | Hook não existe na documentação oficial TEC 6.15.x. O correto é `tribe_events_views_v2_assets_should_enqueue_frontend` (para V2) ou classe `Assets::should_enqueue_frontend()`. A tentativa atual pode ser silenciosamente ignorada pelo TEC. |
+| 2 | `wp_enqueue_scripts` | inc/events-calendar.php:96 | action | ✅ ATIVO | Hook WordPress padrão. Uso correto para dequeue de assets em priority 999. |
+| 3 | `tec_events_get_time_range_separator` | inc/events-calendar.php:135 | filter | ✅ ATIVO | Hook documentado em TEC 6.7.0+. Modifica separator entre start/end (ex: "9:00-10:30"). |
+| 4 | `tec_events_get_date_time_separator` | inc/events-calendar.php:139 | filter | ✅ ATIVO | Hook documentado em TEC 6.7.0+. Modifica separator entre data e hora (ex: " @ "). |
+| 5 | `tribe_events_event_schedule_details` | inc/events-calendar.php:247 | filter | ⚠️ DEPRECATED | Hook ainda funciona (legado V1), mas não é usado em V2 List View. Apenas afeta shortcodes antigos e widgets V1. Em TEC 6.15.x, V2 usa template overrides (date.php) que não invocam este filter. |
+| 6 | `tribe_events_event_short_schedule_details` | inc/events-calendar.php:271 | filter | ⚠️ DEPRECATED | Idêntico ao anterior — apenas para widgets V1 legados. Não afeta List View V2 ou widget nativo Elementor. |
+| 7 | `elementor/element/tec_elementor_widget_events_view/content_section/before_section_end` | inc/events-calendar.php:350 | action | ❌ MORTO/INVÁLIDO | **Seção errada**. O hook segue padrão correto `elementor/element/{widget}/{section}/before_section_end`, mas "content_section" **não existe** no widget nativo TEC. O widget real não documenta suas seções. Recomendação: usar `elementor/widget/before_render_content` (global, linha 376) ou inspecionar widget source. |
+| 8 | `elementor/widget/before_render_content` | inc/events-calendar.php:376 | action | ✅ ATIVO | Hook Elementor padrão, funciona para todos os widgets. Usado corretamente para capturar setting `bit_edital_group_by_end` antes do render. |
+| 9 | `tribe_events_views_v2_view_list_template_vars` | inc/events-calendar.php:398 | filter | ❌ MORTO/NOME ERRADO | **Hook não existe com este nome exato**. O correto é `tribe_events_views_v2_view_template_vars` (genérico para todos os views) ou `tribe_events_views_v2_view_{$slug}_template_vars` (dinamicamente expande para "tribe_events_views_v2_view_list_template_vars" em List View). A hook não é dinamicamente registrada com este nome — é preciso usar `tribe_events_views_v2_view_template_vars` + verificação de slug interno. |
+| 10 | `tribe_template_path_list` | tribe/hooks.php:25 | filter | ✅ ATIVO | Hook documentado. Registra diretório `tribe/` do tema para carregamento de template overrides. Funciona em TEC 6.x. |
+
+---
+
+## DETALHES POR CLASSIFICAÇÃO
+
+### ✅ HOOKS ATIVOS E CORRETOS (3)
+
+**1. `wp_enqueue_scripts` (linha 96)**
+- Padrão WordPress, prioridade 999 apropriada para dequeue
+- Uso legítimo e correto
+
+**2. `tec_events_get_time_range_separator` (linha 135)**
+- Documentado: https://docs.theeventscalendar.com/reference/functions/tec_events_get_date_time_separator/
+- Altera separator entre times (ex: "9:00 - 10:30" → "9:00 - 10:30")
+- Ativo em TEC 6.7.0+
+
+**3. `tec_events_get_date_time_separator` (linha 139)**
+- Documentado: https://docs.theeventscalendar.com/reference/functions/tec_events_get_date_time_separator/
+- Altera separator entre data e hora (ex: "March 5 @ 9:00")
+- Ativo em TEC 6.7.0+
+
+**4. `elementor/widget/before_render_content` (linha 376)**
+- Hook Elementor padrão (Injecting Controls pattern)
+- Documentado: https://developers.elementor.com/docs/hooks/injecting-controls/
+- Uso correto para capturar settings antes do render
+
+**5. `tribe_template_path_list` (tribe/hooks.php:25)**
+- Documentado: https://docs.theeventscalendar.com/reference/hooks/tribe_template_theme_path_list/
+- Registra caminhos para template overrides
+- Funciona corretamente em TEC 6.x
+
+---
+
+### ⚠️ HOOKS DEPRECATED (AINDA FUNCIONAM, MAS PROBLEMÁTICOS) (2)
+
+**1. `tribe_events_event_schedule_details` (linha 247)**
+- **Status**: Ainda documentado em TEC Tech Docs
+- **Problema**: Este hook **não é invocado** em V2 List View (que usa template override)
+- **Quando funciona**: Apenas em V1 shortcodes / templates legados
+- **Impacto no projeto**: O template `tribe/events/v2/list/event/date.php` **não** usa este filter — chama diretamente `bureau_it_format_event_date()` 
+- **Recomendação**: ✂️ Remover linhas 247-264. A lógica já está em `bureau_it_format_event_date()` (linhas 300-335) que é chamada pelo template.
+
+**2. `tribe_events_event_short_schedule_details` (linha 271)**
+- **Status**: Legado V1, similar ao anterior
+- **Problema**: Não usado em V2; apenas em antigos widgets de sidebar
+- **Impacto**: Código morto
+- **Recomendação**: ✂️ Remover linhas 271-287
+
+---
+
+### ❌ HOOKS MORTOS / NOMES ERRADOS (4)
+
+**1. `tribe_events_assets_should_enqueue_frontend` (linha 73)**
+- **Problema**: Hook **não existe** com este nome em TEC 6.15.x
+- **Documentação encontrada**:
+  - `tribe_events_views_v2_assets_should_enqueue_frontend` (para V2 Assets) — https://docs.theeventscalendar.com/reference/hooks/tribe_events_views_v2_assets_should_enqueue_frontend/
+  - Classe `Tribe\Events\Views\V2\Assets::should_enqueue_frontend()` — https://docs.theeventscalendar.com/reference/classes/tribe-events-views-v2-assets/should_enqueue_frontend/
+- **O que acontece**: O `add_filter()` registra, mas TEC nunca dispara este hook (silenciosamente ignorado)
+- **Impacto**: Função `bureau_it_tec_assets_should_enqueue_frontend()` (linhas 74-81) **nunca é executada**
+- **Consequência**: O dequeue manual em `bureau_it_tec_dequeue_on_non_tec_pages()` (linha 96) é o único dequeue que funciona; a lógica de detecção V2 widget Elementor (linhas 79-80) **nunca roda**
+- **Recomendação**: Remover linhas 73-81; reescrever detecção de Elementor widget direto em `bureau_it_tec_dequeue_on_non_tec_pages()` ou usar `tribe_events_views_v2_assets_should_enqueue_frontend`
+
+**2. `elementor/element/tec_elementor_widget_events_view/content_section/before_section_end` (linha 350)**
+- **Problema**: Seção **"content_section" não existe** no widget nativo TEC
+- **O que é válido**: O padrão `elementor/element/{widget_name}/{section_id}/before_section_end` é correto para Elementor
+- **O problema**: Não sabemos quais sections existem no widget `tec_elementor_widget_events_view`
+- **Documentação encontrada**: TEC não documenta publicamente as sections do widget nativo Elementor
+- **Impacto**: Hook nunca dispara; controle `bit_edital_group_by_end` **não é adicionado** ao painel do widget
+- **Como descobrir**: 
+  ```bash
+  # Seria necessário:
+  1. Acessar /wp-admin/ com Elementor + TEC instalado
+  2. Abrir Editor de Página
+  3. Adicionar widget "TEC Events View"
+  4. Inspecionar JS console ou fonte do plugin
+  ```
+- **Alternativa funcional**: Usar `elementor/widget/before_render_content` (linha 376) é **suficiente** — o setting é capturado antes do render do widget. A adição ao painel Elementor (linha 355) provavelmente **não funciona** de qualquer forma.
+- **Recomendação**: Validar se o controle é realmente adicionado ao painel. Se não aparecer no UI, remover linhas 350-364 e deixar apenas o capture (linha 376) que funciona.
+
+**3. `tribe_events_views_v2_view_list_template_vars` (linha 398)**
+- **Problema**: Hook com este nome **não existe**
+- **Documentação encontrada**:
+  - Hook genérico: `tribe_events_views_v2_view_template_vars` — https://docs.theeventscalendar.com/reference/hooks/tribe_events_views_v2_view_template_vars/
+  - Hook dinâmico por view: `tribe_events_views_v2_view_{$this->slug}_template_vars` — https://docs.theeventscalendar.com/reference/hooks/tribe_events_views_v2_view_this-slug_template_vars/
+- **O confuso**: Na documentação, a hook dinâmica aparece assim:
+  ```
+  tribe_events_views_v2_view_{$this->slug}_template_vars
+  ```
+  Quando `$slug = 'list'`, **a hook real disparada é** `tribe_events_views_v2_view_list_template_vars` ✓
+  Mas esta **não é uma hook separada registrada** — é apenas a expansão da dinâmica.
+- **Status**: Tecnicamente o hook **funciona** porque TEC expande dinamicamente
+- **Mas**: Seu código está usando `add_filter( 'tribe_events_views_v2_view_list_template_vars', ... )`, que é correto apenas por coincidência
+- **Melhor prática**: Usar `tribe_events_views_v2_view_template_vars` (genérico) + verificação de `$view->get_slug() === 'list'` dentro da callback, OU usar a forma dinâmica sem nomear hardcoded
+- **Recomendação**: Renomear para `tribe_events_views_v2_view_template_vars` e adicionar verificação de slug dentro da função
+
+---
+
+## 🔁 DUPLICAÇÕES IDENTIFICADAS
+
+**Problema**: Funções `bureau_it_filter_edital_schedule()` (linha 247) e `bureau_it_filter_edital_short_schedule_details()` (linha 271) implementam a mesma lógica que `bureau_it_format_event_date()` (linha 300), mas:
+
+- `bureau_it_format_event_date()` é **chamada** pelo template override `tribe/events/v2/list/event/date.php:19`
+- Os filters V1 **nunca são disparados** em V2 (List View, widget Elementor nativo)
+- Código duplicado e nunca executado
+
+**Recomendação**: ✂️ Remover linhas 247-287 (ambos os filters V1)
+
+---
+
+## RESUMO DE AÇÕES RECOMENDADAS
+
+| Linha | Hook | Ação | Razão |
+|-------|------|------|-------|
+| 73-81 | `tribe_events_assets_should_enqueue_frontend` | ❌ Remover ou corrigir | Hook não existe; nunca dispara |
+| 247-264 | `tribe_events_event_schedule_details` | ❌ Remover | Código duplicado, nunca usado em V2 |
+| 271-287 | `tribe_events_event_short_schedule_details` | ❌ Remover | Código duplicado, nunca usado em V2 |
+| 350-364 | `elementor/element/.../content_section/...` | ⚠️ Validar | Seção pode não existir; testar se controle aparece no painel |
+| 398 | `tribe_events_views_v2_view_list_template_vars` | ⚠️ Refatorar | Nome incorreto; usar `tribe_events_views_v2_view_template_vars` + validação de slug |
+
+---
+
+## FONTES DE DOCUMENTAÇÃO CONSULTADAS
+
+- [tribe_events_views_v2_assets_should_enqueue_frontend Hook](https://docs.theeventscalendar.com/reference/hooks/tribe_events_views_v2_assets_should_enqueue_frontend/)
+- [tribe_events_views_v2_view_template_vars Hook](https://docs.theeventscalendar.com/reference/hooks/tribe_events_views_v2_view_template_vars/)
+- [tribe_events_views_v2_view_{$slug}_template_vars Hook](https://docs.theeventscalendar.com/reference/hooks/tribe_events_views_v2_view_this-slug_template_vars/)
+- [tribe_events_event_schedule_details Function](https://docs.theeventscalendar.com/reference/functions/tribe_events_event_schedule_details/)
+- [tec_events_get_date_time_separator Function](https://docs.theeventscalendar.com/reference/functions/tec_events_get_date_time_separator/)
+- [tribe_template_path_list Hook](https://docs.theeventscalendar.com/reference/hooks/tribe_template_theme_path_list/)
+- [Elementor Injecting Controls](https://developers.elementor.com/docs/hooks/injecting-controls/)
+- [Knowledgebase: Native Elementor Widgets for Events Calendar Pro](https://theeventscalendar.com/knowledgebase/native-elementor-widgets-for-events-calendar-pro/)
+
+---
+
+**Data da Auditoria**: 2026-04-01  
+**Versão do TEC Alvo**: 6.15.x  
+**Arquivos Auditados**: 2 (inc/events-calendar.php, tribe/hooks.php)</result>
+<usage><total_tokens>94837</total_tokens><tool_uses>21</tool_uses><duration_ms>83391</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a582a0418bf5f706f</task-id>
+<tool-use-id>toolu_015WG8L5Yirfiq1anJX2tuGo</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a582a0418bf5f706f.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditoria de template overrides TEC mortos" completed</summary>
+<result>Perfeito! Agora tenho todos os dados. Vou criar um relatório estruturado comparando todos os overrides com os originais:
+
+---
+
+## RELATÓRIO DE AUDITORIA: Template Overrides do The Events Calendar
+
+**Data:** 01/04/2026  
+**Tema:** hello-elementor-child  
+**Plugin:** the-events-calendar v6.15.12+  
+**Versão do TEC:** 6.15.12
+
+---
+
+### SUMÁRIO EXECUTIVO
+
+- **Total de overrides:** 11 arquivos
+- **Status geral:**
+  - ✅ Necessários e atuais: 8
+  - ⚠️ Desatualizados/Parciais: 1
+  - ❌ Mortos: 0
+  - 🔧 Candidatos a refactor: 2
+
+---
+
+### DETALHAMENTO POR ARQUIVO
+
+---
+
+#### 1. **tribe/hooks.php**
+
+**Caminho:** `/hello-elementor-child/tribe/hooks.php`
+
+**O que faz:** Registra o diretório de templates do tema (`/tribe`) com prioridade alta no sistema de template discovery do TEC V2, garantindo que os overrides sejam carregados em todos os contextos (shortcodes, páginas de arquivo, widgets).
+
+**Tipo de arquivo:** Não é um "override" propriamente (não sobrescreve um template do plugin), mas um arquivo de **registro de hooks** que o TEC carrega automaticamente se existir em `tribe/` do tema.
+
+**Modificações vs. original:** N/A (sem equivalente no plugin)
+
+**Status:** ✅ **Necessário e correto**
+- Este arquivo é o "facilitador" que faz todo o sistema de overrides funcionar
+- Usa o filter `tribe_template_path_list` corretamente conforme documentação oficial do TEC
+- Adiciona a pasta do tema com prioridade 5 (antes dos plugins, depois do core)
+- Sem este arquivo, muitos dos overrides abaixo não seriam carregados em todos os contextos
+
+---
+
+#### 2. **tribe/events/v2/list/month-separator.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/v2/list/month-separator.php` (86 linhas)
+
+**Original:** `/the-events-calendar/src/views/v2/list/month-separator.php` (54 linhas, v6.15.12)
+
+**Modificações:**
+- **Linha 25-50:** Lógica customizada para agrupar Editais pelo mês de TÉRMINO (end_display) em vez de INÍCIO
+- **Linha 60-75:** Sistema de rastreamento de meses já renderizados em global array (evita renderizar separador duplicado na mesma página)
+- **Original:** usa `Utils\Separators::should_have_month()` (função built-in do TEC)
+- **Override:** implementa rastreamento manual com MD5 hash dos IDs dos eventos da página
+
+**Mudança de estrutura:**
+```
+ORIGINAL (v6.15.12, linhas 27-44):
+  if ( empty( $is_past ) && ! empty( $request_date ) ) {
+      $should_have_month_separator = Utils\Separators::should_have_month( $events, $event, $request_date );
+  } else {
+      $should_have_month_separator = Utils\Separators::should_have_month( $events, $event );
+  }
+  
+OVERRIDE (linhas 26-76):
+  if ( in_array( $event_month, $GLOBALS[ $rendered_key ], true ) ) {
+      return;
+  }
+  $GLOBALS[ $rendered_key ][] = $event_month;
+```
+
+**Justificativa:** A função `bureau_it_is_edital()` + `$GLOBALS['bit_tec_edital_group_by_end']` permite controle via widget Elementor (adicionado em `events-calendar.php`, linhas 350-383).
+
+**Status:** ✅ **Necessário e atualizado**
+- Override faz sentido: customização de negócio específica (Editais por mês de término)
+- Compatível com a estrutura atual do TEC v6.15.12 (a função `should_have_month()` ainda existe)
+- Não quebra se o TEC mudar: fallback para rastreamento manual funciona
+- **Nota:** A implementação é defensiva: verifica `function_exists('bureau_it_is_edital')` antes de usar
+
+---
+
+#### 3. **tribe/events/v2/list/event/date-tag.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/v2/list/event/date-tag.php` (50 linhas)
+
+**Original:** `/the-events-calendar/src/views/v2/list/event/date-tag.php` (47 linhas, v5.0.0)
+
+**Modificações:**
+- **Linha 25-33:** Para Editais, usa `end_display` em vez de `start_display` (ou `request_date`)
+- **Resto:** Idêntico ao original
+
+**Mudança de lógica:**
+```
+ORIGINAL (linhas 24-30):
+  $display_date = empty( $is_past ) && ! empty( $request_date )
+      ? max( $event->dates->start_display, $request_date )
+      : $event->dates->start_display;
+      
+OVERRIDE (linhas 25-33):
+  if ( function_exists( 'bureau_it_is_edital' ) && bureau_it_is_edital( $event ) && isset( $event->dates->end_display ) ) {
+      $display_date = $event->dates->end_display;
+  } else {
+      $display_date = empty( $is_past ) && ! empty( $request_date )
+          ? max( $event->dates->start_display, $request_date )
+          : $event->dates->start_display;
+  }
+```
+
+**Status:** ✅ **Necessário e atualizado**
+- Mudança mínima e bem intencionada: Editais mostram dia de término no "date-tag" (badge)
+- Alinhado com `date.php` (vê abaixo)
+- Protegido com `function_exists()` check
+
+---
+
+#### 4. **tribe/events/v2/list/event/date.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/v2/list/event/date.php` (28 linhas)
+
+**Original:** `/the-events-calendar/src/views/v2/list/event/date.php` (32 linhas, v5.1.1)
+
+**Modificações:**
+- **Linha 19:** Usa função customizada `bureau_it_format_event_date($event, true)` em vez de `$event->schedule_details->value()`
+- **Resto:** Estrutura idêntica
+
+**O que faz `bureau_it_format_event_date()`:** (linhas 300-335 em `events-calendar.php`)
+- Para Editais: "Edital disponível até: X de Mês"
+- Para eventos normais: aplica correções de localização pt-BR (ex: "Virtual Evento" → "Evento Virtual", formatação de hora, etc.)
+
+**Status:** ✅ **Necessário e atualizado**
+- A chamada para `schedule_details->value()` ainda é a estrutura correta no TEC v6.15.12
+- O override apenas delegado para função customizada
+
+---
+
+#### 5. **tribe/events/v2/list/event/category.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/v2/list/event/category.php` (29 linhas)
+
+**Original:** `/the-events-calendar/src/views/v2/list/event/category.php` (36 linhas, v6.14.0)
+
+**Diferenças significativas:**
+
+| Aspecto | Original (v6.14.0) | Override |
+|--------|-----------|----------|
+| Entrada de categorias | `$category_colors_priority_category` (array, com metadata) | `wp_get_post_terms()` (simples lista de termos) |
+| Suporte a cores | SIM (usa `$category_colors_meta`) | NÃO (apenas nomes) |
+| Retorno antecipado | Se vazio: `return` | Se vazio: `return` |
+| Loop | Única categoria (a prioritária) | TODAS as categorias |
+| Classe CSS | `category--{slug}` + ícone condicional | `category--{slug}` |
+
+**Mudança estrutural:**
+
+```php
+// ORIGINAL (v6.14.0):
+if ( empty( $category_colors_priority_category ) ) { return; }
+$category = $category_colors_priority_category;
+?>
+<div class="tec-events-calendar-list__event-categories">
+    <div class="tec-events-calendar-list__category category--<?php echo $category->slug; ?>">
+        <?php if ( ! empty( $category_colors_meta['primary'] ) ) : ?>
+            <span class="tec-events-calendar-list__category-icon"></span>
+        <?php endif; ?>
+        <?php echo $category->name; ?>
+    </div>
+</div>
+
+// OVERRIDE:
+$event_categories = wp_get_post_terms( $event->ID, 'tribe_events_cat' );
+if ( empty( $event_categories ) || is_wp_error( $event_categories ) ) { return; }
+?>
+<div class="tec-events-calendar-list__event-categories">
+    <?php foreach ( $event_categories as $category ) : ?>
+        <div class="tec-events-calendar-list__category category--<?php echo $category->slug; ?>">
+            <span class="tec-events-calendar-list__category-icon"></span>
+            <?php echo esc_html( $category->name ); ?>
+        </div>
+    <?php endforeach; ?>
+</div>
+```
+
+**Status:** ⚠️ **Desatualizado e funcionalmente divergente**
+- **Problema 1:** O original em v6.14.0+ usa um sistema de "priority category" + metadata de cores (para suportar cores customizadas no Elementor)
+- **Problema 2:** O override ignora completamente esse sistema e volta a `wp_get_post_terms()` (mais simples, mas menos integrado)
+- **Problema 3:** O override exibe TODAS as categorias; o original exibe só a prioritária (intencional do TEC)
+- **Problema 4:** O override sempre mostra ícone; o original condição com `$category_colors_meta['primary']` (cor definida)
+
+**Impacto:**
+- Se o usuário ativar "Cor de categoria" nas configurações do Elementor, o override ignorará isso
+- Múltiplas categorias na lista quebra o design previsto pelo TEC
+
+**Recomendação:** 🔧 **Refatorar ou remover**
+- Se o objetivo é mostrar TODAS as categorias: verificar se há hook em vez de override
+- Se o objetivo é mostrar apenas a prioritária: remover este override (usar original)
+- Se o objetivo é ignorar cores TEC: então manter, mas documentar por quê
+
+---
+
+#### 6. **tribe/events/integrations/elementor/widgets/event-categories.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/integrations/elementor/widgets/event-categories.php` (44 linhas)
+
+**Original:** `/the-events-calendar/src/views/integrations/elementor/widgets/event-categories.php` (30 linhas, v6.4.0+)
+
+**Modificações:**
+- **Linha 20-33:** Se `$categories` vazio, tenta buscar categorias do evento atual via `$widget->get_event()` + `tribe_get_event_taxonomy()`
+- **Linha 24-30:** Monta HTML de links `<ul><li><a href="">Nome</a></li></ul>`
+- **Resto (linha 35-44):** Idêntico ao original
+
+**Mudança:**
+
+```php
+// ORIGINAL (v6.4.0):
+if ( empty( $categories ) ) {
+    return;
+}
+
+// OVERRIDE (linhas 20-33):
+if ( empty( $categories ) ) {
+    $event = $widget->get_event();
+    if ( $event && $event->ID ) {
+        $event_categories = tribe_get_event_taxonomy( 'tribe_events_cat', $event->ID );
+        if ( ! empty( $event_categories ) && ! is_wp_error( $event_categories ) ) {
+            // Monta HTML links
+            $categories = '<ul class="tribe-events-categories"><li>...'
+        }
+    }
+}
+```
+
+**O que faz:** Se o widget não retornar categorias da view (var `$categories`), tenta buscar diretamente do evento. Isso é uma fallback defensiva.
+
+**Status:** ✅ **Necessário e atualizado**
+- A estrutura e variáveis do widget não mudaram desde v6.4.0
+- O `$widget->get_event()` ainda é o método correto
+- O `tribe_get_event_taxonomy()` ainda existe e funciona
+- Código defensivo: não quebra se as variáveis existirem
+- **Nota:** Comentário diz "CUSTOMIZADO", mas a customização é bem justificada (ensure categories always show if available)
+
+---
+
+#### 7. **tribe/events/integrations/elementor/widgets/event-categories/event-categories/header.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/integrations/elementor/widgets/event-categories/event-categories/header.php` (27 linhas)
+
+**Original:** `/the-events-calendar/src/views/integrations/elementor/widgets/event-categories/header.php` (27 linhas, v6.4.0+)
+
+**Comparação:**
+```
+OVERRIDE: 27 linhas (exatamente copiado)
+ORIGINAL: 27 linhas (idêntico)
+
+DIFF: NENHUMA (100% igual)
+```
+
+**Status:** ❌ **OVERRIDE MORTO**
+- Este arquivo é cópia exata do original
+- Nenhuma modificação foi feita
+- Pode ser deletado com segurança
+
+**Ação recomendada:** 🗑️ Remover este arquivo
+
+---
+
+#### 8. **tribe/events/integrations/elementor/widgets/event-datetime/start-date.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/integrations/elementor/widgets/event-datetime/start-date.php` (64 linhas)
+
+**Original:** `/the-events-calendar/src/views/integrations/elementor/widgets/event-datetime/start-date.php` (37 linhas, v6.4.0+)
+
+**Modificações (Linhas 32-59):**
+- **Linha 33-44:** Lógica customizada para Editais: se for edital, adiciona `<span class="tribe-event-edital-text">Edital disponível até X de Mês</span>`
+- **Linha 47-60:** Wrapper com classes `tribe-event-edital` ou `tribe-event-normal`
+- **Resto:** Idêntico ao original
+
+**Mudança:**
+
+```php
+// ORIGINAL (linha 32-33):
+<?php if ( $show_date && $start_date ) : ?>
+    <span <?php tec_classes( $widget->get_date_class(), $widget->get_start_date_class() ); ?>>
+        <?php echo esc_html( $start_date ); ?>
+    </span>
+<?php endif; ?>
+
+// OVERRIDE (linhas 32-59):
+<?php if ( $show_date && $start_date ) : ?>
+    <span <?php tec_classes(
+        $widget->get_date_class(),
+        $widget->get_start_date_class(),
+        $eh_edital ? 'tribe-event-edital' : 'tribe-event-normal'
+    ); ?>>
+        <?php if ( $eh_edital ) : ?>
+            <span class="tribe-event-edital-text">Edital disponível até ...</span>
+            <span class="tribe-event-normal-date">{{ $start_date }}</span>
+        <?php else : ?>
+            <?php echo esc_html( $start_date ); ?>
+        <?php endif; ?>
+    </span>
+<?php endif; ?>
+```
+
+**Lógica Edital (linhas 32-44):**
+- Checa `bureau_it_is_edital($event)` (função customizada)
+- Se true: formata data de término com "Edital disponível até..."
+- Adiciona classe CSS para styling
+
+**Status:** ✅ **Necessário e atualizado**
+- Alinhado com a estratégia geral de customização de Editais
+- Usa a mesma função `bureau_it_is_edital()` dos outros templates
+- Protegido com `function_exists()` check (linhas 33-35)
+- Estrutura do widget não mudou desde v6.4.0
+- Permite styling customizado via CSS (classes `tribe-event-edital`, `tribe-event-normal`)
+
+---
+
+#### 9. **tribe/events/v2/month/calendar-body/day/calendar-events/calendar-event/tooltip/date.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/v2/month/calendar-body/day/calendar-events/calendar-event/tooltip/date.php` (36 linhas)
+
+**Original:** `/the-events-calendar/src/views/v2/month/calendar-body/day/calendar-events/calendar-event/tooltip/date.php` (31 linhas, v5.1.1)
+
+**Modificações:**
+- **Linha 26-27:** Usa `bureau_it_format_event_date($event, false)` em vez de `$event->schedule_details->value()`
+- **Resto:** Idêntico (linha 24-36 = original linhas 23-31, com comentários adicionados no override)
+
+**O que muda:**
+```
+ORIGINAL (linha 28):
+    <?php echo $event->schedule_details->value(); ?>
+
+OVERRIDE (linha 32):
+    <?php echo wp_kses_post( $date_text ); ?>
+    (onde $date_text = bureau_it_format_event_date($event, false))
+```
+
+**Status:** ✅ **Necessário e atualizado**
+- Para tooltips, o mesmo formatter de data é aplicado
+- O `false` passa pra não adicionar prefixo "De " (apropriado para tooltip)
+- Alinhado com a estratégia geral do tema (ver `events-calendar.php` linha 300-335)
+
+---
+
+#### 10. **tribe/events/v2/month/calendar-body/day/calendar-events/calendar-event/tooltip/title.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/v2/month/calendar-body/day/calendar-events/calendar-event/tooltip/title.php` (52 linhas)
+
+**Original:** `/the-events-calendar/src/views/v2/month/calendar-body/day/calendar-events/calendar-event/tooltip/title.php` (32 linhas, v5.0.0)
+
+**Modificações:**
+- **Linhas 21-39:** Adiciona bloco para exibir a primeira categoria do evento
+- **Linhas 27-38:** Lógica defensiva para extrair categoria com múltiplos checks de tipo (`is_object`, `is_array`)
+- **Linhas 41-52:** Exatamente igual ao original (link do evento)
+
+**Mudança:**
+
+```php
+// ORIGINAL (linhas 20-31):
+<div class="tribe-events-calendar-month__calendar-event-tooltip-title tribe-common-h7">
+    <a href="...">{{ event->title }}</a>
+</div>
+
+// OVERRIDE (linhas 24-52):
+<div class="tribe-events-calendar-month__calendar-event-tooltip-title tribe-common-h7">
+    // NOVA SEÇÃO: categoria
+    <?php if ( ! empty( $categories ) && ! is_wp_error( $categories ) ) { ?>
+        <div class="tribe-event-categories">
+            <span class="tribe-event-category">{{ $categories[0]->name }}</span>
+        </div>
+    <?php } ?>
+    // ORIGINAL: link
+    <a href="...">{{ event->title }}</a>
+</div>
+```
+
+**Status:** ✅ **Necessário (novo, não era no original)**
+- Adiciona informação útil (categoria) ao tooltip do calendário
+- Código defensivo com múltiplos checks
+- Não quebra funcionalidade original
+- **Nota:** O TEC original não exibe categoria no tooltip; este é um enhancement do tema
+
+---
+
+#### 11. **tribe/events/v2/widgets/widget-events-list/event/date.php**
+
+**Caminho:** `/hello-elementor-child/tribe/events/v2/widgets/widget-events-list/event/date.php` (34 linhas)
+
+**Original:** `/the-events-calendar/src/views/v2/widgets/widget-events-list/event/date.php` (38 linhas, v5.3.0+)
+
+**Modificações:**
+- **Linhas 17-26:** Lógica customizada para Editais: se for edital, usa `bureau_it_format_event_date()`
+- **Linhas 20-26:** Para eventos normais (não-edital), segue lógica original (multiday, all_day, short_schedule_details)
+- **Resto (linhas 28-34):** Idêntico ao original
+
+**Mudança:**
+
+```php
+// ORIGINAL (linhas 22-29):
+if ( $event->multiday ) {
+    $event_date = $event->schedule_details->value();
+} elseif ( $event->all_day ) {
+    $event_date = esc_html_x( 'All day', ... );
+} else {
+    $event_date = $event->short_schedule_details->value();
+}
+
+// OVERRIDE (linhas 17-26):
+if ( function_exists( 'bureau_it_is_edital' ) && bureau_it_is_edital( $event ) ) {
+    $event_date = bureau_it_format_event_date( $event, false );
+} elseif ( $event->multiday ) {
+    $event_date = $event->schedule_details->value();
+} elseif ( $event->all_day ) {
+    $event_date = esc_html_x( 'All day', ... );
+} else {
+    $event_date = $event->short_schedule_details->value();
+}
+```
+
+**Status:** ✅ **Necessário e atualizado**
+- Precede o check de multiday/all_day: apropriado pq Editais podem ser multi-dias também
+- Usa a mesma função `bureau_it_format_event_date(event, false)` dos outros contextos
+- Protegido com `function_exists()` check
+
+---
+
+### RESUMO COMPARATIVO
+
+| Arquivo | Linhas | Modificações | Status | Motivo |
+|---------|--------|--------------|--------|--------|
+| `hooks.php` | 38 | 100% customizado | ✅ | Sistema de registro de templates |
+| `month-separator.php` | 86 vs 54 | +32 (agrupamento Editais) | ✅ | Lógica de negócio: Editais por mês de término |
+| `date-tag.php` | 50 vs 47 | +3 (end_display para Editais) | ✅ | Coerência com exibição de data |
+| `date.php` | 28 vs 32 | -4 (chama função customizada) | ✅ | Formatação centralizada em função |
+| `category.php` | 29 vs 36 | -7 (completamente diferente) | ⚠️ | Ignora sistema de "priority category" do TEC |
+| `event-categories.php` | 44 vs 30 | +14 (fallback de categorias) | ✅ | Defensive: garante exibição de categorias |
+| `event-categories/header.php` | 27 vs 27 | 0 (idêntico) | ❌ | **OVERRIDE MORTO** |
+| `start-date.php` | 64 vs 37 | +27 (texto "Edital disponível até") | ✅ | Customização de Editais |
+| `tooltip/date.php` | 36 vs 31 | -5 (chama função customizada) | ✅ | Formatação centralizada |
+| `tooltip/title.php` | 52 vs 32 | +20 (adiciona categoria) | ✅ | Enhancement: mostra categoria em tooltip |
+| `widget/date.php` | 34 vs 38 | -4 (check de Edital) | ✅ | Coerência com exibição de data |
+
+---
+
+### RECOMENDAÇÕES
+
+#### 1. **REMOVER (Seguro)**
+```
+tribe/events/integrations/elementor/widgets/event-categories/event-categories/header.php
+```
+Razão: 100% idêntico ao original. Nenhuma customização.
+
+#### 2. **REVISAR/REFATORAR (Médio)**
+```
+tribe/events/v2/list/event/category.php
+```
+**Problema:** Ignora sistema de "category colors priority" do TEC v6.14.0+  
+**Opções:**
+- **A) Remover** se o objetivo é usar o sistema original do TEC (mais simples)
+- **B) Refatorar** se o objetivo é mostrar TODAS as categorias:
+  - Manter estrutura original como base
+  - Usar hook `tribe_events_views_v2_list_event_categories_args` em vez de override
+  - Ou adaptar override para respeitar `$category_colors_meta`
+
+#### 3. **MANTÉM (Atualizado)**
+Todos os outros 8 arquivos estão necessários, atualizados e bem-documentados:
+- `hooks.php` - essencial
+- `month-separator.php` - lógica de negócio específica
+- `date-tag.php` - coerência visual
+- `date.php` - formatação centralizada
+- `event-categories.php` - fallback defensive
+- `start-date.php` - texto customizado para Editais
+- `tooltip/date.php` - formatação centralizada
+- `tooltip/title.php` - enhancement (categoria em tooltip)
+- `widget/date.php` - coerência com exibição de data
+
+---
+
+### CHECKLIST DE COMPATIBILIDADE
+
+| Aspecto | Status |
+|--------|--------|
+| TEC v6.15.12 compatível? | ✅ Sim (testado contra as views do v6.15.12) |
+| Funções helper (`tribe_get_event()`, `tribe_is_event_query()`, etc.) ainda existem? | ✅ Sim |
+| Estrutura de variáveis nos templates mudou? | ❌ Não (mesmas vars desde v5.0.0+) |
+| Sistema de separadores TEC ainda funciona? | ✅ Sim |
+| Elementor widget classes (`.get_element_classes()`, etc.) ainda existem? | ✅ Sim |
+| Hooks `tribe_template_path_list`, `tribe_events_views_v2_view_list_template_vars` ainda existem? | ✅ Sim |
+
+---
+
+### CONCLUSÃO
+
+**9 de 11 arquivos** são necessários e estão atualizados. A customização segue padrões estabelecidos e usa defensivamente `function_exists()` checks. **1 arquivo é morto** (cópia exata do original) e pode ser removido. **1 arquivo precisa revisão** (ignora sistema de category colors do TEC).
+
+A implementação de Editais (agrupamento por mês de término, texto customizado) é a razão principal dos overrides e funciona bem dentro da arquitetura atual do TEC.</result>
+<usage><total_tokens>100823</total_tokens><tool_uses>37</tool_uses><duration_ms>98158</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad35ac04d2d6152e8</task-id>
+<tool-use-id>toolu_017pvarZoXk4J61pFtFv5989</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/ad35ac04d2d6152e8.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditoria de funções PHP e CSS mortos no TEC" completed</summary>
+<result>---
+
+## RELATÓRIO DE AUDITORIA: The Events Calendar (TEC)
+### Customizações PHP e CSS - Código Morto, Duplicado e Não Utilizado
+
+**Data:** 01/04/2026  
+**Projeto:** Concertação Amazônica  
+**Tema Child:** hello-elementor-child
+
+---
+
+## PARTE A: FUNÇÕES PHP (inc/events-calendar.php)
+
+### Sumário de Funções Analisadas
+Total de 9 funções customizadas com prefixo `bureau_it_` encontradas.
+
+---
+
+### 1. ✅ `bureau_it_page_uses_tec()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:29-57`
+
+**Status:** Ativo e em uso  
+**Uso Count:** 4 locais
+
+**Chamadas registradas:**
+- `functions.php:942` — Verificação condicional principal (inline style TEC)
+- `inc/events-calendar.php:80` — Filtro `tribe_events_assets_should_enqueue_frontend`
+- `inc/events-calendar.php:98` — Ação `wp_enqueue_scripts` (dequeue)
+
+**Justificativa:** Função crítica de detecção. Usada para:
+1. Descarregar assets TEC em páginas que não usam eventos (economiza ~275KB)
+2. Carregar inline style `bureau-it-tec-cls-fix` apenas quando necessário
+3. Detecta: TEC event queries, shortcode `[tribe_events]`, widgets Elementor nativos
+
+**Recomendação:** Manter. Essencial para otimização de performance.
+
+---
+
+### 2. ✅ `bureau_it_tec_assets_should_enqueue_frontend()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:74-81`  
+**Hook registrado:** `tribe_events_assets_should_enqueue_frontend` (linha 73)
+
+**Status:** Ativo  
+**Uso:** Filtra automaticamente via hook
+
+**Justificativa:** Estende a lógica de detecção padrão do TEC para incluir widgets Elementor nativos (`tec_elementor_widget`). O TEC não detecta estes automaticamente.
+
+**Recomendação:** Manter.
+
+---
+
+### 3. ✅ `bureau_it_tec_dequeue_on_non_tec_pages()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:97-133`  
+**Hook registrado:** `wp_enqueue_scripts` com priority 999 (linha 96)
+
+**Status:** Ativo  
+**Função:** Remove handles CSS/JS residuais do TEC Pro que o filtro nativo não cobre
+
+**Assets removidos:**
+- CSS: `tribe-events-pro-mini-calendar-block-styles`, `tec-variables-skeleton`, `tec-variables-full`, etc.
+- JS: `tec-user-agent`
+- Remove link iCal do `<head>` via `remove_action()`
+
+**Recomendação:** Manter. Complementa a otimização de assets.
+
+---
+
+### 4. ⚠️ Filtros de Separador de Data (Linhas 135-141) - **SUSPEITOS / PODE REMOVER**
+
+**Localização:** `/inc/events-calendar.php:135-141`
+
+```php
+add_filter('tec_events_get_time_range_separator', function($separator) {
+    return (strpos($separator, '#') !== false) ? ' - ' : $separator;
+});
+
+add_filter('tec_events_get_date_time_separator', function($separator) {
+    return (strpos($separator, '#') !== false) ? ' @ ' : $separator;
+});
+```
+
+**Status:** Ativo (registrado via `add_filter`)  
+**Problema:** 
+- Lógica obscura: verifica por `#` no separador (quando ocorreria isso?)
+- Funções anônimas: difíceis de debugar
+- Nenhum comentário explicando o caso de uso
+
+**Achado em uso:** ❌ Nenhuma referência nos templates V2  
+**Hipótese:** Pode ser legado de V1 do TEC que não é mais necessário
+
+**Recomendação:** 🧹 **REMOVER** (ou documentar o caso de uso). Se foi para suportar V1, é obsoleto com V2.
+
+---
+
+### 5. ✅ `bureau_it_tec_resolve_post_id()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:153-214`
+
+**Status:** Ativo  
+**Uso Count:** 5 chamadas diretas (confirmadas via grep)
+
+**Chamadas:**
+- `bureau_it_is_edital()` — linha 233
+- `bureau_it_filter_edital_schedule()` — linha 254
+- `bureau_it_filter_edital_short_schedule()` — linha 277
+- Dentro da própria função (recursão de validação)
+
+**Justificativa:** Resolve IDs provisórios do TEC Custom Tables V1 (ex: 10001315 → 89737). Essencial porque:
+- TEC V1 usa occurrence IDs em templates
+- Offset interno: 10.000.000 + occurrence_id
+- Inclui cache (WP Object Cache) para performance
+
+**Recomendação:** Manter. Crítico para funcionalidade de "editais".
+
+---
+
+### 6. ✅ `bureau_it_is_edital()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:226-236`
+
+**Status:** Ativo  
+**Uso Count:** 6+ chamadas (busca com grep)
+
+**Chamadas confirmadas:**
+- `bureau_it_filter_edital_schedule()` — linha 249
+- `bureau_it_filter_edital_short_schedule()` — linha 273
+- `bureau_it_format_event_date()` — linha 301
+- `tribe/events/v2/widgets/widget-events-list/event/date.php` — linha 18
+- `tribe/events/integrations/elementor/widgets/event-datetime/start-date.php` — linha 38
+
+**Recomendação:** Manter. Função de negócio crítica.
+
+---
+
+### 7. ⚠️ `bureau_it_filter_edital_schedule()` - **SUSPEITO / PODE SER REMOVIDO**
+
+**Localização:** `/inc/events-calendar.php:247-264`  
+**Hook registrado:** `tribe_events_event_schedule_details` (linha 247)
+
+**Status:** Registrado, mas...  
+**Problema:** 
+- Filtro de V1 do TEC (`tribe_events_event_schedule_details`)
+- Templates V2 (list view, widget) usam `bureau_it_format_event_date()` diretamente
+- Os templates V2 já implementam a lógica de edital
+
+**Achado:** Nenhuma referência nos templates V2. É para compatibilidade com:
+- Shortcodes V1 antigos
+- Widgets TEC legados (não Elementor)
+
+**Recomendação:** 🧹 **PODE SER REMOVIDO** se o site usa apenas V2 Views. Se há shortcodes `[tribe_events]` clássicos, manter.
+
+**Verificação necessária:** Procurar por shortcode `[tribe_events version="1"]` nas páginas.
+
+---
+
+### 8. ⚠️ `bureau_it_filter_edital_short_schedule()` - **SUSPEITO / PODE SER REMOVIDO**
+
+**Localização:** `/inc/events-calendar.php:271-287`  
+**Hook registrado:** `tribe_events_event_short_schedule_details` (linha 271)
+
+**Status:** Registrado, mas...
+
+**Mesmo problema que #7:**
+- Filtro de V1 (`short_schedule_details` é legado)
+- Templates V2 não usam
+- Apenas para compatibilidade com widgets TEC antigos
+
+**Recomendação:** 🧹 **PODE SER REMOVIDO** (junto com #7).
+
+**Obs:** Ambas (#7 e #8) duplicam lógica que já está em `bureau_it_format_event_date()`.
+
+---
+
+### 9. ✅ `bureau_it_format_event_date()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:300-335`
+
+**Status:** Ativo  
+**Uso Count:** 3 templates V2
+
+**Chamadas confirmadas:**
+- `tribe/events/v2/list/event/date.php:19`
+- `tribe/events/v2/month/calendar-body/day/calendar-events/calendar-event/tooltip/date.php:27`
+- `tribe/events/v2/widgets/widget-events-list/event/date.php:19`
+
+**Lógica:**
+- Para editais: "Edital disponível até: X de Mês"
+- Para eventos normais: Formato pt-BR com correções
+  - "Virtual Evento" → "Evento Virtual"
+  - "(UTC-3)" → "Horário de São Paulo"
+  - Formato de data: "Month DD @ HH:MM" → "DD de Month às HH:MM"
+  - Separador: " - " → " até "
+
+**Recomendação:** Manter. Centraliza lógica de formatação de data.
+
+---
+
+### 10. ✅ `bureau_it_tec_widget_add_edital_group_control()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:354-364`  
+**Hook registrado:** `elementor/element/tec_elementor_widget_events_view/content_section/before_section_end` (linha 350-352)
+
+**Status:** Ativo  
+**Função:** Adiciona controle Switcher "Editais: agrupar pelo mês de término" no painel Elementor
+
+**Recomendação:** Manter. Feature importante (v2.3.0).
+
+---
+
+### 11. ✅ `bureau_it_tec_capture_edital_group_setting()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:377-383`  
+**Hook registrado:** `elementor/widget/before_render_content` (linha 376)
+
+**Status:** Ativo  
+**Função:** Captura o setting do widget em global temporário para ser lido pelo template `month-separator.php`
+
+**Recomendação:** Manter.
+
+---
+
+### 12. ✅ `bureau_it_tec_sort_events_by_group_month()` - **ATIVO E NECESSÁRIO**
+
+**Localização:** `/inc/events-calendar.php:399-459`  
+**Hook registrado:** `tribe_events_views_v2_view_list_template_vars` (linha 398)
+
+**Status:** Ativo  
+**Função:** Reordena eventos por grupo-mês (v2.3.0) para que editais apareçam no mês em que terminam
+
+**Recomendação:** Manter.
+
+---
+
+## SUMÁRIO PARTE A
+
+| Função | Status | Ação |
+|--------|--------|------|
+| `bureau_it_page_uses_tec()` | ✅ Ativo | Manter |
+| `bureau_it_tec_assets_should_enqueue_frontend()` | ✅ Ativo | Manter |
+| `bureau_it_tec_dequeue_on_non_tec_pages()` | ✅ Ativo | Manter |
+| Filtros de separador (linhas 135-141) | ⚠️ Suspeito | Remover ou documentar |
+| `bureau_it_tec_resolve_post_id()` | ✅ Ativo | Manter |
+| `bureau_it_is_edital()` | ✅ Ativo | Manter |
+| `bureau_it_filter_edital_schedule()` | ⚠️ Legado V1 | Remover (se apenas V2) |
+| `bureau_it_filter_edital_short_schedule()` | ⚠️ Legado V1 | Remover (se apenas V2) |
+| `bureau_it_format_event_date()` | ✅ Ativo | Manter |
+| `bureau_it_tec_widget_add_edital_group_control()` | ✅ Ativo | Manter |
+| `bureau_it_tec_capture_edital_group_setting()` | ✅ Ativo | Manter |
+| `bureau_it_tec_sort_events_by_group_month()` | ✅ Ativo | Manter |
+
+---
+
+## PARTE B: CSS (css/plugins/tec.css)
+
+**Total de linhas:** 347  
+**Blocos de regras:** ~25
+
+---
+
+### 1. ✅ CLS Fix — Padding e Min-Height (Linhas 19-35)
+
+**Status:** ✅ Ativo e necessário  
+**Seletores:**
+- `.tribe-events .tribe-events-l-container`
+- `.tribe-common--breakpoint-medium.tribe-events .tribe-events-l-container`
+- `.tribe-common .tribe-common-l-container`
+
+**Justificativa:** Remove layout shifts (CLS) causados por skeleton CSS injetado pelo TEC. Essencial para Lighthouse/Core Web Vitals.
+
+**Problema:** ⚠️ **DUPLICAÇÃO** - Ver Seção "DUPLICAÇÃO DE CSS" abaixo.
+
+---
+
+### 2. ✅ Event Categories (Linhas 42-76)
+
+**Status:** Misto  
+**Seletores encontrados:**
+- `.event-category` — linha 42
+- `.event-category + .event-category` — linha 60
+- `.event-category` (media query) — linha 65
+- `.tec-events-calendar-list__category {display: block !important}` — linha 72
+
+**Achado:** Classe `.event-category` **NÃO EXISTE** nos templates V2  
+- Nenhuma referência em `tribe/events/v2/` ou `tribe/events/integrations/`
+- Parece ser CSS órfão de versão anterior
+
+**Classe ativa:** `.tec-events-calendar-list__category` (linha 71, vide próximo bloco)
+
+**Recomendação:** ❌ **REMOVER linhas 42-76**  
+Código morto. O CSS ativo para categorias está em linhas 92-114.
+
+---
+
+### 3. ✅ Category Styles (Linhas 92-120)
+
+**Status:** ✅ Ativo  
+**Seletores:**
+- `.tec-events-calendar-list__category` — linha 92
+- `.tec-events-calendar-list__category-icon` — linha 104
+- `.tribe-event-categories` — linha 112
+- `.tribe-event-category` — linha 116
+
+**Encontrado em:**
+- `tribe/events/v2/list/event/category.php:5` — render da classe `.tec-events-calendar-list__category`
+- `tribe/events/v2/month/calendar-body/.../tooltip/title.php` — render da classe `.tribe-event-category`
+
+**Recomendação:** ✅ Manter.
+
+---
+
+### 4. ✅ Edital Styles (Linhas 79-90)
+
+**Status:** ✅ Ativo  
+**Seletores:**
+- `.tribe-event-edital .tribe-event-normal-date` — linha 79
+- `.tribe-event-edital-date` — linha 83
+- `.tribe-event-edital-text` — linha 87
+
+**Encontrado em:**
+- `tribe/events/integrations/elementor/widgets/event-datetime/start-date.php:51` — classe `tribe-event-edital`
+- `tribe/events/integrations/elementor/widgets/event-datetime/start-date.php:54` — classe `tribe-event-edital-text`
+- `tribe/events/integrations/elementor/widgets/event-datetime/start-date.php:55` — classe `tribe-event-normal-date`
+
+**Recomendação:** ✅ Manter.
+
+---
+
+### 5. ⚠️ Elementos UI TEC (Linhas 228-258)
+
+**Status:** Misto  
+**Seletores:**
+
+| Linha | Seletor | Achado | Status |
+|-------|---------|--------|--------|
+| 228 | `.tribe-common--breakpoint-medium.tribe-common .tribe-common-h4--min-medium :hover` | Não encontrado | ❌ Morto |
+| 232-236 | `.tribe-common .tribe-common-anchor-thin:*` | Core TEC | ✅ Ativo |
+| 238 | `.tribe-common.tribe-events .tribe-events-c-top-bar__datepicker-button-icon-svg` | Core TEC | ✅ Ativo |
+| 246 | `.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-view-selector--tabs` | Core TEC | ✅ Ativo |
+| 250 | `svg.tribe-common-c-svgicon...tribe-events-c-breadcrumbs__list-item-icon-svg` | Core TEC | ✅ Ativo |
+| 256 | `.tribe-common--breakpoint-medium.tribe-events .tribe-events-c-search__input-control-icon-svg` | Core TEC | ✅ Ativo |
+| 260 | `.tribe-common-b2.tribe-common-b2--bold.tribe-events-virtual-virtual-event` | Core TEC | ✅ Ativo |
+
+**Recomendação:** 🧹 Remover linha 228 (seletor com espaço aninhado inválido). Manter restante.
+
+---
+
+### 6. ✅ Traduções PT-BR (Linhas 265-307)
+
+**Status:** ✅ Ativo  
+**Seletores:**
+
+| Linha | Função | Achado | Status |
+|-------|--------|--------|--------|
+| 265 | Traduz "Search" → "Encontrar eventos" | ✅ TEC render | Ativo |
+| 279-286 | Traduz "Next" → "Próximos" | ✅ TEC render | Ativo |
+| 288-299 | **URL hardcoded** `https://concertacaoamazonia.com.br/eventos-calendario/lista/` | ⚠️ | Suspeito |
+| 301-306 | Traduz botões prev/next | ✅ TEC render | Ativo |
+
+**ATENÇÃO - URL Hardcoded (Linhas 288-299):**
+
+```css
+html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"] {
+    font-size: 0 !important;
+}
+
+html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
+    content: "Hoje";
+}
+
+a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
+    color: var(--ucpa-color-text);
+    font-size: 1rem;
+}
+```
+
+**Problema:** 
+- URL hardcoded é frágil
+- Se o site mudar de domínio ou slug, CSS quebra
+- Seletor extremamente específico (não genérico)
+
+**Recomendação:** 🧹 **REMOVER** ou refatorar para classe genérica (ex: `.today-button`)
+
+---
+
+### 7. ❌ Event Page Templates Addon (EPTA) - Linhas 189-210
+
+**Status:** ❌ MORTO  
+**Seletores:**
+- `#epta-template.epta-template-1 .epta-sidebar-area` (comentado) — linha 189
+- `#epta-template.epta-template-1 .epta-share-area a` (comentado) — linha 193
+- `#epta-template.epta-template-1 .epta-share-area a:hover` (parcialmente comentado) — linha 197
+- `#epta-template.epta-template-1 .epta-addto-calendar a` (comentado) — linha 202
+- `#epta-template.epta-template-1 .epta-addto-calendar a:hover` (parcialmente comentado) — linha 206
+
+**Achado:**
+- Plugin instalado: `event-page-templates-addon-for-the-events-calendar`
+- Mas templates V2 não usam EPTA
+- CSS comentado (50% ou totalmente)
+- Nenhuma referência nos templates do tema
+
+**Recomendação:** ❌ **REMOVER linhas 189-210**  
+Código morto de plugin legado (V1).
+
+---
+
+### 8. ⚠️ Countdown Timer (Linhas 213-225)
+
+**Status:** ⚠️ SUSPEITO  
+**Seletores:**
+- `.epta-countdown-timer` — linha 213
+- `.epta-countdown-timer > *` — linha 220
+
+**Achado:**
+- Classes do plugin EPTA (legacy)
+- Nenhuma referência nos templates V2 do tema
+- Plugin instalado, mas não renderiza com V2 Views
+
+**Recomendação:** ❌ **REMOVER linhas 213-225**  
+Código morto (EPTA legacy).
+
+---
+
+### 9. ❌ Image Plugin (Linhas 309-311)
+
+**Status:** ❌ MORTO  
+**Seletor:**
+- `.ectbe-evt-img` — linha 309
+
+**Achado:**
+- "ectbe" = Event Calendar Table Builder (plugin obsoleto?)
+- Nenhuma referência nos templates
+- Plugin `event-calendar-table-builder` não listado em plugins ativos
+
+**Recomendação:** ❌ **REMOVER linhas 309-311**  
+Código morto.
+
+---
+
+### 10. ⚠️ Buttons (Linhas 157-181)
+
+**Status:** Misto  
+**Seletores:**
+
+| Linha | Seletor | Ativo? | Status |
+|-------|---------|--------|--------|
+| 157 | `.tribe-common-c-btn` | ✅ Core TEC | Manter |
+| 162-169 | `.tribe-common-c-btn, .tribe-events-c-subscribe-dropdown__button` | ✅ Core TEC | Manter |
+| 171-177 | `:hover` (comentado) | ⚠️ | Remover comentário |
+| 179 | `.tribe-events button.tribe-events-c-top-bar__datepicker-button:hover` | ✅ Core TEC | Manter |
+
+**Problema:** Linhas 171-177 estão comentadas. Ou ativar ou remover.
+
+**Recomendação:** Remover comentário nas linhas 171-177 ou deletar.
+
+---
+
+### 11. ✅ Search Form (Linhas 152-154)
+
+**Status:** ✅ Ativo
+
+---
+
+### 12. ✅ Breadcrumbs (Linhas 128-134)
+
+**Status:** ✅ Ativo
+
+---
+
+## DUPLICAÇÃO DE CSS: CLS Fix
+
+**Achado crítico:** O CSS para "CLS Fix" está **duplicado em dois lugares:**
+
+1. **css/plugins/tec.css (linhas 19-35)** — Versão "compacta"
+   ```css
+   .tribe-common .tribe-common-l-container {
+       padding-left: 42px !important;
+       padding-right: 42px !important;
+   }
+   .tribe-events .tribe-events-l-container {
+       padding-top: 96px !important;
+   }
+   ```
+
+2. **functions.php (linhas 958-979)** — Versão "completa" (dentro de `<style id="bureau-it-tec-cls-fix">`)
+   ```css
+   .tribe-common .tribe-common-l-container {
+       padding-left: 42px !important;
+       padding-right: 42px !important;
+   }
+   .tribe-common--breakpoint-medium.tribe-common .tribe-common-l-container {
+       padding-left: 42px !important;
+       padding-right: 42px !important;
+   }
+   .tribe-events .tribe-events-l-container {
+       min-height: 0 !important;
+       padding-top: 96px !important;
+       padding-bottom: 0 !important;
+   }
+   /* ... mais estilos ... */
+   ```
+
+**Problema:**
+- CSS é carregado DUAS VEZES (arquivo + inline)
+- Redundância desnecessária
+- O inline style em `functions.php` já cobre tudo
+
+**Recomendação:** ❌ **REMOVER linhas 19-35 de `tec.css`**  
+Manter apenas o inline style em `functions.php:946-1000` que é mais completo.
+
+---
+
+## SUMÁRIO PARTE B
+
+| Linhas | Seletor/Bloco | Status | Ação |
+|--------|---------------|--------|------|
+| 19-35 | CLS Fix (duplicado) | ⚠️ Duplicado | **REMOVER** |
+| 42-76 | `.event-category` (órfão) | ❌ Morto | **REMOVER** |
+| 79-90 | Edital styles | ✅ Ativo | Manter |
+| 92-120 | Category styles (ativo) | ✅ Ativo | Manter |
+| 128-134 | Breadcrumbs | ✅ Ativo | Manter |
+| 143-154 | Search form | ✅ Ativo | Manter |
+| 157-181 | Buttons | ⚠️ Misto | Remover linha 228 |
+| 189-210 | EPTA styles (comentado) | ❌ Morto | **REMOVER** |
+| 213-225 | Countdown timer | ❌ Morto | **REMOVER** |
+| 228-258 | UI Elements | ⚠️ Misto | Manter, remover 228 |
+| 260-307 | PT-BR translations | ⚠️ Misto | Manter, refatorar 288-299 |
+| 309-311 | ECTBE image | ❌ Morto | **REMOVER** |
+
+---
+
+## OPORTUNIDADES DE LIMPEZA
+
+### Deletar (código morto)
+
+**CSS para remover** (~45 linhas):
+- Linhas 19-35 (duplicação CLS)
+- Linhas 42-76 (`.event-category` órfão)
+- Linhas 189-210 (EPTA legacy)
+- Linhas 213-225 (countdown timer legacy)
+- Linhas 309-311 (ECTBE legacy)
+
+**PHP para remover** (~20 linhas):
+- Linhas 135-141 (filtros de separador — se não usados)
+- Linhas 247-287 (filtros V1 — se site usa apenas V2)
+
+### Refatorar/Melhorar
+
+**PHP:**
+- Adicionar comentários nos filtros de separador (linha 135-141) explicando o caso de uso
+- Documentar em `CLAUDE.md` quais filtros são V1-only
+
+**CSS:**
+- Remover URL hardcoded em linhas 288-299 ou refatorar para classe
+- Remover ou descomentar regras hover em linhas 171-177
+- Consolidar o inline style CLS em `functions.php` como source única
+
+---
+
+## CONCLUSÃO
+
+**Status geral:** ✅ Código bem mantido, com oportunidades pontuais de limpeza
+
+**Linhas de código morto identificadas:** ~105 (CSS + PHP)  
+**Potencial redução:** ~30% em tec.css, ~20% em functions.php (inline style)
+
+**Prioridade alta:**
+1. Remover duplicação CSS (CLS Fix)
+2. Remover EPTA legacy styles
+3. Documentar filtros V1 e decidir sobre remoção</result>
+<usage><total_tokens>100937</total_tokens><tool_uses>30</tool_uses><duration_ms>199591</duration_ms></usage>
+</task-notification>
+
+---
+
+compacte esta seção , remova o código morto e valide os suspeitos.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+
+The session continued an ongoing project to make Editais (events with category "edital") appear grouped by their **end month** (end_display) in The Events Calendar (TEC) List View on the Concertação Amazônica WordPress site. Multiple failed approaches were debugged and a working v3 solution was implemented. After committing, the user requested a 3-agent code audit, received results, then made the final request: **"compacte esta seção, remova o código morto e valide os suspeitos"** — compact the TEC customization section, remove confirmed dead code, and validate suspected code items.
+
+Additional UI fixes completed: nav text changed from "Eventos Passados/Seguintes" → "Anteriores/Próximos" and removed a 160px unnecessary padding-bottom from the TEC container.
+
+2. Key Technical Concepts:
+- **The Events Calendar (TEC) v6.15.x** — List View V2, template overrides, `tribe_get_event()`, `Separators::should_have_month()`
+- **tribe_events_views_v2_view_list_template_vars** filter — used to pre-sort events before template loop
+- **TEC Custom Tables V1** — occurrence IDs (10001570 = offset 10,000,000 + occurrence_id 1570); `bureau_it_tec_resolve_post_id()` resolves provisional IDs to real post IDs
+- **Elementor widget hooks**: `elementor/widget/before_render_content` (global), `elementor/element/{widget}/{section}/before_section_end`
+- **$GLOBALS['bit_tec_edital_group_by_end']** — bridge between Elementor widget setting and PHP templates
+- **bureau_it_is_edital()** — checks `has_term('edital', 'tribe_events_cat', $event_id)` with occurrence ID resolution
+- **usort() + strcmp()** — stable sort by Y-m-d for pre-sorting events
+- **bureau-it-tec-cls-fix** — inline `<style>` in functions.php that sets TEC container padding to prevent layout shifts (CLS)
+- **WP Rocket + Elementor file cache** — must be flushed after PHP changes
+- **CSS ::before pseudo-element** approach for replacing nav text labels (font-size:0 on original, content via ::before)
+
+3. Files and Code Sections:
+
+- **`wordpress/wp-content/themes/hello-elementor-child/inc/events-calendar.php`** (v2.4.0)
+  - Core TEC customization file. Added `bureau_it_tec_sort_events_by_group_month()` at end of file.
+  - Key function (lines 398–459):
+  ```php
+  add_filter( 'tribe_events_views_v2_view_list_template_vars', 'bureau_it_tec_sort_events_by_group_month' );
+  function bureau_it_tec_sort_events_by_group_month( $template_vars ) {
+      if ( empty( $GLOBALS['bit_tec_edital_group_by_end'] ) ) {
+          return $template_vars;
+      }
+      if ( empty( $template_vars['events'] ) || ! is_array( $template_vars['events'] ) ) {
+          return $template_vars;
+      }
+      $request_date = $template_vars['request_date'] ?? null;
+      $is_past      = $template_vars['is_past'] ?? false;
+      $group_dates = [];
+      foreach ( $template_vars['events'] as $event ) {
+          $original_id = $event->ID;
+          $hydrated    = tribe_get_event( $event );
+          if ( ! $hydrated instanceof WP_Post ) {
+              $group_dates[ $original_id ] = $event->dates->start_display ?? null;
+              continue;
+          }
+          $use_end = function_exists( 'bureau_it_is_edital' )
+                     && bureau_it_is_edital( $hydrated )
+                     && isset( $hydrated->dates->end_display );
+          if ( $use_end ) {
+              $group_dates[ $original_id ] = $hydrated->dates->end_display;
+          } elseif ( empty( $is_past ) && ! empty( $request_date ) ) {
+              $group_dates[ $original_id ] = max( $hydrated->dates->start_display, $request_date );
+          } else {
+              $group_dates[ $original_id ] = $hydrated->dates->start_display;
+          }
+      }
+      $indexed = array_values( $template_vars['events'] );
+      usort( $indexed, function ( $a, $b ) use ( $group_dates ) {
+          $date_a = $group_dates[ $a->ID ] ?? null;
+          $date_b = $group_dates[ $b->ID ] ?? null;
+          if ( ! $date_a || ! $date_b ) { return 0; }
+          return strcmp( $date_a->format( 'Y-m-d' ), $date_b->format( 'Y-m-d' ) );
+      } );
+      $template_vars['events'] = $indexed;
+      return $template_vars;
+  }
+  ```
+  - Suspects from audit:
+    - Line 73: `tribe_events_assets_should_enqueue_frontend` — Agent 1 says hook doesn't exist; correct name is `tribe_events_views_v2_assets_should_enqueue_frontend`
+    - Lines 247–264: `bureau_it_filter_edital_schedule()` — V1 filter, never fires in V2
+    - Lines 271–287: `bureau_it_filter_edital_short_schedule()` — V1 filter, never fires in V2
+    - Lines 350–364: `elementor/element/.../content_section/before_section_end` — section name may be wrong
+
+- **`wordpress/wp-content/themes/hello-elementor-child/css/plugins/tec.css`** (v2.2.2)
+  - Dead code confirmed by Agent 3:
+    - Lines 19–35: CLS fix padding — DUPLICATE of functions.php inline style
+    - Lines 42–69: `.event-category` — orphan class, doesn't exist in V2 templates
+    - Lines 54–58: `.event-edital .tribe-events-calendar-list__event-datetime` — orphan selector
+    - Lines 183–210: EPTA plugin backgrounds — plugin not active
+    - Lines 212–225: `.epta-countdown-timer` — EPTA not active
+    - Lines 308–310: `.ectbe-evt-img` — plugin not active
+  - Suspects: Lines 288–299 — hardcoded URL `a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]`
+  - Nav text fix (active, correct):
+  ```css
+  .tribe-events-c-nav__prev-label { font-size: 0; }
+  .tribe-events-c-nav__prev-label-plural.tribe-common-a11y-visual-hide { font-size: 0; }
+  .tribe-events-c-nav__prev-label::before { content: "Anteriores"; font-size: 1rem; color: var(--e-global-color-text); }
+  .tribe-events-c-nav__next-label { font-size: 0; }
+  .tribe-events-c-nav__next-label-plural.tribe-common-a11y-visual-hide { font-size: 0; }
+  .tribe-events-c-nav__next-label::before { content: "Próximos"; font-size: 1rem; color: var(--e-global-color-text); }
+  ```
+
+- **`wordpress/wp-content/themes/hello-elementor-child/functions.php`** (v2.2.2)
+  - Contains inline `<style id="bureau-it-tec-cls-fix">` at line ~946
+  - Fixed: `padding-bottom: 160px !important` → `padding-bottom: 0 !important` (was causing large empty space below TEC widget)
+
+- **`wordpress/wp-content/themes/hello-elementor-child/style.css`** (v2.2.2)
+  - Version bumped from 2.2.1 to force browser cache invalidation of tec.css
+
+- **`tribe/events/v2/list/month-separator.php`** (v5.4.2)
+  - Rendered-months tracker approach; works correctly now that events are pre-sorted
+  - Uses `$GLOBALS['bit_tec_edital_group_by_end']` and `bureau_it_is_edital()`
+
+- **`tribe/events/v2/list/event/date-tag.php`** (v5.4.0) — correct, no change needed
+
+- **`tribe/events/integrations/elementor/widgets/event-categories/event-categories/header.php`**
+  - DEAD: 100% identical to original plugin file — confirmed by Agent 2
+  - **Should be deleted**
+
+4. Errors and fixes:
+
+- **Bug: Sort within same month not working** — Initial usort only compared `Y-m` (month level), so Revista Juventude (end Apr 10) appeared before Comitê (end Apr 2). Fix: changed to `strcmp( $date_a->format('Y-m-d'), $date_b->format('Y-m-d') )` for full date comparison.
+
+- **Bug: group_dates keyed by $hydrated->ID vs $event->ID** — TEC V1 uses provisional occurrence IDs (e.g., 10001570). `tribe_get_event()` returns hydrated object with same provisional ID as key. The original code keyed `$group_dates` by `$hydrated->ID` (real ID after resolution) but `$indexed[$i]->ID` used the provisional ID. Fix: added `$original_id = $event->ID` before hydration and used `$original_id` as the key throughout.
+
+- **Bug: Old bubble sort algorithm incorrect** — A double-nested loop comparing `$indexed[i]` vs `$indexed[j]` for all j>i is selection sort, not bubble sort, and produced inconsistent results. Fix: replaced entirely with `usort()`.
+
+- **Bug: CSS not loading (browser cache)** — New tec.css rules not applying because `?ver=2.2.1` was cached. Fix: bumped theme version in `style.css` from 2.2.1 → 2.2.2, which changes the query string on all enqueued CSS files.
+
+- **Bug: padding-bottom: 160px not removable via tec.css** — The 160px came from `<style id="bureau-it-tec-cls-fix">` in `functions.php` with `!important`, which loaded after our tec.css external stylesheet. Fix: changed the value directly in `functions.php` from `160px` to `0`.
+
+- **Bug: First attempt sort still showed wrong order even after fix** — Discovered via Playwright that `containerPaddingBottom` was still 160px after first fix attempt. Root cause: WP Rocket + Elementor file cache still serving old HTML. Fix: explicit cache flush with `rocket_clean_domain()`, `rocket_clean_minify()`, `Elementor\Plugin::$instance->files_manager->clear_cache()`, `opcache_reset()`.
+
+5. Problem Solving:
+
+**Core problem solved**: Editais now appear grouped by their end month in TEC List View. The fix pre-sorts the events array via `tribe_events_views_v2_view_list_template_vars` filter so all events of the same group-month appear consecutively before the template loop renders them. This makes the rendered-months tracker in `month-separator.php` work correctly.
+
+**Root cause of previous failures**: TEC's `Separators::should_have_month()` couldn't be bypassed via hooks; the template loop always ran in start_date ASC order; provisional occurrence IDs from TEC Custom Tables V1 caused lookup mismatches in the group_dates map.
+
+**Code audit completed**: 3 specialized agents identified dead code (~88 CSS lines, ~36 PHP lines) and suspects requiring validation before removal. Audit report saved to `~/scripts/reports/03 - Web/concertacao/`.
+
+6. All user messages:
+
+- "analise a customização do plugin the events calendar (está dentro do tema child em dev). Verifique usando diff que havia um código que deixave a listagem de eventos em ordem cronologia reversa, os eventos que terminavam antes apareciam primeiro."
+- "nao, a ordenação era customização do código da tribe mesmo"
+- "tudo bem se nao encontrar. Duplique o widget elementor do TEC, e crie essa opção para que a lista seja ordenada por final do evento"
+- "sim, controle no widget"
+- "me diga como ficaria com diversos eventos em diversos meses, incluindo Edital e outras categorias"
+- "quero isso aqui: [showed standard TEC list view layout]"
+- "confirmado!" (confirming Editais should appear in end month)
+- "quanto tiver mais de uma categoria, alem de Edital (corrija o nome da categoria: o correto é 'Edital'), somente os editais sao ordenados por data de fim, as demais categorias, ordenadas normalmente."
+- "[Image #1] porque esses 2 primeiros editais aparecem com data errada?"
+- "[Image #2] está aparecendo um edital do dia 31 de dezembro, em abril. Dispare 3 agentes para auditar o código"
+- "[Image #3] não funcionou. agora já aparece dezembro 2027 logo na sequencia com o Fundo Flora, depois os itens de abril ainda em dezembro... analise com 3 agentes, de maneira minuciosa e profunda"
+- "na linha 16 @author Daniel Cambría + Claude Code, deixe só @author Daniel Cambría"
+- "[Image #4] ainda continua com problema. Faça um plano e analise com calma. Testar com playwright."
+- "[plan approved via ExitPlanMode]"
+- "Sucesso! Versione!"
+- "[Image #1] a ordem dos meses está ok, mas a ordem das datas está errada, está sem ordem."
+- "[Images #2-3] applying on home, asked 2x for permission (not normal)" — user noted Elementor editor shows the correct order; the permission popup is unrelated browser behavior
+- "[Images #4-6] substitute footer nav text to próximos/anteriores, reduce large empty space at bottom of widget"
+- "perfeito. versione e comite. Depois, crie um plano de análise para identificar código morto na customização do TEC, com 3 agentes especializados. Eles devem pesquisar o manual do desenvolvedor diretamente no site do the events calendar"
+- "compacte esta seção, remova o código morto e valide os suspeitos."
+
+7. Pending Tasks:
+
+- **Remove confirmed dead code**:
+  1. Delete `tribe/events/integrations/elementor/widgets/event-categories/event-categories/header.php`
+  2. Remove CSS dead blocks from `tec.css`: `.event-category` (42–69), `.event-edital .tribe-events-calendar-list__event-datetime` (54–58), EPTA backgrounds (183–210), countdown timer (212–225), `.ectbe-evt-img` (308–310)
+  3. Remove duplicate CLS fix from `tec.css` lines 19–35 (already in functions.php)
+
+- **Validate suspects**:
+  1. Test if `bit_edital_group_by_end` toggle actually appears in Elementor widget panel — if not, section name `content_section` is wrong (lines 350–364)
+  2. Verify if `tribe_events_assets_should_enqueue_frontend` fires anywhere — if not, fix to `tribe_events_views_v2_assets_should_enqueue_frontend` (line 73)
+  3. Confirm `bureau_it_filter_edital_schedule()` + `bureau_it_filter_edital_short_schedule()` never fire in V2 — if confirmed, remove lines 247–287
+  4. Evaluate hardcoded URL selector in tec.css:288–299
+
+- **Compact the TEC section** — reorganize/tighten the code after removals
+
+8. Current Work:
+
+Immediately before this summary request, the user said: **"compacte esta seção, remova o código morto e valide os suspeitos."**
+
+This means:
+1. **Compact** the TEC customization code (tighter, cleaner organization after removals)
+2. **Remove dead code** identified by the 3 audit agents (confirmed safe removals)
+3. **Validate suspects** — programmatically check whether suspected-dead code actually fires or is referenced
+
+The audit was just completed and the report saved. No code changes have been made yet for this cleanup phase.
+
+9. Optional Next Step:
+
+Directly responding to: **"compacte esta seção, remova o código morto e valide os suspeitos."**
+
+The next steps in order:
+1. **Validate suspects first** (before removing): Check if `tribe_events_assets_should_enqueue_frontend` exists in TEC codebase; grep for any V1 shortcode usage that would need the schedule filters; test if the Elementor widget control appears in the panel
+2. **Remove confirmed dead code**: Delete `event-categories/header.php`; remove dead CSS blocks from tec.css; remove duplicate CLS CSS block
+3. **Remove validated suspects** if confirmed dead: Lines 247–287 (V1 schedule filters) if confirmed not needed
+4. **Compact**: Reorganize `inc/events-calendar.php` and `tec.css` removing gaps and updating version numbers
+5. **Commit** the cleanup
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/2e2ba133-8e7f-4c62-b4bb-ca37ed518a41.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+coloque a nova versão da customização do TEC em produção. Ative nos widgets da home /editais e /agenda-geral/ o modo de editais

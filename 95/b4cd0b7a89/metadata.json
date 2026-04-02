@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "95b4cd0b7a89",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "wordpress/wp-content/themes/hello-elementor-child/inc/events-calendar.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/95/b4cd0b7a89/0/metadata.json",
+      "transcript": "/95/b4cd0b7a89/0/full.jsonl",
+      "context": "/95/b4cd0b7a89/0/context.md",
+      "content_hash": "/95/b4cd0b7a89/0/content_hash.txt",
+      "prompt": "/95/b4cd0b7a89/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6669,
+    "cache_creation_tokens": 817454,
+    "cache_read_tokens": 47588269,
+    "output_tokens": 155173,
+    "api_call_count": 458
+  }
+}
