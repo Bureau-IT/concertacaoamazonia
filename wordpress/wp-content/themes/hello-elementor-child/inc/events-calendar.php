@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @since   2.0.0
- * @version 2.4.1
+ * @version 2.4.6
  */
 
 if (!defined('ABSPATH')) {
@@ -364,15 +364,91 @@ function bureau_it_tec_widget_add_edital_group_control( $widget ) {
 }
 
 /**
- * Captura o setting do widget antes do render.
+ * Captura o setting "bit_edital_group_by_end" do widget TEC da página atual.
  *
- * O render() do Widget_Events_View usa whitelist para o shortcode, então controles
- * customizados não chegam ao pipeline do TEC automaticamente. Armazenamos em global
- * temporário lido pelo template override month-separator.php.
+ * O TEC Widget View executa tribe_events_views_v2_view_list_template_vars antes
+ * do elementor/widget/before_render_content (o render do Elementor chama o TEC
+ * internamente, então o $GLOBALS precisa estar pronto antes do filtro do TEC).
  *
- * @since 2.3.0
- * @param \Elementor\Widget_Base $widget Widget sendo renderizado
+ * Solução: ler o _elementor_data da página no hook "wp" (antes de qualquer render),
+ * encontrar o widget tec_elementor_widget_events_view e extrair o setting.
+ * Fallback via before_render_content para cobrir o caso em que o TEC renderiza
+ * depois do Elementor (ex: shortcode embeddado num template).
+ *
+ * @since 2.4.2
  */
+add_action( 'wp', 'bureau_it_tec_capture_edital_group_setting_early' );
+function bureau_it_tec_capture_edital_group_setting_early() {
+    $post_id = 0;
+
+    // 1. Página singular: caminho mais direto
+    if ( is_singular() ) {
+        $post_id = get_queried_object_id();
+    }
+
+    // 2. url_to_postid() — pode falhar quando TEC sobrepõe rewrites
+    if ( ! $post_id ) {
+        $current_url = ( is_ssl() ? 'https' : 'http' ) . '://' . ( $_SERVER['HTTP_HOST'] ?? '' ) . strtok( $_SERVER['REQUEST_URI'] ?? '', '?' );
+        $post_id     = url_to_postid( $current_url );
+    }
+
+    // 3. Fallback: buscar post_name via slug extraído da URI
+    if ( ! $post_id ) {
+        $slug = trim( strtok( $_SERVER['REQUEST_URI'] ?? '', '?' ), '/' );
+        // Pegar apenas o último segmento do slug
+        $slug = basename( $slug );
+        if ( $slug ) {
+            $page = get_page_by_path( $slug, OBJECT, 'page' );
+            if ( $page ) {
+                $post_id = $page->ID;
+            }
+        }
+    }
+
+    if ( ! $post_id ) {
+        return;
+    }
+
+    $elementor_data = get_post_meta( $post_id, '_elementor_data', true );
+    if ( ! $elementor_data ) {
+        return;
+    }
+    $data = json_decode( $elementor_data, true );
+    if ( ! is_array( $data ) ) {
+        return;
+    }
+
+    $found = bureau_it_tec_find_edital_group_setting( $data );
+    if ( null !== $found ) {
+        $GLOBALS['bit_tec_edital_group_by_end'] = $found;
+    }
+}
+
+/**
+ * Percorre recursivamente o array de elementos Elementor e retorna o valor de
+ * bit_edital_group_by_end do primeiro widget tec_elementor_widget_events_view
+ * encontrado. Retorna null se nenhum widget for encontrado.
+ *
+ * @since 2.4.2
+ * @param array $elements
+ * @return bool|null
+ */
+function bureau_it_tec_find_edital_group_setting( array $elements ) {
+    foreach ( $elements as $el ) {
+        if ( ( $el['widgetType'] ?? '' ) === 'tec_elementor_widget_events_view' ) {
+            return 'yes' === ( $el['settings']['bit_edital_group_by_end'] ?? '' );
+        }
+        if ( ! empty( $el['elements'] ) ) {
+            $found = bureau_it_tec_find_edital_group_setting( $el['elements'] );
+            if ( null !== $found ) {
+                return $found;
+            }
+        }
+    }
+    return null;
+}
+
+// Fallback: cobertura para shortcodes e templates que renderizam fora do contexto singular
 add_action( 'elementor/widget/before_render_content', 'bureau_it_tec_capture_edital_group_setting' );
 function bureau_it_tec_capture_edital_group_setting( $widget ) {
     if ( 'tec_elementor_widget_events_view' !== $widget->get_name() ) {
@@ -395,8 +471,36 @@ function bureau_it_tec_capture_edital_group_setting( $widget ) {
  *
  * @since 2.3.0
  */
+// Registrar em ambos: genérico (tribe_events_views_v2_view_template_vars dispara sempre)
+// e específico da list view (tribe_events_views_v2_view_list_template_vars).
+// A função usa uma flag estática para não ordenar duas vezes caso ambos disparem.
+add_filter( 'tribe_events_views_v2_view_template_vars', 'bureau_it_tec_sort_events_by_group_month' );
 add_filter( 'tribe_events_views_v2_view_list_template_vars', 'bureau_it_tec_sort_events_by_group_month' );
+
+/**
+ * Desabilita o HTML cache interno do TEC (HTML_Cache trait) quando o sort
+ * de editais por mês de término está ativo.
+ *
+ * O TEC usa `maybe_get_cached_html()` em `View::get_html()` — se o cache existir,
+ * retorna antes de chamar `setup_template_vars()`, bypassando nosso filtro.
+ * Este filtro força `null` como retorno do cache, obrigando o TEC a renderizar.
+ *
+ * @since 2.4.5
+ */
+add_filter( 'tribe_events_views_v2_view_cached_html', 'bureau_it_tec_disable_view_html_cache', 5, 2 );
+function bureau_it_tec_disable_view_html_cache( $cached_html, $view ) {
+    if ( ! empty( $GLOBALS['bit_tec_edital_group_by_end'] ) ) {
+        return null; // Forçar render completo — nosso filtro de sort precisa executar
+    }
+    return $cached_html;
+}
 function bureau_it_tec_sort_events_by_group_month( $template_vars ) {
+    // Flag estática: ordenar somente uma vez por request (evita double-sort se ambos os filtros dispararem)
+    static $sorted = false;
+    if ( $sorted ) {
+        return $template_vars;
+    }
+
     if ( empty( $GLOBALS['bit_tec_edital_group_by_end'] ) ) {
         return $template_vars;
     }
@@ -454,6 +558,7 @@ function bureau_it_tec_sort_events_by_group_month( $template_vars ) {
     } );
 
     $template_vars['events'] = $indexed;
+    $sorted                  = true;
 
     return $template_vars;
 }
