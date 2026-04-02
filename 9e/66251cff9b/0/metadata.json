@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "9e66251cff9b",
+  "session_id": "2e2ba133-8e7f-4c62-b4bb-ca37ed518a41",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-02T03:13:07.404453Z",
+  "branch": "main",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "wordpress/wp-content/themes/hello-elementor-child/css/plugins/tec.css",
+    "wordpress/wp-content/themes/hello-elementor-child/functions.php",
+    "wordpress/wp-content/themes/hello-elementor-child/inc/events-calendar.php",
+    "wordpress/wp-content/themes/hello-elementor-child/style.css",
+    "wordpress/wp-content/themes/hello-elementor-child/tribe/events/v2/list/event/date-tag.php",
+    "wordpress/wp-content/themes/hello-elementor-child/tribe/events/v2/list/month-separator.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5a60abe33969",
+  "token_usage": {
+    "input_tokens": 6425,
+    "cache_creation_tokens": 467266,
+    "cache_read_tokens": 23038675,
+    "output_tokens": 83211,
+    "api_call_count": 242
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-02T03:13:05.77568Z",
+    "agent_lines": 258,
+    "human_added": 0,
+    "human_modified": 16,
+    "human_removed": 0,
+    "total_committed": 274,
+    "agent_percentage": 94.16058394160584
+  }
+}

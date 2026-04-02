@@ -1,0 +1,312 @@
+analise a customização do plugin the events calendar (está dentro do tema child em dev).
+Verifique usando diff que havia um código que deixave a listagem de eventos em ordem cronologia reversa, os eventos que terminavam antes apareciam primeiro.
+
+---
+
+quanto tiver mais de uma categoria, alem de Edital (corrija o nome da categoria: o correto é "Edital"), somente os editais sao ordenados por data de fim, as demais categorias, ordenadas normalmente.
+
+---
+
+me diga como ficaria com diversos eventos em diversos meses, incluindo Edital e outras categorias
+
+---
+
+quero isso aqui:
+
+  O TEC List View agrupa eventos por mês assim:
+
+  ── Abril 2026 ──────────────────────────
+    [Evento A]  início: 05 abr
+    [Edital X]  término: 10 abr
+    [Evento B]  início: 20 abr
+
+  ── Maio 2026 ────────────────────────────
+    [Edital Y]  término: 03 mai
+    [Evento C]  início: 15 mai
+
+---
+
+confirmado!
+
+---
+
+sim, controle no widget
+
+---
+
+[Image #1] porque esses 2 primeiros editais aparecem com data errada?
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-01 às 18.10.01.png]
+
+---
+
+<task-notification>
+<task-id>bbu8gw29l</task-id>
+<tool-use-id>toolu_01BEgLXyoESuwKNHveE89w2d</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bbu8gw29l.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush de cache para ver as mudanças" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+[Image #2] está aparecendo um edital do dia 31 de dezembro, em abril. Dispare 3 agentes para auditar o código
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_dDXGB6/Captura de Tela 2026-04-01 às 22.31.24.png]
+
+---
+
+<task-notification>
+<task-id>bk5pht6zn</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bk5pht6zn.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush de cache" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+[Image #3] não funcionou. agora já aparece dezembro 2027 logo na sequencia com o Fundo Flora, depois os itens de abril ainda em dezembro... analise com 3 agentes, de maneira minuciosa e profunda
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_QDS87B/Captura de Tela 2026-04-01 às 22.46.52.png]
+
+---
+
+<task-notification>
+<task-id>bmw3nu4gx</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bmw3nu4gx.output</output-file>
+<status>completed</status>
+<summary>Background command "Verificar sintaxe e flush de cache" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+na linha       16   * @author Daniel Cambría + Claude Code
+deixe só @author Daniel Cambría
+
+---
+
+[Image #4] ainda continua com problema. Faça um plano e analise com calma. Testar com playwright.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_YLM6X2/Captura de Tela 2026-04-01 às 22.59.11.png]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user wants Edital-category events in The Events Calendar (TEC) list view to be **positioned by their end date** (`_EventEndDate`) rather than their start date. Specifically:
+   - Editais should appear under the month group in which they **terminate** (not start)
+   - A toggle control in the Elementor TEC widget (`bit_edital_group_by_end`) activates this behavior
+   - Non-Edital events use default TEC behavior (grouped by start date)
+   - The "Edital" category slug is `edital`, taxonomy `tribe_events_cat`
+   - The date-tag (weekday + day number in left column) must also reflect the end date for Editais
+
+2. Key Technical Concepts:
+   - **The Events Calendar Pro** (TEC) Views V2 — List View, `Separators::should_have_month()`, `tribe_get_event()`, `tribe_get_event_after`, `tribe_events_views_v2_view_list_template_vars`
+   - **Elementor widget hooks**: `elementor/element/{widget}/content_section/before_section_end`, `elementor/widget/before_render_content`
+   - **Widget name**: `tec_elementor_widget_events_view` (content section ID: `content_section`)
+   - **TEC event dates**: `$event->dates->start_display`, `$event->dates->end_display` (both `Date_I18n_Immutable`)
+   - **Template overrides**: `tribe/events/v2/list/month-separator.php`, `tribe/events/v2/list/event/date-tag.php`
+   - **Global variable bridge**: `$GLOBALS['bit_tec_edital_group_by_end']` set by `elementor/widget/before_render_content`, read in templates
+   - **bureau_it_is_edital()** — existing function in `inc/events-calendar.php` that detects Edital category (handles TEC V1 occurrence IDs via `bureau_it_tec_resolve_post_id()`)
+   - **TEC event ordering**: repository fetches events by `event_date ASC, event_duration ASC` (start date, then duration)
+   - **ends_after query**: TEC uses `ends_after` (not `starts_after`) so ongoing events (started before today, ending after) are included
+
+3. Files and Code Sections:
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/inc/events-calendar.php`**
+     - Version bumped to `2.3.0`
+     - Added 2 functions for the Elementor widget control:
+     ```php
+     add_action(
+         'elementor/element/tec_elementor_widget_events_view/content_section/before_section_end',
+         'bureau_it_tec_widget_add_edital_group_control'
+     );
+     function bureau_it_tec_widget_add_edital_group_control( $widget ) {
+         $widget->add_control( 'bit_edital_group_by_end', [
+             'label'        => __( 'Editais: agrupar pelo mês de término', 'hello-elementor-child' ),
+             'description'  => __( 'Editais aparecem no mês em que terminam, não no mês em que começam.', 'hello-elementor-child' ),
+             'type'         => \Elementor\Controls_Manager::SWITCHER,
+             'label_on'     => __( 'Sim', 'hello-elementor-child' ),
+             'label_off'    => __( 'Não', 'hello-elementor-child' ),
+             'return_value' => 'yes',
+             'default'      => '',
+         ] );
+     }
+
+     add_action( 'elementor/widget/before_render_content', 'bureau_it_tec_capture_edital_group_setting' );
+     function bureau_it_tec_capture_edital_group_setting( $widget ) {
+         if ( 'tec_elementor_widget_events_view' !== $widget->get_name() ) {
+             return;
+         }
+         $settings                               = $widget->get_settings_for_display();
+         $GLOBALS['bit_tec_edital_group_by_end'] = ( 'yes' === ( $settings['bit_edital_group_by_end'] ?? '' ) );
+     }
+     ```
+     - NOTE: The `tribe_get_event_after` approach (`bureau_it_tec_regroup_edital_by_end_date`) was **tried and removed** because `Separators::should_have_month()` re-calls `tribe_get_event()` internally, causing unpredictable behavior.
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/tribe/events/v2/list/month-separator.php`** (CREATED)
+     - Current version 5.4.1 — uses a "rendered months tracker" pattern:
+     ```php
+     $edital_group_by_end = ! empty( $GLOBALS['bit_tec_edital_group_by_end'] );
+
+     $get_group_date = function ( WP_Post $ev ) use ( $edital_group_by_end, $request_date, $is_past ) {
+         if (
+             $edital_group_by_end
+             && function_exists( 'bureau_it_is_edital' )
+             && bureau_it_is_edital( $ev )
+             && isset( $ev->dates->end_display )
+         ) {
+             return $ev->dates->end_display;
+         }
+         return empty( $is_past ) && ! empty( $request_date )
+             ? max( $ev->dates->start_display, $request_date )
+             : $ev->dates->start_display;
+     };
+
+     $hydrated_event = tribe_get_event( $event );
+     $event_month = $get_group_date( $hydrated_event )->format( 'Y-m' );
+
+     $all_events   = $this->get( 'events' );
+     $rendered_key = 'bit_tec_rendered_months_' . md5( implode( ',', wp_list_pluck( $all_events, 'ID' ) ) );
+     if ( ! isset( $GLOBALS[ $rendered_key ] ) ) {
+         $GLOBALS[ $rendered_key ] = [];
+     }
+     if ( in_array( $event_month, $GLOBALS[ $rendered_key ], true ) ) {
+         return;
+     }
+     $GLOBALS[ $rendered_key ][] = $event_month;
+     $sep_date = $get_group_date( $hydrated_event );
+     // ... render the <li> separator
+     ```
+     - **STILL BUGGY**: This tracker approach fails because TEC renders events in start_date order. Fundo Flora (start: 2026-03-31, end: 2027-12-31) appears 2nd in the list, creating a "dezembro 2027" separator. Subsequent April events (Comitê Nacional, InovaClima) have "2026-04" already registered by Revista Juventude, so they get no separator and visually appear under "dezembro 2027".
+
+   - **`wordpress/wp-content/themes/hello-elementor-child/tribe/events/v2/list/event/date-tag.php`** (CREATED)
+     - Overrides the left-column date tag (weekday abbreviation + day number)
+     - For Editais: uses `end_display` instead of `start_display`
+     ```php
+     if ( function_exists( 'bureau_it_is_edital' ) && bureau_it_is_edital( $event ) && isset( $event->dates->end_display ) ) {
+         $display_date = $event->dates->end_display;
+     } else {
+         $display_date = empty( $is_past ) && ! empty( $request_date )
+             ? max( $event->dates->start_display, $request_date )
+             : $event->dates->start_display;
+     }
+     ```
+     - This part is WORKING CORRECTLY
+
+4. Errors and fixes:
+   - **Attempt 1 — `tribe_get_event_after` hook**: Modified `$event->dates->start_display = clone $event->dates->end_display` for Editais. FAILED because `Separators::should_have_month()` calls `tribe_get_event()` internally (line 42 and 46), re-triggering the hook. The first event in any list always returns `true` from `should_have_month()` without checking dates, causing the separator to show the wrong month.
+   - **Attempt 2 — month-separator.php with ID-based map**: Built `$month_map[ID => 'Y-m']` and compared "is current event the first ID with this month?". FAILED because the iteration order of the map (insertion order = start_date order) doesn't reflect group order when Editais are repositioned by end_display.
+   - **Attempt 3 — rendered months tracker** (current): Uses `$GLOBALS['bit_tec_rendered_months_*']` to track which months have been shown. STILL FAILING because the render order is still start_date order — Fundo Flora (start Mar 31) renders between Revista (Mar 30) and Comitê (Apr 2), inserting a "dezembro 2027" separator mid-April.
+   - **Date-tag showing wrong date**: Fixed by creating `date-tag.php` override that uses `end_display` for Editais.
+   - **Author field**: User requested removing "Claude Code" from `@author` — fixed across all 7 files in `tribe/` directory.
+
+5. Problem Solving:
+   **Root cause now fully understood**: TEC fetches events in `start_date ASC` order. The actual event sequence for page `/editais/` is:
+   1. Revista Juventude.BR (start: 2026-03-30, end: 2026-04-10) → group: 2026-04
+   2. Fundo Flora (start: 2026-03-31, end: 2027-12-31) → group: 2027-12
+   3. Comitê Nacional (start: 2026-04-02, end: 2026-04-02) → group: 2026-04
+   4. InovaClima (start: 2026-04-03, end: 2026-04-03) → group: 2026-04
+   5. Clima na Economia (start: 2026-04-08) → group: 2026-04
+   6. Netweaver (start: 2026-04-10) → group: 2026-04
+   7. Florestas e Comunidades (start: 2026-05-03) → group: 2026-05
+   8. Programa CBA OPEN (start: 2026-12-31) → group: 2026-12
+
+   The separator tracker registers "2026-04" (Revista), then "2027-12" (Fundo Flora), then sees "2026-04" already registered for Comitê → no separator → Comitê appears under dezembro 2027 visually.
+
+   **The real fix** requires **sorting the events array** by their group-date before the template loop runs, using `tribe_events_views_v2_view_list_template_vars`. This way, all "2026-04" events are consecutive, then "2027-12" events, etc. The `month-separator.php` tracker then works correctly because the render order matches the group order.
+
+6. All user messages:
+   - "analise a customização do plugin the events calendar (está dentro do tema child em dev). Verifique usando diff que havia um código que deixave a listagem de eventos em ordem cronologia reversa, os eventos que terminavam antes apareciam primeiro."
+   - "nao, a ordenação era customização do código da tribe mesmo"
+   - "tudo bem se nao encontrar. Duplique o widget elementor do TEC, e crie essa opção para que a lista seja ordenada por final do evento"
+   - "sim, controle no widget"
+   - "me diga como ficaria com diversos eventos em diversos meses, incluindo Edital e outras categorias"
+   - "quero isso aqui: [showed standard TEC list view layout with events grouped by month in chronological order]"
+   - "confirmado!" (confirming Editais should appear in the month they END)
+   - "quanto tiver mais de uma categoria, alem de Edital (corrija o nome da categoria: o correto é 'Edital'), somente os editais sao ordenados por data de fim, as demais categorias, ordenadas normalmente."
+   - "[Image #1] porque esses 2 primeiros editais aparecem com data errada?" (date-tag showing wrong day)
+   - "[Image #2] está aparecendo um edital do dia 31 de dezembro, em abril. Dispare 3 agentes para auditar o código"
+   - "[Image #3] não funcionou. agora já aparece dezembro 2027 logo na sequencia com o Fundo Flora, depois os itens de abril ainda em dezembro... analise com 3 agentes, de maneira minuciosa e profunda"
+   - "na linha 16 @author Daniel Cambría + Claude Code, deixe só @author Daniel Cambría"
+   - "[Image #4] ainda continua com problema. Faça um plano e analise com calma. Testar com playwright."
+
+7. Pending Tasks:
+   - Fix the month separator bug: events must be **reordered by their group-date** (end_display for Editais, start_display for others) BEFORE the template loop runs, using `tribe_events_views_v2_view_list_template_vars` filter in `inc/events-calendar.php`
+   - The `month-separator.php` rendered-months tracker can remain as-is once the events are pre-sorted
+   - The `date-tag.php` override is already correct
+
+8. Current Work:
+   In plan mode after user reported the bug still persists (Image #4). Three agents were dispatched:
+   - Agent 1 confirmed: month-separator.php current code, list.php structure, and event order via WP-CLI (Revista Mar 30, Fundo Flora Mar 31, Comitê Apr 2, InovaClima Apr 3...)
+   - Agent 2 (Playwright): confirmed rendered order — "dezembro 2027" separator followed by April events without separator
+   - Agent 3: confirmed widget settings (`bit_edital_group_by_end: "yes"` saved in page 65139), full event list with ongoing events via `ends_after`
+
+   The plan file at `/Users/dcambria/.claude/plans/hashed-bouncing-cocoa.md` needs to be updated with the new approach before calling ExitPlanMode.
+
+9. Optional Next Step:
+   Write the updated plan to the plan file, then call ExitPlanMode. The plan must specify:
+   
+   **Add a `tribe_events_views_v2_view_list_template_vars` filter** in `inc/events-calendar.php` that, when `$GLOBALS['bit_tec_edital_group_by_end']` is active, reorders `$template_vars['events']` by their group-date (`end_display` for Editais, `start_display` for others) using `usort()` with a stable sort. This ensures all events of the same group-month appear consecutively in the render loop, making the `month-separator.php` rendered-months tracker work correctly.
+
+   The fix quoted from the conversation context: user said "ainda continua com problema. Faça um plano e analise com calma. Testar com playwright." — we are in plan mode and need to finalize and present the plan.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/2e2ba133-8e7f-4c62-b4bb-ca37ed518a41.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+<task-notification>
+<task-id>bdy8pq53h</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/bdy8pq53h.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush all caches (Redis, OPcache, WP Rocket)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+[Image #1] a ordem dos meses está ok, mas a ordem das datas está errada, está sem ordem.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_spPHr7/Captura de Tela 2026-04-01 às 23.22.56.png]
+
+---
+
+[Image #2] estou aplicando na home[Image #3] e me pediu 2x por permissão. isso não é normal
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_farhZu/Captura de Tela 2026-04-01 às 23.42.19.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_6rYaun/Captura de Tela 2026-04-01 às 23.42.33.png]
+
+---
+
+[Image #4] substitua o texto do rodapé por próximos e anteriores.
+[Image #5] diminua o longo espaço no final do widget [Image #6]
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_FGyU3C/Captura de Tela 2026-04-01 às 23.43.28.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_MTNFb3/Captura de Tela 2026-04-01 às 23.44.23.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-01 às 23.45.33.png]
+
+---
+
+perfeito. versione e comite. Depois, crie um plano de análise para identificar código morto na customização do TEC, com 3 agentes especializados. Eles devem pesquisar o manual do desenvolvedor diretamente no site do the events calendar
