@@ -1,0 +1,4217 @@
+verifique o que está havendo com o site da concertacao em prod:
+
+🔴 [CRITICAL] Monitor Down: Concertação Amazônia
+
+
+
+URL https://concertacaoamazonia.com.br is not responding after 3 consecutive checks. Error: Request timed out after 10s (3 attempts)
+
+
+
+Details:
+
+• url: https://concertacaoamazonia.com.br
+
+• error: Request timed out after 10s (3 attempts)
+
+• status_code: None
+
+• expected_status_code: 200
+
+• consecutive_failures: 3
+
+• failure_threshold: 3
+
+• monitor_name: Concertação Amazônia
+
+• rule_name: Monitor Down - Critical Alerts
+
+• rule_id: 1
+
+
+
+— BIT Monitoring
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/systematic-debugging
+
+# Systematic Debugging
+
+## Overview
+
+Random fixes waste time and create new bugs. Quick patches mask underlying issues.
+
+**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
+
+**Violating the letter of this process is violating the spirit of debugging.**
+
+## The Iron Law
+
+```
+NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+```
+
+If you haven't completed Phase 1, you cannot propose fixes.
+
+## When to Use
+
+Use for ANY technical issue:
+- Test failures
+- Bugs in production
+- Unexpected behavior
+- Performance problems
+- Build failures
+- Integration issues
+
+**Use this ESPECIALLY when:**
+- Under time pressure (emergencies make guessing tempting)
+- "Just one quick fix" seems obvious
+- You've already tried multiple fixes
+- Previous fix didn't work
+- You don't fully understand the issue
+
+**Don't skip when:**
+- Issue seems simple (simple bugs have root causes too)
+- You're in a hurry (rushing guarantees rework)
+- Manager wants it fixed NOW (systematic is faster than thrashing)
+
+## The Four Phases
+
+You MUST complete each phase before proceeding to the next.
+
+### Phase 1: Root Cause Investigation
+
+**BEFORE attempting ANY fix:**
+
+1. **Read Error Messages Carefully**
+   - Don't skip past errors or warnings
+   - They often contain the exact solution
+   - Read stack traces completely
+   - Note line numbers, file paths, error codes
+
+2. **Reproduce Consistently**
+   - Can you trigger it reliably?
+   - What are the exact steps?
+   - Does it happen every time?
+   - If not reproducible → gather more data, don't guess
+
+3. **Check Recent Changes**
+   - What changed that could cause this?
+   - Git diff, recent commits
+   - New dependencies, config changes
+   - Environmental differences
+
+4. **Gather Evidence in Multi-Component Systems**
+
+   **WHEN system has multiple components (CI → build → signing, API → service → database):**
+
+   **BEFORE proposing fixes, add diagnostic instrumentation:**
+   ```
+   For EACH component boundary:
+     - Log what data enters component
+     - Log what data exits component
+     - Verify environment/config propagation
+     - Check state at each layer
+
+   Run once to gather evidence showing WHERE it breaks
+   THEN analyze evidence to identify failing component
+   THEN investigate that specific component
+   ```
+
+   **Example (multi-layer system):**
+   ```bash
+   # Layer 1: Workflow
+   echo "=== Secrets available in workflow: ==="
+   echo "IDENTITY: ${IDENTITY:+SET}${IDENTITY:-UNSET}"
+
+   # Layer 2: Build script
+   echo "=== Env vars in build script: ==="
+   env | grep IDENTITY || echo "IDENTITY not in environment"
+
+   # Layer 3: Signing script
+   echo "=== Keychain state: ==="
+   security list-keychains
+   security find-identity -v
+
+   # Layer 4: Actual signing
+   codesign --sign "$IDENTITY" --verbose=4 "$APP"
+   ```
+
+   **This reveals:** Which layer fails (secrets → workflow ✓, workflow → build ✗)
+
+5. **Trace Data Flow**
+
+   **WHEN error is deep in call stack:**
+
+   See `root-cause-tracing.md` in this directory for the complete backward tracing technique.
+
+   **Quick version:**
+   - Where does bad value originate?
+   - What called this with bad value?
+   - Keep tracing up until you find the source
+   - Fix at source, not at symptom
+
+### Phase 2: Pattern Analysis
+
+**Find the pattern before fixing:**
+
+1. **Find Working Examples**
+   - Locate similar working code in same codebase
+   - What works that's similar to what's broken?
+
+2. **Compare Against References**
+   - If implementing pattern, read reference implementation COMPLETELY
+   - Don't skim - read every line
+   - Understand the pattern fully before applying
+
+3. **Identify Differences**
+   - What's different between working and broken?
+   - List every difference, however small
+   - Don't assume "that can't matter"
+
+4. **Understand Dependencies**
+   - What other components does this need?
+   - What settings, config, environment?
+   - What assumptions does it make?
+
+### Phase 3: Hypothesis and Testing
+
+**Scientific method:**
+
+1. **Form Single Hypothesis**
+   - State clearly: "I think X is the root cause because Y"
+   - Write it down
+   - Be specific, not vague
+
+2. **Test Minimally**
+   - Make the SMALLEST possible change to test hypothesis
+   - One variable at a time
+   - Don't fix multiple things at once
+
+3. **Verify Before Continuing**
+   - Did it work? Yes → Phase 4
+   - Didn't work? Form NEW hypothesis
+   - DON'T add more fixes on top
+
+4. **When You Don't Know**
+   - Say "I don't understand X"
+   - Don't pretend to know
+   - Ask for help
+   - Research more
+
+### Phase 4: Implementation
+
+**Fix the root cause, not the symptom:**
+
+1. **Create Failing Test Case**
+   - Simplest possible reproduction
+   - Automated test if possible
+   - One-off test script if no framework
+   - MUST have before fixing
+   - Use the `superpowers:test-driven-development` skill for writing proper failing tests
+
+2. **Implement Single Fix**
+   - Address the root cause identified
+   - ONE change at a time
+   - No "while I'm here" improvements
+   - No bundled refactoring
+
+3. **Verify Fix**
+   - Test passes now?
+   - No other tests broken?
+   - Issue actually resolved?
+
+4. **If Fix Doesn't Work**
+   - STOP
+   - Count: How many fixes have you tried?
+   - If < 3: Return to Phase 1, re-analyze with new information
+   - **If ≥ 3: STOP and question the architecture (step 5 below)**
+   - DON'T attempt Fix #4 without architectural discussion
+
+5. **If 3+ Fixes Failed: Question Architecture**
+
+   **Pattern indicating architectural problem:**
+   - Each fix reveals new shared state/coupling/problem in different place
+   - Fixes require "massive refactoring" to implement
+   - Each fix creates new symptoms elsewhere
+
+   **STOP and question fundamentals:**
+   - Is this pattern fundamentally sound?
+   - Are we "sticking with it through sheer inertia"?
+   - Should we refactor architecture vs. continue fixing symptoms?
+
+   **Discuss with your human partner before attempting more fixes**
+
+   This is NOT a failed hypothesis - this is a wrong architecture.
+
+## Red Flags - STOP and Follow Process
+
+If you catch yourself thinking:
+- "Quick fix for now, investigate later"
+- "Just try changing X and see if it works"
+- "Add multiple changes, run tests"
+- "Skip the test, I'll manually verify"
+- "It's probably X, let me fix that"
+- "I don't fully understand but this might work"
+- "Pattern says X but I'll adapt it differently"
+- "Here are the main problems: [lists fixes without investigation]"
+- Proposing solutions before tracing data flow
+- **"One more fix attempt" (when already tried 2+)**
+- **Each fix reveals new problem in different place**
+
+**ALL of these mean: STOP. Return to Phase 1.**
+
+**If 3+ fixes failed:** Question the architecture (see Phase 4.5)
+
+## your human partner's Signals You're Doing It Wrong
+
+**Watch for these redirections:**
+- "Is that not happening?" - You assumed without verifying
+- "Will it show us...?" - You should have added evidence gathering
+- "Stop guessing" - You're proposing fixes without understanding
+- "Ultrathink this" - Question fundamentals, not just symptoms
+- "We're stuck?" (frustrated) - Your approach isn't working
+
+**When you see these:** STOP. Return to Phase 1.
+
+## Common Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "Issue is simple, don't need process" | Simple issues have root causes too. Process is fast for simple bugs. |
+| "Emergency, no time for process" | Systematic debugging is FASTER than guess-and-check thrashing. |
+| "Just try this first, then investigate" | First fix sets the pattern. Do it right from the start. |
+| "I'll write test after confirming fix works" | Untested fixes don't stick. Test first proves it. |
+| "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
+| "Reference too long, I'll adapt the pattern" | Partial understanding guarantees bugs. Read it completely. |
+| "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
+| "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
+
+## Quick Reference
+
+| Phase | Key Activities | Success Criteria |
+|-------|---------------|------------------|
+| **1. Root Cause** | Read errors, reproduce, check changes, gather evidence | Understand WHAT and WHY |
+| **2. Pattern** | Find working examples, compare | Identify differences |
+| **3. Hypothesis** | Form theory, test minimally | Confirmed or new hypothesis |
+| **4. Implementation** | Create test, fix, verify | Bug resolved, tests pass |
+
+## When Process Reveals "No Root Cause"
+
+If systematic investigation reveals issue is truly environmental, timing-dependent, or external:
+
+1. You've completed the process
+2. Document what you investigated
+3. Implement appropriate handling (retry, timeout, error message)
+4. Add monitoring/logging for future investigation
+
+**But:** 95% of "no root cause" cases are incomplete investigation.
+
+## Supporting Techniques
+
+These techniques are part of systematic debugging and available in this directory:
+
+- **`root-cause-tracing.md`** - Trace bugs backward through call stack to find original trigger
+- **`defense-in-depth.md`** - Add validation at multiple layers after finding root cause
+- **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
+
+**Related skills:**
+- **superpowers:test-driven-development** - For creating failing test case (Phase 4, Step 1)
+- **superpowers:verification-before-completion** - Verify fix worked before claiming success
+
+## Real-World Impact
+
+From debugging sessions:
+- Systematic approach: 15-30 minutes to fix
+- Random fixes approach: 2-3 hours of thrashing
+- First-time fix rate: 95% vs 40%
+- New bugs introduced: Near zero vs common
+
+---
+
+dispare 5 agentes de SI para analisar a solução e contribuir com o plano
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/dispatching-parallel-agents
+
+# Dispatching Parallel Agents
+
+## Overview
+
+You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
+
+**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
+
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
+```
+
+**Use when:**
+- 3+ test files failing with different root causes
+- Multiple subsystems broken independently
+- Each problem can be understood without context from others
+- No shared state between investigations
+
+**Don't use when:**
+- Failures are related (fix one might fix others)
+- Need to understand full system state
+- Agents would interfere with each other
+
+## The Pattern
+
+### 1. Identify Independent Domains
+
+Group failures by what's broken:
+- File A tests: Tool approval flow
+- File B tests: Batch completion behavior
+- File C tests: Abort functionality
+
+Each domain is independent - fixing tool approval doesn't affect abort tests.
+
+### 2. Create Focused Agent Tasks
+
+Each agent gets:
+- **Specific scope:** One test file or subsystem
+- **Clear goal:** Make these tests pass
+- **Constraints:** Don't change other code
+- **Expected output:** Summary of what you found and fixed
+
+### 3. Dispatch in Parallel
+
+```typescript
+// In Claude Code / AI environment
+Task("Fix agent-tool-abort.test.ts failures")
+Task("Fix batch-completion-behavior.test.ts failures")
+Task("Fix tool-approval-race-conditions.test.ts failures")
+// All three run concurrently
+```
+
+### 4. Review and Integrate
+
+When agents return:
+- Read each summary
+- Verify fixes don't conflict
+- Run full test suite
+- Integrate all changes
+
+## Agent Prompt Structure
+
+Good agent prompts are:
+1. **Focused** - One clear problem domain
+2. **Self-contained** - All context needed to understand the problem
+3. **Specific about output** - What should the agent return?
+
+```markdown
+Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+
+1. "should abort tool with partial output capture" - expects 'interrupted at' in message
+2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
+3. "should properly track pendingToolCount" - expects 3 results but gets 0
+
+These are timing/race condition issues. Your task:
+
+1. Read the test file and understand what each test verifies
+2. Identify root cause - timing issues or actual bugs?
+3. Fix by:
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
+
+Do NOT just increase timeouts - find the real issue.
+
+Return: Summary of what you found and what you fixed.
+```
+
+## Common Mistakes
+
+**❌ Too broad:** "Fix all the tests" - agent gets lost
+**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+
+**❌ No context:** "Fix the race condition" - agent doesn't know where
+**✅ Context:** Paste the error messages and test names
+
+**❌ No constraints:** Agent might refactor everything
+**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
+
+**❌ Vague output:** "Fix it" - you don't know what changed
+**✅ Specific:** "Return summary of root cause and changes"
+
+## When NOT to Use
+
+**Related failures:** Fixing one might fix others - investigate together first
+**Need full context:** Understanding requires seeing entire system
+**Exploratory debugging:** You don't know what's broken yet
+**Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Real Example from Session
+
+**Scenario:** 6 test failures across 3 files after major refactoring
+
+**Failures:**
+- agent-tool-abort.test.ts: 3 failures (timing issues)
+- batch-completion-behavior.test.ts: 2 failures (tools not executing)
+- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
+
+**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
+
+**Dispatch:**
+```
+Agent 1 → Fix agent-tool-abort.test.ts
+Agent 2 → Fix batch-completion-behavior.test.ts
+Agent 3 → Fix tool-approval-race-conditions.test.ts
+```
+
+**Results:**
+- Agent 1: Replaced timeouts with event-based waiting
+- Agent 2: Fixed event structure bug (threadId in wrong place)
+- Agent 3: Added wait for async tool execution to complete
+
+**Integration:** All fixes independent, no conflicts, full suite green
+
+**Time saved:** 3 problems solved in parallel vs sequentially
+
+## Key Benefits
+
+1. **Parallelization** - Multiple investigations happen simultaneously
+2. **Focus** - Each agent has narrow scope, less context to track
+3. **Independence** - Agents don't interfere with each other
+4. **Speed** - 3 problems solved in time of 1
+
+## Verification
+
+After agents return:
+1. **Review each summary** - Understand what changed
+2. **Check for conflicts** - Did agents edit same code?
+3. **Run full suite** - Verify all fixes work together
+4. **Spot check** - Agents can make systematic errors
+
+## Real-World Impact
+
+From debugging session (2025-10-03):
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes
+
+---
+
+<task-notification>
+<task-id>a8c0a65069047a48f</task-id>
+<tool-use-id>toolu_016PQzAzNbbVLWwVBVjx9QGu</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a8c0a65069047a48f.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente SI #1 — Análise WAF e CloudFront" completed</summary>
+<result>## Análise WAF/CloudFront — Incidente concertacaoamazonia.com.br
+
+---
+
+### 1. Regras WAF a adicionar (top 3 críticas)
+
+#### Regra 1 — Block-XMLRPC (Priority 3, inserir antes do rate limit)
+
+```json
+{
+  "Name": "Block-XMLRPC",
+  "Priority": 3,
+  "Statement": {
+    "ByteMatchStatement": {
+      "SearchString": "/xmlrpc.php",
+      "FieldToMatch": { "UriPath": {} },
+      "TextTransformations": [
+        { "Priority": 0, "Type": "LOWERCASE" },
+        { "Priority": 1, "Type": "URL_DECODE" }
+      ],
+      "PositionalConstraint": "ENDS_WITH"
+    }
+  },
+  "Action": { "Block": {} },
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "Block-XMLRPC"
+  }
+}
+```
+
+Justificativa: xmlrpc.php é hoje o endpoint mais explorado em WordPress (brute force, amplificação XML-RPC, DDoS via multicall). WPML moderno usa REST API — ver seção 2. Inserir com priority 3 para que a whitelist NordVPN (P0/P1) ainda passe.
+
+**Nota importante:** a regra acima vai sobrepor a priority atual do `Block-NonDev-WPAdmin` (P2) e `Block-NonDev-WPLogin` (P3). Renumerar as existentes: P2→P15, P3→P16 ou inserir em P3 com gap, dependendo de como o ACL está numerado. O CloudFront WAF aceita gaps — não precisa ser sequencial.
+
+---
+
+#### Regra 2 — RateLimit-XMLRPC-Strict (Priority 2, como backup da regra acima, ou substituta se WPML realmente precisar de xmlrpc)
+
+Caso exista qualquer dúvida sobre dependência de xmlrpc, usar rate limit agressivo ao invés de block total:
+
+```json
+{
+  "Name": "RateLimit-XMLRPC-Strict",
+  "Priority": 2,
+  "Statement": {
+    "RateBasedStatement": {
+      "Limit": 10,
+      "EvaluationWindowSec": 300,
+      "AggregateKeyType": "IP",
+      "ScopeDownStatement": {
+        "ByteMatchStatement": {
+          "SearchString": "/xmlrpc.php",
+          "FieldToMatch": { "UriPath": {} },
+          "TextTransformations": [
+            { "Priority": 0, "Type": "LOWERCASE" }
+          ],
+          "PositionalConstraint": "ENDS_WITH"
+        }
+      }
+    }
+  },
+  "Action": { "Block": {} },
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "RateLimit-XMLRPC-Strict"
+  }
+}
+```
+
+10 req/5min por IP em xmlrpc.php é mais do que suficiente para qualquer uso legítimo de sincronização. Brute force começa em centenas.
+
+---
+
+#### Regra 3 — RateLimit-PerURI-WPIncludes (Priority 8, inserir entre Allow-AdminAjax e Allow-Prod-WPAdmin-Root)
+
+Para o scanner de diretórios Tencent:
+
+```json
+{
+  "Name": "RateLimit-Scanner-Paths",
+  "Priority": 8,
+  "Statement": {
+    "RateBasedStatement": {
+      "Limit": 50,
+      "EvaluationWindowSec": 300,
+      "AggregateKeyType": "FORWARDED_IP",
+      "ForwardedIPConfig": {
+        "HeaderName": "X-Forwarded-For",
+        "FallbackBehavior": "MATCH"
+      },
+      "ScopeDownStatement": {
+        "OrStatement": {
+          "Statements": [
+            {
+              "ByteMatchStatement": {
+                "SearchString": "/wp-includes/",
+                "FieldToMatch": { "UriPath": {} },
+                "TextTransformations": [{ "Priority": 0, "Type": "LOWERCASE" }],
+                "PositionalConstraint": "STARTS_WITH"
+              }
+            },
+            {
+              "ByteMatchStatement": {
+                "SearchString": "/wp-content/",
+                "FieldToMatch": { "UriPath": {} },
+                "TextTransformations": [{ "Priority": 0, "Type": "LOWERCASE" }],
+                "PositionalConstraint": "STARTS_WITH"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Action": { "Block": {} },
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "RateLimit-Scanner-Paths"
+  }
+}
+```
+
+Usar `FORWARDED_IP` (X-Forwarded-For) é essencial aqui porque o CloudFront já adiciona o IP real do cliente nesse header. Sem isso, todos os requests chegam como IP do CloudFront e o rate limit agrega errado.
+
+---
+
+### 2. Bloqueio de xmlrpc.php no WAF vs. nginx
+
+**Recomendação: bloquear no WAF (CloudFront), não apenas no nginx.**
+
+A diferença é arquitetural:
+
+| Camada | O que acontece com a requisição |
+|--------|--------------------------------|
+| WAF/CloudFront | Request bloqueado **antes** de chegar ao EC2. CPU/memória do servidor não são consumidos. |
+| nginx no EC2 | Request chega ao servidor, consome socket, memória de conexão, e ainda encaminha para PHP-FPM antes do rate limit ativar. |
+
+No incidente descrito, o load average chegou a 34 exatamente porque o bloqueio está acontecendo **tarde demais** — o nginx recebe, o PHP-FPM processa, e só então rejeita. Com 200 req/min por IP × 6 IPs = 1.200 req/min chegando ao PHP-FPM, qualquer pool de workers satura.
+
+**Sobre WPML e xmlrpc.php:** WPML a partir da versão 4.x (2019+) migrou completamente para REST API (`/wp-json/wpml/`). A dependência de xmlrpc era do Translation Management via OTGS e foi removida. Para confirmar no ambiente:
+
+```bash
+# Verificar versão do WPML instalada
+std wp plugin get sitepress-multilingual-cms --field=version
+
+# Verificar se há chamadas reais a xmlrpc em logs recentes
+grep "xmlrpc.php" /var/log/nginx/access.log | grep -v "3.172.105\|64.252" | tail -20
+```
+
+Se o WPML instalado for >= 4.0 e os logs não mostrarem chamadas legítimas a xmlrpc (fora do range de ataque), **bloquear no WAF sem reservas.**
+
+A regra nginx pode ser mantida como defesa em profundidade, mas o WAF deve ser a linha de frente.
+
+---
+
+### 3. Proteção contra DDoS distribuído — rate limit por IP falhou
+
+O problema: 6 IPs × 299 req/5min = 1.794 req/5min passando pelo WAF. Solução em três camadas:
+
+#### Camada A — Rate limit por URI (já coberto pela Regra 3 acima)
+
+Agregar rate limit por endpoint sensível, não apenas por IP global. Um scanner que varre `/wp-includes/` com 70-80 req por IP ainda é bloqueado se o threshold por URI for 50/5min.
+
+#### Camada B — Rate limit por ASN (geolocalização de rede)
+
+O WAF v2 não tem rate limit nativo por ASN, mas permite combinar com IP sets de ranges específicos. Para o range `3.172.105.0/24` (6 IPs confirmados como atacantes), criar IP set e bloquear:
+
+```json
+{
+  "Name": "Block-KnownAttackerRanges",
+  "Priority": 3,
+  "Statement": {
+    "IPSetReferenceStatement": {
+      "ARN": "arn:aws:wafv2:us-east-1:ACCOUNT:global/ipset/AttackerRanges/ID"
+    }
+  },
+  "Action": { "Block": {} },
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "Block-KnownAttackerRanges"
+  }
+}
+```
+
+#### Camada C — AWS Shield Advanced (pago) ou WAF Fraud Control
+
+Para ataques distribuídos coordenados onde cada IP fica abaixo do threshold, a solução correta de longo prazo é **AWS Shield Advanced** com proteção L7 automática, que detecta padrões de tráfego anômalos por ACL, não por IP individual. Custo: ~$3.000/mês — relevante só se o site for alvo recorrente.
+
+**Alternativa gratuita e eficaz:** usar `Count` + CloudWatch Logs + Lambda para detecção automática de IPs com padrão anômalo (muitas URIs distintas em pouco tempo = scanner), populando o IP set dinamicamente. Isso exige desenvolvimento mas é o padrão usado por WAF gerenciados como Cloudflare Pro.
+
+#### Camada D — Threshold de grupo por URI pattern
+
+Complementar à Regra 3: adicionar rate limit para `/wp-admin/` com threshold ainda mais baixo (20/5min) para IPs não whitelistados, já que nenhum usuário legítimo faz 20 requisições ao wp-admin em 5 minutos de forma não-interativa.
+
+---
+
+### 4. IP sets recomendados — riscos de bloquear ranges grandes
+
+**`3.172.105.0/24` (Amazon AWS) — Bloquear o /24, com atenção**
+
+Este range é de instâncias EC2 na região `sa-east-1` (São Paulo), confirmável via `whois 3.172.105.68`. Bloquear `/24` implica:
+
+- Não haverá impacto em usuários finais (nenhum usuário legítimo navega com IP de EC2)
+- Risco real: outros serviços legítimos rodando em EC2 no mesmo range que chamem a API do site (ex: serviços de integração, webhooks, automações). Verificar nos logs se há outros IPs do /24 com status 200 antes de bloquear.
+- Recomendação: bloquear o `/24` especificamente para o endpoint `/xmlrpc.php` (via ScopeDown), não como bloqueio global. Isso elimina o risco de quebrar integrações legítimas.
+
+**`64.252.0.0/16` (Tencent Cloud) — Bloquear com mais cautela**
+
+Um `/16` cobre 65.536 IPs. Tencent Cloud hospeda CDN, serviços SaaS e APIs usados por empresas brasileiras. Bloquear o range inteiro pode causar false positives em:
+
+- Usuários de VPN com saída pela Tencent
+- Serviços de terceiros que usam Tencent como backbone (alguns SaaS asiáticos)
+- Bots legítimos de indexação que usam infraestrutura Tencent
+
+Recomendação: **não bloquear o /16 globalmente**. Em vez disso:
+
+1. Criar IP set com os `/24` ou `/22` específicos identificados nos logs de ataque
+2. Usar rate limit agressivo (Regra 3) para paths de scanner — isso bloqueia o comportamento, não o range inteiro
+3. Se o site não tem audiência na China/Ásia, considerar bloqueio geográfico via CloudFront Geo Restriction para `CN` (China) — isso cobre grande parte do Tencent Cloud sem precisar de IP sets manuais
+
+```json
+// Geo restriction no CloudFront Distribution (não no WAF) — mais eficiente
+// Via console: CloudFront → Distribution → Geographic restrictions → Block → CN
+```
+
+---
+
+### 5. Managed Rule Groups gratuitas da AWS
+
+**Recomendadas para este caso:**
+
+#### `AWSManagedRulesWordPressRuleSet` — Ativar imediatamente
+
+Cobre exatamente os vetores do incidente:
+
+- `REDACTED` — bloqueia comandos perigosos via query string
+- `WordPressExploitablePaths_URIPATH` — bloqueia paths conhecidos como vetores de exploit incluindo xmlrpc em contextos de multicall
+
+**Risco de false positive:** baixo para WordPress padrão. O risco principal é em customizações que usam query strings não convencionais. Ativar em modo `Count` por 48h antes de mudar para `Block`:
+
+```json
+{
+  "Name": "AWS-AWSManagedRulesWordPressRuleSet",
+  "Priority": 15,
+  "Statement": {
+    "ManagedRuleGroupStatement": {
+      "VendorName": "AWS",
+      "Name": "AWSManagedRulesWordPressRuleSet"
+    }
+  },
+  "OverrideAction": { "Count": {} },
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "AWS-WordPress"
+  }
+}
+```
+
+Após 48h sem false positives, trocar `OverrideAction` para `None` (usa ação nativa das regras, que é Block).
+
+#### `AWSManagedRulesKnownBadInputsRuleSet` — Ativar
+
+Bloqueia payloads conhecidos de exploração (Log4Shell, path traversal, SSRF). Sem risco material de false positive para WordPress.
+
+#### `AWSManagedRulesCommonRuleSet` — Ativar com exclusões
+
+É o mais abrangente, mas tem false positives conhecidos em WordPress:
+
+- Regra `SizeRestrictions_BODY` quebra uploads grandes (Elementor, Media Library)
+- Regra `GenericRFI_BODY` pode bloquear shortcodes com URLs
+- Regra `EC2MetaDataSSRF_BODY` pode bloquear em alguns contextos de API
+
+Estratégia: ativar em modo `Count`, identificar quais regras específicas disparam em requests legítimos, excluir somente essas via `ExcludedRules`, depois mudar para Block:
+
+```json
+{
+  "Name": "AWS-CommonRuleSet",
+  "Priority": 16,
+  "Statement": {
+    "ManagedRuleGroupStatement": {
+      "VendorName": "AWS",
+      "Name": "AWSManagedRulesCommonRuleSet",
+      "ExcludedRules": [
+        { "Name": "SizeRestrictions_BODY" }
+      ]
+    }
+  },
+  "OverrideAction": { "Count": {} }
+}
+```
+
+#### `AWSManagedRulesBotControlRuleSet` — Avaliar (tem custo adicional)
+
+Esta é a única managed rule com custo separado (~$10/mês + $1/milhão de req). Para o scanner Tencent, seria a solução mais direta — detecta fingerprints de bots mesmo quando mudam de IP. Para o volume atual do site, o custo provavelmente não se justifica frente às regras customizadas acima.
+
+---
+
+### Resumo de prioridades de implementação
+
+| Ordem | Ação | Impacto | Risco |
+|-------|------|---------|-------|
+| 1 | Adicionar `Block-XMLRPC` no WAF (P3) | Elimina vetor principal imediatamente | Nenhum se WPML >= 4.x |
+| 2 | Ativar `AWSManagedRulesWordPressRuleSet` em Count por 48h | Detecção de exploits WordPress | Baixo |
+| 3 | Adicionar `RateLimit-Scanner-Paths` (P8) com FORWARDED_IP | Mitiga scanner distribuído | Baixo |
+| 4 | Criar IP set com `/24` confirmados do incidente | Bloqueio cirúrgico dos atacantes conhecidos | Nenhum |
+| 5 | Avaliar bloqueio geográfico CN no CloudFront | Reduz superfície do scanner Tencent | Apenas se sem audiência asiática |
+| 6 | Ativar `AWSManagedRulesCommonRuleSet` em Count | Baseline de proteção ampla | Médio — requer período de observação |</result>
+<usage><total_tokens>19392</total_tokens><tool_uses>0</tool_uses><duration_ms>80043</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad36eb096e05aabe0</task-id>
+<tool-use-id>toolu_01V3cjy7WkoB7ZRKxsrpRxkz</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/ad36eb096e05aabe0.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente SI #2 — Hardening nginx/PHP-FPM" completed</summary>
+<result>Tenho tudo que preciso. Segue a análise técnica completa.
+
+---
+
+# Hardening nginx/PHP-FPM — Análise do Incidente
+
+## 1. xmlrpc.php — Bloquear ou rate limit agressivo?
+
+### O comentário "WPML usa xmlrpc" está errado
+
+WPML abandonou xmlrpc como mecanismo de sync **desde a versão 3.6 (2016)**. A comunicação entre subsites no multisite e entre instalações separadas passou a usar REST API (`/wp-json/wpml/`). Versões modernas (4.x e 5.x, que certamente são as ativas em produção) não tocam xmlrpc para nada funcional.
+
+**Conclusão: o comentário está desatualizado há quase 10 anos.** Nenhuma funcionalidade crítica da stack atual (WPML, JetEngine, Elementor, The Events Calendar) depende de xmlrpc.
+
+### O que fazer com xmlrpc
+
+Há três níveis possíveis:
+
+**Nível 1 — Bloqueio total (recomendado para este site):**
+```nginx
+location = /xmlrpc.php {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+```
+Retorna 403 imediatamente, **antes** de qualquer decisão de PHP-FPM. Zero custo de CPU. O brute force bate na parede no nginx.
+
+**Nível 2 — Rate limit agressivo com bloqueio por método:**
+```nginx
+location = /xmlrpc.php {
+    limit_req zone=xmlrpc burst=2 nodelay;
+    limit_req_status 444;  # fecha conexão sem resposta HTTP
+    # ... PHP-FPM
+}
+```
+`444` fecha o socket sem responder — melhor que 403 para atacantes porque não confirma a existência do endpoint.
+
+**Nível 3 — Manter aberto mas restrito** (apenas se alguma integração legada precisar): whitelist de IPs + rate limit extremamente baixo (`1r/m`).
+
+Para o Concertação, o bloqueio total (Nível 1) é correto. Verifique em produção: `grep -i xmlrpc /var/log/nginx/access.log | grep -v ' 403 ' | head -20` — se só houver 403s ou se não houver requisições legítimas, confirme o bloqueio.
+
+---
+
+## 2. Dimensionamento PHP-FPM para t3.xlarge com stack pesada
+
+### Por que 20-25 workers saturaram com 4 vCPUs
+
+O t3.xlarge tem 4 vCPUs mas **8GB RAM**. O gargalo aqui não é CPU — é que cada worker PHP com WordPress pesado (Elementor + JetEngine + WPML) consome entre **150-250MB RSS**. Com 25 workers: 25 × 200MB = **5GB RAM só de PHP**. Quando o ataque chegou, os workers estavam bloqueados esperando respostas lentas de MySQL/Redis, acumulando backlog.
+
+### Configuração recomendada
+
+```ini
+; www.conf — PHP-FPM pool para WordPress pesado em t3.xlarge
+pm = dynamic
+
+; Limite seguro: 8GB - 2GB (SO + nginx + MySQL local) - 1GB (headroom) = 5GB para PHP
+; 5000MB / 200MB por worker = ~25 workers máx
+; Mas com ataque, queremos deixar headroom para workers legítimos
+pm.max_children = 20
+
+; Workers pré-iniciados: reduz cold start em picos legítimos
+pm.start_servers = 5
+
+; Mínimo em idle: mantém capacidade sem desperdiçar RAM
+pm.min_spare_servers = 3
+
+; Máximo em idle: evitar crescimento excessivo após pico
+pm.max_spare_servers = 8
+
+; CRÍTICO: recicla workers para evitar memory leak acumulativo (Elementor vaza)
+; ~500 requests por worker antes de recriar o processo
+pm.max_requests = 500
+
+; Timeout de execução — mata scripts pendurados (não afeta uploads)
+request_terminate_timeout = 60s
+
+; Slow log para identificar gargalos
+slowlog = /var/log/php-fpm/slow.log
+request_slowlog_timeout = 10s
+
+; Limite de arquivo de log
+rlimit_files = 65535
+```
+
+### Por que `pm.max_requests = 500` é essencial
+
+WordPress com Elementor tem vazamentos de memória em plugins. Um worker que processa 10.000 requests pode estar consumindo 600-800MB. O `pm.max_requests` garante reciclagem periódica. O custo é insignificante (fork é barato em Linux moderno).
+
+### Complemento: `pm.process_idle_timeout`
+
+Se usar `pm = ondemand` (alternativa mais agressiva para economizar RAM em períodos de baixo tráfego):
+```ini
+pm = ondemand
+pm.max_children = 20
+pm.process_idle_timeout = 30s
+pm.max_requests = 500
+```
+Em `ondemand`, workers são criados sob demanda e destruídos após 30s de idle. Mais conservador com RAM, mas adiciona latência no primeiro request após idle. Para site com tráfego constante, `dynamic` é melhor.
+
+---
+
+## 3. Rate limiting nginx contra ataques distribuídos
+
+### Problema com a config atual
+
+O `limit_req_zone=wp_login` (não visível na config dev, presumivelmente `$binary_remote_addr`) limita **por IP individual**. Com 6 IPs diferentes fazendo 200 req/IP/min, cada IP individualmente pode estar abaixo do burst, mas no total é 1.200 req/min chegando no PHP-FPM.
+
+### Técnicas combinadas
+
+**a) Zone por URI — limitar o endpoint independente de IP:**
+```nginx
+http {
+    # Zone geral por IP (já existente)
+    limit_req_zone $binary_remote_addr zone=per_ip:10m rate=10r/s;
+    
+    # Zone por URI — limita requisições ao endpoint globalmente
+    # Teto absoluto de req/s para xmlrpc/login independente de quantos IPs
+    limit_req_zone $uri zone=per_uri:1m rate=5r/s;
+    
+    # Zone combinada IP+URI — mais granular
+    limit_req_zone "$binary_remote_addr$uri" zone=ip_uri:10m rate=2r/s;
+    
+    # Zone para wp-login.php
+    limit_req_zone $binary_remote_addr zone=wp_login:10m rate=1r/s;
+}
+```
+
+**b) `limit_conn` — limitar conexões simultâneas por IP:**
+```nginx
+http {
+    limit_conn_zone $binary_remote_addr zone=addr:10m;
+}
+
+server {
+    # Máximo 10 conexões simultâneas por IP
+    limit_conn addr 10;
+    
+    location ~ \.php$ {
+        # PHP: máximo 5 conexões simultâneas por IP
+        limit_conn addr 5;
+        limit_req zone=per_ip burst=10 nodelay;
+        # ...
+    }
+}
+```
+
+**c) Bloquear User-Agents conhecidos de scanners:**
+```nginx
+map $http_user_agent $bad_agent {
+    default           0;
+    ~*masscan         1;
+    ~*nikto           1;
+    ~*zgrab           1;
+    ~*sqlmap          1;
+    ~*python-requests 1;
+    ~*curl/           1;  # cuidado: CloudFront usa curl em health checks — verificar
+    ""                1;  # sem User-Agent = scanner
+}
+
+server {
+    if ($bad_agent) {
+        return 444;
+    }
+}
+```
+
+**d) Rate limit com `delay` em vez de `nodelay` para ataques distribuídos lentos:**
+```nginx
+# burst=20 permite rajada, mas delay=10 faz as últimas 10 esperarem
+# Atacantes com scripts simples ficam "presos" na fila sem desistir
+location = /wp-login.php {
+    limit_req zone=wp_login burst=20 delay=10;
+    # ...
+}
+```
+
+**e) Bloquear ranges CIDR conhecidos de atacantes:**
+```nginx
+geo $block_range {
+    default         0;
+    64.252.0.0/16   1;  # Tencent Cloud — bloco do scanner identificado
+    3.172.0.0/14    1;  # AWS us-east range dos IPs de brute force
+}
+
+server {
+    if ($block_range) {
+        return 444;
+    }
+}
+```
+
+O bloco `3.172.105.0/24` é AWS — pode ser legítimo em outros contextos, mas se todos os requests desse range no incidente foram POST para xmlrpc.php, vale bloquear temporariamente via `geo` e remover depois.
+
+---
+
+## 4. Bloqueio de scanners de wp-includes/ e diretórios WordPress
+
+### Problema: scanners testam arquivos PHP internos do WordPress
+
+Requests como `GET /wp-includes/SimplePie/IRI.php` ou `GET /wp-admin/includes/admin.php` não deveriam nunca ser acessados diretamente — são incluídos por `index.php`, não executados via HTTP.
+
+### Configuração específica para bloquear acesso direto
+
+```nginx
+# Bloquear execução direta de PHP dentro de wp-includes e wp-admin/includes
+# Esses arquivos só devem ser carregados via include PHP, nunca via HTTP direto
+location ~* /wp-includes/.*\.php$ {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+
+location ~* /wp-admin/includes/.*\.php$ {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+
+# Bloquear acesso a arquivos de tema que não deveriam ser acessados diretamente
+location ~* /wp-content/themes/[^/]+/(?!style\.css|screenshot\.png).*\.php$ {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+```
+
+**Atenção com a ordem das locations:** A config atual tem `location ~ \.php$` que captura tudo. As novas regras de bloqueio devem usar `location ~*` com padrões mais específicos — e em nginx, `location ~*` **não** tem precedência automática sobre `location ~`. A solução é colocar os bloqueios **antes** da location PHP genérica no arquivo, ou usar o modificador `^~` em combinação com try_files + deny.
+
+A forma mais robusta para garantir precedência:
+```nginx
+# DEVE vir ANTES de location ~ \.php$
+location ~* ^/wp-includes/.*\.php$ { deny all; access_log off; log_not_found off; }
+location ~* ^/wp-admin/includes/.*\.php$ { deny all; access_log off; log_not_found off; }
+```
+
+### Bloquear scanning de extensões suspeitas
+
+```nginx
+# Scanners buscam backups, configs, Git artifacts
+location ~* \.(sql|bak|bk|swp|orig|old|tar|gz|zip|7z|log)$ {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+
+# Git artifacts — crítico
+location ~* /\.git {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+
+# Composer/Node artifacts
+location ~* /(composer\.(json|lock)|package\.json|\.env|\.env\.)  {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+```
+
+---
+
+## 5. fail2ban com X-Forwarded-For atrás do ALB
+
+### O problema específico do EC2 atrás de ALB
+
+O nginx recebe `$remote_addr` como o IP do ALB (faixa privada `172.x.x.x`), não do cliente. O IP real vem em `X-Forwarded-For`. Se o fail2ban lê `remote_addr` dos logs, vai banir o IP do próprio ALB — derrubando o site.
+
+### Solução: log format com IP real + fail2ban config ajustado
+
+**Passo 1 — Alterar o log format no nginx para logar o IP real:**
+```nginx
+# Em nginx.conf, substituir o log_format main atual
+log_format main_real '$http_x_forwarded_for - $remote_user [$time_local] "$request" '
+                     '$status $body_bytes_sent "$http_referer" '
+                     '"$http_user_agent"';
+```
+
+Ou, mais elegante, usar `set_real_ip_from` para que o nginx trate o `X-Forwarded-For` como `$remote_addr`:
+```nginx
+# Aceitar X-Forwarded-For apenas de IPs do ALB (subnets privadas AWS)
+set_real_ip_from 10.0.0.0/8;
+set_real_ip_from 172.16.0.0/12;
+set_real_ip_from 192.168.0.0/16;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+```
+
+Com `real_ip_recursive on`, o nginx extrai o IP mais à esquerda do cabeçalho que não seja um proxy confiável. Isso é o IP real do cliente. A partir daí, `$remote_addr` nos logs já contém o IP correto — fail2ban funciona normalmente sem ajustes.
+
+**Passo 2 — Filtro fail2ban para WordPress:**
+
+```ini
+# /etc/fail2ban/filter.d/wordpress-xmlrpc.conf
+[Definition]
+failregex = ^<HOST> .* "POST /xmlrpc\.php.*" (200|403|429)
+ignoreregex =
+
+# /etc/fail2ban/filter.d/nginx-scanner.conf
+[Definition]
+# Scanner de diretórios: muitos 404 em sequência rápida
+failregex = ^<HOST> .* "(GET|POST) /wp-(includes|admin)/.*" 403
+            ^<HOST> .* "(GET|POST) .*\.(sql|bak|env|git).*" (404|403)
+ignoreregex =
+```
+
+**Passo 3 — Jail config:**
+```ini
+# /etc/fail2ban/jail.local
+[wordpress-xmlrpc]
+enabled  = true
+filter   = wordpress-xmlrpc
+logpath  = /var/log/nginx/access.log
+maxretry = 10
+findtime = 60
+bantime  = 3600
+action   = iptables-multiport[name=wordpress, port="80,443", protocol=tcp]
+
+[nginx-scanner]
+enabled  = true
+filter   = nginx-scanner
+logpath  = /var/log/nginx/access.log
+maxretry = 30
+findtime = 60
+bantime  = 86400  ; 24h para scanners
+action   = iptables-multiport[name=scanner, port="80,443", protocol=tcp]
+```
+
+### Por que iptables funciona mesmo com ALB
+
+O ALB entrega tráfego para as instâncias EC2 na porta 80/443. Mesmo que o IP do ALB seja privado, **o `real_ip` já corrigiu `$remote_addr`** no nginx. O fail2ban lê os logs com o IP real e bane via iptables na interface de rede da instância. O ALB não é afetado porque ele está numa camada diferente — o tráfego bloqueado pelo iptables é de conexões TCP saindo do ALB com o IP original preservado no header, mas o iptables na EC2 vai bloquear **todas** as conexões originadas do ALB que contenham `X-Forwarded-For` com aquele IP específico.
+
+**Atenção:** iptables na EC2 não consegue filtrar por `X-Forwarded-For` — iptables opera em L3/L4, não L7. A solução correta é uma de:
+
+1. **Opção A — fail2ban + nginx `deny` dinâmico:** Em vez de iptables, o fail2ban escreve em `/etc/nginx/conf.d/blacklist.conf` (lista de `deny IP;`) e faz `nginx -s reload`. Funciona em L7 onde o IP real já está disponível.
+
+2. **Opção B — AWS WAF no ALB (recomendado para produção):** Rate-based rules no WAF filtram por IP real antes de chegar à EC2. Custo: ~$5/mês base + por request. Elimina a necessidade de fail2ban.
+
+3. **Opção C — fail2ban + AWS CLI para Security Groups:** O fail2ban executa `aws ec2 revoke-security-group-ingress` para bloquear o IP no nível do Security Group. Complexo e com race conditions.
+
+Para este ambiente, a **Opção A** (fail2ban + nginx blacklist dinâmica) é a mais simples de implementar sem custos adicionais.
+
+---
+
+## Prioridade de implementação
+
+| Prioridade | Ação | Impacto |
+|------------|------|---------|
+| Imediata | Bloquear xmlrpc.php com `deny all` | Elimina o vetor principal |
+| Imediata | Adicionar `set_real_ip_from` para ALB | Pré-requisito para fail2ban correto |
+| Curto prazo | Bloquear acesso direto a `wp-includes/*.php` | Corta scanning de diretórios |
+| Curto prazo | `pm.max_requests = 500` no PHP-FPM | Evita worker leak |
+| Médio prazo | fail2ban com nginx blacklist dinâmica | Banimento automático de IPs agressivos |
+| Médio prazo | `geo` block para ranges Tencent/AWS abusivos | Redução de ruído nos logs |
+| Longo prazo | AWS WAF com rate-based rules no ALB | Solução definitiva escalável |</result>
+<usage><total_tokens>31302</total_tokens><tool_uses>2</tool_uses><duration_ms>99849</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa81a40ba70ee70aa</task-id>
+<tool-use-id>toolu_01T1eaJRuvZjUnWPaAnYE3Lo</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/aa81a40ba70ee70aa.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente SI #3 — WordPress security hardening" completed</summary>
+<result>Tenho todos os dados necessários. A análise vai ser precisa porque li o código real — a versão WPML 4.8.6 instalada, os mu-plugins ativos, a ausência de plugins de segurança, e os detalhes do `network-media-library`. Segue:
+
+---
+
+## Análise de Segurança WordPress — Concertação Amazônica
+
+### 1. xmlrpc.php no WPML — é seguro bloquear?
+
+**Resposta direta: bloquear totalmente é viável, mas exige uma decisão consciente sobre o pickup method do WPML Translation Proxy.**
+
+Lendo o código fonte da versão instalada (WPML 4.8.6):
+
+`sitepress.php` linha 370-373 confirma que `WPML_XMLRPC` só é instanciado quando `defined('XMLRPC_REQUEST') && XMLRPC_REQUEST` — ou seja, **o WPML em si só usa xmlrpc se uma request chega em xmlrpc.php**. O core do site (multilíngue, language switcher, WPML Circle, filtros JetEngine, `bit-wpml-circle.php`) não depende de xmlrpc para funcionar.
+
+O que **realmente usa xmlrpc no stack atual**:
+
+| Plugin | Uso | Impacto do bloqueio |
+|---|---|---|
+| **WPML 4.8.6** | `WPML_XMLRPC::xmlrpc_call()` — trata posts criados via xmlrpc para definir `_wpml_language` e `_wpml_trid` | Nenhum impacto no frontend. Impacto apenas se alguém criar posts via MetaWeblog API/xmlrpc remotamente |
+| **WPML Translation Proxy** | `ICL_PRO_TRANSLATION_PICKUP_XMLRPC` (constante 0) vs `ICL_PRO_TRANSLATION_PICKUP_POLLING` (constante 1) | **Depende da configuração `translation_pickup_method` no banco** |
+| **WPML Translation Feedback** | `WPML_TF_XML_RPC_Hooks` — callback `translationproxy.update_feedback_status` | Só relevante se estiver usando WPML Translation Management com serviço externo de tradução profissional |
+| **Network Media Library** | Trata `metaWeblog.newMediaObject`, `wp.getMediaItem`, `wp.getMediaLibrary` para redirecionar ao blog de mídia centralizado | Só impacta se uploads forem feitos via xmlrpc client externo (Desk, MarsEdit, etc.) |
+
+**Ação urgente antes de bloquear:** verificar o pickup method no banco:
+
+```bash
+std wp eval 'echo get_option("icl_sitepress_settings")["translation_pickup_method"];'
+# 0 = XMLRPC (quebra o Translation Proxy se bloqueado)
+# 1 = POLLING (seguro bloquear)
+```
+
+Se retornar `1` (polling) ou se não estiver usando WPML Translation Management com serviço externo pago — **bloquear é seguro**. A imensa maioria dos sites que usa WPML sem contrato com tradutores profissionais externos não usa Translation Proxy.
+
+---
+
+### 2. mu-plugin de bloqueio xmlrpc
+
+Bloquear via mu-plugin é a camada mais rápida dentro do WordPress (carrega antes dos plugins). O hook `xmlrpc_enabled` retorna `false` e causa 403 antes de qualquer autenticação:
+
+```php
+<?php
+/**
+ * Plugin Name: BIT Disable XMLRPC
+ * Description: Bloqueia xmlrpc.php completamente. WPML 4.8.6 usa este endpoint apenas
+ *              para Translation Proxy pickup (se configurado como XMLRPC) e para posts
+ *              criados via MetaWeblog API. Nenhum desses usos é ativo neste site.
+ * Version:     1.0.0
+ * Author:      Bureau de Tecnologia
+ * Network:     true
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+/**
+ * Retorna false para desabilitar completamente o endpoint xmlrpc.php.
+ * O WordPress emite HTTP 403 antes de processar qualquer método.
+ * Isso não afeta REST API, admin-ajax.php, nem o frontend multilíngue do WPML.
+ */
+add_filter( 'xmlrpc_enabled', '__return_false' );
+
+/**
+ * Remove todos os métodos xmlrpc da lista — defesa em profundidade caso
+ * xmlrpc_enabled seja contornado por algum plugin legacy.
+ */
+add_filter( 'xmlrpc_methods', function() {
+    return [];
+} );
+```
+
+**Importante:** `xmlrpc_enabled` retornando `false` emite `HTTP 403 Forbidden` com body XML de erro — não um 404. Isso ainda consome um worker PHP-FPM por request. Para zerar o custo de CPU, bloquear no nginx (retornando 403 puro) é superior. O mu-plugin é a camada de segurança WordPress, não o substituto do nginx. A combinação ideal é os dois.
+
+---
+
+### 3. Vetores de ataque específicos de WordPress Multisite
+
+Além de xmlrpc, o modo subdirectory multisite expõe endpoints adicionais que não existem em sites single-site:
+
+**`/wp-signup.php`** — formulário de cadastro de novos subsites. Se `Registration` estiver habilitado em `Configurações de Rede > Opções de Registro`, qualquer usuário pode criar um subsite. Verificar:
+
+```bash
+std wp network meta get 1 registration
+# 'none'    → seguro
+# 'user'    → só usuários, verificar
+# 'blog'    → qualquer um pode criar subsite, alto risco
+# 'all'     → alto risco
+```
+
+**`/wp-activate.php`** — ativação de contas criadas via `/wp-signup.php`. Se `registration` for `none`, este endpoint fica inerte mas continua respondendo — melhor bloquear no nginx também.
+
+**`/wp-json/wp/v2/users`** — a REST API expõe lista de usuários por padrão, incluindo usernames. Em multisite, há um endpoint por blog. Com `--url=`, WP-CLI confirma:
+
+```bash
+# Retorna usernames publicamente sem autenticação
+curl https://concertacaoamazonia.com.br/wp-json/wp/v2/users
+curl https://concertacaoamazonia.com.br/cultura/wp-json/wp/v2/users
+```
+
+Bloquear via mu-plugin:
+
+```php
+// Adicionar ao mu-plugin existente bit-disable-xmlrpc.php ou criar separado
+add_filter( 'rest_endpoints', function( $endpoints ) {
+    if ( isset( $endpoints['/wp/v2/users'] ) ) {
+        unset( $endpoints['/wp/v2/users'] );
+    }
+    if ( isset( $endpoints['/wp/v2/users/(?P<id>[\d]+)'] ) ) {
+        unset( $endpoints['/wp/v2/users/(?P<id>[\d]+)'] );
+    }
+    return $endpoints;
+} );
+```
+
+**`/wp-json/oembed/`** — expõe título de posts não publicados via embed. Baixo risco mas verificar.
+
+**`/cultura/wp-login.php`** — o rewrite multisite redireciona para `/wp-login.php`, mas bots costumam tentar ambos os paths. O nginx atual (linha 209) trata apenas `wp-login.php` sem prefix, o que cobre ambos via rewrite, mas sem rate limit.
+
+**Tabelas `wp_2_*` do subsite /cultura/** — se o banco tiver usuários com `meta_key = wp_2_capabilities`, esses usuários têm acesso apenas ao subsite. Verificar se não há usuários com `administrator` no subsite que não deveriam ter.
+
+---
+
+### 4. Proteção de wp-login.php na camada WordPress
+
+O nginx atual (linha 209) tem um `location` para `wp-login.php` mas **não tem `limit_req`** — não há rate limiting implementado em nenhuma camada visível nos arquivos do repositório, e não há plugin de limitação de login instalado (verificado — nenhum Wordfence, Cerber, Limit Login Attempts nos plugins).
+
+**Opção A — mu-plugin com rate limit via transients (zero dependência):**
+
+```php
+<?php
+/**
+ * Plugin Name: BIT Login Rate Limit
+ * Description: Rate limit em wp-login.php usando transients no Redis.
+ *              Bloqueia IP após 5 falhas em 5 minutos. Compatível com WP Rocket + Redis.
+ * Version:     1.0.0
+ * Author:      Bureau de Tecnologia
+ * Network:     true
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+// Só age no formulário de login, não na página GET
+add_action( 'wp_login_failed', function( string $username ) {
+
+    // Em ambiente com Cloudflare Tunnel, usar CF-Connecting-IP
+    $ip = $_SERVER['HTTP_CF_CONNECTING_IP']
+        ?? $_SERVER['HTTP_X_FORWARDED_FOR']
+        ?? $_SERVER['REMOTE_ADDR']
+        ?? '0.0.0.0';
+
+    // Normalizar: pegar primeiro IP da lista se X-Forwarded-For tiver múltiplos
+    $ip = trim( explode( ',', $ip )[0] );
+
+    $key      = 'bit_login_fail_' . md5( $ip );
+    $attempts = (int) get_transient( $key );
+    $attempts++;
+    set_transient( $key, $attempts, 5 * MINUTE_IN_SECONDS );
+
+    if ( $attempts >= 5 ) {
+        wp_die(
+            '<p>Muitas tentativas de login. Tente novamente em alguns minutos.</p>',
+            'Acesso bloqueado',
+            [ 'response' => 429 ]
+        );
+    }
+} );
+
+// Verificar antes do formulário ser processado
+add_action( 'login_init', function() {
+
+    if ( 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
+        return;
+    }
+
+    $ip = $_SERVER['HTTP_CF_CONNECTING_IP']
+        ?? $_SERVER['HTTP_X_FORWARDED_FOR']
+        ?? $_SERVER['REMOTE_ADDR']
+        ?? '0.0.0.0';
+
+    $ip       = trim( explode( ',', $ip )[0] );
+    $key      = 'bit_login_fail_' . md5( $ip );
+    $attempts = (int) get_transient( $key );
+
+    if ( $attempts >= 5 ) {
+        wp_die(
+            '<p>Muitas tentativas de login. Tente novamente em alguns minutos.</p>',
+            'Acesso bloqueado',
+            [ 'response' => 429 ]
+        );
+    }
+} );
+```
+
+Este mu-plugin funciona com o Redis Object Cache do site — os transients são armazenados no Redis, não no MySQL, então não adiciona queries ao banco durante brute force.
+
+**Cuidado com o IP:** o nginx passa `HTTP_CF_CONNECTING_IP` via `fastcgi_param` (linha confirmada no `wordpress.conf`), então o PHP recebe o IP real do visitante mesmo atrás do Cloudflare Tunnel — o código acima trata corretamente essa cadeia.
+
+---
+
+### 5. Auditoria de usuários após brute force em xmlrpc
+
+Queries e comandos para confirmar que não houve comprometimento, em ordem de prioridade:
+
+**1. Verificar logins bem-sucedidos recentes** — o `wp_usermeta` não registra isso nativamente, mas os logs de sessão sim:
+
+```bash
+# Sessões ativas (session tokens) — usuários com login ativo
+std wp db query "SELECT user_login, meta_value FROM wp_users u
+JOIN wp_usermeta m ON u.ID = m.user_id
+WHERE m.meta_key = 'session_tokens'
+AND meta_value != 'a:0:{}'
+ORDER BY u.user_login;"
+```
+
+**2. Verificar admins de rede (Super Admins) — tabela correta para multisite:**
+
+```bash
+std wp db query "SELECT meta_value FROM wp_sitemeta WHERE meta_key = 'site_admins';"
+# Ou via WP-CLI (mais legível)
+std wp super-admin list
+```
+
+**3. Verificar admins por subsite:**
+
+```bash
+# Blog 1 (raiz)
+std wp user list --role=administrator --fields=ID,user_login,user_email,user_registered
+
+# Blog 2 (/cultura/)
+std wp --url="https://cambrasmax.local:8484/cultura/" user list --role=administrator --fields=ID,user_login,user_email,user_registered
+```
+
+**4. Verificar usuários criados recentemente (últimas 48h):**
+
+```bash
+std wp db query "SELECT ID, user_login, user_email, user_registered
+FROM wp_users
+WHERE user_registered > DATE_SUB(NOW(), INTERVAL 48 HOUR)
+ORDER BY user_registered DESC;"
+```
+
+**5. Verificar alterações de senha recentes via meta `_wpml_language` não relacionado — na verdade via log de modificação no `wp_posts`:**
+
+```bash
+# Usuários com senha alterada nas últimas 24h (WordPress não registra isso
+# nativamente, mas o campo user_pass guarda o hash — comparar com backup
+# ou verificar session_tokens com timestamp)
+std wp db query "SELECT user_id, meta_value
+FROM wp_usermeta
+WHERE meta_key = 'session_tokens'
+AND meta_value NOT LIKE 'a:0:{}';"
+# Decodificar o PHP serialized para ver timestamps das sessões
+```
+
+**6. Verificar Application Passwords criadas (vetor de comprometimento pós-xmlrpc):**
+
+```bash
+std wp db query "SELECT u.user_login, m.meta_value
+FROM wp_usermeta m
+JOIN wp_users u ON u.ID = m.user_id
+WHERE m.meta_key = '_application_passwords'
+AND m.meta_value != 'a:0:{}';"
+```
+
+Application Passwords é o vetor moderno — se xmlrpc foi usado para autenticar, o atacante pode ter criado uma Application Password para acesso REST API persistente.
+
+**7. Verificar logs de acesso para xmlrpc autenticado bem-sucedido** (no servidor EC2, não no Docker):
+
+```bash
+# Em produção via SSH
+ssh concertacaoamazonia.com.br-prod-sa
+grep "xmlrpc.php" /var/log/nginx/access.log | grep " 200 " | tail -50
+# 403/405 = bloqueado ou rejeitado corretamente
+# 200 com POST = autenticação processada — verificar username
+```
+
+---
+
+### 6. Plugins de segurança — vale instalar no stack atual?
+
+**Recomendação: não instalar Wordfence ou Sucuri neste stack. Instalar Cerber Security.**
+
+Análise por plugin:
+
+**Wordfence — não recomendado aqui:**
+- O firewall WAF do Wordfence roda em PHP (before WordPress bootstrap), o que é menos eficiente que nginx/CloudFront WAF
+- O scanner de malware lê todos os arquivos PHP do disco em cada scan — com Elementor (centenas de arquivos) + JetEngine + WPML, um scan pode consumir 2-4 GB de I/O e elevar o load em 8-12 pontos durante ~5 minutos
+- O "live traffic" do Wordfence usa sua própria tabela de log (`wfTraffic`) que cresce muito rápido em sites com tráfego — requer manutenção
+- Em multisite, o Wordfence cobra por subsite na versão paga
+- O maior benefício do Wordfence (WAF + bloqueio de IPs) já está disponível no CloudFront WAF que existe na infraestrutura de produção do site
+
+**Sucuri — não recomendado:**
+- O Sucuri SiteCheck é um scanner externo que só vê HTML renderizado, não o código PHP — limitado para detecção de backdoors
+- O Sucuri Firewall é um proxy reverso que precisa mudar os DNS — conflita com o CloudFront já configurado
+- O plugin de monitoramento do Sucuri usa polling constante que adiciona load desnecessário
+
+**Cerber Security — adequado para este stack:**
+- Rate limiting de wp-login.php e xmlrpc nativo, mais sofisticado que o mu-plugin acima (blacklist por IP + subnet)
+- Proteção de REST API por IP e por endpoint
+- Compatível com WP Rocket (não interfere no cache)
+- Leve: não tem scanner de disco por padrão
+- Suporta multisite com configuração por rede
+- Não usa tabelas de log em disco por default
+
+**Alternativa sem plugin adicional — que é o caminho mais limpo:**
+O stack já tem CloudFront (distribuição `E2F1QD7E7YOYEB`) na produção. A solução mais eficiente é criar uma regra no **CloudFront WAF** para:
+1. Bloquear `3.172.105.0/24` e `64.252.0.0/16` por IP
+2. Rate limit em `/xmlrpc.php` e `/wp-login.php` a nível de CDN — antes de chegar no EC2
+
+Isso elimina o problema na origem sem adicionar carga ao PHP-FPM, que é o recurso que saturou (load 34, 19.2% 5XX).
+
+---
+
+### Resumo de ações priorizadas (camada WordPress)
+
+| Prioridade | Ação | Risco |
+|---|---|---|
+| 1 | Verificar `translation_pickup_method` no banco antes de bloquear xmlrpc | Baixo |
+| 2 | Criar `bit-disable-xmlrpc.php` como mu-plugin | Zero |
+| 3 | Auditar Application Passwords (`_application_passwords` no wp_usermeta) | Investigativo |
+| 4 | Verificar `std wp super-admin list` e usuários criados nas últimas 48h | Investigativo |
+| 5 | Criar `bit-login-rate-limit.php` como mu-plugin | Zero |
+| 6 | Bloquear endpoint REST `/wp/v2/users` | Baixo |
+| 7 | Verificar `network meta registration` — se não for `none`, configurar para `none` | Baixo |
+| 8 | CloudFront WAF: rate limit + block IPs abusivos | Camada infra, não WordPress |
+
+Os mu-plugins propostos podem ser adicionados diretamente em `wordpress/wp-content/mu-plugins/` e copiados para `docker-dev/common/mu-plugins/` conforme a regra do repositório.</result>
+<usage><total_tokens>42881</total_tokens><tool_uses>23</tool_uses><duration_ms>204251</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0992e1936c3553cf</task-id>
+<tool-use-id>toolu_015KXzHWBcv61B2WcgKTAAh1</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a0992e1936c3553cf.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente 2: Análise nginx e PHP-FPM hardening" completed</summary>
+<result>Tenho todos os dados necessários. Agora vou produzir a análise completa.
+
+---
+
+# Análise de Hardening: nginx + PHP-FPM — concertacaoamazonia.com.br
+
+**Incidente:** 2026-03-31 | EC2 t3.xlarge (4 vCPUs, 8 GB RAM) | Load average 34 durante ataque combinado de brute force em xmlrpc.php + directory scanning Tencent
+
+---
+
+## Diagnóstico da Situação Atual
+
+### O que o incidente revelou
+
+O script `d1-php-fpm-tuning.sh` calcula `max_children` como `(8192 * 0.80) / 60 = 109 workers`. Se o site estava com 25 workers ativos no pico **e ainda assim entrou em colapso**, dois cenários são possíveis:
+
+1. O tuning ainda não havia sido aplicado no servidor (pool estava com valores padrão menores)
+2. Mais provável: 25 workers simultâneos em uma instância que deveria suportar 109 indica que **cada worker estava bloqueado aguardando I/O** (lock no MySQL/Redis durante os requests xmlrpc), não que havia falta de workers. Load average 34 com 3% CPU por processo confirma: gargalo era I/O wait, não CPU.
+
+O problema real foi que **requests chegavam ao PHP-FPM antes de qualquer defesa nginx**, pois a configuração atual não tem `limit_conn` nem zona de rate limit dedicada para xmlrpc (usa a mesma zona `wp_login` que o login, com burst muito generoso de 5).
+
+---
+
+## 1. xmlrpc.php — Bloqueio vs Rate Limit
+
+### WPML moderno não usa xmlrpc
+
+O comentário no código está desatualizado. WPML desde a versão 4.x usa exclusivamente a REST API (`/wp-json/wpml/`). Para confirmar definitivamente no servidor:
+
+```bash
+# Verificar se WPML usa xmlrpc — procurar chamadas ao endpoint
+grep -r "xmlrpc" /var/www/concertacaoamazonia.com.br/wp-content/plugins/wpml-multilingual-cms/ \
+  --include="*.php" -l 2>/dev/null | head -10
+
+# No dev local
+docker exec concertacao-dev-wordpress bash -c \
+  "grep -r 'xmlrpc' /var/www/html/wp-content/plugins/wpml-multilingual-cms/ --include='*.php' -l 2>/dev/null | head -10"
+```
+
+**Recomendação: bloquear completamente com `return 444`.**
+
+`return 444` é superior a `deny all` (retorna 403) ou `return 403` por três razões:
+- Fecha a conexão TCP sem enviar resposta HTTP → economiza bandwidth
+- Não informa ao atacante que o endpoint existe
+- Reduz tempo do worker nginx (não aguarda envio de body de resposta)
+
+```nginx
+# xmlrpc.php: bloqueio total — WPML usa REST API desde v4.x, não xmlrpc
+# return 444: fecha TCP sem resposta (não vaza informação, economiza recursos)
+location = /xmlrpc.php {
+    access_log /var/log/nginx/blocked-xmlrpc.log combined;
+    return 444;
+}
+```
+
+**Se existir qualquer integração legada que precise de xmlrpc** (verificar com o diagnóstico acima), a alternativa é whitelist por IP:
+
+```nginx
+location = /xmlrpc.php {
+    # Permitir apenas IPs conhecidos do WPML/Yoast (substituir pelos IPs reais)
+    allow 203.0.113.10;  # IP do servidor de sync WPML se aplicável
+    deny all;
+    access_log /var/log/nginx/blocked-xmlrpc.log combined;
+    try_files $uri =404;
+    include /etc/nginx/snippets/php-fpm.conf;
+    fastcgi_param HTTPS on;
+    fastcgi_read_timeout 30;
+    fastcgi_send_timeout 30;
+}
+```
+
+---
+
+## 2. PHP-FPM Tuning para Resistência a Ataques
+
+### Dimensionamento correto para t3.xlarge (16 GB)
+
+O `d1-php-fpm-tuning.sh` atual calcula corretamente **109 workers** para 16 GB de RAM. Se o incidente ocorreu com 25 workers, o script provavelmente não foi re-executado após alguma atualização ou reinstalação.
+
+**Verificar estado atual em produção:**
+
+```bash
+ssh concertacaoamazonia.com.br-prod-sa \
+  "sudo grep -E '^pm' /etc/php/8.3/fpm/pool.d/wordpress.conf"
+```
+
+**Valores corretos calculados pelo d1-php-fpm-tuning.sh para 16 GB:**
+
+| Parâmetro | Valor calculado | Raciocínio |
+|-----------|-----------------|-----------|
+| `pm.max_children` | 109 | (16384 × 0.80) / 60 MB |
+| `pm.start_servers` | 21 | max(4, 109/5) |
+| `pm.min_spare_servers` | 13 | max(4, 109/8) |
+| `pm.max_spare_servers` | 43 | max(8, 109×2/5) |
+| `pm.max_requests` | 500 | já configurado |
+
+**Adição crítica ausente: `request_terminate_timeout`**
+
+O pool atual tem `request_terminate_timeout = 300s` — tempo excessivo durante ataque. Workers ficam ocupados por até 5 minutos processando requests xmlrpc maliciosos. Recomendação:
+
+```ini
+; Pool principal
+request_terminate_timeout = 60s
+
+; Timeout de execução PHP alinhado
+php_admin_value[max_execution_time] = 55
+```
+
+**Para criar um pool separado de baixa prioridade para xmlrpc/wp-cron** (isolamento de recursos):
+
+```ini
+; /etc/php/8.3/fpm/pool.d/wordpress-restricted.conf
+[wordpress-restricted]
+user = www-data
+group = www-data
+listen = /run/php/php8.3-fpm-restricted.sock
+listen.owner = www-data
+listen.group = www-data
+
+; Pool pequeno e isolado — ataque aqui não derruba o pool principal
+pm = static
+pm.max_children = 4
+pm.max_requests = 50
+request_terminate_timeout = 15s
+
+; Sem slowlog (evitar I/O durante ataque)
+php_admin_value[max_execution_time] = 10
+php_admin_value[memory_limit] = 128M
+php_admin_value[error_log] = /var/log/php/restricted-error.log
+php_admin_flag[log_errors] = on
+clear_env = no
+```
+
+Então no nginx, apontar xmlrpc para este pool restrito (se não bloquear completamente):
+
+```nginx
+location = /xmlrpc.php {
+    limit_req zone=xmlrpc_strict burst=1 nodelay;
+    try_files $uri =404;
+    fastcgi_pass unix:/run/php/php8.3-fpm-restricted.sock;
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_param HTTPS on;
+    fastcgi_read_timeout 15;
+    fastcgi_send_timeout 15;
+}
+```
+
+---
+
+## 3. Nginx Hardening — Rate Limiting e Conexões
+
+### Problema na configuração atual
+
+A zona `wp_login` tem `rate=5r/m` com `burst=5 nodelay` para xmlrpc. Isso significa que **até 5 requests chegam imediatamente ao PHP-FPM** antes de qualquer throttling. Com 200 req/min por IP e múltiplos IPs do /24, a fila de burst se esgota rapidamente mas já causou dano.
+
+### Configuração recomendada para `nginx.conf` (bloco http)
+
+```nginx
+# --- Rate Limiting: múltiplas zonas por endpoint ---
+
+# Zone para wp-login: anti-brute-force agressivo
+limit_req_zone $binary_remote_addr zone=wp_login:10m rate=5r/m;
+
+# Zone dedicada para xmlrpc: mais restritiva (ou remover se bloquear)
+limit_req_zone $binary_remote_addr zone=xmlrpc_strict:5m rate=1r/m;
+
+# Zone para REST API: permite uso normal mas limita abuso
+limit_req_zone $binary_remote_addr zone=wp_rest:20m rate=30r/m;
+
+# Zone para PHP em geral: proteção contra flood genérico
+limit_req_zone $binary_remote_addr zone=php_general:20m rate=60r/m;
+
+# --- Limit Connections: máximo simultâneo por IP ---
+# Previne que um único IP abra centenas de conexões simultâneas
+limit_conn_zone $binary_remote_addr zone=per_ip:10m;
+limit_conn_zone $server_name zone=per_server:10m;
+
+# --- Logging de requests bloqueados pelo rate limit ---
+# $limit_req_status: "PASSED", "DELAYED", "REJECTED", "BYPASSED"
+log_format security '$remote_addr - $remote_user [$time_local] '
+                    '"$request" $status $body_bytes_sent '
+                    '"$http_referer" "$http_user_agent" '
+                    'rt=$request_time '
+                    'limit_req=$limit_req_status '
+                    'limit_conn=$limit_conn_status '
+                    'xff="$http_x_forwarded_for"';
+```
+
+### Configuração recomendada para o vhost de produção
+
+Estas alterações devem ser aplicadas no `03-nginx-sites.sh`, no bloco do site gerado:
+
+```nginx
+# Limite global de conexões simultâneas por IP (proteção contra flood de conexões)
+limit_conn per_ip 20;
+limit_conn per_server 500;
+
+# wp-login.php: rate limit agressivo anti-brute-force
+location = /wp-login.php {
+    limit_req zone=wp_login burst=3 nodelay;
+    limit_req_status 429;
+    limit_conn per_ip 3;
+    try_files $uri =404;
+    include /etc/nginx/snippets/php-fpm.conf;
+    fastcgi_param HTTPS on;
+    fastcgi_read_timeout 30;
+    fastcgi_send_timeout 30;
+}
+
+# xmlrpc.php: BLOQUEIO TOTAL (WPML usa REST API)
+location = /xmlrpc.php {
+    access_log /var/log/nginx/blocked-xmlrpc.log security;
+    return 444;
+}
+
+# REST API: rate limit moderado para evitar abuso
+location ~ ^/wp-json/ {
+    limit_req zone=wp_rest burst=20 nodelay;
+    limit_req_status 429;
+    try_files $uri $uri/ /index.php?$args;
+}
+
+# PHP geral: rate limit leve para proteção base
+location ~ \.php$ {
+    limit_req zone=php_general burst=30 nodelay;
+    limit_conn per_ip 10;
+    try_files $uri =404;
+    include /etc/nginx/snippets/php-fpm.conf;
+    fastcgi_param HTTPS on;
+    fastcgi_read_timeout 60;
+    fastcgi_send_timeout 60;
+}
+```
+
+### Timeout tuning para requests suspeitos
+
+```nginx
+# Configuração no bloco http (nginx.conf) — aplicada globalmente
+# Reduz janela para ataques slowloris
+client_body_timeout 10s;    # atual: 12 (ok, pode reduzir para 10)
+client_header_timeout 10s;  # atual: 12 (ok)
+send_timeout 10s;            # atual: 10 (ok)
+keepalive_timeout 30;        # atual: 65 — REDUZIR para liberar conexões mais rápido
+keepalive_requests 100;      # manter
+
+# Para wp-admin: keepalive maior (usuários legítimos fazem múltiplas requests)
+# Configurar no bloco location ~* ^/wp-admin:
+#   keepalive_timeout 60;
+```
+
+---
+
+## 4. Proteção Contra Directory Scanning
+
+### Por que requests chegavam ao PHP-FPM
+
+Analisando o fluxo atual em `wordpress.conf` (docker-dev, modelo do prod):
+
+1. `location ~ /\.` → nega dotfiles. OK.
+2. `location ~* \.(js|css|...)$` → serve estáticos, sem PHP.
+3. **`location /`** → `try_files $uri $uri/ /index.php?$args` — **este é o problema**.
+
+Quando o scanner Tencent acessa `/wp-includes/inexistente/`, nginx não encontra o arquivo ou diretório, então cai no `index.php?$args` — chegando ao PHP-FPM. O `try_files` com fallback para PHP é necessário para WordPress permalinks, mas permite que qualquer 404 acione PHP.
+
+### Solução: bloquear diretórios sensíveis antes do fallback PHP
+
+```nginx
+# Bloquear acesso direto a diretórios de core WordPress
+# Scanner não deve acionar PHP-FPM ao varrer wp-includes/
+location ~* ^/(wp-includes|wp-admin/includes)/ {
+    # Arquivos PHP nestes diretórios: apenas wp-includes/ms-files.php é legítimo
+    # (já coberto pelo rewrite multisite acima)
+    location ~ \.php$ {
+        # Apenas ms-files.php é permitido (multisite uploads)
+        if ($fastcgi_script_name !~ "^/wp-includes/ms-files\.php") {
+            return 444;
+        }
+        try_files $uri =404;
+        include /etc/nginx/snippets/php-fpm.conf;
+        fastcgi_param HTTPS on;
+        fastcgi_read_timeout 30;
+    }
+    # Arquivos estáticos: servir normalmente
+    try_files $uri =404;
+}
+
+# Bloquear scanners de plugins/themes (não devem acessar PHP de plugins diretamente)
+location ~* ^/wp-content/(?:plugins|themes)/[^/]+/(?:.*\.php)$ {
+    # Apenas arquivos explicitamente chamados pelo WordPress são legítimos
+    # Scanners tentam acessar admin.php, config.php, etc. diretamente
+    try_files $uri =404;
+    # Nota: não passar para PHP-FPM — acesso direto a PHP de plugins é incomum
+    # e quando legítimo é via WordPress core, não URL direta
+    return 444;
+}
+```
+
+**Observação importante:** O `try_files $uri =404` no `location ~ \.php$` já previne que PHP inexistente vá ao FPM — o `=404` retorna 404 sem consultar o FPM. O problema é que `location /` com fallback para `index.php` aciona o FPM mesmo quando o arquivo não existe. A solução é adicionar uma location específica para wp-includes antes da location geral.
+
+### Adição ao log para identificar scanning
+
+```nginx
+# Log separado para monitorar acessos a wp-includes (scanner detection)
+location ~* ^/wp-includes/ {
+    access_log /var/log/nginx/wp-includes-access.log security;
+    try_files $uri =404;
+    # PHP dentro de wp-includes só via rewrite do WordPress core
+    location ~ \.php$ {
+        return 444;
+    }
+}
+```
+
+---
+
+## 5. Detecção de Ataque em Tempo Real
+
+### Log format com `$limit_req_status`
+
+A variável `$limit_req_status` está disponível desde nginx 1.17.6 e retorna:
+- `PASSED` — passou normalmente
+- `DELAYED` — atrasado pela fila burst  
+- `REJECTED` — rejeitado (rate limit atingido)
+- `BYPASSED` — zona configurada mas request foi para outra location
+
+No `nginx.conf` atual, adicionar ao bloco `http`:
+
+```nginx
+# Log de segurança com status de rate limit e connection limit
+log_format security '$remote_addr - [$time_local] '
+                    '"$request" $status '
+                    'limit_req=$limit_req_status '
+                    'limit_conn=$limit_conn_status '
+                    'rt=$request_time '
+                    'ua="$http_user_agent" '
+                    'xff="$http_x_forwarded_for"';
+
+# Log dedicado para requests bloqueados
+# Configurar por location nos endpoints sensíveis:
+# access_log /var/log/nginx/security.log security if=$limit_req_status;
+# Nota: "if=" em access_log requer módulo ngx_http_map_module
+```
+
+**Approach com map para logar apenas rejeições:**
+
+```nginx
+# Em http block:
+map $limit_req_status $log_blocked {
+    REJECTED    1;
+    default     0;
+}
+
+# Por location (ex: wp-login):
+access_log /var/log/nginx/security.log security if=$log_blocked;
+```
+
+### Integração com fail2ban
+
+Criar filter `/etc/fail2ban/filter.d/nginx-rate-limit.conf`:
+
+```ini
+[Definition]
+# Captura IPs bloqueados pelo rate limit no log de segurança nginx
+failregex = ^<HOST> - \[.*\] ".*" (429|444) .*limit_req=REJECTED.*$
+            ^<HOST> - \[.*\] "(GET|POST|HEAD) /xmlrpc\.php.*" (200|403|444) .*$
+            ^<HOST> - \[.*\] "(GET|POST|HEAD) /wp-login\.php.*" (429|444) .*$
+ignoreregex =
+```
+
+Criar jail `/etc/fail2ban/jail.d/nginx-wordpress.conf`:
+
+```ini
+[nginx-rate-limit]
+enabled  = true
+filter   = nginx-rate-limit
+logpath  = /var/log/nginx/security.log
+           /var/log/nginx/blocked-xmlrpc.log
+maxretry = 10        ; bloqueios em 10 minutos
+findtime = 600
+bantime  = 3600      ; ban por 1 hora
+action   = iptables-multiport[name=nginx-rl, port="80,443", protocol=tcp]
+           # Opcional: notificar via SNS/CloudWatch
+```
+
+---
+
+## Plano de Implementação (ordem de prioridade)
+
+### Imediato (sem risco, alto impacto)
+
+**1. Bloquear xmlrpc.php em produção agora:**
+```bash
+ssh concertacaoamazonia.com.br-prod-sa
+# Editar /etc/nginx/sites-available/concertacaoamazonia.com.br
+# Substituir o bloco location = /xmlrpc.php por:
+# location = /xmlrpc.php { access_log ...; return 444; }
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**2. Verificar e re-aplicar PHP-FPM tuning:**
+```bash
+ssh concertacaoamazonia.com.br-prod-sa "sudo grep -E '^pm' /etc/php/8.3/fpm/pool.d/wordpress.conf"
+# Se max_children < 100, re-executar d1-php-fpm-tuning.sh
+```
+
+### Curto prazo (próximo deploy)
+
+Atualizar `03-nginx-sites.sh` para incluir:
+- Zonas de rate limit separadas: `xmlrpc_strict`, `wp_rest`, `php_general`  
+- `limit_conn` por IP (20 simultâneas) e por servidor (500)
+- Log format `security` com `$limit_req_status`
+- Location dedicada para `wp-includes/` bloqueando PHP direto
+- `keepalive_timeout 30` (reduzir de 65)
+- `request_terminate_timeout = 60s` no pool PHP-FPM
+
+### Médio prazo
+
+- Instalar e configurar fail2ban com os filtros acima
+- Adicionar regra WAF no CloudFront para bloquear `64.252.0.0/16` (ASN Tencent) — já está no CloudFront `E2F1QD7E7YOYEB`
+- Avaliar AWS Shield Standard (já incluso) vs Shield Advanced para proteção de camada 3/4
+
+---
+
+## Resumo das Correções Pontuais
+
+| Arquivo | Linha/Bloco atual | Problema | Correção |
+|---------|-------------------|---------|---------|
+| `03-nginx-sites.sh` (vhost gerado) | `location = /xmlrpc.php { limit_req burst=5 ... }` | Requests chegam ao PHP-FPM | `return 444` — bloqueio total |
+| `03-nginx-sites.sh` (http block) | `limit_req_zone ... zone=wp_login:10m rate=5r/m` | Zona única para login e xmlrpc | Separar em zonas: `wp_login`, `xmlrpc_strict`, `wp_rest`, `php_general` |
+| `03-nginx-sites.sh` (vhost) | Sem `limit_conn` | IP pode abrir conexões ilimitadas | `limit_conn per_ip 20; limit_conn per_server 500;` |
+| `d1-php-fpm-tuning.sh` | Sem `request_terminate_timeout` | Workers ficam bloqueados 300s | Adicionar `request_terminate_timeout = 60s` |
+| `nginx.conf` (http block) | `keepalive_timeout 65` | Conexões abertas demais | `keepalive_timeout 30` |
+| `nginx.conf` (http block) | Sem log `security` | Impossível analisar ataques | Adicionar `log_format security` com `$limit_req_status` |</result>
+<usage><total_tokens>47267</total_tokens><tool_uses>11</tool_uses><duration_ms>128627</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a86dad18e547d1f52</task-id>
+<tool-use-id>toolu_01Uc339nMtEZ7qZuVucBSwjc</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a86dad18e547d1f52.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente 1: Análise WAF e regras de rate limiting" completed</summary>
+<result>Relatório gerado e salvo com sucesso.
+
+---
+
+## Resumo do que foi feito
+
+**Análise completa entregue** em dois formatos:
+
+- HTML: `/Users/dcambria/scripts/reports/08 - Segurança/concertacaoamazonia/relatorio-auditoria-waf-2026-04-01.html`
+- PDF: `/Users/dcambria/scripts/reports/08 - Segurança/concertacaoamazonia/relatorio-auditoria-waf-2026-04-01.pdf` (8,8 MB)
+
+---
+
+### Ações imediatas (hoje)
+
+| Prioridade | Ação |
+|---|---|
+| 1 | Adicionar **Block-XmlRpc** (Priority 8) e **Block-XmlRpc-Evasion** (Priority 9) — zero risco, elimina o vetor principal |
+| 2 | Criar **IPSet-Blocked-Datacenters** com `3.172.105.0/24` e regra **Block-Datacenter-Attackers** (Priority 11) |
+
+### Próximas 48h
+
+| Prioridade | Ação |
+|---|---|
+| 3 | Criar **IPSet-TencentCloud-Scanners** com `64.252.0.0/16` — ativar em modo **Count** primeiro, avaliar falso positivo, depois **Block** |
+| 4 | Verificar `AggregateKeyType` do **RateLimit-300-Block** existente via `aws wafv2 get-web-acl --query 'WebACL.Rules[?Name==\`RateLimit-300-Block\`]'` — confirmar se há `ForwardedIPConfig` incorreta |
+
+### Ponto crítico de operação
+
+O comando `update-web-acl` **substitui o array Rules inteiro**. Sempre fazer `get-web-acl` antes, salvar as regras existentes e fazer merge manual com as novas antes de executar o update — caso contrário as regras existentes (Allow-DevTeam, Block-NonDev-WPAdmin, etc.) serão apagadas.</result>
+<usage><total_tokens>61708</total_tokens><tool_uses>14</tool_uses><duration_ms>444032</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>af426916909e99b16</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/af426916909e99b16.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente 3: Análise de threat intelligence e atribuição dos IPs atacantes" completed</summary>
+<result>O Playwright bloqueou acesso a file://. O HTML já está salvo — aqui está o relatório completo:
+
+---
+
+## Relatório de Threat Intelligence — concertacaoamazonia.com.br (2026-03-31)
+
+**Arquivo salvo em:** `/Users/dcambria/scripts/reports/08 - Segurança/threat-intelligence/relatorio-incidente-2026-03-31.html`
+
+---
+
+### Descoberta mais importante: ambos os ranges pertencem à Amazon AWS
+
+A verificação direta do `ip-ranges.amazonaws.com/ip-ranges.json` revelou:
+
+| Range | Serviço AWS | Detalhe |
+|---|---|---|
+| `3.172.0.0/18` | CLOUDFRONT + CLOUDFRONT_ORIGIN_FACING | Global |
+| `3.172.64.0/18` | CLOUDFRONT + CLOUDFRONT_ORIGIN_FACING | Global |
+| `64.252.64.0/18` | CLOUDFRONT + CLOUDFRONT_ORIGIN_FACING | Global |
+| `64.252.66.0/24` | AMAZON + EC2 | us-east-1 |
+| `64.252.67.0/24` | AMAZON + EC2 | us-east-1 |
+| `64.252.68.0/24` | AMAZON + EC2 | us-east-1 |
+
+---
+
+### 1. Atribuição — o que realmente aconteceu
+
+**Grupo 1 (3.172.105.x — brute force xmlrpc.php):** Os IPs são nós CloudFront "origin-facing" — os servidores que o CloudFront usa para contatar a origem (seu EC2). O atacante criou uma ou mais distribuições CloudFront apontando o seu site como origin e disparou as requisições maliciosas através delas. Técnica conhecida como **CDN fronting attack**: o IP real do atacante nunca aparece nos logs — apenas os nós edge da AWS.
+
+**Grupo 2 (64.252.66–68.x — directory scanner):** Mesmo padrão, mas com dezenas de distribuições CloudFront distintas criadas programaticamente — provavelmente via conta AWS de free tier ou comprometida. Cada distribuição gera 70–80 requests, distribuindo o volume para evadir rate limiting por IP.
+
+**Correlação:** Muito provavelmente o mesmo ator. Mesmo vetor, mesma janela de 1 minuto, mesmo alvo. Padrão clássico: fase 1 = reconhecimento (scanner de estrutura WP), fase 2 = exploração (brute force xmlrpc).
+
+---
+
+### 2. Contexto da vítima
+
+- Padrão de ataque **majoritariamente oportunista** (scanners automáticos que varrem WordPress na internet)
+- Porém, **motivação direcionada não descartada**: sites de projetos socioambientais de alto perfil cresceram 241% como alvo em 2024–2025 (Darktrace). O timing 21h BRT é intencional — horário de baixo tráfego e menor chance de resposta imediata
+- Grupos como *Guacamaya* operam com motivação anti-extrativista explícita na América Latina
+
+---
+
+### 3. Recomendações de bloqueio
+
+**CRITICO — NÃO bloquear no Security Group do EC2:** os próprios nós CloudFront legítimos usam os ranges 3.172.x.x e 64.252.x.x para chegar ao origin. Bloquear no Security Group interromperia o site para todos os usuários reais.
+
+**Bloqueio correto: AWS WAF associado à distribuição CloudFront (E2F1QD7E7YOYEB)**
+
+| Ação | Range | Justificativa |
+|---|---|---|
+| BLOQUEAR no WAF | `3.172.105.0/24` | Subnet específica do brute force |
+| BLOQUEAR no WAF | `64.252.66.0/24` | Subnet us-east-1 do scanner |
+| BLOQUEAR no WAF | `64.252.67.0/24` | Subnet us-east-1 do scanner |
+| BLOQUEAR no WAF | `64.252.68.0/24` | Subnet us-east-1 do scanner |
+| NÃO bloquear | `3.172.0.0/18` (inteiro) | Muito amplo, falso positivo alto |
+| NÃO bloquear | `64.252.0.0/16` (inteiro) | Muito amplo, falso positivo alto |
+
+**Medida de maior impacto e zero falso positivo — bloquear xmlrpc.php no nginx:**
+```nginx
+location = /xmlrpc.php {
+    deny all;
+    return 403;
+    access_log off;
+}
+```
+
+---
+
+### 4. Plano de ação priorizado
+
+1. **IMEDIATO** — Bloquear `/xmlrpc.php` no nginx (elimina o vetor principal)
+2. **IMEDIATO** — Criar IP Set no WAF CloudFront com as 4 subnets listadas acima (validade 30 dias)
+3. **CURTO PRAZO** — Rate limit no WAF: máx 20 req/5min para `/wp-login.php` e `/wp-admin/`
+4. **CURTO PRAZO** — Reportar os IPs específicos para `abuse@amazonaws.com` com logs — a AWS encerra distribuições abusivas
+5. **CURTO PRAZO** — Ativar "WordPress Application" managed rule group no AWS WAF
+6. **MÉDIO PRAZO** — CloudWatch Alarm: alertar se > 50 requests para `/xmlrpc.php` em 5 minutos
+7. **MÉDIO PRAZO** — Auditar usuários admin e forçar redefinição de senha
+
+---
+
+### 5. IoCs para monitoramento
+
+**IPs Grupo 1:** `3.172.105.68`, `3.172.105.75`, `3.172.105.65`, `3.172.105.106`, `3.172.105.76`, `3.172.105.69`
+
+**IPs Grupo 2:** `64.252.66.30`, `64.252.67.93`, `64.252.67.130`, `64.252.67.205`, `64.252.66.112`, `64.252.68.168` + dezenas adicionais
+
+**URIs alvo:** `/xmlrpc.php` (POST), `/wp-includes/*` (GET 404 em massa)
+
+**Assinatura WAF:** `URI:/xmlrpc.php + Method:POST + Rate:>100/min` | `URI:/wp-includes/ + 404 + Rate:>50/5min`
+
+---
+
+Relatório HTML com design Bureau salvo em `/Users/dcambria/scripts/reports/08 - Segurança/threat-intelligence/relatorio-incidente-2026-03-31.html`. Conversão PDF não foi possível (Playwright bloqueou protocolo `file://`) — se precisar do PDF, posso tentar via servidor HTTP local.
+
+Sources:
+- [AWS IP address ranges - Amazon Virtual Private Cloud](https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html)
+- [AWS CloudFront Blocking Entire CIDR Range | AWS re:Post](https://repost.aws/questions/QUbiNcGnonTEGX0L-jD7Ku3Q/aws-cloudfront-blocking-entire-cidr-range)
+- [Secure and accelerate your WordPress CMS with Amazon CloudFront, AWS WAF, and edge functions](https://aws.amazon.com/blogs/networking-and-content-delivery/secure-and-accelerate-your-wordpress-cms-with-amazon-cloudfront-aws-waf-and-edge-functions/)
+- [The Hidden Danger in WordPress: XML-RPC Brute-Force Exploitation Explained (2025 Edition)](https://medium.com/@medjahdii/the-hidden-danger-in-wordpress-xml-rpc-brute-force-exploitation-explained-2025-edition-6b21f3e311dc)
+- [ShadowV2 Botnet Exploits Misconfigured AWS Docker Containers](https://thehackernews.com/2025/09/shadowv2-botnet-exploits-misconfigured.html)
+- [Cyberattacks on Humanitarian Orgs Jump Worldwide - Dark Reading](https://www.darkreading.com/cyberattacks-data-breaches/attacks-humanitarian-orgs-jump-worldwide)
+- [Guacamaya (hacktivist group) - Wikipedia](https://en.wikipedia.org/wiki/Guacamaya_(hacktivist_group))
+- [Hacktivism Unveiled Q1 2025 - Radware](https://www.radware.com/blog/threat-intelligence/hacktivism-unveiled-q1-2025/)
+- [IP Allow listing at WAF vs Security Group | AWS re:Post](https://repost.aws/questions/QUAyVSbR67RbaaiSVqxuGtEw/ip-allow-listing-at-waf-vs-security-group)
+- [aws-ip-ranges-json CloudFront ranges - GitHub](https://github.com/joetek/aws-ip-ranges-json/blob/master/ip-ranges-cloudfront.json)</result>
+<usage><total_tokens>67981</total_tokens><tool_uses>21</tool_uses><duration_ms>426414</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9d4e7c0715883838</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a9d4e7c0715883838.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente 4: Análise de resiliência e auto-recuperação da infra" completed</summary>
+<result>Relatório gerado e salvo. Segue o plano completo:
+
+---
+
+## Plano de Resiliência — concertacaoamazonia.com.br
+
+**Arquivo:** `/Users/dcambria/scripts/reports/02 - Infraestrutura/concertacao-resiliencia/relatorio-resiliencia-2026-03-31.html`
+
+---
+
+### Diagnóstico central do incidente
+
+O ataque de brute-force em `/xmlrpc.php` chegou diretamente ao PHP-FPM porque **não há nenhum bloqueio antes do backend**. Com `request_terminate_timeout = 300s`, cada worker travava por até 5 minutos antes de ser reciclado — 25 workers em fila = load 34 em 4 vCPUs. O health check `/healthz` respondia normalmente (é nginx puro, sem tocar o FPM), então o ALB nunca parou de enviar tráfego.
+
+---
+
+### Roadmap priorizado
+
+**P1 — Hoje (impacto máximo, complexidade mínima)**
+
+1. **Bloquear xmlrpc.php no nginx** — `location = /xmlrpc.php { deny all; return 403; }` no `wordpress.conf`. Nginx reload, zero downtime. Elimina 100% do vetor do ataque ocorrido.
+
+2. **PHP-FPM tuning em produção:**
+   - `pm.max_children = 50` (era 25 — com 8GB RAM + Aurora externo, comporta ~68 workers)
+   - `request_terminate_timeout = 30s` (era 300s — esse é o principal vilão)
+   - `request_slowlog_timeout = 3s`
+
+**P1 — Esta semana**
+
+3. **Página de manutenção como fallback nginx** — configurar `@php_down` com `error_page 502 503 504` servindo o `manutencao.html` já existente. Reduzir `fastcgi_connect_timeout` de 60s para 5s — com FPM saturado, nginx para de acumular fila em 5s em vez de 60s.
+
+4. **WAF CloudFront — regras gerenciadas** — `AWSManagedRulesWordPressRuleSet` + `KnownBadInputsRuleSet` + rate-based rule bloqueando IPs com >100 req/5min em xmlrpc. Ativar em COUNT por 24h, depois BLOCK. Custo: ~US$15-20/mês.
+
+**P2 — Próximas 2 semanas**
+
+5. **Custom error response no CloudFront** — configurar 502/504 para retornar 503 com página estática (ErrorCachingMinTTL: 10s) em vez de timeout ao usuário final.
+
+6. **Health check real no ALB** — criar `health.php` que verifica PHP-FPM + MySQL + Redis. Unhealthy threshold = 2 checks (30s) em vez de 3 (90s).
+
+7. **CloudWatch alarms** — CPU > 75% por 3min → SNS alerta; CPU > 90% → SNS crítico. 5XX > 5% no ALB → alerta. Custo: zero (free tier).
+
+8. **systemd override** para php8.3-fpm.service: `Restart=always`, `RestartSec=3s` — garante restart automático em caso de crash.
+
+**P3 — Médio prazo**
+
+9. **Lambda de resposta automática** — CloudWatch CPU > 90% → Lambda bloqueia IPs ofensores no WAF IP Set. ~4h de implementação.
+
+---
+
+### Resposta às questões específicas
+
+- **max_children ideal para 8GB/4vCPUs:** `50` (fórmula: 5.5GB disponíveis ÷ 80MB/worker = ~68, teto conservador 50)
+- **O health check passou com load 34?** Sim — `/healthz` é nginx puro, nunca toca o FPM
+- **WP Rocket durante o ataque:** páginas cacheadas continuaram servindo; o 19.2% de 5XX vieram de POST não-cacheáveis (xmlrpc, wp-login, wp-admin)
+- **stale-while-revalidate:** implementar via `Cache-Control: public, stale-while-revalidate=86400` nos estáticos + Origin Shield CloudFront habilitado na região `sa-east-1`
+- **Segunda EC2 vs Auto Scaling:** Auto Scaling para WordPress com Aurora é complexo (sessões, cache). Recomendação: implementar P1+P2 primeiro — o vetor principal é eliminado por bloqueio, não por escala</result>
+<usage><total_tokens>64592</total_tokens><tool_uses>29</tool_uses><duration_ms>480081</duration_ms></usage>
+</task-notification>
+
+---
+
+sim
+
+---
+
+<task-notification>
+<task-id>ac9d3fcc160226fd3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/ac9d3fcc160226fd3.output</output-file>
+<status>completed</status>
+<summary>Agent "Agente 5: Análise de WordPress security hardening e xmlrpc" completed</summary>
+<result>Relatório gerado com sucesso. Aqui está a entrega completa:
+
+---
+
+## Relatório de Auditoria — Concertação Amazônica: Hardening WordPress
+
+### Arquivos entregues
+
+- **HTML:** `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-hardening-2026-03-31.html`
+- **PDF:** `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-hardening-2026-03-31.pdf` (553 KB)
+- **mu-plugin (site):** `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/wp-content/mu-plugins/bit-security-hardening.php`
+- **mu-plugin (canonical):** `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/bit-security-hardening.php`
+
+---
+
+## Respostas às 5 seções solicitadas
+
+### 1. xmlrpc.php — Veredicto: BLOQUEAR COMPLETAMENTE
+
+O comentário no nginx.conf estava errado. Análise definitiva:
+
+| Plugin | Usa xmlrpc.php? |
+|---|---|
+| WPML 5.x+ | NÃO — migrou para REST API na v4.5 (2020) |
+| Elementor Pro | NÃO — usa `/wp-json/elementor/` |
+| JetEngine | NÃO — usa REST API + `wp_ajax_*` |
+| The Events Calendar | NÃO — v6+ é REST API exclusivamente |
+| WP Rocket, Redis, EWWW | NÃO — hooks internos |
+
+**A única exceção seria JetPack**, que este site não usa. Adicionar ao `wordpress.conf`:
+
+```nginx
+location = /xmlrpc.php {
+    deny all;
+    access_log off;
+    log_not_found off;
+    return 444;
+}
+```
+
+`444` é preferível a `403` porque fecha a conexão TCP sem resposta — bots não confirmam existência do arquivo e o custo de processamento é zero.
+
+---
+
+### 2. WordPress Application-Level Hardening
+
+**a) wp-login.php em Multisite** — usar `limit_req` do nginx (não HTTP Basic Auth, que quebra o fluxo de login do Multisite):
+
+```nginx
+# Em http{}: limit_req_zone $binary_remote_addr zone=wplogin:10m rate=5r/m;
+# Em server{}: limit_req zone=wplogin burst=3 nodelay;
+```
+
+**b) REST API** — NÃO desabilitar globalmente. `disable_wp_rest_api` quebraria WPML, JetEngine listings e o Elementor Editor. Restringir apenas `/wp/v2/users` para não autenticados (implementado no mu-plugin).
+
+**c) User enumeration** — dois vetores bloqueados no mu-plugin:
+- `/wp-json/wp/v2/users` — restringe para usuários com `list_users` capability
+- `/?author=N` — redireciona para home (302), páginas de arquivo de autor retornam 404
+
+**d) Arquivos sensíveis** — o nginx atual já cobre `wp-config.php`, `.env` (via `location ~ /\.`), `readme.html` e `license.txt`. Faltam `debug.log` e `error_log`:
+
+```nginx
+location ~* /(debug\.log|error_log|\.htaccess|wp-cli\.phar)$ {
+    deny all; access_log off; log_not_found off;
+}
+```
+
+---
+
+### 3. Plugin de Segurança — Recomendação
+
+**Não instalar Wordfence nem Solid Security.** Conflitos documentados:
+
+- **Wordfence:** block-level scanning gera falsos positivos em queries dinâmicas do JetEngine; modo "live traffic" cria lock contention com Redis Object Cache
+- **Solid Security:** módulo "WordPress Tweaks" pode desabilitar XML-RPC sem verificar dependências; lockout conflita com o login flow do WPML Language Switcher
+
+**Recomendação: hardening manual em 3 camadas:**
+1. **CloudFront WAF** — rate limiting na borda (bloqueia antes do EC2)
+2. **nginx** — bloqueio por localização + rate limiting
+3. **mu-plugin `bit-security-hardening.php`** — application-level
+
+Zero overhead de plugin em cada request, zero conflitos com JetEngine/WPML/Redis.
+
+---
+
+### 4. mu-plugin `bit-security-hardening.php`
+
+12 funcionalidades implementadas, compatíveis com Multisite (`Network: true`):
+
+- Desabilita processamento XML-RPC (`xmlrpc_enabled` → false)
+- Remove headers X-Pingback, RSD link, WLW manifest
+- Bloqueia `/wp-json/wp/v2/users` para não autenticados (mantém acesso para `list_users`)
+- Bloqueia `?author=N` e páginas de arquivo de autor (404)
+- Remove `?ver=X.Y.Z` de scripts/estilos (apenas frontend)
+- Remove meta generator e versão do feed RSS
+- Remove `X-Powered-By` e `X-Generator` dos headers HTTP
+- Mensagem de erro de login genérica (não revela se usuário existe)
+- Log de tentativas de login falhas com IP real via Cloudflare header
+
+---
+
+### 5. Auditoria de Usuários — Comandos WP-CLI
+
+Os comandos completos estão no relatório, mas os essenciais pós-incidente:
+
+```bash
+# Super admins da rede
+std wp super-admin list --format=table
+
+# Admins criados recentemente
+std wp user list --role=administrator \
+  --fields=ID,user_login,user_email,user_registered --format=table
+
+# App Passwords criados (vetor de comprometimento sem 2FA)
+std wp db query "SELECT u.user_login, m.meta_value FROM wp_users u
+  JOIN wp_usermeta m ON u.ID = m.user_id
+  WHERE m.meta_key = '_application_passwords'
+  AND m.meta_value != 'a:0:{}';"
+
+# PHP suspeito em uploads (webshells)
+docker exec -u www-data concertacao-dev-wordpress \
+  find /var/www/html/wp-content/uploads -name "*.php" -type f
+```
+
+---
+
+### Plano de ação por prioridade
+
+| # | Ação | Prioridade |
+|---|---|---|
+| 1 | Bloquear `xmlrpc.php` no nginx com `return 444` | URGENTE |
+| 2 | Remover comentário desatualizado sobre WPML + xmlrpc | URGENTE |
+| 3 | Deploy do `bit-security-hardening.php` em produção | URGENTE |
+| 4 | Rate limiting `limit_req` para `wp-login.php` | ALTA |
+| 5 | Regra nginx para `debug.log` / `error_log` | ALTA |
+| 6 | Rodar auditoria de usuários via WP-CLI | ALTA |
+| 7 | CloudFront WAF Rule para bloquear `3.172.105.0/24` | MÉDIA |
+| 8 | Avaliar bloquear `64.252.0.0/16` (Tencent) no WAF | MÉDIA |
+| 9 | Renomear usuário `admin` se existir | MÉDIA |
+| 10 | Habilitar 2FA para administradores de rede | MÉDIA |</result>
+<usage><total_tokens>64173</total_tokens><tool_uses>34</tool_uses><duration_ms>1036185</duration_ms></usage>
+</task-notification>
+
+---
+
+crie um relatório do que foi feito, após passar por uma auditoria com 3 agentes para analisar a implementação e suas implicações secundárias.
+depois execute os passos 6, 7, 9, 10, 11, 12,13, 15, 16, 17, 18, 19, 20. Dispare um agente para resolver cada um dos problemas de forma minuciosa.
+
+novo relatório do que foi feito, após passar por uma auditoria com 3 agentes para analisar a implementação e suas implicações secundárias.
+
+se necessário, um ciclo de correção com 3 agentes.
+
+depois, analise se o plugin the events calendar está sendo cacheado. Picos de cpu indicam falta de cache para visualização de eventos por data. investigue profundamente o caso, pois está atrapalhando o uptime do serviço do site e cliente insatisfeito.
+
+---
+
+<task-notification>
+<task-id>a008288f4a61208fc</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a008288f4a61208fc.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor 1: Segurança WAF e nginx" completed</summary>
+<result>O Playwright MCP bloqueia o protocolo `file://`. O relatório HTML foi salvo com sucesso — segue a análise completa.
+
+---
+
+## Auditoria de Segurança — concertacaoamazonia.com.br — 2026-03-31
+
+Relatório salvo em:
+`/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-seguranca-2026-03-31.html`
+
+---
+
+### Resumo dos achados: 1 Crítico · 5 Alto · 7 Médio · 4 Baixo/Info
+
+---
+
+## A — Implicações do bloqueio de xmlrpc.php
+
+**A.1 — `return 444` gera 5XX no CloudFront** `MÉDIO`
+
+O código 444 fecha a conexão TCP sem resposta HTTP. Para o CloudFront isso é uma falha de origin — ele faz 3 retentativas antes de retornar 502 ao cliente. Durante ataque volumétrico, o EC2 recebe 3× o volume de conexões TCP para esse path. O WAF (Block-XMLRPC) descarta antes de chegar ao origin — então o problema só ocorre em tráfego que bypassa o CloudFront.
+
+Recomendação: substituir `return 444` por `return 403`. O 444 faz sentido para economizar banda em conexões de scanner leve, mas amplifica carga em ataques volumétricos.
+
+**A.2 — `blocked-xmlrpc.log` sem logrotate** `BAIXO`
+
+Pode crescer vários GB em poucas horas sob ataque volumétrico. Se `/var/log` encher, PHP-FPM começa a falhar silenciosamente. Configurar logrotate com `daily / rotate 7 / compress`.
+
+**A.3 — Regra WAF `ENDS_WITH` e Multisite subdirectory** `INFO`
+
+Não há gap real, mas o comportamento é contra-intuitivo: `/cultura/xmlrpc.php` é capturado pelo rewrite nginx (`^/[_0-9a-zA-Z-]+/(wp-[^/]+\.php)$` com flag `last`) e reescrito para `/xmlrpc.php`, que cai no bloco de bloqueio. A regra WAF `ENDS_WITH` captura ambos os paths antes do rewrite. Documentar no `wordpress.conf` para não remover o rewrite acidentalmente.
+
+**A.4 — Acesso direto ao EC2 bypassa nginx** `MÉDIO`
+
+O mu-plugin (`xmlrpc_enabled → false`) cobre este caminho — o PHP retorna XML de erro. O gap real é: o Security Group do EC2/ALB permite tráfego direto de `0.0.0.0/0`? Se sim, toda a cadeia WAF é bypassável.
+
+---
+
+## B — Implicações do IPSet de IPs atacantes
+
+**B.1 — Bloqueio de `/24` de nós CloudFront origin-facing** `CRÍTICO`
+
+Os ranges `3.172.105.0/24` e `64.252.66-68.0/24` são IPs de origin-facing nodes da AWS. Bloquear um `/24` inteiro é seguro para este site (ALB exclusivo), mas os IPs rotativos da AWS podem ser desalocados e realocados para tráfego legítimo de outras distribuições. O risco aumenta com o tempo — o IPSet precisa de TTL de 90 dias.
+
+Mais importante: esta proteção é contornável em 5 minutos — o atacante reconfigura a distribuição CloudFront para usar outros nós de origin. Bloquear IPs específicos não resolve o problema estrutural.
+
+**B.2 — WAF no CloudFront não protege requests diretas ao ALB** `ALTO`
+
+Se o Security Group do ALB aceita `0.0.0.0/0` nas portas 80/443, todo o WAF é bypassável. O atacante do incidente claramente conhece a arquitetura CloudFront + ALB — este vetor será tentado. Restringir o SG para aceitar apenas o bloco de IPs do CloudFront (publicado em `ip-ranges.amazonaws.com`).
+
+**B.3 — IPSet sem TTL definido** `MÉDIO`
+
+Ranges de IPs cloud rotativos acumulados sem revisão podem bloquear tráfego legítimo silenciosamente após meses. Documentar TTL de 90 dias e criar revisão recorrente.
+
+---
+
+## C — Implicações do mu-plugin
+
+**C.1 — `is_author()` → 404 para todos os perfis de autor** `ALTO`
+
+A política é demasiado ampla. Se o site tem perfis de autores públicos indexados no Google (pesquisadores, organizações parceiras), o Google vai receber 404 nas próximas crawls e desindexar esses perfis. Verificar se há perfis públicos intencionais — se sim, adicionar whitelist de roles ou IDs.
+
+**C.2 — Remoção de `?ver=` é cirúrgica e não afeta WP Rocket** `INFO`
+
+O filtro só remove `ver=` quando o valor é exatamente a versão do WordPress core — não remove hashes de plugins. O WP Rocket usa cache busting próprio (hash no path ou concatenação). Não há impacto.
+
+**C.3 — `header_remove('Server')` no PHP é ineficaz em nginx+FPM** `BAIXO`
+
+O header `Server:` é adicionado pelo nginx após receber a resposta do PHP-FPM — o PHP nunca o controla. A instrução é inócua. O `server_tokens off` no nginx já remove a versão. Para remover o header `Server` completamente precisaria do módulo `headers_more` no nginx.
+
+**C.4 — `ini_set('expose_php', '0')` não funciona em PHP-FPM** `MÉDIO`
+
+`expose_php` é `PHP_INI_SYSTEM` — não pode ser alterado em runtime. A linha é silenciosamente ignorada. O `header_remove('X-Powered-By')` logo acima no mesmo plugin já resolve o problema em runtime. Remover a linha `ini_set` e adicionar `expose_php = Off` ao `php.ini` do pool FPM.
+
+**C.5 — Log de falhas de login pode causar flooding + log injection** `ALTO`
+
+Dois problemas:
+1. Em brute force de 1.000 req/s, o `error_log()` escreve ~150MB/10min no error_log do PHP-FPM sem limite de tamanho.
+2. O `$username` passado ao `sprintf` não recebe `sanitize_text_field()` — um atacante pode injetar newlines no log enviando username com `\n`. Os campos `$ip` e `$ua` têm sanitização, mas `$username` não.
+
+---
+
+## D — Gaps não cobertos
+
+**D.1 — wp-login.php sem proteção WAF** `ALTO` — Gap mais urgente
+
+O incidente foi CDN fronting attack via xmlrpc.php. O próximo passo óbvio é repetir o mesmo ataque em wp-login.php. O rate limit nginx de 5r/m por IP é ineficaz contra ataques distribuídos via CDN fronting (cada nó CloudFront tem IP diferente). Não há regra WAF para wp-login.php. Criar regra WAF de rate limiting: POST em `/wp-login.php`, 50 req/5min por IP.
+
+**D.2 — admin-ajax.php exposto sem rate limiting** `MÉDIO`
+
+JetEngine, Elementor Pro e TEC registram ações `wp_ajax_nopriv_*` públicas. Sem rate limiting, qualquer bot pode chamar essas actions indefinidamente (scraping de listagens, queries pesadas de JetEngine). Adicionar rate limiting WAF para POST em `/wp-admin/admin-ajax.php`.
+
+**D.3 — REST API além de `/wp/v2/users`** `MÉDIO`
+
+O endpoint `/wp-json/` expõe a estrutura completa da API (discovery), facilitando reconhecimento de plugins. Endpoints de JetEngine, WPML e Elementor Pro ficam visíveis. Verificar exposição de rascunhos via `/wp/v2/posts?status=draft`. Considerar restringir o discovery endpoint para não autenticados.
+
+**D.4 — CDN fronting attack: proteção atual não resiste a novos IPs** `ALTO` — Gap estrutural
+
+O IPSet bloqueia os ranges específicos do incidente. O atacante troca para outros nós CloudFront em minutos. A defesa estrutural correta é o **custom header secreto**: o CloudFront injeta `X-Origin-Verify: UUID-secreto` em todas as requests, e o nginx rejeita com 403 qualquer request sem esse header. Esta única mudança elimina CDN fronting attacks estruturalmente, independente dos IPs usados.
+
+---
+
+## E — Próximos vetores iminentes
+
+| Vetor | Probabilidade | Prazo estimado |
+|---|---|---|
+| Brute force wp-login.php via CDN fronting | Alta | 1–4 semanas |
+| REST API harvesting / exploit de plugin | Alta | Em andamento |
+| Credential stuffing com listas vazadas | Média | Qualquer momento |
+| Defacement via plugin desatualizado | Média | Depende de CVE publicado |
+
+---
+
+## Plano de ação consolidado
+
+**Imediato (48h):**
+1. Implementar custom header `X-Origin-Verify` no CloudFront + validação nginx — elimina CDN fronting estruturalmente
+2. Criar regra WAF rate limiting para wp-login.php POST (50 req/5min por IP)
+3. Verificar e restringir Security Group do EC2/ALB para apenas IPs do CloudFront
+4. Corrigir log injection: aplicar `sanitize_text_field()` ao `$username` no hook `wp_login_failed`
+
+**Curto prazo (7 dias):**
+5. Substituir `return 444` por `return 403` no nginx para xmlrpc.php
+6. Configurar logrotate para `blocked-xmlrpc.log` e error_log do PHP-FPM
+7. Remover `ini_set('expose_php', '0')` do mu-plugin; adicionar ao `php.ini` do FPM
+8. Expandir regra nginx de uploads para cobrir `.phtml|.php5|.phar|.shtml`
+9. Ativar 2FA obrigatório para admin e editor
+
+**Médio prazo (30 dias):**
+10. Auditoria de `wp_ajax_nopriv_*` + rate limiting WAF para admin-ajax.php
+11. Restringir REST API para não autenticados; revisar Application Passwords por role
+12. Documentar TTL de 90 dias para IPSet e criar revisão recorrente
+13. Verificar política de páginas de autor — whitelist de roles se necessário
+14. Atualizar todos os plugins (JetEngine, Elementor Pro, TEC, WPML)</result>
+<usage><total_tokens>55141</total_tokens><tool_uses>10</tool_uses><duration_ms>445849</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a719da839ef05fac0</task-id>
+<tool-use-id>toolu_011WuZkpkkYnnXjMQ64WrVp5</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a719da839ef05fac0.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor 3: Resiliência e operações" completed</summary>
+<result># Auditoria SRE — Concertação Amazônica (2026-03-31)
+
+## Resumo Executivo
+
+A implementação de segurança realizada é adequada para o contexto de resposta a incidente. Os controles implementados endereçam o vetor de ataque imediato (xmlrpc + IPs agressivos). Contudo, a arquitetura apresenta **gaps estruturais de resiliência** que permitem que ataques futuros causem impacto similar, mesmo com as novas proteções ativas. A instância única sem ASG é o risco dominante.
+
+---
+
+## 1. Riscos Operacionais da Implementação Atual
+
+### 1.1 Log `/var/log/nginx/blocked-xmlrpc.log`
+
+**Severidade: BAIXA → MÉDIA se ataque persistir**
+
+**Cobertura pelo logrotate:**
+O padrão `/etc/logrotate.d/nginx` em Ubuntu/Debian cobre `    /var/log/nginx/*.log`, portanto o novo arquivo **está coberto automaticamente** — rotação diária com 14 dias de retenção (configuração padrão). Nenhuma ação necessária, mas vale confirmar:
+
+```bash
+grep -r "blocked-xmlrpc" /etc/logrotate.d/
+# Se vazio, o glob *.log já cobre — confirmar o glob está presente:
+cat /etc/logrotate.d/nginx
+```
+
+**Crescimento estimado do log:**
+
+| Cenário | Requests/dia | Tamanho/linha (nginx combined) | Crescimento/dia | Crescimento/mês |
+|---------|-------------|-------------------------------|-----------------|-----------------|
+| Ataque baixo | 1.000 | ~200 bytes | 200 KB | 6 MB |
+| Ataque moderado | 50.000 | ~200 bytes | 10 MB | 300 MB |
+| Pico do ataque (extrapolado) | 500.000 | ~200 bytes | 100 MB | 3 GB |
+
+**Disco atual:** 11 GB disponíveis de 29 GB. Com logrotate diário e retenção de 14 dias, o cenário de ataque moderado consome ~140 MB de forma estável. O cenário de pico exige revisão imediata — logrotate não protege intra-dia se o ataque gerar GBs em horas.
+
+**Recomendação:** Configurar logrotate com `size 100M` além de `daily` para o arquivo específico, e um alerta CloudWatch de disco `> 80%` (atualmente ausente).
+
+---
+
+### 1.2 IPSet `Block-AttackerRanges-2026-03-31` com nós CloudFront
+
+**Severidade: MÉDIA**
+
+Este é o gap mais insidioso da implementação. Os IPs bloqueados pertencem ao espaço de endereçamento CloudFront que serve como *origin-facing edge*. A AWS **rotaciona esses IPs** — não há SLA público de estabilidade, mas rotações são conhecidas em janelas de manutenção ou scaling da infraestrutura deles.
+
+**Cenário de falha:**
+- AWS reatribui subnet `/24` ou `/22` bloqueada para outro cliente CloudFront
+- Requests legítimas de usuários brasileiros passando por esses edges são bloqueadas silenciosamente no WAF
+- O site aparenta estar fora do ar para um subconjunto de usuários
+- Diagnóstico é difícil porque o erro aparece no WAF, não no origin
+
+**O nome com data é uma boa prática, mas sem processo associado é inócuo.**
+
+**Recomendação:**
+1. Criar ticket recorrente (90 dias) para revisar os 4 CIDRs contra a lista oficial `https://ip-ranges.amazonaws.com/ip-ranges.json` (filtro: `"service": "CLOUDFRONT"`)
+2. Documentar os 4 CIDRs e o motivo do bloqueio em arquivo versionado no repositório
+3. Considerar migrar para bloqueio por User-Agent ou header específico do ataque, que é mais estável que IP
+
+---
+
+### 1.3 Regra WAF P8 `Block-XMLRPC` — `ENDS_WITH /xmlrpc.php`
+
+**Severidade: BAIXA**
+
+**Cobertura de `//xmlrpc.php`:**
+A transformação `ENDS_WITH` no AWS WAF opera sobre a URI normalizada. O CloudFront **normaliza** double slashes antes de passar para o WAF em alguns cenários, mas o comportamento depende da configuração de `Normalize HTTP Request` na Web ACL. Se a normalização de URI não estiver ativa explicitamente, `//xmlrpc.php` pode não ser capturado.
+
+Verificação necessária:
+- Na Web ACL, confirmar se `URI normalization` está habilitada
+- Adicionar segunda condição OR com `CONTAINS /xmlrpc.php` como cobertura de redundância
+
+**Re-habilitação futura:**
+Não existe processo documentado. Se uma integração legítima precisar de xmlrpc (ex: aplicativo mobile legado, Jetpack, integração de CMS headless):
+1. Criar IPSet específico `Allow-LegacyXMLRPC-{cliente}` 
+2. Inserir regra Allow com prioridade menor que P8 (ex: P7.5 → P7 existente é RateLimit, inserir em P8 e renumerar)
+3. O processo atual exige acesso ao console AWS — sem automação
+
+---
+
+## 2. Gaps de Resiliência Não Endereçados
+
+### 2.1 Health Check Superficial do ALB
+
+**Severidade: ALTA**
+
+Este é o gap que permitiu o ataque causar 30+ minutos de degradação com o ALB **continuando a enviar tráfego ao nó saturado**. O health check na porta 8080 (nginx puro) verifica apenas que o processo nginx está vivo — não verifica PHP-FPM, não verifica latência, não verifica fila de backlog.
+
+**Impacto real observado no ataque:**
+```
+Load average = 34 (instância de 4 vCPUs → utilizacao de 850%)
+PHP-FPM: todos os 55 workers ocupados
+Health check ALB: PASSOU (nginx na 8080 respondeu 200)
+ALB: continuou roteando 100% do tráfego
+Resultado: cada request nova enfileirava atrás de 55 requests processando
+```
+
+O ALB ficou cego para a saturação real. Em uma arquitetura com ASG, isso ativaria scale-out. Aqui, simplesmente acumulou.
+
+**Recomendação de health check real:**
+Criar endpoint `/healthz-deep` que valida:
+```php
+// Verificar se PHP-FPM está respondendo (o próprio fato de executar PHP já valida)
+// Verificar conexão com banco (ping leve)
+// Verificar Redis
+// Retornar 200 apenas se tudo OK, 503 caso contrário
+```
+
+Configurar ALB para usar este endpoint. Com threshold de 2 checks consecutivos falhos × 10s = 20s para marcar unhealthy. Isso não resolve o problema de instância única (não há para onde fazer failover), mas pelo menos interrompe o envio de tráfego novo ao nó saturado.
+
+---
+
+### 2.2 Ausência de Circuit Breaker no nginx → PHP-FPM
+
+**Severidade: ALTA**
+
+**Comportamento atual:**
+```
+fastcgi_connect_timeout 60s
+fastcgi_read_timeout 60s
+→ nginx segura conexão por até 60s esperando FPM
+→ Com 25 req simultâneas × 60s = acumulação de 1500 conexões
+→ Cada conexão consome ~8KB de buffer nginx = ~12MB só em buffers
+→ worker_connections esgota → nginx começa a retornar 502 para TODAS as requests, incluindo estáticas
+```
+
+**Configuração de fail-fast recomendada:**
+
+```nginx
+# Em /etc/nginx/conf.d/wordpress.conf
+fastcgi_connect_timeout 5s;      # Era 60s — se FPM não aceita em 5s, está saturado
+fastcgi_read_timeout 30s;        # Reduzir para páginas normais
+fastcgi_send_timeout 30s;
+
+# Circuit breaker via upstream (se múltiplos workers, mas mesmo com um serve):
+upstream php_fpm {
+    server unix:/run/php/php8.2-fpm.sock;
+    keepalive 8;
+}
+
+# Retorno rápido quando FPM não responde
+fastcgi_next_upstream error timeout;
+fastcgi_next_upstream_timeout 5s;
+```
+
+O impacto prático: ao invés de acumular 1500 conexões esperando 60s cada, nginx retorna 502 imediatamente ao detectar FPM saturado, liberando recursos para servir cache estático do WP Rocket.
+
+---
+
+### 2.3 Ausência de Monitoramento Preventivo
+
+**Severidade: MÉDIA-ALTA**
+
+**Cronologia do ataque (reconstituída):**
+```
+T+0:    Ataque inicia, load sobe
+T+5min: Load > 10, PHP-FPM começa a enfileirar
+T+20min: Load = 34, site inoperante
+T+20min+30s: CloudWatch detecta 3 checks falhos → alerta dispara
+T+50min: Site se recupera sozinho
+```
+
+O alerta chegou ~20 minutos depois do início da degradação. Alertas preventivos existentes nas métricas EC2 nativas do CloudWatch poderiam ter dado 10-15 minutos de antecedência:
+
+| Métrica | Threshold sugerido | Período | Ação |
+|---------|-------------------|---------|------|
+| `CPUUtilization` | > 70% | 5 min consecutivos | Alerta WARNING |
+| `CPUUtilization` | > 85% | 2 min consecutivos | Alerta CRITICAL |
+| `NetworkIn` | > 50 MB/5min | 5 min | Alerta (indica volumetria) |
+| Disco `/ > 80%` | absoluto | 5 min | Alerta WARNING |
+
+Nenhum desses alertas requer infraestrutura adicional — são métricas nativas EC2 já coletadas, sem custo de agent.
+
+---
+
+### 2.4 Ausência de Página de Manutenção como Fallback
+
+**Severidade: MÉDIA**
+
+**Comportamento atual quando FPM satura:**
+- WP Rocket serve páginas cacheadas estaticamente (HTML) → correto, não passa pelo PHP
+- Páginas não cacheadas (admin, formulários, busca) → nginx retorna 502 genérico
+- CloudFront recebe 502 do origin → encaminha ao usuário final
+
+**CloudFront Custom Error Response** resolve isso completamente e está disponível sem custo adicional:
+
+```
+Error Code: 502 → Response page path: /maintenance.html (objeto S3 ou path no origin)
+Error Code: 503 → Response page path: /maintenance.html
+TTL: 30s (baixo para não cachear a página de erro por muito tempo)
+```
+
+A página `maintenance.html` pode ser um objeto simples no S3 ou um arquivo estático no nginx (que continua respondendo mesmo quando FPM está down, desde que o fastcgi_connect_timeout seja reduzido conforme item 2.2).
+
+---
+
+## 3. Processo de Deploy de mu-plugins
+
+**Severidade: MÉDIA**
+
+**Análise do processo atual:**
+
+O deploy via `scp + sudo cp` é funcional mas apresenta três riscos concretos:
+
+**Risco 1 — Erro fatal sem rollback:**
+```bash
+# Se bit-security-hardening.php tiver um erro em runtime (não sintaxe):
+# php -l detecta: parse errors
+# php -l NÃO detecta: undefined functions, chamadas a hooks inexistentes,
+#                      incompatibilidades de versão de plugin
+# Resultado: wp_die() ou fatal error → site inteiro cai
+```
+
+**Risco 2 — Sem validação funcional:**
+`php -l` valida sintaxe, não comportamento. Um `add_filter('option_active_plugins', ...)` que retorna array vazio desativa todos os plugins sem erro de sintaxe.
+
+**Risco 3 — Sem rastro de auditoria:**
+O processo atual não deixa log estruturado de "quem deployou, quando, qual versão".
+
+**Processo recomendado (mínimo viável):**
+
+```bash
+# 1. Teste obrigatório em Docker local ANTES do deploy
+std wp eval-file /caminho/para/bit-security-hardening.php
+
+# 2. Backup do estado atual
+ssh prod "cp /var/www/.../mu-plugins/bit-security-hardening.php \
+           /var/www/.../mu-plugins/bit-security-hardening.php.bak.$(date +%Y%m%d%H%M%S)"
+
+# 3. Deploy com validação pós-deploy
+scp bit-security-hardening.php prod:/tmp/
+ssh prod "sudo cp /tmp/bit-security-hardening.php /var/www/.../mu-plugins/ && \
+          sudo chown www-data:www-data /var/www/.../mu-plugins/bit-security-hardening.php"
+
+# 4. Validação funcional (não apenas sintaxe)
+ssh prod "sudo -u www-data wp --path=/var/www/... eval 'echo \"OK\";' 2>&1"
+# Se retornar erro, rollback imediato:
+# ssh prod "sudo cp /var/www/.../mu-plugins/bit-security-hardening.php.bak.* \
+#                   /var/www/.../mu-plugins/bit-security-hardening.php"
+```
+
+**Adicionalmente:** o mu-plugin deve ser commitado no repositório `docker-dev/common/mu-plugins/` conforme padrão do projeto antes do deploy em produção.
+
+---
+
+## 4. Monitoramento da Efetividade das Proteções
+
+### 4.1 WAF — CloudWatch Metrics
+
+O AWS WAF publica métricas nativas por regra no CloudWatch:
+- Namespace: `AWS/WAFV2`
+- Métrica: `BlockedRequests` com dimensão `Rule=Block-XMLRPC`
+- Métrica: `BlockedRequests` com dimensão `Rule=Block-AttackerRanges-2026-03-31`
+
+```bash
+# Verificar bloqueios das últimas 24h por regra
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/WAFV2 \
+  --metric-name BlockedRequests \
+  --dimensions Name=WebACL,Value=ACL-WPAdminHML Name=Rule,Value=Block-XMLRPC \
+  --start-time $(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
+  --period 3600 --statistics Sum
+```
+
+### 4.2 Log blocked-xmlrpc — Crescimento
+
+```bash
+# Verificar tamanho atual e taxa de crescimento
+ssh prod "ls -lh /var/log/nginx/blocked-xmlrpc.log && \
+          wc -l /var/log/nginx/blocked-xmlrpc.log"
+
+# Taxa por hora (últimas 10 linhas com timestamp):
+ssh prod "tail -10 /var/log/nginx/blocked-xmlrpc.log"
+```
+
+Criar alerta CloudWatch de disco para `/` > 80% (cobre qualquer crescimento não previsto).
+
+### 4.3 Detecção de Retorno do Ataque com Novos IPs
+
+A assinatura mais confiável do ataque não é o IP (rotacional) mas o padrão:
+- Alto volume de requests para `/xmlrpc.php` (agora bloqueado no WAF antes de chegar ao origin)
+- Rate limit P7 disparando (CloudWatch: `BlockedRequests` para `RateLimit-300-Block`)
+- CPU EC2 > 70% (CloudWatch nativo)
+
+Se o atacante mudar vetor (ex: flood em `/wp-login.php` com IPs novos), o P3/P14 já bloqueia não-dev. O vetor mais vulnerável remanescente é flood em páginas públicas não cacheadas — isso cairia no rate limit P7 antes de saturar FPM.
+
+---
+
+## 5. Impacto do `return 444` nas Métricas CloudFront
+
+**Severidade: MÉDIA** (risco de falso positivo em alertas)
+
+**Comportamento técnico:**
+Quando nginx retorna 444 (TCP close sem resposta HTTP), o CloudFront interpreta como falha de conexão com o origin. O campo `x-edge-result-type` nos logs CloudFront registra `Error` (não `Miss` ou `Hit`).
+
+**Impacto nas métricas CloudWatch:**
+- `5xxErrorRate` **NÃO é inflada** — 444 não é uma resposta HTTP 5xx, é uma falha de conexão TCP. O CloudFront registra como `OriginError` mas a métrica `5xxErrorRate` conta apenas respostas HTTP com status 5xx recebidas do origin.
+- A métrica afetada é `OriginLatency` (timeout) e o campo `origin-fbl` nos logs.
+- **Porém:** `TotalErrorRate` **pode ser inflada** — CloudFront pode retornar 502 ao cliente final quando o origin fecha a conexão sem resposta, e 502 conta em `TotalErrorRate`.
+
+**Conclusão prática:** O alerta `CloudFront 5XX Rate > 10%` existente **pode sim ser triggereado** se o volume de xmlrpc bloqueados for alto e o CloudFront retornar 502 para o usuário final em vez de absorver o 444 silenciosamente.
+
+**Recomendação:** Verificar o comportamento na prática monitorando `5xxErrorRate` vs `BlockedRequests` WAF nas primeiras 48h. Se correlacionados, adicionar Custom Error Response no CloudFront para 502 com TTL baixo (item 2.4), o que evita que o 502 seja reportado como erro de origem.
+
+Alternativa: considerar `return 403` no nginx em vez de 444 — retorna resposta HTTP válida, CloudFront não registra como OriginError, e WAF já bloqueia a maioria antes de chegar ao origin de qualquer forma.
+
+---
+
+## 6. Custo das Mudanças no WAF
+
+**Impacto estimado:**
+
+| Item | Custo anterior | Custo atual | Delta |
+|------|---------------|-------------|-------|
+| Web ACL | $5,00/mês | $5,00/mês | $0 |
+| Rules (14 → 16) | $14,00/mês | $16,00/mês | +$2,00/mês |
+| Requests processadas | baseline | -15% a -40%* | economia |
+
+*Block-XMLRPC e Block-AttackerRanges eliminam requests antes de chegarem às regras posteriores, reduzindo o custo de requests processadas pelas demais regras.
+
+**Análise custo-benefício:**
+- Custo incremental: **$2,00/mês** (2 novas regras)
+- Benefício direto: redução de carga no EC2 (menos requests chegando ao origin), redução de custo de egress de dados, proteção de disponibilidade
+- Custo de 1 incidente de downtime (30min): impacto de reputação do projeto Uma Concertação Pela Amazônia, custo de resposta humana estimado em 2-4h de trabalho
+- ROI: claramente positivo — $2/mês vs custo recorrente de incidentes
+
+---
+
+## Tabela de Priorização de Ações
+
+| # | Ação | Severidade | Esforço | Urgência |
+|---|------|-----------|---------|---------|
+| 1 | Reduzir `fastcgi_connect_timeout` de 60s para 5s no nginx | ALTA | 30min | Imediata |
+| 2 | Criar alertas CloudWatch preventivos (CPU > 70%, disco > 80%) | ALTA | 1h | Esta semana |
+| 3 | Configurar CloudFront Custom Error Response para 502/503 | MÉDIA | 1h | Esta semana |
+| 4 | Criar endpoint `/healthz-deep` com validação de PHP+DB+Redis | ALTA | 2h | Esta semana |
+| 5 | Documentar processo de deploy de mu-plugins com backup+rollback | MÉDIA | 1h | Esta semana |
+| 6 | Criar ticket recorrente de 90 dias para revisar IPSet atacantes | MÉDIA | 15min | Esta semana |
+| 7 | Verificar normalização de URI na Web ACL para `//xmlrpc.php` | BAIXA | 30min | Próxima sprint |
+| 8 | Commitar `bit-security-hardening.php` em `common/mu-plugins/` | BAIXA | 15min | Imediata |
+| 9 | Monitorar correlação 444 → 5xxErrorRate nas próximas 48h | MÉDIA | observação | Imediata |
+| 10 | Confirmar cobertura logrotate do novo arquivo de log | BAIXA | 5min | Imediata |
+
+---
+
+## Observação Estrutural
+
+Todos os gaps de resiliência identificados (itens 2.1 a 2.4) são consequência direta da arquitetura de **instância única sem ASG**. As melhorias recomendadas reduzem o impacto de ataques futuros, mas não eliminam a vulnerabilidade fundamental: qualquer saturação que supere a capacidade do t3.xlarge causa degradação sem failover automático.
+
+O site se recuperou sozinho em ~30min porque o ataque parou, não porque a arquitetura é resiliente. A próxima mitigação estrutural de longo prazo seria ASG com mínimo de 2 instâncias — mas isso está fora do escopo desta auditoria de implementação imediata.</result>
+<usage><total_tokens>20350</total_tokens><tool_uses>0</tool_uses><duration_ms>114753</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa3e40a7cc9ef004d</task-id>
+<tool-use-id>toolu_01JocNJ3zZxGHL922vZdK8KJ</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/aa3e40a7cc9ef004d.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor 2: WordPress e mu-plugin" completed</summary>
+<result>Relatório gerado com sucesso. Aqui está o resumo completo da auditoria:
+
+---
+
+## Resultado da Auditoria — `bit-security-hardening.php` v1.0.0
+
+**Relatórios salvos:**
+- HTML: `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-bit-security-hardening-2026-03-31.html`
+- PDF: `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-bit-security-hardening-2026-03-31.pdf`
+
+---
+
+### Achados por severidade: 2 Críticos · 3 Altos · 4 Médios · 3 Baixos · 4 Info/OK
+
+---
+
+### CRÍTICOS (corrigir imediatamente)
+
+**C1 — Bloqueio de debug.log / wp-config.php completamente inoperante**
+O array `$blocked_patterns` usa strings com backslash-escaping de regex (ex: `'/debug\.log'`). Após `ltrim($pattern, '/')`, o `str_contains()` recebe `'debug\.log'` (com backslash literal), que nunca faz match contra a URL real `'debug.log'`. Resultado: nenhum dos 4 padrões funciona. O risco imediato é `debug.log` e `error_log` — o nginx não tem regra explícita para eles e podem expor stack traces com credenciais se `WP_DEBUG_LOG` estiver ativo.
+
+Fix: remover os backslashes e usar substrings literais diretas no array.
+
+**C2 — Guard de `is_admin()` ausente no hook `init`**
+O bloco de proteção de arquivos sensíveis roda inclusive em requests ao `wp-admin/`. Se o padrão fosse expandido para `'debug'` genérico (sem `.log`), bloquearia `admin-ajax.php?action=tec_debug_trace` do `tec-debug-trace.php` ativo neste site. A correção do C1 resolve indiretamente, mas adicionar `if (is_admin()) return;` no início do callback é a proteção correta.
+
+---
+
+### ALTOS (corrigir antes do deploy em produção)
+
+**A1 + A3 — `list_users` muito restritivo; editores não têm essa capability em Multisite**
+Em Multisite, `list_users` é resolvida para `manage_users` e pertence apenas a super admins/admins de rede. Editores não passam no check — o que bloqueia o endpoint `/wp/v2/users` para eles. Consequência direta: **o campo "Autor" do Elementor Pro fica vazio/com erro** no editor visual para qualquer usuário com role `editor`. Fix: substituir por `is_user_logged_in() && current_user_can('edit_posts')`.
+
+**A2 — `home_url('/')` no redirect de `?author=` aponta para o subsite em contexto `/cultura/`**
+Em Multisite subdirectory, quando a request é para o blog 2, `home_url('/')` retorna `https://concertacaoamazonia.com.br/cultura/` — não a raiz da rede. O redirect ainda funciona (bloqueia a enumeração), mas redireciona para o subsite em vez da raiz. Fix: usar `network_site_url('/')` que é invariante ao contexto de blog.
+
+---
+
+### MÉDIOS
+
+**M1** — Remoção de `?ver=` pode atingir plugins cuja versão coincida com a versão do WP core. Fix: restringir a remoção a arquivos de `/wp-includes/` e `/wp-admin/`.
+
+**M2** — WP Rocket pode cachear páginas de autor antes do `set_404()` ser processado. Ação: excluir `?author=` das URLs cacheadas no WP Rocket.
+
+**M3** — `Referrer-Policy` duplicado: o `nginx/conf.d/wordpress.conf` linha 278 já envia o header; o PHP envia novamente via `header()`. Remover o `header()` PHP e confiar no nginx.
+
+**M4** — TEC Organizer: sem impacto confirmado. Documentado por precaução.
+
+---
+
+### Confirmações OK
+- WPML (endpoints `/wpml/v1/`, language switcher, Translation Proxy): sem nenhum impacto.
+- JetEngine (listings, CCT participantes, filtros, `_author` query var): sem impacto.
+- WP Rocket cache estático (servido pelo nginx sem PHP): headers corretos vêm do nginx, sem conflito.
+- `Network: true` declarado corretamente para cobertura de toda a rede Multisite.</result>
+<usage><total_tokens>61502</total_tokens><tool_uses>17</tool_uses><duration_ms>469177</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a46b8a19ead0e9ed1</task-id>
+<tool-use-id>toolu_01NtboA6snjtBj9kdTQWAqjW</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a46b8a19ead0e9ed1.output</output-file>
+<status>completed</status>
+<summary>Agent "Passos 6+9: WAF managed rules + rate limit wp-login" completed</summary>
+<result>O Playwright MCP bloqueia protocolo `file://`. O relatório HTML foi salvo com sucesso — PDF não pode ser gerado via Playwright neste ambiente.
+
+---
+
+**Execução concluída com sucesso.**
+
+## Resumo
+
+### Passo 6 — AWS-WordPress-ManagedRules (Priority 16)
+- Regra adicionada em modo **COUNT** (OverrideAction: Count)
+- Grupo gerenciado `AWSManagedRulesWordPressRuleSet` ativo, registrando mas não bloqueando
+- Métrica CloudWatch: `AWS-WordPress-ManagedRules`
+- Prioridade 16 estava livre — sem conflitos
+
+### Passo 9 — RateLimit-WPLogin-POST (Priority 17)
+- Rate limit de **50 req POST / 300s** por IP (via `X-Forwarded-For`)
+- ScopeDown: URI `ENDS_WITH /wp-login.php` + Method `EXACTLY POST`
+- FallbackBehavior: MATCH (IPs sem header X-Forwarded-For contam para o limite)
+- Ação: **BLOCK** ao exceder o limite
+- Prioridade 17 estava livre — sem conflitos com `RateLimit-300-Block` (P7)
+
+### Resultado do update-web-acl
+```
+NextLockToken: REDACTED
+```
+
+ACL passou de 16 para **18 regras** totais. Todas as regras existentes (P0–P15) foram preservadas integralmente.
+
+### Próximo passo obrigatório
+Após 48h (até 2026-04-02): verificar CloudWatch métricas `AWS-WordPress-ManagedRules` por false positives e, se limpo, remover o `OverrideAction: Count` para ativar o bloqueio nativo do WordPress rule set.
+
+**Relatório salvo em:**
+`/Users/dcambria/scripts/reports/08 - Segurança/concertacao-waf/relatorio-auditoria-waf-2026-03-31.html`</result>
+<usage><total_tokens>53696</total_tokens><tool_uses>9</tool_uses><duration_ms>272673</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aaa6fee1d60c2370f</task-id>
+<tool-use-id>toolu_01ADGnn8vpREVVpEvt2jzgjR</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/aaa6fee1d60c2370f.output</output-file>
+<status>completed</status>
+<summary>Agent "Passos 11+12+15: nginx debug.log + manutenção + fastcgi timeout" completed</summary>
+<result>As 3 modificações estão presentes. `fastcgi_connect_timeout` não aparece aqui pois foi movido para o snippet `php-fpm.conf` (que é incluído em todos os blocos PHP via `include`).
+
+---
+
+## Resultado Final
+
+Todas as 3 modificações foram aplicadas com sucesso no nginx de produção `concertacaoamazonia.com.br`.
+
+### Passo 11 — Bloqueio de arquivos sensíveis (linha 85-90)
+Bloco `location ~* /(debug\.log|error_log|\.htaccess|wp-cli\.phar)$` inserido antes de `location ~ /\.ht`, com `deny all`, `access_log off` e `log_not_found off`.
+
+### Passo 12 — Página de manutenção fallback (linhas 11-17)
+`error_page 502 503 504 /manutencao.html` + `location = /manutencao.html { internal; }` inseridos antes do bloco WP Rocket. Arquivo `/var/www/concertacaoamazonia.com.br/manutencao.html` criado com `owner www-data:www-data`.
+
+### Passo 15 — fastcgi_connect_timeout reduzido de 10s para 5s
+O snippet `/etc/nginx/snippets/php-fpm.conf` já definia `fastcgi_connect_timeout 10` e é incluído em todos os blocos PHP do vhost. A diretiva foi alterada diretamente no snippet para `fastcgi_connect_timeout 5`, evitando duplicata. Isso aplica o timeout de 5s a todos os blocos: `wp-login.php`, `wp-cron.php`, `wp-admin/async-upload.php`, `wp-admin/~\.php$` e `location ~ \.php$` (PHP geral).
+
+Backups criados:
+- `/etc/nginx/sites-available/concertacaoamazonia.com.br.bak.YYYYMMDD-HHMMSS`
+- `/etc/nginx/snippets/php-fpm.conf.bak.YYYYMMDD-HHMMSS`
+
+`nginx -t` OK, `systemctl reload nginx` OK, site retornando HTTP 200.</result>
+<usage><total_tokens>39788</total_tokens><tool_uses>17</tool_uses><duration_ms>172006</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6b7d756c9d989ebf</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a6b7d756c9d989ebf.output</output-file>
+<status>completed</status>
+<summary>Agent "Passos 18+19: CloudWatch alarms + custom header X-Origin-Verify" completed</summary>
+<result>All tasks completed. Here's the summary:
+
+---
+
+## Passo 18 — CloudWatch Alarms
+
+### SNS Topic
+
+- **Criado:** `arn:aws:sns:sa-east-1:379590274801:concertacao-alerts`
+- **Subscription:** `daniel.cambria@bureau-it.com` — status `pending confirmation`. Verifique o email para confirmar a subscrição (link de confirmação da AWS).
+
+### Alarmes CloudWatch (sa-east-1, instância `i-0c8178fe7ee985cc9`)
+
+| Alarme | Threshold | Período | Estado |
+|--------|-----------|---------|--------|
+| `concertacao-cpu-warning` | CPU > 70% | 5 min (300s) | OK |
+| `concertacao-cpu-critical` | CPU > 85% | 2 min (120s) | INSUFFICIENT_DATA |
+
+Ambos disparam e recuperam para o mesmo SNS topic. `INSUFFICIENT_DATA` é o estado inicial esperado — normaliza após o primeiro período de coleta de métricas.
+
+### Alarme de disco — CWAgent não instalado
+
+`aws cloudwatch list-metrics --namespace CWAgent` retornou vazio. O CloudWatch Agent não está instalado na instância. Para alarme de disco, será necessário instalar o agente (`amazon-cloudwatch-agent`) e configurar coleta de `/` e `/var`. Documentar como próximo passo.
+
+### Alarmes CloudFront (5XX)
+
+Nenhum alarme existente com prefixo `concertacao` em `us-east-1`. Tarefa futura: criar alarme `concertacao-cloudfront-5xx` na região `us-east-1` para a distribuição `E2F1QD7E7YOYEB`.
+
+---
+
+## Passo 19 — X-Origin-Verify
+
+### Secret gerado
+
+```
+REDACTED
+```
+
+- Salvo em: `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/.x-origin-verify.secret`
+- Adicionado ao `.gitignore` — arquivo nunca será commitado
+
+### CloudFront — estado atual
+
+`get-distribution-config` confirmou `"Quantity": 0` em `CustomHeaders` — nenhum custom header configurado. A adição via CLI requer o `DistributionConfig` completo com `ETag` e é operação delicada. Recomendado fazer pelo console.
+
+### Documentação criada
+
+`/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/docs/x-origin-verify-setup.md` com:
+- Passo a passo para configurar o custom header no console CloudFront
+- Snippet nginx pronto com o secret já inserido
+- Tratamento das exceções para health checks do ALB (`/healthz`, `/healthz-deep.php`)
+- Procedimento de rotação de secret sem downtime
+- Comandos de validação curl para testar direto no origin e via CloudFront
+
+### Proximos passos obrigatórios para ativar a proteção
+
+1. Confirmar a subscription de email SNS (link no email da AWS)
+2. Instalar CloudWatch Agent no EC2 para alarme de disco
+3. Configurar o custom header no CloudFront via console (doc pronta)
+4. Adicionar o bloco `if ($http_x_origin_verify ...)` ao nginx do EC2 e recarregar</result>
+<usage><total_tokens>33553</total_tokens><tool_uses>20</tool_uses><duration_ms>105655</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3238a75fcbc510f0</task-id>
+<tool-use-id>toolu_019E7ujnTZrZuPr8uUtuwq4X</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a3238a75fcbc510f0.output</output-file>
+<status>completed</status>
+<summary>Agent "Passo 7+corrige mu-plugin v1.1.0" completed</summary>
+<result>Both tasks are complete. Here is the summary:
+
+---
+
+## Tarefa 1 — Abuse Report AWS
+
+Texto do email e relatório salvos em:
+
+- `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/abuse-report-aws-2026-03-31.txt` — texto plano pronto para enviar como corpo do email para `abuse@amazonaws.com`
+- `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/abuse-report-aws-2026-03-31.html` — relatório Bureau com design glassmorphism
+- `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/abuse-report-aws-2026-03-31.pdf` — versão PDF (1,7 MB)
+
+O email cobre: identificação do ataque, IPs dos dois clusters (3.172.105.0/24 e 64.252.66-68.x), explicação da técnica CDN fronting, evidências, 5 ações solicitadas à AWS, infraestrutura da vítima e dados de contato.
+
+---
+
+## Tarefa 2 — bit-security-hardening.php v1.1.0
+
+7 correções aplicadas, validação PHP limpa em ambos os caminhos:
+
+| ID | Correção |
+|----|----------|
+| C1 | `blocked_patterns` com backslash-escape inoperante — removidos os escapes de regex, padrões agora são strings literais para `str_contains()` |
+| C2 | Guard `is_admin()` adicionado no início do `add_action('init', ...)` de arquivos sensíveis |
+| A1 | `current_user_can('list_users')` substituído por `is_user_logged_in() && current_user_can('edit_posts')` no filtro `rest_endpoints` e no `permission_callback` |
+| A2 | `home_url('/')` substituído por `network_site_url('/')` no redirect de `?author=N` |
+| A6 | `$username` sanitizado com `sanitize_text_field()` no log de falhas de login |
+| M1 | Remoção de `?ver=` restringida a paths `/wp-includes/` e `/wp-admin/` |
+| M2 | Header `Referrer-Policy` duplicado removido (nginx já envia) |
+| M3 | `ini_set('expose_php', '0')` removido (não funciona em PHP-FPM) |
+
+Arquivos atualizados:
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/wp-content/mu-plugins/bit-security-hardening.php`
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/bit-security-hardening.php`
+
+Resultado do `php -l`: **No syntax errors detected** em ambos.</result>
+<usage><total_tokens>52785</total_tokens><tool_uses>17</tool_uses><duration_ms>439345</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a463739a188fce555</task-id>
+<tool-use-id>toolu_01UHqjpxX8H7GJBXATn4ouk4</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a463739a188fce555.output</output-file>
+<status>completed</status>
+<summary>Agent "Passos 13+16: healthz-deep + systemd php-fpm override" completed</summary>
+<result>All tasks completed successfully. Here is the full summary:
+
+---
+
+## Passo 13 — Endpoint /healthz-deep
+
+### 13a — PHP Script
+- `/var/www/concertacaoamazonia.com.br/healthz-deep.php` criado com `chown www-data:www-data`
+- Tamanho: 3614 bytes
+
+### 13b — Nginx
+- Bloco `location = /healthz-deep.php` inserido antes do bloco `wp-cron.php`
+- As diretivas `fastcgi_param HTTPS on` e `fastcgi_connect_timeout 5` foram omitidas do bloco (já vêm do snippet `/etc/nginx/snippets/php-fpm.conf` — evita duplicata)
+- `nginx -t` passou; `systemctl reload nginx` OK
+
+### 13c — Teste do endpoint
+```json
+{
+    "status": "healthy",
+    "checks": {
+        "php_fpm": "ok",
+        "database": "ok",
+        "redis": "error: Unexpected response: -ERR Protocol error: expected '$', got '\\'",
+        "redis_note": "degraded (non-fatal)"
+    },
+    "time": "2026-04-01T04:20:47+00:00"
+}
+```
+- PHP-FPM: OK
+- Aurora RDS: OK
+- Redis (ElastiCache): erro de protocolo (o ElastiCache compartilhado exige AUTH — o PING raw sem autenticação retorna erro), mas corretamente marcado como `degraded (non-fatal)` — status geral permanece `healthy` e o ALB não remove a instância
+
+### 13d — ALB Target Group atualizado
+- Target group: `concertacao-prod-tg`
+- `HealthCheckPath`: `/health.txt` → `/healthz-deep.php`
+- `HealthCheckIntervalSeconds`: 30 → **15**
+- `HealthyThresholdCount`: 5 → **2**
+- `UnhealthyThresholdCount`: mantido em **2**
+
+---
+
+## Passo 16 — systemd override php8.3-fpm
+
+- Override criado em `/etc/systemd/system/php8.3-fpm.service.d/override.conf`
+- `systemctl daemon-reload` executado
+- Verificação: `Restart=always`, `RestartUSec=3s`
+- Serviço permanece `active (running)` — sem restart necessário (a mudança só afeta comportamento em caso de crash)</result>
+<usage><total_tokens>36621</total_tokens><tool_uses>18</tool_uses><duration_ms>636195</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9f6d61e35837d81c</task-id>
+<tool-use-id>toolu_0161Sc7K8XfcXona1ryvbVay</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a9f6d61e35837d81c.output</output-file>
+<status>completed</status>
+<summary>Agent "Passo 20: Origin Shield CloudFront + investigação TEC cache" completed</summary>
+<result>Relatório gerado e salvo. Aqui está o resumo completo das duas tarefas:
+
+---
+
+## Tarefa 1 — CloudFront Origin Shield & Custom Error Responses
+
+**Origin Shield:** DESABILITADO (`Enabled: false`). A atualização via CLI não foi executada — modificar a distribuição inteira via CLI requer re-enviar todos os 13 cache behaviors, o que representa risco real de erro silencioso. O processo seguro é via Console AWS:
+
+1. CloudFront → E2F1QD7E7YOYEB → Origins → "Application Load Balancer" → Edit
+2. Origin Shield: **Yes**, região: **sa-east-1**
+3. Deploy leva ~5 min, sem downtime
+
+**Custom Error Responses:** já estão corretas — 502 e 503 mapeiam para `/manutencao.html`, response code 503, TTL 30s. Nenhuma ação necessária.
+
+---
+
+## Tarefa 2 — The Events Calendar: causa raiz dos picos de CPU identificada
+
+Três problemas em cascata, ordenados por impacto:
+
+**P1 — OPcache desabilitado no PHP-FPM (crítico).** `opcache_get_status()` retornou `false` dentro do contexto PHP-FPM. Com OPcache off, cada request recompila todos os arquivos do WordPress + TEC do zero. Isso sozinho explica os picos de CPU — redução esperada de 60–80% ao habilitar.
+
+**P1 — WP Rocket não está gerando cache de páginas.** O diretório `/wp-content/cache/wp-rocket/` tem apenas um `index.html` vazio de proteção. Nenhuma página foi cacheada em disco. WP Rocket está ativo como network plugin mas as settings ficam em `wp_options` do blog 1 — algo está impedindo o cache de arquivo (investigar no Network Admin → WP Rocket).
+
+**P2 — 73% dos requests de /eventos/ chegam com query strings, sem cache.** A cache policy do CloudFront (`WP-Dynamic-ShortTTL`) usa `QueryStringBehavior: all`, tornando cada combinação de `?tribe-bar-date=X&eventDisplay=Y` uma cache key única. Os parâmetros TEC (`tribe-bar-date`, `eventDisplay`, `eventDate`, `ical`) também não estão na whitelist do WP Rocket — nunca seriam cacheados mesmo com o cache de arquivo funcionando.
+
+**Agravante:** 28 workers PHP-FPM para 2 vCPUs. Sob carga sem cache, há contenção severa.
+
+---
+
+**Arquivos gerados:**
+- `/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-diagnostico-2026-03-31.html`
+- `/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-diagnostico-2026-03-31.pdf` (5,3 MB)</result>
+<usage><total_tokens>63926</total_tokens><tool_uses>29</tool_uses><duration_ms>530998</duration_ms></usage>
+</task-notification>
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+
+The user received a CRITICAL downtime alert for concertacaoamazonia.com.br and asked for:
+1. Diagnose the production outage
+2. Dispatch 5 security agents to analyze and plan response
+3. Execute immediate actions (steps 1-5)
+4. Create a post-implementation audit with 3 agents
+5. Generate a report
+6. Execute steps 6-20 with one agent per step
+7. Generate a second audit with 3 agents and a second report
+8. Deep investigation of The Events Calendar cache problem causing CPU spikes
+
+The user explicitly requested: "dispare 5 agentes de SI para analisar a solução e contribuir com o plano", then "sim" (proceed with immediate actions), then "crie um relatório do que foi feito, após passar por uma auditoria com 3 agentes... depois execute os passos 6, 7, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20. Dispare um agente para resolver cada um dos problemas de forma minuciosa."
+
+2. Key Technical Concepts:
+- CDN Fronting Attack: attacker created CloudFront distributions pointing at victim's EC2 as origin; attack IPs (3.172.105.x, 64.252.66-68.x) are CloudFront origin-facing nodes, not attacker IPs
+- WordPress Multisite (subdirectory mode): blog 1 (root /), blog 2 (/cultura/)
+- AWS WAF CloudFront-scoped ACL with ByteMatch, RateBased, IPSet, ManagedRuleGroup rules
+- PHP-FPM worker pool saturation (load average 34 on 4-vCPU machine)
+- WP Rocket static cache + Redis object cache (ElastiCache shared, no FLUSHDB)
+- ALB → EC2 health check (was superficial, now /healthz-deep.php)
+- WPML translation_pickup_method: 0=polling (safe to block xmlrpc), 1=xmlrpc
+- OPcache disabled in PHP-FPM = every request recompiles all WP+TEC PHP files
+- The Events Calendar query strings (tribe-bar-date, eventDisplay) preventing cache
+- systemd service override for auto-restart
+- X-Origin-Verify custom header as structural defense against CDN fronting
+- SNS + CloudWatch alarms for preventive monitoring
+- mu-plugin deployment pattern (scp + sudo cp + chown www-data)
+
+3. Files and Code Sections:
+
+- `/etc/nginx/sites-available/concertacaoamazonia.com.br` (production)
+  - xmlrpc.php block replaced with `return 444` + access_log
+  - Added debug.log/error_log/htaccess/wp-cli.phar blocking location
+  - Added `error_page 502 503 504 /manutencao.html` + internal location
+  - Added `location = /healthz-deep.php` block
+  ```nginx
+  # xmlrpc.php: BLOQUEADO - WPML 4.8.6+ usa REST API (auditado 2026-03-31)
+  location = /xmlrpc.php {
+      access_log /var/log/nginx/blocked-xmlrpc.log combined;
+      return 444;
+  }
+  location ~* /(debug\.log|error_log|\.htaccess|wp-cli\.phar)$ {
+      deny all; access_log off; log_not_found off;
+  }
+  error_page 502 503 504 /manutencao.html;
+  location = /manutencao.html { root /var/www/...; internal; access_log off; }
+  ```
+
+- `/etc/nginx/snippets/php-fpm.conf` (production)
+  - `fastcgi_connect_timeout` reduced from 10s to 5s (applies to all PHP locations)
+
+- `/var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bit-security-hardening.php` (production v1.1.0)
+  - 8 bug fixes from audit applied
+  ```php
+  // C1 fix: no backslash-escape
+  $blocked_patterns = ['debug.log', 'error_log', 'wp-config.php', '.env'];
+  // C2 fix:
+  add_action('init', function(): void { if (is_admin()) return; ... });
+  // A1 fix:
+  if (is_user_logged_in() && current_user_can('edit_posts')) return $endpoints;
+  // A2 fix:
+  wp_safe_redirect(network_site_url('/'), 301);
+  // A6 fix:
+  sanitize_text_field($username)
+  ```
+
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/bit-security-hardening.php`
+  - Canonical copy updated to v1.1.0 with same 8 fixes
+
+- `/var/www/concertacaoamazonia.com.br/healthz-deep.php` (new)
+  - Checks PHP-FPM (implicit), Aurora RDS (PDO), Redis (socket/TCP with AUTH)
+  - Returns JSON: `{"status":"healthy","checks":{"php_fpm":"ok","database":"ok","redis":"degraded"}}`
+  - Redis shows "degraded (non-fatal)" - Redis uses /run/redis/redis.sock with requirepass but www-data can't access socket; TCP on 127.0.0.1:6379 requires AUTH password
+
+- `/etc/systemd/system/php8.3-fpm.service.d/override.conf` (new)
+  ```ini
+  [Service]
+  Restart=always
+  RestartSec=3s
+  ```
+
+- `/var/www/concertacaoamazonia.com.br/manutencao.html` (new)
+  - Static maintenance page with Bureau IT green design
+
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/.x-origin-verify.secret`
+  - Contains secret: `REDACTED` (gitignored)
+
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/docs/x-origin-verify-setup.md`
+  - Instructions for enabling X-Origin-Verify on CloudFront + nginx validation snippet
+
+- AWS WAF ACL `ACL-WPAdminHML` — now 18 rules:
+  - P8: Block-XMLRPC (ByteMatch ENDS_WITH /xmlrpc.php, Block)
+  - P15: Block-AttackerRanges-2026-03-31 (IPSet: 3.172.105.0/24, 64.252.66-68.0/24)
+  - P16: AWS-WordPress-ManagedRules (ManagedRuleGroup, OverrideAction: Count — 48h trial)
+  - P17: RateLimit-WPLogin-POST (50req/300s FORWARDED_IP, POST /wp-login.php, Block)
+
+- CloudWatch Alarms created (sa-east-1, instance i-0c8178fe7ee985cc9):
+  - `concertacao-cpu-warning`: CPU > 70%, 5min, SNS
+  - `concertacao-cpu-critical`: CPU > 85%, 2min, SNS
+  - SNS topic: `arn:aws:sns:sa-east-1:379590274801:concertacao-alerts`
+
+4. Errors and fixes:
+- **nginx Python edit failing (PermissionError)**: Used `sudo python3 -` heredoc pattern. Fixed by running python3 with sudo.
+- **Byte encoding issues in Python replace**: Switched from string replace to bytes (`rb` mode) to handle UTF-8 characters (em dashes, accented chars) in nginx config comments.
+- **WAF update-web-acl "Invalid base64"**: SearchString in ByteMatchStatement must be base64-encoded. Fixed by encoding all SearchStrings.
+- **WAF update-web-acl "BIT-Recurso-Indisponivel" not found**: Must include `--custom-response-bodies` in every update-web-acl call. Fixed by adding the parameter.
+- **healthz-deep.php Redis protocol error**: Initial version used plain PING without AUTH. Redis at /run/redis/redis.sock owned by redis:redis (www-data no access). TCP on 127.0.0.1:6379 requires AUTH. Fixed health check to attempt AUTH, but Redis remains "degraded (non-fatal)" because of socket permission issue. Acceptable — ALB still marks instance healthy.
+- **mu-plugin C1 bug (blocked_patterns)**: `'/debug\.log'` with backslash in str_contains never matches. Fixed in v1.1.0 to use `'debug.log'`.
+- **mu-plugin A1 bug (list_users capability)**: In Multisite, `list_users` = super admin only, breaks Elementor editor for editors. Fixed to `is_user_logged_in() && current_user_can('edit_posts')`.
+- **mu-plugin A2 bug (home_url in Multisite)**: Returns subsite URL in /cultura/ context. Fixed to `network_site_url('/')`.
+
+5. Problem Solving:
+
+**Solved:**
+- Identified CDN fronting attack as root cause (not Tencent Cloud as initially suspected)
+- Blocked xmlrpc.php at nginx (return 444) + WAF (Block-XMLRPC P8)
+- Blocked attacker IP ranges in WAF IPSet
+- Deployed WAF rate limit for wp-login.php POST
+- Fixed 8 bugs in mu-plugin v1.1.0
+- Implemented circuit breaker (fastcgi_connect_timeout 5s)
+- Created real health check for ALB (/healthz-deep.php)
+- Created preventive CPU alarms in CloudWatch
+- Added maintenance page fallback for 502/503/504
+- systemd auto-restart for PHP-FPM
+
+**Ongoing/Pending:**
+- TEC cache problem: OPcache disabled in PHP-FPM (critical), WP Rocket not generating cache, query strings preventing caching
+- X-Origin-Verify: secret generated but NOT yet activated (needs CloudFront console + nginx config)
+- Origin Shield: documented but NOT enabled (CLI too risky)
+- SNS email subscription: pending confirmation email
+- Redis in healthz-deep: shows degraded (acceptable but should be fixed)
+- AWS-WordPress-ManagedRules: in COUNT mode, needs switch to BLOCK after 48h review
+- CloudWatch Agent not installed (no disk alarm yet)
+
+6. All user messages:
+- "verifique o que está havendo com o site da concertacao em prod: 🔴 [CRITICAL] Monitor Down..."
+- "oq nao bloqueia no waf?" (question about why WAF didn't block the attack)
+- "dispare 5 agentes de SI para analisar a solução e contribuir com o plano"
+- "sim" (approve executing immediate actions 1-5)
+- "crie um relatório do que foi feito, após passar por uma auditoria com 3 agentes para analisar a implementação e suas implicações secundárias. depois execute os passos 6, 7, 9, 10, 11, 12,13, 15, 16, 17, 18, 19, 20. Dispare um agente para resolver cada um dos problemas de forma minuciosa. novo relatório do que foi feito, após passar por uma auditoria com 3 agentes para analisar a implementação e suas implicações secundárias. se necessário, um ciclo de correção com 3 agentes. depois, analise se o plugin the events calendar está sendo cacheado. Picos de cpu indicam falta de cache para visualização de eventos por data. investigue profundamente o caso, pois está atrapalhando o uptime do serviço do site e cliente insatisfeito."
+
+7. Pending Tasks:
+- **Fase 4 (in progress)**: Post-implementation audit with 2 agents currently running (auditor 1: WAF/nginx/infra verification; auditor 2: mu-plugin v1.1.0 + TEC investigation)
+- **Fase 5**: Generate report #2 after Fase 4 audit completes
+- **Fase 6**: Deep TEC investigation and fix (3 cascade problems found: OPcache off, WP Rocket not caching, query strings)
+- Activate X-Origin-Verify (CloudFront console + nginx)
+- Switch AWS-WordPress-ManagedRules from COUNT to BLOCK after 48h
+- Confirm SNS email subscription (daniel.cambria@bureau-it.com)
+- Install CloudWatch Agent for disk metrics
+- Enable Origin Shield (CloudFront console)
+- Fix Redis AUTH in healthz-deep.php (non-critical)
+
+8. Current Work:
+
+Immediately before this summary, the system was in **Fase 4 (post-implementation audit)** with 2 agents running in background:
+
+Agent 1 (`a4f253cfd1c4d2419`): Verifying all implemented changes are working correctly in production — WAF rules, nginx changes, mu-plugin v1.1.0, systemd override, ALB health check, CloudWatch alarms.
+
+Agent 2 (`ad03d2fde90ed9fed`): Verifying mu-plugin v1.1.0 specific corrections and conducting deep TEC cache investigation — OPcache status in FPM, WP Rocket cache file count, query strings analysis.
+
+The healthz-deep.php Redis issue was just being resolved — the fix was applied but Redis still shows "degraded (non-fatal)" because:
+- Redis socket /run/redis/redis.sock has permissions `redis:redis` (www-data excluded)
+- TCP on 127.0.0.1:6379 requires AUTH password
+- This is acceptable since Redis degraded ≠ site unhealthy for ALB purposes
+
+TEC preliminary findings (from step 20 agent):
+1. OPcache disabled in PHP-FPM context (CRITICAL — every request recompiles all PHP)
+2. WP Rocket has only 1 empty index.html in cache directory (effectively no page cache)
+3. 73% of /eventos/ requests have query strings (tribe-bar-date, eventDisplay) → never cached
+
+9. Optional Next Step:
+
+The next step is to wait for the 2 currently running audit agents (Fase 4) to complete, then:
+1. Consolidate their findings
+2. Generate Report #2 (Fase 5)
+3. Begin the deep TEC investigation and fix (Fase 6)
+
+The user's explicit request was: "depois, analise se o plugin the events calendar está sendo cacheado. Picos de cpu indicam falta de cache para visualização de eventos por data. investigue profundamente o caso, pois está atrapalhando o uptime do serviço do site e cliente insatisfeito."
+
+The preliminary TEC investigation (step 20 agent) found: "P1 — OPcache desabilitado no PHP-FPM (crítico)... P1 — WP Rocket não está gerando cache de páginas... P2 — 73% dos requests de /eventos/ chegam com query strings, sem cache."
+
+The next concrete step after audits complete is to fix OPcache in PHP-FPM (add `opcache.enable=1` to the FPM pool config), investigate why WP Rocket is not generating cache files, and configure WP Rocket/CloudFront to handle TEC query strings properly.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/save-report
+
+# Skill: save-report
+
+## Quando usar
+
+Sempre que um relatório for gerado durante uma conversa — seja de saúde de infraestrutura, análise de performance, diagnóstico, otimização, migração, ou qualquer documento de entrega técnica.
+
+## Estrutura de diretórios obrigatória
+
+```
+~/scripts/reports/[área bureau]/[nome do programa]/relatorio-[tipo]-YYYY-MM-DD.[ext]
+```
+
+## Áreas bureau válidas
+
+| Código | Nome |
+|--------|------|
+| `01 - Governança` | Políticas, processos, compliance |
+| `02 - Infraestrutura` | AWS, servidores, redes, banco de dados |
+| `03 - Web` | Sites, deploys, frontend, CDN |
+| `04 - Consultoria e Suporte` | Tickets, suporte a clientes |
+| `05 - Ambiente: Educação, Cultura e Treinamento` | Documentação educacional, tutoriais |
+| `06 - Comercialização Software e Hardware` | Licenças, produtos, cotações |
+| `07 - Automação` | Scripts, pipelines, CI/CD, bots |
+| `08 - Segurança` | Auditorias, firewall, incidentes, pentest |
+
+## Regras de nomenclatura
+
+- Formato obrigatório: `relatorio-[tipo]-YYYY-MM-DD.[ext]`
+- Tipos comuns: `saude`, `migracao`, `otimizacao`, `diagnostico`, `auditoria`, `performance`
+- Extensões: `.html` (principal), `.pdf` (quando possível), `.md` (alternativo)
+- Usar data real do dia em que o relatório foi gerado (não a data do período analisado)
+
+## Exemplos de caminhos válidos
+
+```
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.html
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.pdf
+~/scripts/reports/08 - Segurança/cloudflare/relatorio-auditoria-waf-2026-03-20.html
+~/scripts/reports/03 - Web/mfb/relatorio-performance-2026-04-01.html
+~/scripts/reports/07 - Automação/backup-s3/relatorio-diagnostico-2026-03-10.md
+```
+
+## Processo de execução
+
+1. **Identificar área bureau** com base no contexto do relatório
+2. **Identificar nome do programa** — usar o diretório do projeto em `~/scripts/` (ex: `plesk`, `mfb`, `elos-dev`)
+3. **Criar diretório** se não existir:
+   ```bash
+   mkdir -p "~/scripts/reports/[área]/[programa]"
+   ```
+4. **Salvar HTML** com design consistente Bureau (fundo escuro, glassmorphism):
+   - Fundo: `#0a0a0b`
+   - Glassmorphism: `backdrop-filter: blur(12px)`
+   - Fontes: Inter + JetBrains Mono
+   - Floating orbs, animações CSS
+   - Footer com "Bureau de Tecnologia"
+5. **Converter para PDF** via Playwright MCP quando disponível:
+   ```
+   mcp__playwright__playwright_navigate → file:///Users/dcambria/scripts/reports/[área]/[programa]/[arquivo].html
+   mcp__playwright__playwright_save_as_pdf → [mesmo caminho].pdf
+   ```
+6. **Confirmar** ao usuário com os caminhos dos arquivos gerados
+
+## Design padrão Bureau
+
+Os relatórios devem seguir o design das páginas do Plesk (default, maintenance, 404, suspended):
+- Background escuro (`#0a0a0b`) com gradientes animados
+- Glassmorphism (`backdrop-filter: blur`)
+- Status dots coloridos (verde OK, amarelo atenção, vermelho erro)
+- Tabelas com hover sutil
+- Badges de área e data no header
+- Responsivo para mobile
+
+---
+
+<task-notification>
+<task-id>a4f253cfd1c4d2419</task-id>
+<tool-use-id>toolu_017vbB2u4jgv52Ked7MiQ1Rd</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/a4f253cfd1c4d2419.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor pós-impl 1: verificação WAF e nginx" completed</summary>
+<result>O Playwright MCP não permite acesso a `file://` por restrição de segurança. O PDF não pode ser gerado automaticamente nessa sessão. O relatório HTML está salvo e completo.
+
+---
+
+## Resultado da Auditoria de Segurança — concertacaoamazonia.com.br
+
+**13 OK · 2 Avisos · 0 Falhas**
+
+---
+
+### WAF CloudFront — todas as 4 regras confirmadas e ativas
+
+| Regra | P | Status |
+|---|---|---|
+| Block-XMLRPC (ByteMatch ENDS_WITH /xmlrpc.php) | 8 | OK |
+| Block-AttackerRanges-2026-03-31 (4 subnets: 64.252.66-68.0/24 + 3.172.105.0/24) | 15 | OK |
+| AWS-WordPress-ManagedRules (OverrideAction: Count) | 16 | OK |
+| RateLimit-WPLogin-POST (50 req/300s, FORWARDED_IP) | 17 | OK |
+
+---
+
+### nginx em Produção — tudo configurado
+
+| Item | Status |
+|---|---|
+| `/xmlrpc.php` retorna `444` (nginx fecha conexão sem body) | OK |
+| `debug.log` bloqueado por regex (`deny all`) — teste externo confirmou HTTP 403 | OK |
+| `/manutencao.html` existe (18.5 KB) e é servida com HTTP 200 | OK |
+| `error_page 502 503 504 /manutencao.html` configurado | OK |
+| `fastcgi_connect_timeout 5s` no snippet php-fpm.conf | OK |
+
+---
+
+### Testes funcionais HTTP
+
+| Endpoint | Resultado |
+|---|---|
+| `POST /xmlrpc.php` | HTTP 403 (WAF) |
+| `GET /debug.log` | HTTP 403 (nginx) |
+| `GET /` | HTTP 200 |
+| `GET /wp-login.php` | HTTP 403 — **AVISO (intencional)** |
+| `GET /healthz-deep.php` | HTTP 200 healthy — **AVISO (Redis degraded non-fatal)** |
+| `GET /manutencao.html` | HTTP 200 |
+
+---
+
+### mu-plugin bit-security-hardening.php v1.1.0
+
+Todos os 5 hooks confirmados: `xmlrpc_enabled`, `login_errors`, `rest_endpoints`, `wp_generator` removido, versão 1.1.0.
+
+---
+
+### Infraestrutura
+
+| Item | Status |
+|---|---|
+| systemd php8.3-fpm: `Restart=always`, `RestartUSec=3s` | OK |
+| ALB health check: `/healthz-deep.php`, 15s, threshold 2/2 | OK |
+| CloudWatch `concertacao-cpu-critical` (>85%): StateValue OK | OK |
+| CloudWatch `concertacao-cpu-warning` (>70%): StateValue OK | OK |
+
+---
+
+### Os 2 Avisos em detalhe
+
+**1. wp-login.php GET retorna 403 — comportamento correto, não é falha.**
+O teste foi executado de um IP externo não autorizado. O WAF (regras P3/P14) bloqueia corretamente qualquer acesso ao wp-login de IPs fora do range da equipe. O rate limit P17 é uma camada adicional só para POST — funciona como esperado.
+
+**2. healthz-deep.php Redis reporta `degraded (non-fatal)`.**
+O Redis usa Unix socket (`/run/redis/redis.sock`) com autenticação. O healthz-deep.php tenta uma conexão raw RESP sobre esse socket, mas a sequência AUTH falha com `Protocol error: expected '$', got '\'`. O Redis real está 100% operacional — confirmado via `wp redis status` (Status: Conectado, Ping: 1) e operações `wp_cache_set/get`. O status geral permanece `healthy` pois a nota é `non-fatal`. **Ação recomendada (prioridade baixa):** corrigir o healthz-deep.php para usar `redis-cli -s /run/redis/redis.sock` ao invés de conexão raw RESP.
+
+---
+
+**Relatório salvo em:**
+`/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-seguranca-2026-03-31.html`</result>
+<usage><total_tokens>58070</total_tokens><tool_uses>31</tool_uses><duration_ms>1319039</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad03d2fde90ed9fed</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/5f4ae8a2-bc45-41bf-bb08-8669a7a5b740/tasks/ad03d2fde90ed9fed.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor pós-impl 2: WordPress mu-plugin v1.1.0 + TEC" completed</summary>
+<result>Tenho todos os dados. Vou compilar o relatório completo.
+
+---
+
+## Relatório de Auditoria — Concertação Amazônica (2026-03-31)
+
+### PARTE 1 — mu-plugin bit-security-hardening v1.1.0
+
+**Todas as correções confirmadas em produção:**
+
+| Ponto de verificação | Status |
+|---|---|
+| Version: 1.1.0 | CONFIRMADO |
+| blocked_patterns sem backslash-escape (strings plain) | CONFIRMADO — `'debug.log'`, `'error_log'`, `'wp-config.php'`, `'.env'` sem escapes |
+| `is_admin()` guard presente em `init` e em `_bit_security_remove_wp_version_query_string` | CONFIRMADO |
+| `current_user_can('edit_posts')` em vez de `list_users` | CONFIRMADO |
+| `network_site_url('/')` em vez de `home_url('/')` | CONFIRMADO |
+| `sanitize_text_field($username)` no log | CONFIRMADO |
+| Sem `header('Referrer-Policy...')` | CONFIRMADO — comentário [M2] explica remoção |
+| Sem `ini_set('expose_php')` | CONFIRMADO — comentário [M3] explica remoção |
+
+**Funcionamento verificado:**
+- `/wp-json/wp/v2/users` → resposta não-JSON (bloqueado, 401/403)
+- `/?author=1` → HTTP 301 redirect
+- Site principal `/` → HTTP 200
+
+---
+
+### PARTE 2 — The Events Calendar: diagnóstico de cache
+
+#### 2a. TEC versão
+- **The Events Calendar: 6.15.12.2** (active)
+
+#### 2b. OPcache
+
+**Situação: OPcache está ATIVO no PHP-FPM, mas reporta `false` no WP-CLI.**
+
+Isso é um falso negativo clássico: `opcache.enable_cli = Off` no `php.ini`, logo `opcache_get_status()` retorna `false` quando chamado via WP-CLI (processo CLI). O FPM lê o `/etc/php/8.3/fpm/conf.d/99-wordpress.ini` e tem:
+- `opcache.enable = 1`
+- `opcache.memory_consumption = 256` (MB)
+- `opcache.max_accelerated_files = 20000`
+- `opcache.validate_timestamps = 0` (produção: sem revalidação por tempo)
+
+Confirmado pelo `php-fpm8.3 -i`: `opcache.enable = On`, `memory_consumption = 256`.
+
+**OPcache está operacional no FPM. Não é causa de CPU elevada por si só.**
+
+#### 2c. WP Rocket
+
+- **WP Rocket 3.20.5** ativo como plugin de rede
+- `cache_enabled = 1`, `WP_CACHE = true`
+- **Diretório `/wp-content/cache/wp-rocket/` praticamente vazio** — apenas 1 `index.html` vazio de placeholder
+- **Motivo:** WP Rocket está operando em modo buffer sem gravação de arquivos estáticos. O cache é entregue pelo **CloudFront** (cache policy `WP-Dynamic-ShortTTL`, DefaultTTL=300s, MaxTTL=900s)
+- WP Rocket envia `Cache-Control: max-age=3600` → CloudFront armazena e serve
+
+Confirmado: `/eventos/lista/` — primeiro request = `x-cache: Miss from cloudfront`, segundo = `x-cache: Hit from cloudfront`.
+
+#### 2d. Headers X-Cache
+
+| URL | Header |
+|---|---|
+| `https://concertacaoamazonia.com.br/` | `x-cache: Miss from cloudfront` (sem Hit no teste) |
+| `https://concertacaoamazonia.com.br/eventos/lista/` | `x-cache: Hit from cloudfront` (após 1o request) |
+| `https://concertacaoamazonia.com.br/eventos/lista/?tribe-bar-date=2025-01-01` | `x-cache: Hit from cloudfront` (CF cacheia com QS) |
+| `https://concertacaoamazonia.com.br/eventos/lista/?tribe-bar-date=2025-06-15` | `x-cache: Miss from cloudfront` (QS diferente = cache miss) |
+
+**Não há header `X-WP-Rocket` em nenhuma resposta** — confirma que WP Rocket não serve cache via arquivo em disco.
+
+#### 2e. Query strings TEC mais frequentes (últimas 2000 linhas do access log)
+
+- `tribe-bar-date=2023-03-26` (3x), `tribe-bar-date=2026-03-24` (2x), múltiplas datas passadas (2023, 2025)
+- `eventDisplay=past&tribe-bar-date=2026-03-02` (2x)
+- `shortcode=05031a23&eventDisplay=past` (3x)
+- `eventDate=2026-02-12&eventDisplay=day&post_type=tribe_events` (2x)
+
+URLs mais acessadas: `/eventos/lista/` (31), `/eventos/lista/página/4/` (27), `/eventos/categoria/edital/lista/` (18)
+
+#### 2f. Hipótese para o problema de CPU com TEC
+
+**Hipótese principal: cache miss por proliferação de query strings únicas do TEC.**
+
+A cadeia do problema:
+
+1. **CloudFront cache policy `WP-Dynamic-ShortTTL` tem `QueryStrings behavior: all`** — cada combinação única de `?tribe-bar-date=YYYY-MM-DD` gera uma entrada de cache separada no CloudFront.
+
+2. **nginx bypass rule:** `if ($query_string != "")` → `rocket_bypass = 1`, **exceto** pelos parâmetros `eixo`, `jsf`, `jet-engine`, `tax`. `tribe-bar-date` e `eventDisplay` **não estão na lista de exceção** → cada request com QS do TEC vai direto para o PHP.
+
+3. **WP Rocket não cacheia** requisições com `?tribe-bar-date=` (não está na lista `cache_query_strings = ["eixo","jsf","jet-engine","tax"]`).
+
+4. **TEC processa cada data distinta como página nova**, executando queries DB pesadas (Aurora RDS), transients, e lógica de recorrência (`tribe_events_pro_process_recurring_events` a cada 30 min).
+
+5. Visitantes que navegam pelo calendário clicando em datas diferentes (especialmente datas passadas de 2023) geram um flood de requests não cacheados, cada um batendo no PHP/Aurora.
+
+**Agravante:** O cron `tribe_events_pro_process_recurring_events` roda a cada 30 minutos — em sites com muitos eventos recorrentes isso adiciona carga periódica de DB.
+
+**Recomendação de mitigação:**
+- Adicionar `tribe-bar-date` e `eventDisplay` à lista `cache_query_strings` do WP Rocket
+- Adicionar a regra de exceção no nginx: `if ($query_string ~* "^(eixo|jsf|jet-engine|tax|tribe-bar-date|eventDisplay)=")` → `rocket_bypass = 0`
+- Verificar se CloudFront deve ou não variar cache por `tribe-bar-date` (atualmente varia, o que aumenta o hit rate no CF mas só após o primeiro miss por data)</result>
+<usage><total_tokens>58486</total_tokens><tool_uses>32</tool_uses><duration_ms>1336605</duration_ms></usage>
+</task-notification>
+
+---
+
+crie um relatório do que foi feito, após passar por uma auditoria com 3 agentes para analisar a implementação e suas implicações secundárias.
+depois execute os passos 6, 7, 9, 10, 11, 12,13, 15, 16, 17, 18, 19, 20. Dispare um agente para resolver cada um dos problemas de forma minuciosa.
+
+novo relatório do que foi feito, após passar por uma auditoria com 3 agentes para analisar a implementação e suas implicações secundárias.
+
+se necessário, um ciclo de correção com 3 agentes.
+
+depois, analise se o plugin the events calendar está sendo cacheado. Picos de cpu indicam falta de cache para visualização de eventos por data. investigue profundamente o caso, pois está atrapalhando o uptime do serviço do site e cliente insatisfeito.
+
+---
+
+audite o que foi feito com 3 agentes. Depois, avalie a necessidade de ajustar o TEC em localhost e se é necessário ajustar os scripts de deploy para que o deploy de dev para prod seja perfeito e mantenha a consistencia
+
+---
+
+<task-notification>
+<task-id>a344b51a0d81b96ed</task-id>
+<tool-use-id>toolu_015r2m9MyT3MfRMYdeWM2c39</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/4595f93c-3005-4e24-960f-f3346b5b86a9/tasks/a344b51a0d81b96ed.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor 2: WP Rocket cache, OPcache, mu-plugin v1.1.0" completed</summary>
+<result>PDF gerado com sucesso (1.4 MB). Os erros de certificado são do Chrome acessando a keychain do macOS e não afetaram a geração.
+
+Aqui está o relatório completo da auditoria:
+
+---
+
+## Resultado da Auditoria — concertacaoamazonia.com.br (2026-03-31)
+
+**Resumo: 5 OK / 3 Avisos / 0 Falhas**
+
+---
+
+### 1. mu-plugin bit-security-hardening v1.1.0 — OK
+
+Todos os 6 pontos solicitados confirmados em produção:
+
+- Versão `1.1.0` presente no cabeçalho
+- `blocked_patterns` com strings literais (`'debug.log'`, não `'debug\.log'`) — fix C1 aplicado
+- `is_admin()` guard nas linhas 103, 141 e 188 — fix C2 aplicado
+- `current_user_can('edit_posts')` nas linhas 73 e 89 — fix A1 aplicado
+- `network_site_url('/')` na linha 116 — fix A2 aplicado
+- `sanitize_text_field($username)` na linha 244 — fix A6 aplicado
+
+---
+
+### 2. WP Rocket Cache — OK com aviso
+
+**OK:**
+- Config file presente (`2603 bytes`, dono `www-data`)
+- `5.202` arquivos `index-https.html` gerados
+- Query strings do TEC corretamente incluídas: `tribe-bar-date`, `tribe-bar-search`, `tribe_paged`
+
+**AVISO — 469 URLs com preload `failed`** (de 7.347 total):
+- Amostra: posts de notícias (`/2025/03/24/restaura-amazonia...`) e `/amazonia-legal-em-dados`
+- Não impede cache on-demand, mas reduz cobertura "quente" após flush
+- Recomendação: inspecionar `wp option get wpr_preload_errors` e logs nginx para identificar causa (timeout? 403?)
+
+---
+
+### 3. OPcache — OK
+
+- Status: **ATIVO** via PHP-FPM
+- `7.525` scripts em cache (volume saudável para multisite + Elementor + JetEngine)
+- OPcache desabilitado no CLI conforme esperado (`opcache.enable_cli=0`)
+- Arquivo de auditoria temporário removido após leitura
+
+---
+
+### 4. healthz-deep.php — Bloco Redis — OK
+
+- Usa `new Redis()` (phpredis nativo)
+- Regex com âncora `^` e flag `/m` confirmados nos dois `preg_match()`
+- Fallback TCP para 127.0.0.1:6379 quando socket não existe (compatível com ElastiCache)
+
+---
+
+### 5. nginx — Bloco WP Rocket HTTPS — OK
+
+- `$rocket_https_suffix` baseado em `$http_x_forwarded_proto = "https"` — correto para arquitetura ALB (SSL termina no Load Balancer)
+- `set $rocket_cache_file` usa `index$rocket_https_suffix.html` — serve `index-https.html` para HTTPS
+
+---
+
+### 6. Teste End-to-End — OK com aviso
+
+**Homepage:** 200 OK, `index-https.html` (589 KB, 12:15), **PHP não invocado** (sem `X-Rocket-Reason` header)
+
+**`/eventos-calendario/?tribe-bar-date=2026-04-01`:** 200 OK, cache de 395 KB com gzip + `.mobile-active` + subdiretório `page/`
+
+**AVISO — CSP incompleto:**
+- `Content-Security-Policy: frame-ancestors 'self'` apenas — política completa (scripts, styles) não implementada
+- `X-XSS-Protection: 1; mode=block` é legado — sem efeito em browsers modernos, pode ser removido
+
+---
+
+### Arquivos gerados
+
+- HTML: `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-2026-03-31.html`
+- PDF: `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-2026-03-31.pdf` (1,4 MB)</result>
+<usage><total_tokens>57319</total_tokens><tool_uses>21</tool_uses><duration_ms>500640</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a743591ab67528852</task-id>
+<tool-use-id>toolu_01Ef42eMeBp7QadQnmAQsh7E</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/4595f93c-3005-4e24-960f-f3346b5b86a9/tasks/a743591ab67528852.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor 1: WAF, nginx, systemd, CloudWatch" completed</summary>
+<result>PDF gerado com sucesso. Relatório completo salvo.
+
+---
+
+## Auditoria de Produção — concertacaoamazonia.com.br — 2026-04-01
+
+**Resultado geral: APROVADO — 9 itens OK, 2 avisos, 0 falhas.**
+
+---
+
+### 1. WAF CloudFront (ACL-WPAdminHML, us-east-1)
+
+| Regra | Status | Evidência |
+|---|---|---|
+| P8: Block-XMLRPC | OK | ByteMatch ENDS_WITH `/xmlrpc.php` → Block. Curl confirma HTTP 403. |
+| P15: Block-AttackerRanges-2026-03-31 | OK | IPSet com 4 subnets: `64.252.66-68.0/24` + `3.172.105.0/24` → Block. |
+| P16: AWS-WordPress-ManagedRules | **AVISO** | `OverrideAction: Count` — regras gerenciadas AWS WordPress em modo observação, não bloqueiam. |
+| P17: RateLimit-WPLogin-POST | OK | 50 req/300s, FORWARDED_IP, ScopeDown POST `/wp-login.php`, FallbackBehavior: MATCH → Block. |
+
+### 2. Nginx Produção
+
+**OK** — Todas as verificações passaram:
+- `xmlrpc.php` → `return 444` (com access_log dedicado em `/var/log/nginx/blocked-xmlrpc.log`)
+- `debug.log`, `error_log`, `.htaccess`, `wp-cli.phar`, `wp-config.php`, `readme.html`, `license.txt` → `deny all`
+- `error_page 502 503 504 /manutencao.html` presente
+- `$rocket_https_suffix` baseado em `X-Forwarded-Proto` (correto para SSL terminado no ALB)
+- Query strings TEC no bypass-exclusão: `tribe-bar-date`, `eventDisplay`, `tribe-bar-search`, `tribe_paged`
+
+### 3. PHP-FPM systemd override
+
+**OK** — `Restart=always` + `RestartSec=3s` confirmados.
+
+### 4. CloudWatch Alarms
+
+**OK** com observação — Ambos os alarmes existem, métrica correta (`CPUUtilization` na instância `i-0c8178fe7ee985cc9`), SNS configurado. O alarme `cpu-warning` registrou recentemente **63.77%** (threshold 70%) — monitorar tendência.
+
+### 5. healthz-deep.php
+
+**OK** — `{"status":"healthy","checks":{"php_fpm":"ok","database":"ok","redis":"ok"}}` às 21:25 UTC.
+
+### 6. Testes funcionais
+
+| Teste | Status |
+|---|---|
+| POST xmlrpc.php | HTTP 403 (WAF) |
+| GET debug.log | HTTP 403 (nginx) |
+| GET / | HTTP 200 OK |
+| GET /?author=1 | 301 → homepage (não expõe username) |
+| GET /wp-json/wp/v2/users | não-JSON (OK) |
+
+---
+
+### Recomendações prioritárias
+
+1. **WAF P16 (média prioridade):** Verificar logs CloudWatch para falsos positivos e, se limpo, alterar `OverrideAction` de `Count` para `None` — ativa o bloqueio das regras gerenciadas WordPress da AWS.
+2. **CPU monitoring (baixa prioridade):** 63.77% é próximo ao threshold. Verificar tendência dos últimos 7 dias no CloudWatch.
+3. **IPSet subnet `3.172.105.0/24` (informativo):** Pertence ao espaço AWS us-east-1 — confirmar que nenhum serviço legítimo usa esse range.
+4. **Author enumeration (baixa prioridade):** Proteção atual é a nível de aplicação (WordPress redireciona). Pode ser endurecida com regra WAF/nginx.
+
+---
+
+**Arquivos salvos:**
+- `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-producao-2026-04-01.html`
+- `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-producao-2026-04-01.pdf`</result>
+<usage><total_tokens>50074</total_tokens><tool_uses>31</tool_uses><duration_ms>875338</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a76b09bac274a33b4</task-id>
+<tool-use-id>toolu_01PxxRdJvs4uSXESUE91quvz</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/4595f93c-3005-4e24-960f-f3346b5b86a9/tasks/a76b09bac274a33b4.output</output-file>
+<status>completed</status>
+<summary>Agent "Auditor 3: TEC localhost vs prod + scripts de deploy" completed</summary>
+<result>The report has been saved. Here is the full audit summary:
+
+---
+
+## Auditoria de Deploy — Concertação Amazônica (2026-03-31)
+
+Relatório salvo em:
+`/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-deploy-2026-03-31.html`
+
+---
+
+### 1. Divergências nginx local vs. produção
+
+| Feature | Dev | Prod | Ação |
+|---|---|---|---|
+| `$rocket_https_suffix` via `$http_x_forwarded_proto` | N/A (SSL nativo) | Presente | Nenhuma — diferença arquitetural intencional (ALB vs. nginx local) |
+| TEC query strings no bypass de cache | **AUSENTE** | Presente | **P1 — adicionar** |
+| `xmlrpc.php → return 444` | Rate-limit burst=5 | Bloqueado (444) | P3 — documentar divergência; WPML usa xmlrpc |
+| Bloqueio de arquivos sensíveis | Presente | Presente | OK |
+| `error_page 502 503 504 /manutencao.html` | **AUSENTE** | Presente | P3 — `manutencao.html` existe no diretório mas não está referenciado |
+| `fastcgi_connect_timeout 5s` (fail-fast) | 60s em todos os blocos | 5s | Divergência intencional (fail-fast para acionar error_page em prod) |
+| `/healthz-deep.php` | **AUSENTE** | Presente | **P1 — versionar** |
+
+---
+
+### 2. Estado dos mu-plugins locais
+
+- `bit-security-hardening.php`: **v1.1.0 em todas as 3 cópias** (site, common, prod). As 8 correções do incidente (C1, C2, A1, A2, A6, M1, M2, M3) já estão presentes. Nenhuma ação necessária.
+- 5 mu-plugins site-specific do concertacao **não foram copiados para `common/mu-plugins/`**: `bit-crossblog-elementor-menus.php`, `bit-crossblog-menu-source.php`, `bit-multisite-menu-url.php`, `jet-slider-lazyload-fix.php`, `jet-wpml-register-cache.php`. **(P2)**
+
+---
+
+### 3. WP Rocket — cache_query_strings
+
+| Ambiente | Valores |
+|---|---|
+| Dev (banco atual) | `eixo`, `jsf`, `jet-engine`, `tax` |
+| Prod (atualizado) | + `tribe-bar-date`, `eventDisplay`, `tribe-bar-search`, `tribe_paged` |
+
+Os 4 parâmetros TEC estão **ausentes no banco dev**. Isso faz com que páginas de eventos filtradas não gerem entradas de cache separadas — comportamento diferente do prod. **(P1)**
+
+---
+
+### 4. The Events Calendar em Dev
+
+TEC está **ativo** (`the-events-calendar`, `events-calendar-pro`, `event-page-templates-addon`). Porém os parâmetros de cache não estão configurados. Existe também o script `tribe-oldies-blocked.sh` (bloqueia datas 2020-2023 no nginx de prod) que não tem equivalente local — divergência de menor impacto.
+
+---
+
+### 5. Gap Analysis dos scripts de deploy
+
+| Gap | Impacto |
+|---|---|
+| Nenhum script valida ou seta `cache_query_strings` antes do deploy prod | P2 — reprovisioning perderia a config TEC |
+| `share deploy` não chama `rocket_generate_config_file()` após import de banco | P2 — config file WP Rocket pode ficar desatualizado |
+| `healthz-deep.php` não está versionado nem em nenhum script de deploy | P1 — perdido em qualquer reprovisioning |
+| mu-plugins site-specific fora do canonical `common/` | P2 — padrão obrigatório do CLAUDE.md violado |
+| `diff-muplugins.sh` **existe** e funciona — boa cobertura | OK |
+| `14-renew-all-caches.sh` inclui `rocket clean + regenerate` | OK — mas não seta o conteúdo de `cache_query_strings` |
+
+---
+
+### 6. Lista priorizada
+
+| Prio | Ação |
+|---|---|
+| **P1** | Atualizar `cache_query_strings` no banco dev com os 4 params TEC (`std wp eval`) |
+| **P1** | Versionar `healthz-deep.php` no repositório e incluir no script de deploy |
+| **P2** | Adicionar step de set `cache_query_strings` TEC no `14-renew-all-caches.sh` |
+| **P2** | Copiar 5 mu-plugins site-specific para `common/mu-plugins/` e commitar no server-tools |
+| **P2** | Adicionar `rocket_generate_config_file()` ao final do `share deploy` |
+| **P3** | Adicionar `error_page 502 503 504 /manutencao.html` no nginx local |
+| **P3** | Documentar no CLAUDE.md a divergência consciente do xmlrpc (rate-limit dev vs. 444 prod) |</result>
+<usage><total_tokens>81841</total_tokens><tool_uses>42</tool_uses><duration_ms>1464421</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3a231d4344cb01fd</task-id>
+<tool-use-id>toolu_019jBHQgBCMCfTZknjWxfZKK</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/4595f93c-3005-4e24-960f-f3346b5b86a9/tasks/a3a231d4344cb01fd.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix P1: cache_query_strings TEC em dev + healthz-deep versionar" completed</summary>
+<result>Confirmado. Resumo final:
+
+---
+
+## Resultado das 3 Ações
+
+### ACAO 1 — cache_query_strings WP Rocket — CONCLUIDA
+
+Container estava rodando. O `wp eval` executou com sucesso:
+
+- **Antes:** `["eixo","jsf","jet-engine","tax"]`
+- **Depois:** `["eixo","jsf","jet-engine","tax","tribe-bar-date","eventDisplay","tribe-bar-search","tribe_paged"]`
+- `rocket_generate_config_file()` foi chamado — config regenerada.
+
+### ACAO 2 — healthz-deep.php versionado — CONCLUIDA
+
+Arquivo copiado de prod e salvo em:
+`/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/healthz-deep.php`
+
+Diferenca em relação ao prod: path do wp-config.php ajustado de `/var/www/concertacaoamazonia.com.br/wp-config.php` para `/var/www/html/wp-config.php` (path do container dev).
+
+Verificação de credenciais: nenhuma credencial hardcoded. O arquivo lê DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, WP_REDIS_PATH e WP_REDIS_PASSWORD dinamicamente via `preg_match` no wp-config.php — seguro para versionar.
+
+O .gitignore ignora `wordpress/wp-*.php` mas `healthz-deep.php` não começa com `wp-`, portanto o arquivo será rastreado pelo git e pode ser commitado.
+
+### ACAO 3 — Nginx dev query strings TEC — NAO APLICAVEL
+
+O nginx dev (`nginx/conf.d/wordpress.conf`) **não tem bloco de bypass de cache estático** com padrões `eixo|jsf|jet-engine|tax`. O nginx dev é um proxy PHP-FPM sem lógica de cache WP Rocket integrada — não há onde adicionar as novas strings. Nenhuma alteração necessária.</result>
+<usage><total_tokens>36135</total_tokens><tool_uses>8</tool_uses><duration_ms>72817</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a98e7f158576586f6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/4595f93c-3005-4e24-960f-f3346b5b86a9/tasks/a98e7f158576586f6.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix P2: mu-plugins site-specific para common + rocket_generate pós-deploy" completed</summary>
+<result>Tudo correto. Resumo final:
+
+---
+
+## Resultado das Ações
+
+### AÇÃO 1 — Mu-plugins site-specific
+
+Todos os 5 mu-plugins já estavam em `common/mu-plugins/` e eram **idênticos** (diff byte-a-byte) aos do site. Nenhuma cópia foi necessária. A auditoria inicial estava desatualizada — a sincronização já havia sido feita anteriormente.
+
+| Arquivo | Status |
+|---------|--------|
+| `bit-crossblog-elementor-menus.php` | Já em common, idêntico |
+| `bit-crossblog-menu-source.php` | Já em common, idêntico |
+| `bit-multisite-menu-url.php` | Já em common, idêntico |
+| `jet-slider-lazyload-fix.php` | Já em common, idêntico |
+| `jet-wpml-register-cache.php` | Já em common, idêntico |
+
+### AÇÃO 2 — Script 14-renew-all-caches.sh
+
+**Modificado.** O script chamava `wp rocket regenerate --file=all` (WP-CLI) mas não invocava `rocket_generate_config_file()` via PHP eval — o que é necessário para garantir que o `config.php` do WP Rocket reflita as configurações atuais após um deploy.
+
+Adicionado na função `flush_wprocket_cache()` (linha ~189), após o `wp rocket regenerate`:
+
+```bash
+run_wp_with_plugins eval '
+    if (function_exists("rocket_generate_config_file")) {
+        rocket_generate_config_file();
+        echo "Arquivo de configuracao do WP-Rocket regenerado\n";
+    }
+' 2>/dev/null || log_warn "rocket_generate_config_file() falhou"
+```
+
+Arquivo: `/Users/dcambria/scripts/server-tools/v2/ec2-deploy/post-deploy/14-renew-all-caches.sh` — versão bumped de `2.2.0` para `2.2.1`.
+
+### AÇÃO 3 — Share deploy (wrapper de import)
+
+**Modificado.** O wrapper gerado por `_share_generate_import_wrapper()` no docker-dev.sh importava posts na EC2 mas não regenerava o config.php do WP Rocket após o import.
+
+Adicionado no bloco de sucesso do wrapper (antes do `[SUCCESS] Import concluído!`):
+
+```bash
+WP_CLI_CACHE_DIR=/tmp/wp-cli-cache-www-data sudo -u "$EXEC_USER" \
+    wp --path="$DETECTED_WP_ROOT" eval '
+        if (function_exists("rocket_generate_config_file")) {
+            rocket_generate_config_file();
+        } else {
+            echo "[SKIP] rocket_generate_config_file nao disponivel\n";
+        }
+    ' 2>/dev/null || echo "[WARN] rocket_generate_config_file falhou (nao bloqueia)"
+```
+
+A chamada é não-bloqueante (falha com `[WARN]`, não aborta o deploy). Arquivo: `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh` — versão bumped de `2.10.0` para `2.10.1`.
+
+### Nota sobre all_cache_flush.sh
+
+Ambos os scripts `ec2-deploy/post-deploy/bin/all_cache_flush.sh` e `docker-dev/common/scripts/all-cache-flush.sh` **já continham** `rocket_generate_config_file()` — nenhuma alteração necessária nesses arquivos.</result>
+<usage><total_tokens>53442</total_tokens><tool_uses>32</tool_uses><duration_ms>196434</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae1680ce21e506464</task-id>
+<tool-use-id>toolu_014ikMn7mFuNmNuMJQWLEPxS</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/4595f93c-3005-4e24-960f-f3346b5b86a9/tasks/ae1680ce21e506464.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix P2/P3: preload failures + WAF P16 análise + CSP/headers" completed</summary>
+<result>PDF gerado com sucesso (4,1 MB). Relatório salvo em ambos os formatos.
+
+---
+
+## Resumo das ações executadas
+
+### Ação 1 — 479 Preload Failures (FEITO)
+
+**Diagnóstico:** As URLs retornam HTTP 200 normalmente — o `failed` era timeout interno do bot de preload do WP Rocket ao tentar crawlear páginas mais pesadas (eventos TEC, listagens JetEngine). Não havia páginas quebradas.
+
+**Executado:** `UPDATE wp_wpr_rocket_cache SET status="pending" WHERE status="failed"` — 479 entradas resetadas. O preload já retomou o ciclo (2.772 pending + 4.555 completed na verificação pós-reset).
+
+**Observação:** Se os failures voltarem sistematicamente, o próximo passo é otimizar TTFB das páginas mais pesadas ou ajustar timeout do preload bot.
+
+---
+
+### Ação 2 — WAF P16 Count→Block (DOCUMENTADO, aguarda decisão do Dani)
+
+A API retornou `PopulationSize: 0` e `SampledRequests: []` nas últimas 24h — nenhum hit pela regra `AWS-WordPress-ManagedRules`. Sem falsos positivos identificados. A transição para Block é tecnicamente segura, mas requer:
+1. Monitorar o dashboard WAF por 48h em período de tráfego normal
+2. Autorização explícita do Dani
+
+O comando exato para ativar Block está documentado no relatório.
+
+---
+
+### Ação 3 — X-XSS-Protection removido (FEITO)
+
+- Removido de `/etc/nginx/snippets/security-headers.conf`
+- Backup: `security-headers.conf.bak.20260401-185438`
+- `nginx -t` passou, `nginx -s reload` OK
+- CloudFront invalidado (`/*`) — ID `I6NSXKY6R2IKEZW5HDW5QCVNW`
+- Verificação pós-invalidação confirmou ausência do header (`X-Cache: Miss from cloudfront`)
+
+---
+
+### Ação 4 — CSP incompleto (DOCUMENTADO, não aplicado)
+
+CSP atual é apenas `frame-ancestors 'self'`. Uma CSP completa não foi aplicada porque Elementor + JetEngine + WPML usam scripts inline/eval e quebrariam o site sem levantamento prévio. O relatório documenta o plano recomendado: iniciar com `Content-Security-Policy-Report-Only` em HML, coletar violations por ~1 semana, construir a política com base nos reports.
+
+---
+
+**Relatório salvo em:**
+- `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-p2p3-2026-04-01.html`
+- `/Users/dcambria/scripts/reports/08 - Segurança/concertacao/relatorio-auditoria-p2p3-2026-04-01.pdf`</result>
+<usage><total_tokens>45136</total_tokens><tool_uses>32</tool_uses><duration_ms>327201</duration_ms></usage>
+</task-notification>
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/save-report
+
+# Skill: save-report
+
+## Quando usar
+
+Sempre que um relatório for gerado durante uma conversa — seja de saúde de infraestrutura, análise de performance, diagnóstico, otimização, migração, ou qualquer documento de entrega técnica.
+
+## Estrutura de diretórios obrigatória
+
+```
+~/scripts/reports/[área bureau]/[nome do programa]/relatorio-[tipo]-YYYY-MM-DD.[ext]
+```
+
+## Áreas bureau válidas
+
+| Código | Nome |
+|--------|------|
+| `01 - Governança` | Políticas, processos, compliance |
+| `02 - Infraestrutura` | AWS, servidores, redes, banco de dados |
+| `03 - Web` | Sites, deploys, frontend, CDN |
+| `04 - Consultoria e Suporte` | Tickets, suporte a clientes |
+| `05 - Ambiente: Educação, Cultura e Treinamento` | Documentação educacional, tutoriais |
+| `06 - Comercialização Software e Hardware` | Licenças, produtos, cotações |
+| `07 - Automação` | Scripts, pipelines, CI/CD, bots |
+| `08 - Segurança` | Auditorias, firewall, incidentes, pentest |
+
+## Regras de nomenclatura
+
+- Formato obrigatório: `relatorio-[tipo]-YYYY-MM-DD.[ext]`
+- Tipos comuns: `saude`, `migracao`, `otimizacao`, `diagnostico`, `auditoria`, `performance`
+- Extensões: `.html` (principal), `.pdf` (quando possível), `.md` (alternativo)
+- Usar data real do dia em que o relatório foi gerado (não a data do período analisado)
+
+## Exemplos de caminhos válidos
+
+```
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.html
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.pdf
+~/scripts/reports/08 - Segurança/cloudflare/relatorio-auditoria-waf-2026-03-20.html
+~/scripts/reports/03 - Web/mfb/relatorio-performance-2026-04-01.html
+~/scripts/reports/07 - Automação/backup-s3/relatorio-diagnostico-2026-03-10.md
+```
+
+## Processo de execução
+
+1. **Identificar área bureau** com base no contexto do relatório
+2. **Identificar nome do programa** — usar o diretório do projeto em `~/scripts/` (ex: `plesk`, `mfb`, `elos-dev`)
+3. **Criar diretório** se não existir:
+   ```bash
+   mkdir -p "~/scripts/reports/[área]/[programa]"
+   ```
+4. **Salvar HTML** com design consistente Bureau (fundo escuro, glassmorphism):
+   - Fundo: `#0a0a0b`
+   - Glassmorphism: `backdrop-filter: blur(12px)`
+   - Fontes: Inter + JetBrains Mono
+   - Floating orbs, animações CSS
+   - Footer com "Bureau de Tecnologia"
+5. **Converter para PDF** via Playwright MCP quando disponível:
+   ```
+   mcp__playwright__playwright_navigate → file:///Users/dcambria/scripts/reports/[área]/[programa]/[arquivo].html
+   mcp__playwright__playwright_save_as_pdf → [mesmo caminho].pdf
+   ```
+6. **Confirmar** ao usuário com os caminhos dos arquivos gerados
+
+## Design padrão Bureau
+
+Os relatórios devem seguir o design das páginas do Plesk (default, maintenance, 404, suspended):
+- Background escuro (`#0a0a0b`) com gradientes animados
+- Glassmorphism (`backdrop-filter: blur`)
+- Status dots coloridos (verde OK, amarelo atenção, vermelho erro)
+- Tabelas com hover sutil
+- Badges de área e data no header
+- Responsivo para mobile
