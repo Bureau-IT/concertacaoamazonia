@@ -5,88 +5,8 @@
  */
 
 /* ==========================================================================
-   Fix CLS — The Events Calendar layout shifts
-   Causa raiz (3 camadas):
-   1. min-height: views-skeleton.css define 700px via .tribe-common--breakpoint-medium
-   2. padding: common-skeleton.css muda padding-left (19.5px→42px) e padding-top (64px→96px)
-      via seletor .tribe-common--breakpoint-medium.tribe-common .tribe-common-l-container,
-      que depende de CSS carregado depois do FCP sob throttle (Lighthouse CPU 4x).
-   3. live_refresh: filtro PHP (functions.php) desativa o re-fetch REST inicial.
-   Solução: fixar valores finais diretamente no child theme CSS (carregado mais cedo),
-   tornando o layout independente de quando o skeleton CSS do TEC é aplicado.
+   1. Categorias de Eventos (V2 — tec-events-calendar-list__category)
    ========================================================================== */
-
-/* Fase 1 — Elimina min-height do skeleton (0px em vez de 700px) */
-.tribe-events .tribe-events-l-container,
-.tribe-common--breakpoint-medium.tribe-events .tribe-events-l-container {
-    min-height: 0 !important;
-}
-
-/* Fase 2 — Fixa o padding do container no valor final (equivale ao estado breakpoint-medium)
-   sem depender do skeleton CSS carregar antes do FCP.
-   Valores: padding-top=96px (--tec-spacer-13), padding-left/right=42px (--tec-grid-gutter-page),
-   padding-bottom=160px (valor original da views-skeleton.css) */
-.tribe-common .tribe-common-l-container {
-    padding-left  : 42px !important;
-    padding-right : 42px !important;
-}
-.tribe-events .tribe-events-l-container {
-    padding-top   : 96px !important;
-}
-
-/* ==========================================================================
-   4. PLUGINS - The Events Calendar
-   ========================================================================== */
-
-/* --- 4.1 Categorias de Eventos --- */
-.event-category {
-    padding         : 4px 8px;
-    border-radius   : 3px;
-    font-size       : 12px;
-    font-weight     : 500;
-    margin-bottom   : 8px;
-    display         : inline-block;
-    border          : 1px solid #dee2e6;
-}
-
-
-
-.event-edital .tribe-events-calendar-list__event-datetime,
-.event-edital .tribe-events-calendar-month__calendar-event-tooltip-datetime {
-    
-    font-weight: 600;
-}
-
-.event-category + .event-category {
-    margin-left: 4px;
-}
-
-@media (max-width: 768px) {
-    .event-category {
-        font-size: 11px;
-        padding  : 3px 6px;
-    }
-}
-
-.tec-events-calendar-list__event-categories,
-.event-category {
-    display   : block !important;
-    visibility: visible !important;
-    opacity   : 1 !important;
-}
-
-/* --- 4.1.1 Estilos para Editais (templates customizados) --- */
-.tribe-event-edital .tribe-event-normal-date {
-    display: none;
-}
-
-.tribe-event-edital-date {
-    font-weight: 600;
-}
-
-.tribe-event-edital-text {
-    font-weight: 600;
-}
 
 /* Categorias na lista de eventos */
 .tec-events-calendar-list__category {
@@ -108,6 +28,13 @@
     background-color: currentColor;
 }
 
+.tec-events-calendar-list__event-categories,
+.tec-events-calendar-list__category {
+    display   : block !important;
+    visibility: visible !important;
+    opacity   : 1 !important;
+}
+
 /* Categoria no tooltip do calendário mensal */
 .tribe-event-categories {
     margin-bottom: 4px;
@@ -119,11 +46,31 @@
     color      : var(--e-global-color-accent);
 }
 
-/* --- 4.2 Estilos Gerais TEC --- */
+/* Estilos para Editais (templates customizados) */
+.tribe-event-edital .tribe-event-normal-date {
+    display: none;
+}
+
+.tribe-event-edital-date,
+.tribe-event-edital-text {
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .tec-events-calendar-list__category {
+        font-size: 11px;
+        padding  : 3px 6px;
+    }
+}
+
+
+/* ==========================================================================
+   2. Estilos Gerais TEC
+   ========================================================================== */
+
 .tribe-events {
     font-family: var(--e-global-typography-primary-font-family);
 }
-
 
 .tribe-events-c-breadcrumbs__list-item a {
     padding       : 0 10px 0 0;
@@ -133,27 +80,20 @@
     font-size     : 1em;
 }
 
-
-
 .tribe-events-calendar-list img.tribe-events-calendar-list__event-featured-image {
     height    : 230px;
     object-fit: cover;
 }
 
-/* --- 4.3 Barra de Pesquisa TEC --- 
-.tribe-events-c-events-bar__search-container {
-    background-color: var(--ucpa-color-offwhite) !important;
-}
-
-.tribe-common-form-control-text__input {
-    background-color: var(--ucpa-color-white) !important;
-}
-*/
 .tribe-events-c-events-bar__search-form {
     gap: 1rem;
 }
 
-/* --- 4.4 Botões TEC --- */
+
+/* ==========================================================================
+   3. Botões TEC
+   ========================================================================== */
+
 .tribe-common-c-btn {
     height     : 44px !important;
     line-height: 1 !important;
@@ -161,70 +101,20 @@
 
 .tribe-common-c-btn,
 .tribe-events-c-subscribe-dropdown__button {
-    /*background-color: var(--ucpa-color-offwhite) !important;*/
-    border-radius   : 0 !important;
-    border          : 2px solid /*var(--ucpa-color-text)*/ !important;
-    /*color           : var(--ucpa-color-text) !important;*/
-    transition      : all 0.1s ease !important;
+    border-radius: 0 !important;
+    border       : 2px solid !important;
+    transition   : all 0.1s ease !important;
 }
-
-/*.tribe-common-c-btn:hover,
-.tribe-events-c-subscribe-dropdown__button:hover {
-    background-color: var(--ucpa-color-text) !important;
-    border-radius   : 0 !important;
-    border          : 2px solid var(--ucpa-color-text) !important;
-    color           : var(--ucpa-color-offwhite) !important;
-}*/
 
 .tribe-events button.tribe-events-c-top-bar__datepicker-button:hover {
     background-color: transparent !important;
 }
 
-/* --- 4.5 Background TEC --- */
-html body.tribe_events-template-default,
-html #tribe-events-pg-template {
-    /* background-color: var(--ucpa-color-offwhite) !important; */
-}
 
-/* html #epta-template.epta-template-1 .epta-sidebar-area {
-    background-color: var(--ucpa-color-white) !important;
-} */
+/* ==========================================================================
+   4. Elementos UI TEC
+   ========================================================================== */
 
-/* body #epta-template.epta-template-1 .epta-share-area a {
-    color: var(--ucpa-color-main) !important;
-} */
-
-body #epta-template.epta-template-1 .epta-share-area a:hover {
-  /*  color  : var(--ucpa-color-accent) !important;*/
-    opacity: 1 !important;
-}
-
-/*#epta-template.epta-template-1 .epta-addto-calendar a {
-    color: var(--ucpa-color-offwhite) !important;
-}*/
-
-#epta-template.epta-template-1 .epta-addto-calendar a:hover {
-    /*color           : var(--ucpa-color-main) !important;
-    background-color: var(--ucpa-color-offwhite) !important;*/
-    text-decoration : none;
-}
-
-/* --- 4.6 Countdown Timer --- */
-.epta-countdown-timer {
-    display        : flex;
-    justify-content: space-between;
-    gap            : 5px;
-    cursor         : default;
-}
-
-.epta-countdown-timer > * {
-    flex          : 1;
-    border-radius : 5px;
-    pointer-events: none;
-    user-select   : none;
-}
-
-/* --- 4.7 Elementos UI TEC --- */
 .tribe-common--breakpoint-medium.tribe-common .tribe-common-h4--min-medium :hover {
     color: var(--e-global-color-accent) !important;
 }
@@ -238,10 +128,6 @@ body #epta-template.epta-template-1 .epta-share-area a:hover {
 .tribe-common.tribe-events .tribe-events-c-top-bar__datepicker-button-icon-svg {
     margin-top: 7px;
 }
-
-/*.tribe-events-c-top-bar__datepicker-mobile {
-    color: var(--e-global-color-secondary);
-}*/
 
 .tribe-common--breakpoint-medium.tribe-events .tribe-events-c-view-selector--tabs .tribe-events-c-view-selector__content {
     display: none;
@@ -261,7 +147,19 @@ svg.tribe-common-c-svgicon.tribe-common-c-svgicon--caret-right.tribe-events-c-br
     display: none;
 }
 
-/* --- 4.8 Traduções PT-BR TEC --- */
+body #epta-template.epta-template-1 .epta-share-area a:hover {
+    opacity: 1 !important;
+}
+
+#epta-template.epta-template-1 .epta-addto-calendar a:hover {
+    text-decoration: none;
+}
+
+
+/* ==========================================================================
+   5. Traduções PT-BR
+   ========================================================================== */
+
 html[lang="pt-br"] .tribe-events-header .tribe-events-c-search__button {
     font-size: 0 !important;
 }
@@ -285,15 +183,12 @@ html[lang="pt-br"] .tribe-events-c-top-bar__datepicker-time span::before {
     font-size: 1.6rem;
 }
 
+/* Botão "Hoje" — URL hardcoded necessária para sobrescrever label padrão TEC */
 html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"] {
     font-size: 0 !important;
 }
-
 html[lang="pt-br"] a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
-    content: "Hoje";
-}
-
-a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
+    content  : "Hoje";
     color    : var(--ucpa-color-text);
     font-size: 1rem;
 }
@@ -301,18 +196,13 @@ a[href="https://concertacaoamazonia.com.br/eventos-calendario/lista/"]::before {
 button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium,
 button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path {
     opacity: 0.3;
-    /*color  : black;
-    fill   : black !important;*/
 }
 
-/* --- 4.9 Imagem de Evento --- */
-.ectbe-evt-img {
-    max-width: 250px;
-}
 
-/* --- 4.10 Navegação Eventos --- */
+/* ==========================================================================
+   6. Navegação Eventos — labels "Anteriores" / "Próximos"
+   ========================================================================== */
 
-/* Ocultar o texto original ("Eventos") e substituir por "Anteriores" / "Próximos" */
 .tribe-events-c-nav__prev-label {
     font-size: 0;
 }
@@ -337,11 +227,7 @@ button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path
     color    : var(--e-global-color-text);
 }
 
-a.tribe-events-c-nav__prev.tribe-common-b2.tribe-common-b1--min-medium :hover {
-    color: var(--e-global-color-accent);
-}
-
+a.tribe-events-c-nav__prev.tribe-common-b2.tribe-common-b1--min-medium :hover,
 a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
     color: var(--e-global-color-accent);
 }
-
