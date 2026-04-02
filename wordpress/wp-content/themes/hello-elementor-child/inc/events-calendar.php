@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @since   2.0.0
- * @version 2.4.6
+ * @version 2.4.7
  */
 
 if (!defined('ABSPATH')) {
@@ -477,23 +477,6 @@ function bureau_it_tec_capture_edital_group_setting( $widget ) {
 add_filter( 'tribe_events_views_v2_view_template_vars', 'bureau_it_tec_sort_events_by_group_month' );
 add_filter( 'tribe_events_views_v2_view_list_template_vars', 'bureau_it_tec_sort_events_by_group_month' );
 
-/**
- * Desabilita o HTML cache interno do TEC (HTML_Cache trait) quando o sort
- * de editais por mês de término está ativo.
- *
- * O TEC usa `maybe_get_cached_html()` em `View::get_html()` — se o cache existir,
- * retorna antes de chamar `setup_template_vars()`, bypassando nosso filtro.
- * Este filtro força `null` como retorno do cache, obrigando o TEC a renderizar.
- *
- * @since 2.4.5
- */
-add_filter( 'tribe_events_views_v2_view_cached_html', 'bureau_it_tec_disable_view_html_cache', 5, 2 );
-function bureau_it_tec_disable_view_html_cache( $cached_html, $view ) {
-    if ( ! empty( $GLOBALS['bit_tec_edital_group_by_end'] ) ) {
-        return null; // Forçar render completo — nosso filtro de sort precisa executar
-    }
-    return $cached_html;
-}
 function bureau_it_tec_sort_events_by_group_month( $template_vars ) {
     // Flag estática: ordenar somente uma vez por request (evita double-sort se ambos os filtros dispararem)
     static $sorted = false;

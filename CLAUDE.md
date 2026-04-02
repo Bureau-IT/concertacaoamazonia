@@ -1,6 +1,6 @@
 # CLAUDE.md — Concertação Amazônica (Docker Dev)
 
-Site WordPress Multisite do projeto Concertação Amazônica.
+Site WordPress Multisite do projeto Uma Concertação Pela Amazônia.
 Para padrões gerais de operação de sites, ver [sites/CLAUDE.md](../CLAUDE.md).
 
 
@@ -75,7 +75,6 @@ Além dos mu-plugins padrão, este site tem:
 | `bit-wpml-circle.php` | Integração WPML com circle menu |
 | `bit-crossblog-attachment-fix.php` | Fix cross-blog para attachments do blog 1 em contexto de blog 2 (URL, path, download, gallery) |
 | `gallery-attachment-title.php` | Fallback para título de attachment do blog 1 em contexto de blog 2 (lightbox captions) |
-| `tec-debug-trace.php` | Debug do The Events Calendar |
 | `tunnel-url-rewrite.php` | Rewrite de URLs no modo tunnel |
 
 ## Banco de Dados
@@ -105,6 +104,39 @@ Além dos mu-plugins padrão, este site tem:
 
 O nginx serve `.webp` automaticamente quando o browser suporta (`Accept: image/webp`).
 Arquivos gerados com nome `imagem.jpg.webp` (não `imagem.webp`).
+
+## Deploy de Tema em Produção
+
+### Procedimento obrigatório após rsync de arquivos PHP
+
+```bash
+# 1. Rsync do tema (executar a partir do diretório do site)
+rsync -avz --delete \
+  wordpress/wp-content/themes/hello-elementor-child/ \
+  concertacaoamazonia.com.br-prod-sa:/var/www/concertacaoamazonia.com.br/wp-content/themes/hello-elementor-child/
+
+# 2. OBRIGATÓRIO — Recarregar PHP-FPM (WP-CLI não limpa o pool FPM)
+ssh concertacaoamazonia.com.br-prod-sa "sudo systemctl reload php8.3-fpm"
+
+# 3. Invalidar cache WP Rocket da página alterada
+ssh concertacaoamazonia.com.br-prod-sa \
+  "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br rocket_clean_post --post_id=<ID>"
+```
+
+**Por que php-fpm reload é necessário:** `wp eval 'opcache_reset()'` roda no SAPI CLI — OPcache isolado do pool FPM (SAPI fpm-fcgi). Sem o reload, PHP-FPM continua servindo bytecode da versão anterior. Sintoma: mudanças PHP refletem via WP-CLI mas não no browser.
+
+**Cache em dev:** `opcache.validate_timestamps=1` + `revalidate_freq=2s` — OPcache invalida automaticamente quando mtime do arquivo muda. Reload manual não é necessário em dev.
+
+### Paridade Redis dev/prod
+
+`object-cache.php` existe em dev. Status do plugin `redis-cache` pode divergir após reimport de banco de produção (onde está ATIVO):
+
+```bash
+std wp plugin list --name=redis-cache --fields=name,status
+std wp eval "echo wp_using_ext_object_cache() ? 'Redis ATIVO' : 'Redis INATIVO';"
+```
+
+Se dev tiver Redis inativo mas prod ativo, customizações dependentes de filtros de cache do TEC (ex: Month View, Week View) podem não ser exercitadas em dev. Ativar para validar: `std wp plugin activate redis-cache && std wp redis enable`.
 
 ## WPML — Agente Poliglota
 
