@@ -3,7 +3,7 @@
   "checkpoint_id": "223d530f38bd",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "CLAUDE.md",
     "wordpress/wp-content/mu-plugins/bit-tec-cache.php"
@@ -22,13 +22,20 @@
       "context": "/22/3d530f38bd/1/context.md",
       "content_hash": "/22/3d530f38bd/1/content_hash.txt",
       "prompt": "/22/3d530f38bd/1/prompt.txt"
+    },
+    {
+      "metadata": "/22/3d530f38bd/2/metadata.json",
+      "transcript": "/22/3d530f38bd/2/full.jsonl",
+      "context": "/22/3d530f38bd/2/context.md",
+      "content_hash": "/22/3d530f38bd/2/content_hash.txt",
+      "prompt": "/22/3d530f38bd/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 480,
-    "cache_creation_tokens": 956920,
-    "cache_read_tokens": 41439123,
-    "output_tokens": 183920,
-    "api_call_count": 400
+    "input_tokens": 556,
+    "cache_creation_tokens": 1273293,
+    "cache_read_tokens": 45133756,
+    "output_tokens": 215454,
+    "api_call_count": 451
   }
 }

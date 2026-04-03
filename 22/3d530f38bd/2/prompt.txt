@@ -1,0 +1,994 @@
+recebi 12:07 um email da AWS sobre o servidor de prod
+
+You are receiving this email because your Amazon CloudWatch Alarm "concertacao-cpu-warning" in the South America (Sao Paulo) region has entered the OK state, because "Threshold Crossed: 1 datapoint [67.11666666666666 (02/04/26 15:02:00)] was not greater than the threshold (70.0)." at "Thursday 02 April, 2026 15:07:37 UTC".
+
+View this alarm in the AWS Management Console:
+https://sa-east-1.console.aws.amazon.com/cloudwatch/deeplink.js?region=sa-east-1#alarmsV2:alarm/concertacao-cpu-warning
+
+Alarm Details:
+- Name:                       concertacao-cpu-warning
+- Description:                CPU > 70% por 5min — possivel ataque ou sobrecarga
+- State Change:               ALARM -> OK
+- Reason for State Change:    Threshold Crossed: 1 datapoint [67.11666666666666 (02/04/26 15:02:00)] was not greater than the threshold (70.0).
+- Timestamp:                  Thursday 02 April, 2026 15:07:37 UTC
+- AWS Account:                379590274801
+- Alarm Arn:                  arn:aws:cloudwatch:sa-east-1:379590274801:alarm:concertacao-cpu-warning
+
+Threshold:
+- The alarm is in the ALARM state when the metric is GreaterThanThreshold 70.0 for at least 1 of the last 1 period(s) of 300 seconds.
+
+Monitored Metric:
+- MetricNamespace:                     AWS/EC2
+- MetricName:                          CPUUtilization
+- Dimensions:                          [InstanceId = i-0c8178fe7ee985cc9]
+- Period:                              300 seconds
+- Statistic:                           Average
+- Unit:                                not specified
+- TreatMissingData:                    notBreaching
+
+
+State Change Actions:
+- OK: [arn:aws:sns:sa-east-1:379590274801:concertacao-alerts]
+- ALARM: [arn:aws:sns:sa-east-1:379590274801:concertacao-alerts]
+- INSUFFICIENT_DATA:
+
+
+--
+If you wish to stop receiving notifications from this topic, please click or visit the link below to unsubscribe:
+https://sns.sa-east-1.amazonaws.com/unsubscribe.html?SubscriptionArn=arn:aws:sns:sa-east-1:379590274801:concertacao-alerts:ab607c61-79ce-41c0-a3e2-e3df5dad2298&Endpoint=daniel.cambria@bureau-it.com
+
+Please do not reply directly to this email. If you have any questions or comments regarding this email, please contact us at https://aws.amazon.com/support
+
+e neste momento, aviso do BIT Monitoring:
+
+[CRITICAL] Monitor Down: Concertação Amazônia
+
+
+
+URL https://concertacaoamazonia.com.br is not responding after 3 consecutive checks. Error: HTTP error: Exceeded maximum allowed redirects.
+
+
+
+Details:
+
+• url: https://concertacaoamazonia.com.br
+
+• error: HTTP error: Exceeded maximum allowed redirects.
+
+• status_code: None
+
+• expected_status_code: 200
+
+• consecutive_failures: 3
+
+• failure_threshold: 3
+
+• monitor_name: Concertação Amazônia
+
+• rule_name: Monitor Down - Critical Alerts
+
+• rule_id: 1
+
+
+
+— BIT Monitoring
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/systematic-debugging
+
+# Systematic Debugging
+
+## Overview
+
+Random fixes waste time and create new bugs. Quick patches mask underlying issues.
+
+**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
+
+**Violating the letter of this process is violating the spirit of debugging.**
+
+## The Iron Law
+
+```
+NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+```
+
+If you haven't completed Phase 1, you cannot propose fixes.
+
+## When to Use
+
+Use for ANY technical issue:
+- Test failures
+- Bugs in production
+- Unexpected behavior
+- Performance problems
+- Build failures
+- Integration issues
+
+**Use this ESPECIALLY when:**
+- Under time pressure (emergencies make guessing tempting)
+- "Just one quick fix" seems obvious
+- You've already tried multiple fixes
+- Previous fix didn't work
+- You don't fully understand the issue
+
+**Don't skip when:**
+- Issue seems simple (simple bugs have root causes too)
+- You're in a hurry (rushing guarantees rework)
+- Manager wants it fixed NOW (systematic is faster than thrashing)
+
+## The Four Phases
+
+You MUST complete each phase before proceeding to the next.
+
+### Phase 1: Root Cause Investigation
+
+**BEFORE attempting ANY fix:**
+
+1. **Read Error Messages Carefully**
+   - Don't skip past errors or warnings
+   - They often contain the exact solution
+   - Read stack traces completely
+   - Note line numbers, file paths, error codes
+
+2. **Reproduce Consistently**
+   - Can you trigger it reliably?
+   - What are the exact steps?
+   - Does it happen every time?
+   - If not reproducible → gather more data, don't guess
+
+3. **Check Recent Changes**
+   - What changed that could cause this?
+   - Git diff, recent commits
+   - New dependencies, config changes
+   - Environmental differences
+
+4. **Gather Evidence in Multi-Component Systems**
+
+   **WHEN system has multiple components (CI → build → signing, API → service → database):**
+
+   **BEFORE proposing fixes, add diagnostic instrumentation:**
+   ```
+   For EACH component boundary:
+     - Log what data enters component
+     - Log what data exits component
+     - Verify environment/config propagation
+     - Check state at each layer
+
+   Run once to gather evidence showing WHERE it breaks
+   THEN analyze evidence to identify failing component
+   THEN investigate that specific component
+   ```
+
+   **Example (multi-layer system):**
+   ```bash
+   # Layer 1: Workflow
+   echo "=== Secrets available in workflow: ==="
+   echo "IDENTITY: ${IDENTITY:+SET}${IDENTITY:-UNSET}"
+
+   # Layer 2: Build script
+   echo "=== Env vars in build script: ==="
+   env | grep IDENTITY || echo "IDENTITY not in environment"
+
+   # Layer 3: Signing script
+   echo "=== Keychain state: ==="
+   security list-keychains
+   security find-identity -v
+
+   # Layer 4: Actual signing
+   codesign --sign "$IDENTITY" --verbose=4 "$APP"
+   ```
+
+   **This reveals:** Which layer fails (secrets → workflow ✓, workflow → build ✗)
+
+5. **Trace Data Flow**
+
+   **WHEN error is deep in call stack:**
+
+   See `root-cause-tracing.md` in this directory for the complete backward tracing technique.
+
+   **Quick version:**
+   - Where does bad value originate?
+   - What called this with bad value?
+   - Keep tracing up until you find the source
+   - Fix at source, not at symptom
+
+### Phase 2: Pattern Analysis
+
+**Find the pattern before fixing:**
+
+1. **Find Working Examples**
+   - Locate similar working code in same codebase
+   - What works that's similar to what's broken?
+
+2. **Compare Against References**
+   - If implementing pattern, read reference implementation COMPLETELY
+   - Don't skim - read every line
+   - Understand the pattern fully before applying
+
+3. **Identify Differences**
+   - What's different between working and broken?
+   - List every difference, however small
+   - Don't assume "that can't matter"
+
+4. **Understand Dependencies**
+   - What other components does this need?
+   - What settings, config, environment?
+   - What assumptions does it make?
+
+### Phase 3: Hypothesis and Testing
+
+**Scientific method:**
+
+1. **Form Single Hypothesis**
+   - State clearly: "I think X is the root cause because Y"
+   - Write it down
+   - Be specific, not vague
+
+2. **Test Minimally**
+   - Make the SMALLEST possible change to test hypothesis
+   - One variable at a time
+   - Don't fix multiple things at once
+
+3. **Verify Before Continuing**
+   - Did it work? Yes → Phase 4
+   - Didn't work? Form NEW hypothesis
+   - DON'T add more fixes on top
+
+4. **When You Don't Know**
+   - Say "I don't understand X"
+   - Don't pretend to know
+   - Ask for help
+   - Research more
+
+### Phase 4: Implementation
+
+**Fix the root cause, not the symptom:**
+
+1. **Create Failing Test Case**
+   - Simplest possible reproduction
+   - Automated test if possible
+   - One-off test script if no framework
+   - MUST have before fixing
+   - Use the `superpowers:test-driven-development` skill for writing proper failing tests
+
+2. **Implement Single Fix**
+   - Address the root cause identified
+   - ONE change at a time
+   - No "while I'm here" improvements
+   - No bundled refactoring
+
+3. **Verify Fix**
+   - Test passes now?
+   - No other tests broken?
+   - Issue actually resolved?
+
+4. **If Fix Doesn't Work**
+   - STOP
+   - Count: How many fixes have you tried?
+   - If < 3: Return to Phase 1, re-analyze with new information
+   - **If ≥ 3: STOP and question the architecture (step 5 below)**
+   - DON'T attempt Fix #4 without architectural discussion
+
+5. **If 3+ Fixes Failed: Question Architecture**
+
+   **Pattern indicating architectural problem:**
+   - Each fix reveals new shared state/coupling/problem in different place
+   - Fixes require "massive refactoring" to implement
+   - Each fix creates new symptoms elsewhere
+
+   **STOP and question fundamentals:**
+   - Is this pattern fundamentally sound?
+   - Are we "sticking with it through sheer inertia"?
+   - Should we refactor architecture vs. continue fixing symptoms?
+
+   **Discuss with your human partner before attempting more fixes**
+
+   This is NOT a failed hypothesis - this is a wrong architecture.
+
+## Red Flags - STOP and Follow Process
+
+If you catch yourself thinking:
+- "Quick fix for now, investigate later"
+- "Just try changing X and see if it works"
+- "Add multiple changes, run tests"
+- "Skip the test, I'll manually verify"
+- "It's probably X, let me fix that"
+- "I don't fully understand but this might work"
+- "Pattern says X but I'll adapt it differently"
+- "Here are the main problems: [lists fixes without investigation]"
+- Proposing solutions before tracing data flow
+- **"One more fix attempt" (when already tried 2+)**
+- **Each fix reveals new problem in different place**
+
+**ALL of these mean: STOP. Return to Phase 1.**
+
+**If 3+ fixes failed:** Question the architecture (see Phase 4.5)
+
+## your human partner's Signals You're Doing It Wrong
+
+**Watch for these redirections:**
+- "Is that not happening?" - You assumed without verifying
+- "Will it show us...?" - You should have added evidence gathering
+- "Stop guessing" - You're proposing fixes without understanding
+- "Ultrathink this" - Question fundamentals, not just symptoms
+- "We're stuck?" (frustrated) - Your approach isn't working
+
+**When you see these:** STOP. Return to Phase 1.
+
+## Common Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "Issue is simple, don't need process" | Simple issues have root causes too. Process is fast for simple bugs. |
+| "Emergency, no time for process" | Systematic debugging is FASTER than guess-and-check thrashing. |
+| "Just try this first, then investigate" | First fix sets the pattern. Do it right from the start. |
+| "I'll write test after confirming fix works" | Untested fixes don't stick. Test first proves it. |
+| "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
+| "Reference too long, I'll adapt the pattern" | Partial understanding guarantees bugs. Read it completely. |
+| "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
+| "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
+
+## Quick Reference
+
+| Phase | Key Activities | Success Criteria |
+|-------|---------------|------------------|
+| **1. Root Cause** | Read errors, reproduce, check changes, gather evidence | Understand WHAT and WHY |
+| **2. Pattern** | Find working examples, compare | Identify differences |
+| **3. Hypothesis** | Form theory, test minimally | Confirmed or new hypothesis |
+| **4. Implementation** | Create test, fix, verify | Bug resolved, tests pass |
+
+## When Process Reveals "No Root Cause"
+
+If systematic investigation reveals issue is truly environmental, timing-dependent, or external:
+
+1. You've completed the process
+2. Document what you investigated
+3. Implement appropriate handling (retry, timeout, error message)
+4. Add monitoring/logging for future investigation
+
+**But:** 95% of "no root cause" cases are incomplete investigation.
+
+## Supporting Techniques
+
+These techniques are part of systematic debugging and available in this directory:
+
+- **`root-cause-tracing.md`** - Trace bugs backward through call stack to find original trigger
+- **`defense-in-depth.md`** - Add validation at multiple layers after finding root cause
+- **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
+
+**Related skills:**
+- **superpowers:test-driven-development** - For creating failing test case (Phase 4, Step 1)
+- **superpowers:verification-before-completion** - Verify fix worked before claiming success
+
+## Real-World Impact
+
+From debugging sessions:
+- Systematic approach: 15-30 minutes to fix
+- Random fixes approach: 2-3 hours of thrashing
+- First-time fix rate: 95% vs 40%
+- New bugs introduced: Near zero vs common
+
+---
+
+sim, investique ambos.
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec self-review\n(fix inline)" [shape=box];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec self-review\n(fix inline)";
+    "Spec self-review\n(fix inline)" -> "User reviews spec?";
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Self-Review:**
+After writing the spec document, look at it with fresh eyes:
+
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
+3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
+4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+
+Fix any issues inline. No need to re-review — just fix and move on.
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+<task-notification>
+<task-id>bbrgjjh7s</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/da215210-6e4a-4a2d-b5d7-668be3e706aa/tasks/bbrgjjh7s.output</output-file>
+<status>completed</status>
+<summary>Background command "Verificar schema da tabela wp_actionscheduler_actions" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Vetor 1:
+
+Qual o tamanho do sitemap?
+
+Vetor 2:
+B + A
+
+---
+
+perfeito, implemente
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+
+## File Structure
+
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## No Placeholders
+
+Every step must contain the actual content an engineer needs. These are **plan failures** — never write them:
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation" / "handle edge cases"
+- "Write tests for the above" (without actual test code)
+- "Similar to Task N" (repeat the code — the engineer may be reading tasks out of order)
+- Steps that describe what to do without showing how (code blocks required for code steps)
+- References to types, functions, or methods not defined in any task
+
+## Remember
+- Exact file paths always
+- Complete code in every step — if a step changes code, show the code
+- Exact commands with expected output
+- DRY, YAGNI, TDD, frequent commits
+
+## Self-Review
+
+After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+
+**1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
+
+**2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Fix them.
+
+**3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+
+If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review
+
+---
+
+1
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
