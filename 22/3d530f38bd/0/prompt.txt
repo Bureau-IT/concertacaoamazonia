@@ -1,0 +1,1294 @@
+as imagens não estão aparecendo nesse carrosel em
+https://concertacao.bureau-it.com/release-cartas-dixit/
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-03-30 às 14.06.24.png]
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/bit-carousel-widget
+
+# BIT Carousel Widget
+
+## Overview
+
+Widget Elementor (`Widget_Base`) que renderiza um carrossel de imagens com Swiper próprio.
+Auto-contido: PHP + JS + CSS vivem no mesmo diretório do mu-plugin.
+
+## Arquivos
+
+```
+docker-dev/common/mu-plugins/
+├── edb-carousel-widget.php              ← loader (não editar)
+└── edb-carousel-widget/
+    ├── edb-carousel-widget.php          ← PHP: controles, render(), dados
+    ├── bit-carousel.js                  ← JS: init Swiper, viewer, keyboard
+    └── bit-carousel.css                 ← CSS: viewer, caption, thumbs, setas
+```
+
+**Path canônico:**
+`/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/edb-carousel-widget/`
+
+**Path no site ativo:**
+`sites/escoladobairro/wordpress/wp-content/mu-plugins/edb-carousel-widget/`
+
+## Versão
+
+A versão aparece em **3 lugares** — atualizar todos ao mesmo tempo:
+
+| Arquivo | Localização |
+|---------|------------|
+| `edb-carousel-widget.php` | `* Version: X.X.X` no cabeçalho do plugin |
+| `edb-carousel-widget.php` | `'1.4.0'` nos dois `wp_register_script`/`wp_enqueue_style` |
+| `bit-carousel.js` | `@version X.X.X` no cabeçalho |
+| `bit-carousel.css` | `@version X.X.X` no cabeçalho |
+
+## Workflow de Edição
+
+1. Editar em `sites/escoladobairro/wordpress/wp-content/mu-plugins/edb-carousel-widget/`
+2. Copiar para `docker-dev/common/mu-plugins/edb-carousel-widget/` (mesmos arquivos)
+3. Flush de cache: `std all-cache-flush`
+4. Verificar no browser: `https://cambrasmax.local:8493`
+5. Commitar em `/Users/dcambria/scripts/server-tools/v2` com path `docker-dev/common/mu-plugins/`
+
+## Adicionar Controle no Painel Elementor
+
+```php
+// Dentro de register_controls(), na seção desejada:
+$this->add_control( 'meu_controle', [
+    'label'     => 'Meu Controle',
+    'type'      => \Elementor\Controls_Manager::NUMBER,
+    'default'   => 100,
+    'selectors' => [
+        '{{WRAPPER}} .bit-minha-classe' => 'propriedade: {{VALUE}}px;',
+    ],
+] );
+
+// Recuperar no render():
+$settings = $this->get_settings_for_display();
+$valor = (int) ( $settings['meu_controle'] ?? 100 );
+```
+
+Tipos comuns: `NUMBER`, `COLOR`, `TEXT`, `SELECT`, `SWITCHER`, `MEDIA`
+
+## Injeção de Dados PHP → JS
+
+O PHP injeta `window.bitCarouselData` como array JSON antes de fechar o widget:
+
+```php
+<script>window.bitCarouselData = <?php echo $json; ?>;</script>
+```
+
+Estrutura de cada item:
+```js
+{ url, thumb_url, caption, credit }
+```
+
+O JS lê via `window.bitCarouselData` em `init()`. Para passar novos dados ao JS:
+adicionar campo no PHP (`$data[]['novo_campo']`) → consumir em `bit-carousel.js`.
+
+## Estrutura HTML Renderizada
+
+```html
+<div class="bit-gallery-section">         <!-- fundo colorido (viewer) -->
+  <div class="bit-gallery-viewer">
+    <img class="bit-gallery-main-img">
+  </div>
+</div>
+<div class="bit-gallery-caption-wrapper">
+  <div class="bit-gallery-caption"></div>
+  <div class="bit-gallery-credit"></div>
+</div>
+<div class="bit-carousel-thumbs swiper" data-space-between="8">
+  <div class="swiper-wrapper">
+    <div class="swiper-slide bit-thumb-slide"><img></div>
+  </div>
+  <button class="elementor-swiper-button elementor-swiper-button-prev">…</button>
+  <button class="elementor-swiper-button elementor-swiper-button-next">…</button>
+</div>
+<script>window.bitCarouselData = […];</script>
+```
+
+## CSS — Seletores Principais
+
+| Elemento | Seletor |
+|----------|---------|
+| Fundo do viewer | `.bit-gallery-section` |
+| Container da imagem grande | `.bit-gallery-viewer` |
+| Imagem principal | `.bit-gallery-main-img` |
+| Legenda | `.bit-gallery-caption` |
+| Crédito do fotógrafo | `.bit-gallery-credit` |
+| Container thumbs (Swiper) | `.bit-carousel-thumbs` |
+| Thumb inativa | `.bit-carousel-thumbs .swiper-slide` |
+| Thumb ativa | `.bit-carousel-thumbs .swiper-slide-active` |
+| Setas | `.bit-carousel-thumbs .elementor-swiper-button` |
+
+Dimensões padrão: viewer `480px` alto, thumbs `240×180px`, setas `-44px` das bordas.
+
+## JS — Pontos de Extensão
+
+```js
+// Após slideChangeTransitionStart (viewer já atualizado):
+swiper.on('slideChangeTransitionStart', function () {
+    updateMainImage(swiper.realIndex);
+    // adicionar lógica aqui
+});
+
+// Após click em thumb:
+swiper.on('click', function () {
+    updateMainImage(swiper.realIndex);
+});
+```
+
+`updateMainImage(realIndex)` usa cache de imagens; swap instantâneo se já carregada, fade-out de 250ms se ainda carregando.
+
+## Dependências
+
+- **Swiper:** handle `swiper` — já carregado pelo Elementor. O widget declara `get_script_depends() → ['bit-carousel']` e o script registra dependência em `['swiper']`.
+- **Sem jQuery** — JS puro (`'use strict'`).
+- **Elementor** necessário apenas para o painel de edição; o frontend funciona sem internals do Elementor.
+
+## Erros Comuns
+
+| Sintoma | Causa | Fix |
+|---------|-------|-----|
+| Viewer em branco no front | `window.bitCarouselData` não injetado | Verificar se há imagens no Repeater; limpar cache |
+| Setas sem efeito | Swiper não encontrou `prevEl`/`nextEl` | Confirmar que `.elementor-swiper-button-prev/next` estão dentro de `.bit-carousel-thumbs` |
+| CSS não atualiza | Cache WP Rocket ou OPcache | `std all-cache-flush` |
+| Controle novo sem efeito | Versão do script cacheada | Incrementar versão nos 3 lugares |
+
+---
+
+<task-notification>
+<task-id>bpsgqhrum</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/bpsgqhrum.output</output-file>
+<status>completed</status>
+<summary>Background command "Flush all caches" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/bpsgqhrum.output
+
+---
+
+o EWWW nao está ativado localmente? Pode ativar, caso nao esteja. Isso resolveria o problema?
+
+---
+
+quando o site for para prod, precisaremos fazer algo?
+
+---
+
+como voce pode garantir que tudo irá funcionar no próximo deploy?
+
+---
+
+crie um relatório do funcionamento atual dos deploys
+
+---
+
+[Request interrupted by user]
+
+---
+
+crie um relatório do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy.
+
+---
+
+[Request interrupted by user]
+
+---
+
+crie um relatório do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/save-report
+
+# Skill: save-report
+
+## Quando usar
+
+Sempre que um relatório for gerado durante uma conversa — seja de saúde de infraestrutura, análise de performance, diagnóstico, otimização, migração, ou qualquer documento de entrega técnica.
+
+## Estrutura de diretórios obrigatória
+
+```
+~/scripts/reports/[área bureau]/[nome do programa]/relatorio-[tipo]-YYYY-MM-DD.[ext]
+```
+
+## Áreas bureau válidas
+
+| Código | Nome |
+|--------|------|
+| `01 - Governança` | Políticas, processos, compliance |
+| `02 - Infraestrutura` | AWS, servidores, redes, banco de dados |
+| `03 - Web` | Sites, deploys, frontend, CDN |
+| `04 - Consultoria e Suporte` | Tickets, suporte a clientes |
+| `05 - Ambiente: Educação, Cultura e Treinamento` | Documentação educacional, tutoriais |
+| `06 - Comercialização Software e Hardware` | Licenças, produtos, cotações |
+| `07 - Automação` | Scripts, pipelines, CI/CD, bots |
+| `08 - Segurança` | Auditorias, firewall, incidentes, pentest |
+
+## Regras de nomenclatura
+
+- Formato obrigatório: `relatorio-[tipo]-YYYY-MM-DD.[ext]`
+- Tipos comuns: `saude`, `migracao`, `otimizacao`, `diagnostico`, `auditoria`, `performance`
+- Extensões: `.html` (principal), `.pdf` (quando possível), `.md` (alternativo)
+- Usar data real do dia em que o relatório foi gerado (não a data do período analisado)
+
+## Exemplos de caminhos válidos
+
+```
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.html
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.pdf
+~/scripts/reports/08 - Segurança/cloudflare/relatorio-auditoria-waf-2026-03-20.html
+~/scripts/reports/03 - Web/mfb/relatorio-performance-2026-04-01.html
+~/scripts/reports/07 - Automação/backup-s3/relatorio-diagnostico-2026-03-10.md
+```
+
+## Processo de execução
+
+1. **Identificar área bureau** com base no contexto do relatório
+2. **Identificar nome do programa** — usar o diretório do projeto em `~/scripts/` (ex: `plesk`, `mfb`, `elos-dev`)
+3. **Criar diretório** se não existir:
+   ```bash
+   mkdir -p "~/scripts/reports/[área]/[programa]"
+   ```
+4. **Salvar HTML** com design consistente Bureau (fundo escuro, glassmorphism):
+   - Fundo: `#0a0a0b`
+   - Glassmorphism: `backdrop-filter: blur(12px)`
+   - Fontes: Inter + JetBrains Mono
+   - Floating orbs, animações CSS
+   - Footer com "Bureau de Tecnologia"
+5. **Converter para PDF** via Playwright MCP quando disponível:
+   ```
+   mcp__playwright__playwright_navigate → file:///Users/dcambria/scripts/reports/[área]/[programa]/[arquivo].html
+   mcp__playwright__playwright_save_as_pdf → [mesmo caminho].pdf
+   ```
+6. **Confirmar** ao usuário com os caminhos dos arquivos gerados
+
+## Design padrão Bureau
+
+Os relatórios devem seguir o design das páginas do Plesk (default, maintenance, 404, suspended):
+- Background escuro (`#0a0a0b`) com gradientes animados
+- Glassmorphism (`backdrop-filter: blur`)
+- Status dots coloridos (verde OK, amarelo atenção, vermelho erro)
+- Tabelas com hover sutil
+- Badges de área e data no header
+- Responsivo para mobile
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **Original**: Fix carousel images not appearing at `https://concertacao.bureau-it.com/release-cartas-dixit/`
+   - **Follow-up questions**: Whether EWWW activation would solve it; whether problem affects all JetSliders; whether cache would be lost with the fix
+   - **Deploy guarantee**: How to guarantee the fix survives the next production deploy
+   - **Final request (in progress)**: Generate a detailed deploy system report with graphs, commands, and a deep audit of both the quick share-deploy (posts) system and the full EC2 deploy system
+
+2. Key Technical Concepts:
+   - **JetSlider (slider-pro)**: JetElements widget that uses slider-pro library; generates `loading="lazy"` on images but WP Rocket was intercepting and replacing `src` with placeholder SVG + `data-lazy-src`
+   - **WP Rocket lazy load modes**: Legacy mode (placeholder SVG + `data-lazy-src` via VanillaLazyLoad JS) vs Native mode (`loading="lazy"` attribute, browser-native)
+   - **`rocket_use_native_lazyload_images` filter**: Controls which mode WP Rocket uses; `false` by default (legacy); `true` forces native
+   - **`rocket_buffer` filter**: WP Rocket processes the full HTML buffer through this; priority 18 for lazy load, priority 25 used for fix
+   - **EWWW Image Optimizer**: In production, when active, sets `rocket_use_native_lazyload_images` to `true` via its own integration — but confirmed INACTIVE on both dev and prod
+   - **WordPress Multisite (subdirectory mode)**: Blog 1 = root `/`, Blog 2 = `/cultura/`; always requires `--url=` in WP-CLI
+   - **Share-deploy system**: Exports posts/events/studies from Docker dev to EC2 production via Cloudflare Tunnel URL swap + XML import
+   - **EC2 post-deploy scripts**: 35+ numbered/alphabetic scripts (01-18, a1-f1) for provisioning and configuring EC2 instances
+   - **Aurora RDS**: Production database (no local MySQL); shared Redis (FLUSHDB prohibited)
+   - **ALB + SSL termination**: EC2 runs on port 80, SSL terminates at ALB; nginx uses `X-Forwarded-Proto`
+   - **S3 Uploads**: Dev uses private S3 bucket (`concertacaoamazonia-com-br-wp-static-dev-sa`); prod uses different bucket
+   - **CloudFront**: Distribution `E2F1QD7E7YOYEB`; invalidation requires AWS profile `Concertação` (with accent)
+   - **Cloudflare Tunnel**: `https://concertacao.bureau-it.com` exposes dev environment publicly; used during export to generate public URLs for `--fetch-attachments`
+
+3. Files and Code Sections:
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/wp-content/mu-plugins/jet-slider-lazyload-fix.php`**
+     - Created to fix JetSlider lazy load conflict with WP Rocket
+     - Final version (v1.2.0):
+     ```php
+     <?php
+     /**
+      * Plugin Name: JetSlider LazyLoad Fix
+      * Description: Corrige conflito entre o lazy loading do JetSlider (slider-pro) e o WP Rocket. Em produção, o EWWW Image Optimizer força o WP Rocket a usar loading="lazy" nativo, o que preserva o src real. Em dev/tunnel, sem EWWW ativo, o WP Rocket usa o método legacy (placeholder + data-lazy-src), que quebra o slider-pro. Este plugin força o uso de lazy loading nativo no WP Rocket, replicando o comportamento de produção.
+      * Version: 1.2.0
+      * Author: Bureau de Tecnologia
+      */
+     defined( 'ABSPATH' ) || exit;
+     add_filter( 'rocket_use_native_lazyload_images', '__return_true' );
+     ```
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/jet-slider-lazyload-fix.php`**
+     - Canonical copy committed to server-tools repo (commit `d0c229ed0`)
+     - Deployed to production via SCP + sudo
+   - **WP Rocket settings (database)**: `exclude_lazyload` was temporarily modified (added `sp-image`, `sp-thumbnail`) but later cleaned back to empty array since the filter approach is the correct solution
+   - **`/var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/jet-slider-lazyload-fix.php`**: Deployed to production on 2026-03-31 15:05
+
+4. Errors and fixes:
+   - **`exclude_lazyload` format error**: Initially tried `.sp-image` (CSS selector with dot); WP Rocket expects class name substring (`sp-image`) or HTML attribute snippet. Fixed by removing dot prefix.
+   - **`strpos()` type error in WP eval**: `exclude_lazyload` is an array, not string — PHP `strpos()` failed. Fixed by using `in_array()`.
+   - **ob_start mu-plugin not working**: First approach used `template_redirect` + `ob_start()` callback. WP Rocket's cache served from disk, bypassing PHP entirely. Fixed by switching to `rocket_buffer` filter.
+   - **`rocket_buffer` priority 5 not working**: WP Rocket applies lazy load at priority 18; fix at priority 5 ran before lazy load was applied (nothing to fix yet). Fixed by changing to priority 25.
+   - **Cache still showing old content**: `rocket_clean_domain()` was recreating cache immediately from preload. Fixed by manually deleting the cache directory with `docker exec ... rm -rf` then letting it rebuild on next real request.
+   - **SCP permission denied to production**: Direct SCP to `/var/www/.../mu-plugins/` denied. Fixed by SCPing to `/tmp/` then `sudo cp` + `sudo chown`.
+   - **Regex in ob_start not matching**: Block regex was too complex for large HTML. Abandoned this approach entirely in favor of the single-line filter approach.
+
+5. Problem Solving:
+   - **Root cause identified**: WP Rocket's legacy lazy load mode replaces `src` with SVG placeholder + `data-lazy-src`. The slider-pro library initializes with whatever `src` is at DOM-ready and never processes `data-lazy-src`. Result: grey/blank slider.
+   - **Why production worked without fix**: Production's WP Rocket cache was generated when EWWW was active (EWWW forces native lazy load mode). After EWWW was deactivated, the cached HTML remained correct. If cache is regenerated without the mu-plugin, the bug would reappear in production too.
+   - **Fix verified**: After deploying mu-plugin and clearing cache, both dev and production generate `<img class="sp-image" src="[real URL]" loading="lazy">` — no `data-lazy-src`, no SVG placeholder.
+   - **Affect on all JetSliders**: Yes, all JetSlider instances on the site were affected. The mu-plugin fixes all globally.
+   - **Cache impact**: Zero — native `loading="lazy"` is browser-native, actually more efficient (no VanillaLazyLoad JS overhead). WP Rocket cache still works normally.
+
+6. All user messages:
+   - "as imagens não estão aparecendo nesse carrosel em https://concertacao.bureau-it.com/release-cartas-dixit/ [screenshot attached]"
+   - "mas daí ficaremos sem cache dessas imagens?"
+   - "esse problema vai ocorrer em todos os jet-sliders?"
+   - "o EWWW nao está ativado localmente? Pode ativar, caso nao esteja. Isso resolveria o problema?"
+   - "quando o site for para prod, precisaremos fazer algo?"
+   - "como voce pode garantir que tudo irá funcionar no próximo deploy?"
+   - "duvida: mas em produção o ewww deve estar ativo, o que teoricamente já corrige o problema, não?"
+   - "crie um relatório do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"
+
+7. Pending Tasks:
+   - **PRIMARY PENDING**: Generate the comprehensive deploy system HTML report with Bureau IT design (dark background, glassmorphism, graphs, commands) covering:
+     - Current functioning of the deploy system
+     - Share-deploy (quick posts) system: flow, commands, limitations, risks
+     - Full EC2 deploy system: scripts inventory, sequence, idempotency, helpers
+     - Deep audit findings and recommendations
+   - Save report using `save-report` skill to `~/scripts/reports/` in correct area/program directory
+
+8. Current Work:
+   Three parallel exploration agents were launched and completed their research on the deploy systems:
+   - **Agent 1** (share-deploy): Fully documented export_posts.sh v4.2.0, docker-dev.sh v2.9.0 share functions, SHARE-DEPLOY.md v2.9.0, wrapper generation, error handling, known limitations
+   - **Agent 2** (EC2 deploy): Fully documented all 35+ post-deploy scripts, helpers system (27 helpers), orchestrators (post-deploy.sh, sync-ec2.sh, create-ec2.sh), version matrix, gaps and recommendations
+   - **Agent 3** (production state): Documented production server state (uptime 11 days, PHP 8.3.30, WP 6.9.4, 19 active plugins, mu-plugins list, recent git commits, network config)
+   
+   The `save-report` skill was invoked at the start but the actual HTML report file has NOT been written yet — the summary request interrupted the process after the exploration agents returned data.
+
+9. Optional Next Step:
+   The user's most recent request was: "crie um relatório do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"
+
+   The next step is to generate the HTML report using the Bureau IT design system (dark background `#0a0a0b`, glassmorphism, Inter + JetBrains Mono fonts) incorporating all the data gathered by the three agents, save it to `~/scripts/reports/03 - Web/concertacao/relatorio-auditoria-deploy-2026-03-31.html`, then open it in Playwright to convert to PDF.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/0329dbe0-38cf-40fa-9b04-79fa7b3ab8a5.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/save-report
+
+# Skill: save-report
+
+## Quando usar
+
+Sempre que um relatório for gerado durante uma conversa — seja de saúde de infraestrutura, análise de performance, diagnóstico, otimização, migração, ou qualquer documento de entrega técnica.
+
+## Estrutura de diretórios obrigatória
+
+```
+~/scripts/reports/[área bureau]/[nome do programa]/relatorio-[tipo]-YYYY-MM-DD.[ext]
+```
+
+## Áreas bureau válidas
+
+| Código | Nome |
+|--------|------|
+| `01 - Governança` | Políticas, processos, compliance |
+| `02 - Infraestrutura` | AWS, servidores, redes, banco de dados |
+| `03 - Web` | Sites, deploys, frontend, CDN |
+| `04 - Consultoria e Suporte` | Tickets, suporte a clientes |
+| `05 - Ambiente: Educação, Cultura e Treinamento` | Documentação educacional, tutoriais |
+| `06 - Comercialização Software e Hardware` | Licenças, produtos, cotações |
+| `07 - Automação` | Scripts, pipelines, CI/CD, bots |
+| `08 - Segurança` | Auditorias, firewall, incidentes, pentest |
+
+## Regras de nomenclatura
+
+- Formato obrigatório: `relatorio-[tipo]-YYYY-MM-DD.[ext]`
+- Tipos comuns: `saude`, `migracao`, `otimizacao`, `diagnostico`, `auditoria`, `performance`
+- Extensões: `.html` (principal), `.pdf` (quando possível), `.md` (alternativo)
+- Usar data real do dia em que o relatório foi gerado (não a data do período analisado)
+
+## Exemplos de caminhos válidos
+
+```
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.html
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.pdf
+~/scripts/reports/08 - Segurança/cloudflare/relatorio-auditoria-waf-2026-03-20.html
+~/scripts/reports/03 - Web/mfb/relatorio-performance-2026-04-01.html
+~/scripts/reports/07 - Automação/backup-s3/relatorio-diagnostico-2026-03-10.md
+```
+
+## Processo de execução
+
+1. **Identificar área bureau** com base no contexto do relatório
+2. **Identificar nome do programa** — usar o diretório do projeto em `~/scripts/` (ex: `plesk`, `mfb`, `elos-dev`)
+3. **Criar diretório** se não existir:
+   ```bash
+   mkdir -p "~/scripts/reports/[área]/[programa]"
+   ```
+4. **Salvar HTML** com design consistente Bureau (fundo escuro, glassmorphism):
+   - Fundo: `#0a0a0b`
+   - Glassmorphism: `backdrop-filter: blur(12px)`
+   - Fontes: Inter + JetBrains Mono
+   - Floating orbs, animações CSS
+   - Footer com "Bureau de Tecnologia"
+5. **Converter para PDF** via Playwright MCP quando disponível:
+   ```
+   mcp__playwright__playwright_navigate → file:///Users/dcambria/scripts/reports/[área]/[programa]/[arquivo].html
+   mcp__playwright__playwright_save_as_pdf → [mesmo caminho].pdf
+   ```
+6. **Confirmar** ao usuário com os caminhos dos arquivos gerados
+
+## Design padrão Bureau
+
+Os relatórios devem seguir o design das páginas do Plesk (default, maintenance, 404, suspended):
+- Background escuro (`#0a0a0b`) com gradientes animados
+- Glassmorphism (`backdrop-filter: blur`)
+- Status dots coloridos (verde OK, amarelo atenção, vermelho erro)
+- Tabelas com hover sutil
+- Badges de área e data no header
+- Responsivo para mobile
+
+---
+
+ótimo. vamos resolver os 9 achados
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>b3sz6qbtb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/b3sz6qbtb.output</output-file>
+<status>killed</status>
+<summary>Background command "Search for jet_cct or participantes_cct handling" was stopped</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/b3sz6qbtb.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+o site em produção parece que está fora do ar. o que houve?
+
+ [CRITICAL] Monitor Down: Concertação Amazônia
+
+
+
+URL https://concertacaoamazonia.com.br is not responding after 3 consecutive checks. Error: Request timed out after 10s (3 attempts)
+
+
+
+Details:
+
+• url: https://concertacaoamazonia.com.br
+
+• error: Request timed out after 10s (3 attempts)
+
+• status_code: None
+
+• expected_status_code: 200
+
+• consecutive_failures: 3
+
+• failure_threshold: 3
+
+• monitor_name: Concertação Amazônia
+
+• rule_name: Monitor Down - Critical Alerts
+
+• rule_id: 1
+
+
+
+— BIT Monitoring
+
+---
+
+ok, continue
+
+---
+
+crie um relatório novo relatorio, agora no formato de dashboard, do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/save-report
+
+# Skill: save-report
+
+## Quando usar
+
+Sempre que um relatório for gerado durante uma conversa — seja de saúde de infraestrutura, análise de performance, diagnóstico, otimização, migração, ou qualquer documento de entrega técnica.
+
+## Estrutura de diretórios obrigatória
+
+```
+~/scripts/reports/[área bureau]/[nome do programa]/relatorio-[tipo]-YYYY-MM-DD.[ext]
+```
+
+## Áreas bureau válidas
+
+| Código | Nome |
+|--------|------|
+| `01 - Governança` | Políticas, processos, compliance |
+| `02 - Infraestrutura` | AWS, servidores, redes, banco de dados |
+| `03 - Web` | Sites, deploys, frontend, CDN |
+| `04 - Consultoria e Suporte` | Tickets, suporte a clientes |
+| `05 - Ambiente: Educação, Cultura e Treinamento` | Documentação educacional, tutoriais |
+| `06 - Comercialização Software e Hardware` | Licenças, produtos, cotações |
+| `07 - Automação` | Scripts, pipelines, CI/CD, bots |
+| `08 - Segurança` | Auditorias, firewall, incidentes, pentest |
+
+## Regras de nomenclatura
+
+- Formato obrigatório: `relatorio-[tipo]-YYYY-MM-DD.[ext]`
+- Tipos comuns: `saude`, `migracao`, `otimizacao`, `diagnostico`, `auditoria`, `performance`
+- Extensões: `.html` (principal), `.pdf` (quando possível), `.md` (alternativo)
+- Usar data real do dia em que o relatório foi gerado (não a data do período analisado)
+
+## Exemplos de caminhos válidos
+
+```
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.html
+~/scripts/reports/02 - Infraestrutura/plesk/relatorio-saude-ec2-2026-03-15.pdf
+~/scripts/reports/08 - Segurança/cloudflare/relatorio-auditoria-waf-2026-03-20.html
+~/scripts/reports/03 - Web/mfb/relatorio-performance-2026-04-01.html
+~/scripts/reports/07 - Automação/backup-s3/relatorio-diagnostico-2026-03-10.md
+```
+
+## Processo de execução
+
+1. **Identificar área bureau** com base no contexto do relatório
+2. **Identificar nome do programa** — usar o diretório do projeto em `~/scripts/` (ex: `plesk`, `mfb`, `elos-dev`)
+3. **Criar diretório** se não existir:
+   ```bash
+   mkdir -p "~/scripts/reports/[área]/[programa]"
+   ```
+4. **Salvar HTML** com design consistente Bureau (fundo escuro, glassmorphism):
+   - Fundo: `#0a0a0b`
+   - Glassmorphism: `backdrop-filter: blur(12px)`
+   - Fontes: Inter + JetBrains Mono
+   - Floating orbs, animações CSS
+   - Footer com "Bureau de Tecnologia"
+5. **Converter para PDF** via Playwright MCP quando disponível:
+   ```
+   mcp__playwright__playwright_navigate → file:///Users/dcambria/scripts/reports/[área]/[programa]/[arquivo].html
+   mcp__playwright__playwright_save_as_pdf → [mesmo caminho].pdf
+   ```
+6. **Confirmar** ao usuário com os caminhos dos arquivos gerados
+
+## Design padrão Bureau
+
+Os relatórios devem seguir o design das páginas do Plesk (default, maintenance, 404, suspended):
+- Background escuro (`#0a0a0b`) com gradientes animados
+- Glassmorphism (`backdrop-filter: blur`)
+- Status dots coloridos (verde OK, amarelo atenção, vermelho erro)
+- Tabelas com hover sutil
+- Badges de área e data no header
+- Responsivo para mobile
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **Original fix (completed prior session):** JetSlider images not appearing at `https://concertacao.bureau-it.com/release-cartas-dixit/` — WP Rocket was using legacy lazy load (SVG placeholder + `data-lazy-src`), breaking slider-pro. Fixed via mu-plugin `jet-slider-lazyload-fix.php` with `add_filter('rocket_use_native_lazyload_images', '__return_true')`.
+   - **Audit report (completed):** Generate comprehensive HTML+PDF deploy audit report for concertacaoamazonia.com.br covering share-deploy, EC2 deploy, scripts matrix, 9 findings.
+   - **Resolve 9 audit findings (completed):** All 9 findings from the audit were resolved in sequence (trivial → medium → low priority).
+   - **Production incident (resolved):** Alert received that site was down — diagnosed and fixed wp-cron runaway saturating PHP-FPM workers.
+   - **Dashboard report (in progress, HTML written, PDF pending):** "crie um relatório novo relatorio, agora no formato de dashboard, do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"
+
+2. Key Technical Concepts:
+   - **WordPress Multisite (subdirectory):** Blog 1 = `/`, Blog 2 = `/cultura/`; always `--url=` in WP-CLI
+   - **WP Rocket lazy load modes:** Legacy (SVG placeholder + `data-lazy-src` via VanillaLazyLoad) vs Native (`loading="lazy"` attribute, browser-native)
+   - **JetSlider / slider-pro:** Uses `src` at DOM-ready; doesn't process `data-lazy-src` → grey images
+   - **`rocket_use_native_lazyload_images` filter:** Forces WP Rocket native mode
+   - **Share-deploy system:** Docker dev → export_posts.sh (WXR/XML) → Cloudflare Tunnel URL swap → S3 → EC2 → wp import → cache flush
+   - **SHA256 hash deduplication:** Guard clause in `posts_import_file()` writes hash to `wp_options` (key: `bit_import_hash_<hash>`), prevents re-import of same XML
+   - **POSTS_FORCE_IMPORT=true:** Bypass variable for deduplication; `--force` flag in `cmd_import_posts`
+   - **Cloudflare Tunnel:** `concertacao.bureau-it.com` — required for `--fetch-attachments` to work at EC2 import (otherwise media URLs are `cambrasmax.local` unreachable from EC2)
+   - **Tunnel validation:** `curl -sf --max-time 8 "$opt_tunnel_url"` in `_share_deploy_events` (pre-existing) and now also in `_share_deploy_posts` (added)
+   - **EC2 post-deploy scripts:** 28 scripts (01-18, a1-f1), executed sequentially by `post-deploy.sh` v2.1.0
+   - **Idempotency:** Scripts check completion flags before executing (via `common.sh`)
+   - **Aurora MySQL 8.0.42:** Production DB — confirmed via `wp db query 'SELECT @@version'`; local dev uses `mysql:8.0` container
+   - **Redis shared (prod):** `FLUSHDB`/`FLUSHALL` prohibited; use `wp cache flush` via WP-CLI
+   - **CloudFront E2F1QD7E7YOYEB:** Invalidation requires AWS profile `Concertação` (with accent)
+   - **wp-cron runaway:** Cron job with `memory_limit=512M` + `max_execution_time=120` saturated all 55 PHP-FPM workers → load average 54 on 4-vCPU t3.xlarge
+   - **mu-plugins management:** `docker-dev/common/mu-plugins/` = canonical source; site-specific plugins should be synced there
+   - **diff-muplugins.sh:** New script comparing .php files in dev `mu-plugins/` vs production via SSH; exit 1 on divergence
+
+3. Files and Code Sections:
+
+   - **`/Users/dcambria/scripts/server-tools/v2/helpers/posts-helper.sh`** (v3.1.0 → **v3.2.0**)
+     - Added SHA256 hash deduplication guard in `posts_import_file()` before `wp import`
+     - Registers hash in `wp_options` after successful import
+     - Bypass via `POSTS_FORCE_IMPORT=true` or `POSTS_FORCE_OVERWRITE=true`
+     ```bash
+     # Guard clause added after dry_run check:
+     if [[ "${POSTS_FORCE_IMPORT:-false}" != "true" ]] && [[ "${POSTS_FORCE_OVERWRITE:-false}" != "true" ]]; then
+         local _import_hash _import_option_key _already_imported
+         _import_hash=$(sha256sum "$file" | cut -d' ' -f1)
+         _import_option_key="bit_import_hash_${_import_hash}"
+         _already_imported=$(posts_run_wp option get "$_import_option_key" 2>/dev/null || true)
+         if [[ -n "$_already_imported" ]]; then
+             _posts_log warn "Export ja importado anteriormente em: $_already_imported"
+             _posts_log warn "Use POSTS_FORCE_IMPORT=true para reimportar mesmo assim"
+             return 0
+         fi
+     fi
+     # After successful import (in both success branches):
+     if [[ -n "${_import_option_key:-}" ]]; then
+         posts_run_wp option add "$_import_option_key" "$(date -Iseconds)" --autoload=no 2>/dev/null || true
+     fi
+     ```
+
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh`** (v2.7.1 → **v2.9.0**)
+     - Fixed `SCRIPT_VERSION` on line 24: `"2.7.1"` → `"2.9.0"`
+     - Added `CF_TUNNEL_HOSTNAME` reading from `.env` + tunnel validation (curl) to `_share_deploy_posts()` at start:
+     ```bash
+     # Reads default_tunnel_url from .env CF_TUNNEL_HOSTNAME
+     # Then after post-deploy.sh check:
+     if [[ -n "$opt_tunnel_url" ]]; then
+         log_info "Tunnel URL: $opt_tunnel_url"
+         if ! curl -sf --max-time 8 "$opt_tunnel_url" >/dev/null 2>&1; then
+             log_error "Cloudflare Tunnel não está acessível: $opt_tunnel_url"
+             log_info "Ative o tunnel antes de exportar: std tunnel"
+             return 1
+         fi
+         log_success "Tunnel acessível"
+     fi
+     ```
+     - Modified `cmd_import_posts()` to accept `--force` flag and pass `POSTS_FORCE_IMPORT=true` via `docker exec -e`:
+     ```bash
+     local force_import="false"
+     local filtered_args=()
+     for arg in "$@"; do
+         if [[ "$arg" == "--force" ]]; then
+             force_import="true"
+         else
+             filtered_args+=("$arg")
+         fi
+     done
+     dc exec $exec_flags -e "POSTS_FORCE_IMPORT=${force_import}" --user www-data wordpress \
+         bash -c '/usr/local/bin/wp-scripts/import_posts.sh "$@"' _ "${filtered_args[@]+"${filtered_args[@]}"}"
+     ```
+     - Added `diff-muplugins` subcommand dispatch: `diff-muplugins) bash "$COMMON_SCRIPTS_DIR/diff-muplugins.sh" "$@" ;;`
+
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/common/scripts/diff-muplugins.sh`** (new, **v1.0.0**)
+     - Standalone script comparing .php mu-plugins between local dev and production via SSH
+     - Reads `SSH_ALIAS_PROD` from site `.env`; auto-detects `LOCAL_MUPLUGINS_DIR`
+     - Uses `comm -23`/`-13`/`-12` for set operations on sorted lists
+     - Exit 1 if divergences found (CI-friendly)
+
+   - **`/Users/dcambria/scripts/server-tools/v2/docs/SHARE-DEPLOY.md`**
+     - Added section "Dados fora do fluxo automático — JetEngine CCT" documenting manual mysqldump + SCP + import process for `wp_jet_cct_participantes_cct`
+
+   - **`/Users/dcambria/scripts/server-tools/v2/ec2-deploy/post-deploy/a1-wordpress-autoconfigure.sh`**
+     - Added to header: `# DEPENDS_ON: 09-importdatabase (banco deve estar populado antes de autoconfigurar)`
+
+   - **`/Users/dcambria/scripts/server-tools/v2/ec2-deploy/post-deploy/14-renew-all-caches.sh`**
+     - Added to header: `# DEPENDS_ON: 04-wpcli-wp-install (WordPress deve estar instalado e configurado)`
+
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/CLAUDE.md`**
+     - Updated Banco de Dados section with Aurora MySQL 8.0.42, endpoint, DB name, user, and compatibility warning
+
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/`**
+     - Added `bureau-a11y.js` (copied from site dev)
+     - Added `jet-wpml-register-cache.php` (copied from site dev)
+
+   - **mu_temp/tec-debug-trace.php** (moved from mu-plugins/ to mu_temp/ in concertacao site)
+
+   - **`/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-dashboard-deploy-2026-03-31.html`** (just created)
+     - Full Bureau IT dark-theme dashboard with: KPI row (8 metrics), production live state, incident alert, share-deploy pipeline, deduplication code block, EC2 script matrix (28 scripts), coverage bar charts, 9-findings audit table, cache flow, git timeline, quick-reference commands
+     - PDF NOT yet generated
+
+   - **`/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-auditoria-deploy-2026-03-31.html`** + **`.pdf`** (created in earlier session)
+
+4. Errors and Fixes:
+   - **`pkill` permission denied via SSH:** `pkill -f wp-cron.php` failed without sudo. Fix: used `sudo systemctl restart php8.3-fpm` directly instead (killed all workers including runaway ones).
+   - **SSH compound commands timing out:** Multi-statement SSH commands exiting with code 255 (likely due to sudo prompts in non-interactive session). Fix: ran single commands per SSH call.
+   - **HTTP server port conflict for Playwright PDF:** Port 9876 was already in use. Fix: used port 9877 and killed prior process.
+   - **`file://` URL blocked in Playwright:** Playwright MCP blocks `file:` protocol. Fix: spun up `python3 -m http.server` and served via `http://localhost:9877/`.
+   - **Plan mode — AskUserQuestion tool rejected by user:** User answered questions via the error output. Adjusted: captured answers from error response and proceeded.
+
+5. Problem Solving:
+   - **wp-cron runaway (production down):** Diagnosed via SSH: load 54, 55 PHP-FPM workers in state `R`, wp-cron consuming 29% CPU. Fix: `sudo systemctl restart php8.3-fpm`. Site recovered from timeout → HTTP 200 in 3.3s → 0.3s within 30s.
+   - **JetSlider lazy load (completed prior):** Root cause: WP Rocket legacy mode replaced `src` with SVG. Fix: single-line mu-plugin forcing native lazy load. Deployed to production via SCP, committed to server-tools.
+   - **Deduplication design:** Chose SHA256 of the XML file written to `wp_options` over lock-file approach — more robust (survives container restarts, works on EC2 side too).
+   - **Tunnel validation parity:** `_share_deploy_events` already had curl validation; `_share_deploy_posts` did not. Added identical pattern including reading `CF_TUNNEL_HOSTNAME` from `.env` as default.
+
+6. All user messages:
+   - "as imagens não estão aparecendo nesse carrosel em https://concertacao.bureau-it.com/release-cartas-dixit/"
+   - "mas daí ficaremos sem cache dessas imagens?"
+   - "esse problema vai ocorrer em todos os jet-sliders?"
+   - "o EWWW nao está ativado localmente? Pode ativar, caso nao esteja. Isso resolveria o problema?"
+   - "quando o site for para prod, precisaremos fazer algo?"
+   - "como voce pode garantir que tudo irá funcionar no próximo deploy?"
+   - "duvida: mas em produção o ewww deve estar ativo, o que teoricamente já corrige o problema, não?"
+   - "crie um relatório do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"
+   - "ótimo. vamos resolver os 9 achados"
+   - "nao entendi esse item" (during AskUserQuestion about CCT — asking for clarification on the question itself)
+   - "ok, continue" (after production incident was resolved)
+   - "o site em produção parece que está fora do ar. o que houve? [CRITICAL] Monitor Down: Concertação Amazônia — URL https://concertacaoamazonia.com.br is not responding..."
+   - "ok, continue" (after incident resolution, resuming audit fix work)
+   - "crie um relatório novo relatorio, agora no formato de dashboard, do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"
+
+7. Pending Tasks:
+   - **Convert dashboard HTML to PDF:** `/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-dashboard-deploy-2026-03-31.html` → PDF via Playwright MCP (serve via HTTP server → `browser_navigate` → `browser_run_code` with `page.pdf()`)
+   - **Remove tec-debug-trace.php from production:** Still present at `/var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/tec-debug-trace.php` in prod. Can be removed manually or via next export-wpcontent.
+   - **Investigate wp-cron runaway root cause:** Which specific cron job saturated the workers? Check `/var/log/nginx/error.log` and WP cron schedule.
+   - **Continue "análise profunda" requested:** User asked for a deep audit of the deploy system after the dashboard — this was to follow the dashboard generation.
+
+8. Current Work:
+   The HTML dashboard file was just written successfully:
+   ```
+   /Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-dashboard-deploy-2026-03-31.html
+   ```
+   The dashboard includes:
+   - 8 KPI cards (HTTP 200, 28 scripts, WP 6.9.4, 17 mu-plugins, 105 commits, docker-dev v2.9.0, posts-helper v3.2.0, 65% disk)
+   - Live production state (uptime, load average bars, resources, mu-plugins list)
+   - Incident alert box (wp-cron runaway 2026-03-31)
+   - Share-deploy pipeline diagram + deduplication code block
+   - EC2 deploy phases pipeline + 28-script matrix with category tags
+   - Coverage bar charts + codebase metrics
+   - 9-findings audit table with post-fix status
+   - Cache flow table with commands
+   - Git timeline (last 10 commits)
+   - Quick-reference commands (share-deploy + EC2)
+
+   The PDF conversion via Playwright had NOT been started — the summary request interrupted the workflow immediately after the Write tool completed.
+
+9. Optional Next Step:
+   The next immediate step is to convert the dashboard HTML to PDF via Playwright, which is the standard save-report skill workflow. Then proceed with the "análise profunda" (deep audit) the user requested:
+
+   User's exact request: *"crie um relatório novo relatorio, agora no formato de dashboard, do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"*
+
+   Immediate next step: Start local HTTP server → navigate Playwright to `http://localhost:{port}/relatorio-dashboard-deploy-2026-03-31.html` → `page.pdf()` to generate PDF at same path with `.pdf` extension → then begin the deep audit analysis.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/0329dbe0-38cf-40fa-9b04-79fa7b3ab8a5.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+implemente tudo
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/dispatching-parallel-agents
+
+# Dispatching Parallel Agents
+
+## Overview
+
+You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
+
+**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
+
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
+```
+
+**Use when:**
+- 3+ test files failing with different root causes
+- Multiple subsystems broken independently
+- Each problem can be understood without context from others
+- No shared state between investigations
+
+**Don't use when:**
+- Failures are related (fix one might fix others)
+- Need to understand full system state
+- Agents would interfere with each other
+
+## The Pattern
+
+### 1. Identify Independent Domains
+
+Group failures by what's broken:
+- File A tests: Tool approval flow
+- File B tests: Batch completion behavior
+- File C tests: Abort functionality
+
+Each domain is independent - fixing tool approval doesn't affect abort tests.
+
+### 2. Create Focused Agent Tasks
+
+Each agent gets:
+- **Specific scope:** One test file or subsystem
+- **Clear goal:** Make these tests pass
+- **Constraints:** Don't change other code
+- **Expected output:** Summary of what you found and fixed
+
+### 3. Dispatch in Parallel
+
+```typescript
+// In Claude Code / AI environment
+Task("Fix agent-tool-abort.test.ts failures")
+Task("Fix batch-completion-behavior.test.ts failures")
+Task("Fix tool-approval-race-conditions.test.ts failures")
+// All three run concurrently
+```
+
+### 4. Review and Integrate
+
+When agents return:
+- Read each summary
+- Verify fixes don't conflict
+- Run full test suite
+- Integrate all changes
+
+## Agent Prompt Structure
+
+Good agent prompts are:
+1. **Focused** - One clear problem domain
+2. **Self-contained** - All context needed to understand the problem
+3. **Specific about output** - What should the agent return?
+
+```markdown
+Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+
+1. "should abort tool with partial output capture" - expects 'interrupted at' in message
+2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
+3. "should properly track pendingToolCount" - expects 3 results but gets 0
+
+These are timing/race condition issues. Your task:
+
+1. Read the test file and understand what each test verifies
+2. Identify root cause - timing issues or actual bugs?
+3. Fix by:
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
+
+Do NOT just increase timeouts - find the real issue.
+
+Return: Summary of what you found and what you fixed.
+```
+
+## Common Mistakes
+
+**❌ Too broad:** "Fix all the tests" - agent gets lost
+**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+
+**❌ No context:** "Fix the race condition" - agent doesn't know where
+**✅ Context:** Paste the error messages and test names
+
+**❌ No constraints:** Agent might refactor everything
+**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
+
+**❌ Vague output:** "Fix it" - you don't know what changed
+**✅ Specific:** "Return summary of root cause and changes"
+
+## When NOT to Use
+
+**Related failures:** Fixing one might fix others - investigate together first
+**Need full context:** Understanding requires seeing entire system
+**Exploratory debugging:** You don't know what's broken yet
+**Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Real Example from Session
+
+**Scenario:** 6 test failures across 3 files after major refactoring
+
+**Failures:**
+- agent-tool-abort.test.ts: 3 failures (timing issues)
+- batch-completion-behavior.test.ts: 2 failures (tools not executing)
+- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
+
+**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
+
+**Dispatch:**
+```
+Agent 1 → Fix agent-tool-abort.test.ts
+Agent 2 → Fix batch-completion-behavior.test.ts
+Agent 3 → Fix tool-approval-race-conditions.test.ts
+```
+
+**Results:**
+- Agent 1: Replaced timeouts with event-based waiting
+- Agent 2: Fixed event structure bug (threadId in wrong place)
+- Agent 3: Added wait for async tool execution to complete
+
+**Integration:** All fixes independent, no conflicts, full suite green
+
+**Time saved:** 3 problems solved in parallel vs sequentially
+
+## Key Benefits
+
+1. **Parallelization** - Multiple investigations happen simultaneously
+2. **Focus** - Each agent has narrow scope, less context to track
+3. **Independence** - Agents don't interfere with each other
+4. **Speed** - 3 problems solved in time of 1
+
+## Verification
+
+After agents return:
+1. **Review each summary** - Understand what changed
+2. **Check for conflicts** - Did agents edit same code?
+3. **Run full suite** - Verify all fixes work together
+4. **Spot check** - Agents can make systematic errors
+
+## Real-World Impact
+
+From debugging session (2025-10-03):
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes
+
+---
+
+<task-notification>
+<task-id>a00d7519c6e088ef5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/a00d7519c6e088ef5.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix posts-helper.sh A1+C3+D4" completed</summary>
+<result>All three corrections are applied correctly. Here is the summary:
+
+---
+
+## Correções aplicadas em `/Users/dcambria/scripts/server-tools/v2/helpers/posts-helper.sh`
+
+### Nova versão: 3.2.1 (era 3.2.0) — Data: 2026-03-31
+
+---
+
+### Correção A1 — timeout no `wp import` (linhas 1023–1030)
+
+Antes:
+```bash
+local import_output import_exit_code=0
+import_output=$(posts_run_wp import "$file" --authors=create --skip=image_resize 2>&1) || import_exit_code=$?
+```
+
+Depois: `timeout "$_import_timeout"` envolve o comando, com detecção do exit code 124 (timeout expirado) que loga erro descritivo e retorna 1. O padrão é 600 segundos; pode ser sobrescrito com `POSTS_IMPORT_TIMEOUT`.
+
+---
+
+### Correção C3 — documentar flags FORCE (linhas 952–957)
+
+Adicionado bloco de comentário imediatamente antes do `if` do guard, explicando:
+- `POSTS_FORCE_IMPORT=true` — bypass da deduplicação SHA256
+- `POSTS_FORCE_OVERWRITE=true` — sobrescreve pelo post_name
+- `--force` — ativa `POSTS_FORCE_IMPORT` automaticamente
+- Ambas podem ser combinadas
+
+---
+
+### Correção D4 — warning expandido de `media_errors` (linhas 1068–1071)
+
+Substituída a linha única `[[ "$media_errors" -gt 0 ]] && _posts_log warn ...` por um bloco `if` com duas mensagens de warning que orientam o operador: informa o número de erros, sugere verificar URLs de attachment e conectividade, e esclarece que os posts foram importados com sucesso.
+
+---
+
+Arquivo salvo com sucesso. As três modificações estão no lugar correto, sem alteração de lógica existente.</result>
+<usage><total_tokens>33458</total_tokens><tool_uses>11</tool_uses><duration_ms>73712</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/a00d7519c6e088ef5.output
+
+---
+
+<task-notification>
+<task-id>ae3e0a467e3d9b1d6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/ae3e0a467e3d9b1d6.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix export_posts.sh B1+B2+D1" completed</summary>
+<result>All three corrections are confirmed in place. Here is the summary:
+
+---
+
+## Correções implementadas em `export_posts.sh`
+
+**Arquivo:** `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/scripts/export_posts.sh`
+**Nova versão:** `4.3.0` (era 4.2.0)
+
+### B1 — S3 upload com retry (linhas ~285-302)
+
+Substituído o bloco de `aws s3 cp` único por um loop com backoff exponencial: 3 tentativas, backoff de 5s → 10s entre falhas. Após esgotar as tentativas, registra erro com o caminho do arquivo local para recuperação manual. O retry envolve apenas o `aws s3 cp`; a lógica de AWS CLI profile e a validação XML chamada antes do bloco permanecem fora do loop.
+
+### D1 — Validação XML antes do upload S3 (linhas ~228-247 e ~278-281)
+
+Adicionada função `_validate_wxr_file()` que verifica: (a) existência do arquivo, (b) tamanho mínimo de 100 bytes, (c) presença da tag `</rss>` nos últimos 100 bytes. Em `_upload_to_s3()`, antes do bloco de retry, qualquer arquivo `.xml` passa pela validação; se falhar, retorna 1 imediatamente sem tentar o upload.
+
+### B2 — Tunnel swap cobre blog 2 multisite (linhas ~103, ~146-169, ~190-202)
+
+- Declarada variável global `_SUBSITE_BLOG_IDS=""` no escopo de configurações (linha 103), junto com `_ORIGINAL_SITEURL` e `_TUNNEL_SWAP_ACTIVE`.
+- `_apply_tunnel_url()`: após atualizar siteurl/home do blog 1, obtém IDs dos subsites via `wp site list` e atualiza `wp_${_bid}_options` de cada subsite com a URL do tunnel via SQL direto.
+- `_tunnel_restore()`: após restaurar o blog 1, itera `_SUBSITE_BLOG_IDS` e recalcula a URL original de cada subsite a partir de `_ORIGINAL_SITEURL` + `path` da tabela `wp_blogs`, restaurando via SQL.</result>
+<usage><total_tokens>48415</total_tokens><tool_uses>21</tool_uses><duration_ms>128716</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/ae3e0a467e3d9b1d6.output
+
+---
+
+<task-notification>
+<task-id>a457228b129ecf25a</task-id>
+<tool-use-id>toolu_01F4gCuvhqgbQsRbqhbtqTfX</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/a457228b129ecf25a.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix 09-importdatabase.sh B3+B4+D3" completed</summary>
+<result>The file looks correct. All three corrections are in place and the structure is sound. Here is a summary:
+
+---
+
+**Função principal:** `main()`
+
+**Correções aplicadas:**
+
+**B3 — Completion flag (idempotência)**
+- Inserção 1 (flag check): linha **355–362** — logo após `[[ -n "$sql_file" ]] || fail ...`, antes dos logs de início. Usa `WP_ROOT` que já foi populado por `resolve_env_vars`.
+- Inserção 2 (flag write): linha **484–486** — após `search_replace_tunnel_fqdn`, antes do flush de cache.
+
+**B4 — Rollback automático pós-falha**
+- Inserção do bloco `_db_rollback_on_fail` + `trap '...' ERR`: linhas **425–440** — após o bloco de criação do backup pré-import.
+- Nenhum trap ERR existia no script anterior; o EXIT já presente na linha 341 não foi tocado.
+- Desabilitação do rollback: linha **476** — imediatamente após `log_success "Banco de dados importado com sucesso"`.
+
+**D3 — Verificação de espaço em disco**
+- Inserção: linhas **442–457** — após o `trap ERR` e antes do `cp "$local_sql_path" "$wp_temp_sql"`. O arquivo medido é o SQL já descompactado (tamanho real na partição).
+
+**Nova versão:** `2.2.0` (linha 7 do header)
+
+**Arquivo salvo:** `/Users/dcambria/scripts/server-tools/v2/ec2-deploy/post-deploy/09-importdatabase.sh`</result>
+<usage><total_tokens>39265</total_tokens><tool_uses>9</tool_uses><duration_ms>89557</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/a457228b129ecf25a.output
+
+---
+
+<task-notification>
+<task-id>a7cfa2475c4ce4cfe</task-id>
+<tool-use-id>toolu_01VdGGPgptKvfWK5NJWyVu6y</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/a7cfa2475c4ce4cfe.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix docker-dev.sh A2+C2+C5+D2+D5" completed</summary>
+<result>All 5 corrections have been implemented. Here is the summary:
+
+---
+
+## Resumo das correções implementadas
+
+**Arquivo:** `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh`
+**Nova versão:** `2.9.0` → `2.10.0` (linhas 6 e 24)
+
+---
+
+### A2 — flock para deploys simultâneos
+
+- **`_share_deploy_posts()`** — bloco de lock inserido nas linhas **3627–3634**, logo após as declarações de variáveis locais e antes do parse de argumentos. Usa `exec 9>lock` + `flock -n 9` + `trap ... RETURN`.
+- **`_share_deploy_events()`** — mesmo bloco inserido nas linhas **3943–3950**, mesma posição relativa na função.
+- `_share_deploy_estudos` não é uma função separada — ela é servida por `_share_deploy_posts --post-type=estudos`, portanto coberta pelo mesmo lock.
+- fd escolhido: `9` (confirmado que não havia uso prévio no script).
+
+### C2 — tunnel timeout 8s → 30s
+
+- Linha **3700** (`_share_deploy_posts`): `--max-time 8` → `--max-time 30`
+- Linha **3981** (`_share_deploy_events`): `--max-time 8` → `--max-time 30`
+
+### C5 — EXEC_TMP_DIR cleanup em falha
+
+- Linha **3567** (dentro do heredoc `WRAPPER_EOF`): trap `EXIT` adicionado após o bloco `if/elif/else` que detecta e popula `EXEC_TMP_DIR`, antes da execução do import. O cleanup bem-sucedido já existia no fluxo normal (linha 3589); o trap garante a limpeza também em `exit 1` ou erro inesperado.
+
+### D2 — persistir logs de share-deploy
+
+- **`_share_deploy_posts()`** — linhas **3636–3641**: bloco de log adicionado após o lock, antes do parse de argumentos. Grava em `$SCRIPT_DIR/logs/share-deploy-YYYYMMDD.log` via `tee -a`.
+- **`_share_deploy_events()`** — linhas **3952–3957**: mesmo padrão.
+
+### D5 — WP_CLI_CACHE_DIR no import EC2
+
+- Linha **3578** (dentro do heredoc `WRAPPER_EOF`): `sudo -u "$EXEC_USER" bash ...` prefixado com `WP_CLI_CACHE_DIR=/tmp/wp-cli-cache-www-data`, garantindo que o WP-CLI use diretório de cache acessível ao `www-data`.</result>
+<usage><total_tokens>41563</total_tokens><tool_uses>24</tool_uses><duration_ms>138694</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/e5334c0d-f556-44b4-bc8a-cde0f2394964/tasks/a7cfa2475c4ce4cfe.output
+
+---
+
+crie um relatório novo relatorio, agora no formato de dashboard, do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **Implement all 16 findings** from the deep audit (análise profunda v2): user said "implemente tudo" after seeing the 16 findings across 4 files
+   - **Create a new dashboard report** (v2) reflecting the post-hardening state of the deploy system, with graphs, commands, and mapping of current state — user asked: *"crie um relatório novo relatorio, agora no formato de dashboard, do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"*
+   - The earlier deep audit had already produced 16 new findings (2 critical, 4 high, 5 medium, 5 low) across posts-helper.sh, export_posts.sh, docker-dev.sh, and 09-importdatabase.sh
+
+2. Key Technical Concepts:
+   - **flock locking**: prevents race conditions when two `std share deploy` run simultaneously — race condition on siteurl WordPress option
+   - **wp import timeout**: `timeout "$POSTS_IMPORT_TIMEOUT" posts_run_wp import ...` with exit code 124 detection
+   - **S3 upload retry**: 3× retry with exponential backoff (5s→10s→20s) in `_upload_to_s3()`
+   - **Multisite tunnel swap**: `_apply_tunnel_url()` now also updates `wp_X_options` for blog 2 (`/cultura/`) via `_SUBSITE_BLOG_IDS` global
+   - **XML validation before S3**: `_validate_wxr_file()` checks file size ≥100 bytes and presence of `</rss>` tag
+   - **Completion flags (idempotência)**: `.deploy-09-importdatabase.done` file written after success; checked at start to skip re-run
+   - **Rollback automático**: `trap ERR` in 09-importdatabase.sh calls `_db_rollback_on_fail()` which does `zcat backup | wp db import`
+   - **Disk space check**: `df -B1` to verify 2× file size available before importing
+   - **_EventImage fix after tribe_events import**: SQL UPDATE cross-joining by attachment filename to remap post IDs
+   - **WP_CLI_CACHE_DIR**: set to `/tmp/wp-cli-cache-www-data` for EC2 import executed as `sudo -u www-data`
+   - **EXEC_TMP_DIR cleanup**: `trap EXIT` ensures `/tmp/wp-import-exec-$` is removed even on failure
+   - **Logs persistidos**: `tee -a logs/share-deploy-YYYYMMDD.log` in `_share_deploy_posts` and `_share_deploy_events`
+   - **Tunnel validation timeout**: `--max-time 8` → `--max-time 30` in both deploy functions
+   - **WordPress Multisite**: blog 1 (raiz `/`), blog 2 (`/cultura/`); always `--url=` in WP-CLI; tables `wp_*` and `wp_2_*`
+   - **SHA256 deduplication**: already existed from audit v1; option key `bit_import_hash_<hash>` in `wp_options`
+   - **Bureau IT dark theme dashboard**: `#0a0a0b` background, glassmorphism, Inter + JetBrains Mono fonts, animated orbs
+
+3. Files and Code Sections:
+   - **`/Users/dcambria/scripts/server-tools/v2/helpers/posts-helper.sh`** → v3.2.1
+     - **A1**: Added `timeout "$_import_timeout"` wrapper around `posts_run_wp import` (line 1025); exit 124 handled with clear error
+     - **C3**: Added documentation comment block explaining POSTS_FORCE_IMPORT vs POSTS_FORCE_OVERWRITE semantics
+     - **C4** (by main assistant): Added `_EventImage` fix block after successful tribe_events import:
+       ```bash
+       if grep -q "tribe_events\|tribe-events" <<< "$filename" 2>/dev/null; then
+           _posts_log info "Corrigindo _EventImage (TEC) após import..."
+           _fix_event_image_sql="UPDATE wp_postmeta pm
+             INNER JOIN wp_posts ev ON ev.ID = pm.post_id AND ev.post_type = 'tribe_events'
+             INNER JOIN wp_postmeta pm_title ON pm_title.post_id = pm.meta_value AND pm_title.meta_key = '_wp_attached_file'
+             INNER JOIN wp_posts att ON att.post_type = 'attachment' AND att.guid LIKE CONCAT('%', SUBSTRING_INDEX(pm_title.meta_value, '/', -1))
+             SET pm.meta_value = att.ID
+             WHERE pm.meta_key = '_EventImage' AND pm.meta_value != att.ID;"
+           posts_run_wp db query "$_fix_event_image_sql" 2>/dev/null && ...
+       fi
+       ```
+     - **D4**: Media errors warning block (already existed; agent confirmed and expanded)
+
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/common/scripts/export_posts.sh`** → v4.3.0
+     - **B1**: S3 retry 3× with backoff in `_upload_to_s3()`:
+       ```bash
+       local attempt max_attempts=3 wait_sec=5 upload_ok=false
+       for attempt in $(seq 1 "$max_attempts"); do
+           if "${aws_cmd[@]}" s3 cp "$local_file" "${s3_path}/${filename}" 2>&1; then
+               upload_ok=true; break
+           fi
+           [[ "$attempt" -lt "$max_attempts" ]] && { warn "..."; sleep "$wait_sec"; wait_sec=$(( wait_sec * 2 )); }
+       done
+       ```
+     - **B2**: `_SUBSITE_BLOG_IDS=""` global (line 103); `_apply_tunnel_url()` now iterates subsites and updates `wp_${_bid}_options`; `_tunnel_restore()` reverses this
+     - **D1**: New `_validate_wxr_file()` function checking size ≥100B and `</rss>` tag; called before `_upload_to_s3()`
+
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/common/bin/docker-dev.sh`** → v2.10.0
+     - **A2**: flock block at start of `_share_deploy_posts()` (line 3627) and `_share_deploy_events()` (line 3943):
+       ```bash
+       local _deploy_lock_file="/tmp/bit-share-deploy-${COMPOSE_STACK_NAME:-default}.lock"
+       exec 9>"$_deploy_lock_file"
+       if ! flock -n 9 2>/dev/null; then
+           log_error "Outro deploy já está em andamento (lock: $_deploy_lock_file)"
+           return 1
+       fi
+       trap 'flock -u 9 2>/dev/null; rm -f "$_deploy_lock_file"' RETURN
+       ```
+     - **C2**: `--max-time 8` → `--max-time 30` at lines 3700 and 3981
+     - **C5**: `trap EXIT` for `EXEC_TMP_DIR` cleanup (line 3567)
+     - **D2**: `tee -a logs/share-deploy-$(date +%Y%m%d).log` after lock in both functions (lines 3636, 3952)
+     - **D5**: `WP_CLI_CACHE_DIR=/tmp/wp-cli-cache-www-data` prefix on `sudo -u "$EXEC_USER" bash "$IMPORT_SCRIPT"` (line 3578)
+
+   - **`/Users/dcambria/scripts/server-tools/v2/ec2-deploy/post-deploy/09-importdatabase.sh`** → v2.2.0
+     - **B3**: Completion flag at lines 356–362 (check) and 484–486 (write):
+       ```bash
+       local _completion_flag="${WP_ROOT}/.deploy-09-importdatabase.done"
+       if [[ -f "$_completion_flag" ]]; then
+           log_info "Script já executado com sucesso em: $(cat "$_completion_flag")"
+           return 0
+       fi
+       # ... at end: echo "$(date -Iseconds)" > "$_completion_flag"
+       ```
+     - **B4**: Rollback trap at lines 428–440:
+       ```bash
+       _db_rollback_on_fail() {
+           [[ "${_restore_on_fail:-false}" != "true" ]] && return 0
+           zcat "$_restore_backup_path" | wp_as_web "$WP_ROOT" db import - --skip-plugins || true
+       }
+       trap '_db_rollback_on_fail' ERR
+       # After successful import: _restore_on_fail="false"
+       ```
+     - **D3**: Disk space check at lines 443–457 using `df -B1` and requiring 2× file size available
+
+   - **`/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-dashboard-deploy-2026-03-31-v2.html`** — NEW
+     - Dashboard v2 in Bureau IT dark theme with: KPIs (200 HTTP, 28 scripts, docker-dev 2.10, posts-helper 3.2.1, export_posts 4.3, 24 achados, 24 resolvidos, 128 commits), pipeline diagram with new steps highlighted in green, share-deploy table, all 24 findings consolidated (v1: 9 + v2: 15), code blocks for dedup+locking+rollback, EC2 controls checklist, codebase metrics bar charts, coverage bar charts, git timeline, and quick reference commands
+     - PDF NOT yet generated
+
+   - **`/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-dashboard-deploy-2026-03-31.html`** + `.pdf` — previously generated dashboard v1
+   - **`/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-analise-profunda-deploy-2026-03-31.html`** + `.pdf` — deep audit report with 16 findings
+
+4. Errors and Fixes:
+   - **Agente subagent C1 (WITH_ATTACHMENTS)**: Reported as finding but on inspection `--no-attachments` flag already existed (line 571 of export_posts.sh sets `WITH_ATTACHMENTS="false"`). Marked as not needed — C1 dropped.
+   - **Agente report on achado 6 (postmeta)**: Subagent incorrectly claimed postmeta not covered by search-replace. Verified that `09-importdatabase.sh` uses `wp search-replace --all-tables` which covers postmeta. Finding dropped.
+   - **Agente report on achado 3 (FQDN detection)**: Subagent claimed FQDN detection fails with empty DB. Verified that `detect_source_fqdn()` already uses `sql-helper.sh` to read FQDN from the SQL file before importing. Finding dropped.
+   - **4 parallel agents** dispatched successfully: all completed with no conflicts (files were independent)
+
+5. Problem Solving:
+   - **16 findings dispatched to 4 parallel agents** by file domain (posts-helper.sh / export_posts.sh / docker-dev.sh / 09-importdatabase.sh)
+   - **C4 (_EventImage)** implemented directly by main assistant (not delegated) via SQL UPDATE cross-join by attachment filename
+   - **C1 dropped**: `--no-attachments` already existed; default true is correct
+   - **All 15 implemented findings committed** as `0436ef669`: `fix(deploy): análise profunda v2 — 15 achados resolvidos`
+   - **Dashboard v2 HTML written** reflecting post-hardening state with all new controls documented
+
+6. All user messages:
+   - "implemente tudo" (after seeing the 16-finding deep audit report)
+   - "crie um relatório novo relatorio, agora no formato de dashboard, do funcionamento atual dos deploys, com gráficos, comandos e o que mais julgar importante para mapear. Depois disso, inicie uma análise profunda para auditar o sistema de deploy, tanto os deploys rápidos de posts, quanto o deploy completo de site em máquina EC2"
+
+7. Pending Tasks:
+   - **Generate PDF of dashboard v2**: `/Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-dashboard-deploy-2026-03-31-v2.html` → `.pdf` via Playwright MCP (serve via HTTP server on port 9877 → navigate → `page.pdf()`)
+   - **Remove tec-debug-trace.php from production**: Still present at `/var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/tec-debug-trace.php` — can be removed via `ssh concertacaoamazonia.com.br-prod-sa "rm /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/tec-debug-trace.php"`
+
+8. Current Work:
+   The dashboard v2 HTML file was just written:
+   ```
+   /Users/dcambria/scripts/reports/03 - Web/concertacao/relatorio-dashboard-deploy-2026-03-31-v2.html
+   ```
+   It is a comprehensive Bureau IT dark-theme dashboard with:
+   - 8 KPI cards (HTTP 200, 28 scripts, docker-dev 2.10.0, posts-helper 3.2.1, export_posts 4.3.0, 24 achados, 24 resolvidos, 128 commits)
+   - State alerts (system hardened + tec-debug-trace pending + incident 2026-03-31 resolved)
+   - Share-deploy pipeline diagram with 10 steps, new controls highlighted in green (flock, tunnel 30s, tunnel swap multisite, XML validation, S3 retry 3×, timeout 600s, log persist)
+   - Code blocks showing deduplication + timeout + locking + S3 retry + rollback patterns
+   - EC2 deploy phases pipeline + 28-script matrix with completion flags and DEPENDS_ON markers
+   - EC2 controls checklist (10 items all ✓)
+   - Consolidated audit table: v1 (9 findings) + v2 fix-grid (15 findings color-coded by severity)
+   - Codebase metrics bar chart + coverage bar chart
+   - Git timeline (6 recent commits)
+   - Quick reference commands (share-deploy + EC2 + cache)
+
+   The PDF has NOT been generated yet. This was the next step before the summary was requested.
+
+9. Optional Next Step:
+   Generate the PDF of dashboard v2 via Playwright MCP:
+   ```
+   1. Start HTTP server: python3 -m http.server 9877 in the reports directory
+   2. mcp__playwright__browser_navigate → http://localhost:9877/relatorio-dashboard-deploy-2026-03-31-v2.html
+   3. mcp__playwright__browser_run_code → page.pdf({ path: '...relatorio-dashboard-deploy-2026-03-31-v2.pdf', format: 'A4', printBackground: true, margin: {top:'10mm',...} })
+   4. Stop HTTP server
+   ```
+   This directly continues the `save-report` skill workflow that was interrupted by the summary request. The dashboard HTML is complete; only the PDF conversion remains.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/0329dbe0-38cf-40fa-9b04-79fa7b3ab8a5.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
