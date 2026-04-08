@@ -37,13 +37,14 @@ add_action( 'wp_footer', function () { ?>
     var widget = document.querySelector('.menu-submenu-inline');
     if (!widget) return;
 
-    // ── Calcular posição top = altura do header ────────────────────────────
+    // ── Calcular posição top = base do header ─────────────────────────────
     var header = document.querySelector('.elementor-location-header');
     function updateTop() {
       if (!header) return;
+      var bottom = header.getBoundingClientRect().bottom;
       document.documentElement.style.setProperty(
         '--bit-submenu-top',
-        header.getBoundingClientRect().bottom + 'px'
+        bottom + 'px'
       );
     }
     updateTop();
@@ -51,6 +52,11 @@ add_action( 'wp_footer', function () { ?>
     if (window.ResizeObserver && header) {
       new ResizeObserver(updateTop).observe(header);
     }
+
+    // ── data-text nos links do menu principal (ghost-text anti-shift) ──────
+    widget.querySelectorAll('.elementor-nav-menu > li > a.elementor-item').forEach(function(a) {
+      a.dataset.text = a.textContent.trim();
+    });
 
     // ── Hover: div.bit-hover-bar no body ───────────────────────────────────
     // O CSS do Elementor bloqueia display nos .sub-menu internos com alta
@@ -101,6 +107,22 @@ add_action( 'wp_footer', function () { ?>
     // Cancelar fechamento quando mouse entra na barra hover
     hoverBar.addEventListener('mouseenter', function() { clearTimeout(hoverTimeout); });
     hoverBar.addEventListener('mouseleave', closeHover);
+
+    // Manter hover-bar grudada no header durante scroll
+    window.addEventListener('scroll', function() {
+      if (!header) return;
+      var hBottom = header.getBoundingClientRect().bottom;
+      if (hBottom < 0) {
+        // Header saiu do viewport → fechar hover-bar imediatamente
+        if (hoverBar.classList.contains('bit-hover-bar--active')) {
+          clearTimeout(hoverTimeout);
+          hoverBar.classList.remove('bit-hover-bar--active');
+        }
+      } else {
+        // Atualizar posição para grudar no header
+        hoverBar.style.top = hBottom + 'px';
+      }
+    }, { passive: true });
 
     widget.querySelectorAll(
       '.elementor-nav-menu > li.menu-item-has-children'

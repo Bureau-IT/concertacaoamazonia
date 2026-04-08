@@ -39,15 +39,15 @@
   position: static;
 }
 
-/* ── 3. Variáveis de cores (defaults) ──────────────────────────────────────── */
+/* ── 3. Variáveis de cores (pareadas com Global Colors do Elementor) ───────── */
 .menu-submenu-inline {
-  --bis-bg:                 #d6f395;
-  --bis-bg-hover:           #d6f395;
-  --bis-text:               #174538;
-  --bis-text-hover:         #0e4a5c;
+  --bis-bg:                 var(--e-global-color-96a86ed);  /* Color Extra 1 */
+  --bis-bg-hover:           var(--e-global-color-96a86ed);  /* Color Extra 1 */
+  --bis-text:               var(--e-global-color-4a4a8de);  /* Header Submenu txt */
+  --bis-text-hover:         var(--e-global-color-accent);   /* Accent color */
   --bis-text-hover-weight:  700;
-  --bis-text-active:        #0e4a5c;
-  --bis-border-active:      #0e4a5c;
+  --bis-text-active:        var(--e-global-color-accent);   /* Accent color */
+  --bis-border-active:      var(--e-global-color-accent);   /* Accent color */
   --bis-diamond:            var(--bis-bg);
 }
 
@@ -197,7 +197,34 @@
   border-bottom: 2px solid var(--bis-border-active);
 }
 
-/* ── 7b. Item ativo do menu principal — mesmo peso que o submenu ───────────── */
+/* ── 7b. Hover bold no menu principal (com ghost-text anti-shift) ──────────── */
+@media (min-width: 1025px) {
+  .menu-submenu-inline .elementor-nav-menu > li > a.elementor-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .menu-submenu-inline .elementor-nav-menu > li > a.elementor-item::after {
+    content: attr(data-text);
+    font-weight: var(--bis-text-hover-weight, 700);
+    font-size: inherit;
+    font-family: inherit;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .menu-submenu-inline .elementor-nav-menu > li > a.elementor-item:hover {
+    font-weight: var(--bis-text-hover-weight, 700) !important;
+  }
+}
+
+/* ── 7c. Item ativo do menu principal — mesmo peso que o submenu ───────────── */
 .menu-submenu-inline .elementor-nav-menu > li:is(
   .current-page-ancestor,
   .current-menu-ancestor,
