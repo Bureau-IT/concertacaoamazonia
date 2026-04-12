@@ -1,0 +1,117 @@
+o que houve que o nginx nao sobe?
+
+dcambria@cambrasmax : ./concertacao [main]
+ ➤ std up
+Cores ativadas!
+
+ ╭───────────────────────────────────  BIT BPO  ─────────╮
+ │  ▄                                                    │
+ │  ██▄   Docker                                         │
+ │  ████▄  Devil                                         │
+ │  █▀                                                   │
+ ├───────────────────────────────────────────────────────┤
+ │  docker-dev.sh                                        │
+ │  Versao: 2.10.3                                       │
+ │  Ambiente WordPress DEV em Docker                     │
+ ╰───────────────────────────────────────────────────────╯
+
+ℹ [DOCKER-DEV] Iniciando ambiente de desenvolvimento...
+ℹ [DOCKER-DEV] Validando dependências...
+✓ [DOCKER-DEV] Dependências OK
+ℹ [DOCKER-DEV] Carregando configurações...
+ℹ [DOCKER-DEV] Carregando .env raiz: .env.concertacaoamazonia.com.br.sa
+✓ [DOCKER-DEV] Configurações carregadas: .env raiz (.env.concertacaoamazonia.com.br.sa)
+ℹ [DOCKER-DEV]   PROJECT_NAME: [auto] concertacaoamazonia.com.br v2
+ℹ [DOCKER-DEV]   MySQL: cultura-concertacaoamazonia-com-br_wp_dev@mysql
+ℹ [DOCKER-DEV]   Mapeado: WP_ADMIN_PASS → WP_ADMIN_PASSWORD
+ℹ [DOCKER-DEV]   WordPress Admin: bureau / bureau@bureau-it.com
+✓ [DOCKER-DEV] Configurações carregadas
+ℹ [DOCKER-DEV] Construindo e iniciando serviços...
+[+] Building 73.5s (20/20) FINISHED
+ => [internal] load local bake definitions                                                                  0.0s
+ => => reading from stdin 608B                                                                              0.0s
+ => [internal] load build definition from wordpress.Dockerfile                                              0.0s
+ => => transferring dockerfile: 3.24kB                                                                      0.0s
+ => [internal] load metadata for docker.io/library/ubuntu:24.04                                             2.5s
+ => [auth] library/ubuntu:pull token for registry-1.docker.io                                               0.0s
+ => [internal] load .dockerignore                                                                           0.0s
+ => => transferring context: 2B                                                                             0.0s
+ => [ 1/12] FROM docker.io/library/ubuntu:24.04@sha256:84e77dee7d1bc93fb029a45e3c6cb9d8aa4831ccfcc7103d36e  3.0s
+ => => resolve docker.io/library/ubuntu:24.04@sha256:84e77dee7d1bc93fb029a45e3c6cb9d8aa4831ccfcc7103d36e87  0.0s
+ => => sha256:84e77dee7d1bc93fb029a45e3c6cb9d8aa4831ccfcc7103d36e876938d28895b 6.69kB / 6.69kB              0.0s
+ => => sha256:11c7dd0cbd7effee6cd4f11811caffb5fdf682f1667c7f152c5cee7d32cc337c 424B / 424B                  0.0s
+ => => sha256:b933e0ff0a23987a9064a2d9c881b6f0d0525076d893526e482410b6d27f7b15 2.07kB / 2.07kB              0.0s
+ => => sha256:76fd055477b6edf8004a5a962edad02a820d4c8b2f02682410edfbe376b418c5 28.87MB / 28.87MB            2.1s
+ => => extracting sha256:76fd055477b6edf8004a5a962edad02a820d4c8b2f02682410edfbe376b418c5                   0.8s
+ => [internal] load build context                                                                           0.0s
+ => => transferring context: 77.35kB                                                                        0.0s
+ => [ 2/12] RUN apt-get update && apt-get install -y     ca-certificates     curl     wget     unzip       57.8s
+ => [ 3/12] RUN locale-gen pt_BR.UTF-8 en_US.UTF-8 &&     update-locale LANG=pt_BR.UTF-8                    2.1s
+ => [ 4/12] RUN ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime &&     dpkg-reconfigure -f non  0.2s
+ => [ 5/12] RUN curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp  0.9s
+ => [ 6/12] RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filenam  3.9s
+ => [ 7/12] RUN usermod -u 33 www-data &&     groupmod -g 33 www-data &&     mkdir -p /var/www &&     chow  0.1s
+ => [ 8/12] RUN mkdir -p     /var/www/html     /var/log/php     /var/log/supervisor     /docker-entrypoint  0.1s
+ => [ 9/12] RUN mkdir -p /etc/supervisor/conf.d /var/www/.wp-cli                                            0.2s
+ => [10/12] COPY scripts/ /docker-entrypoint.d/                                                             0.0s
+ => [11/12] RUN chmod +x /docker-entrypoint.d/*.sh                                                          0.2s
+ => [12/12] WORKDIR /var/www/html                                                                           0.0s
+ => exporting to image                                                                                      2.0s
+ => => exporting layers                                                                                     2.0s
+ => => writing image sha256:e17aa090fb5577fd31f053f0e69e1e64b175c2fff353c79cdf84850e1cf17a56                0.0s
+ => => naming to docker.io/library/concertacao-wordpress                                                    0.0s
+ => resolving provenance for metadata file                                                                  0.0s
+[+] up 8/8
+ ✔ Image concertacao-wordpress          Built                                                               73.6s
+ ✔ Network concertacao_backend          Created                                                             0.0s
+ ✔ Network concertacao_frontend         Created                                                             0.0s
+ ✔ Container concertacao-dev-redis      Healthy                                                             10.8s
+ ✔ Container concertacao-dev-mysql      Healthy                                                             6.2s
+ ✔ Container concertacao-dev-tileserver Started                                                             0.8s
+ ✔ Container concertacao-dev-wordpress  Started                                                             11.6s
+ ✔ Container concertacao-dev-nginx      Started                                                             12.1s
+ℹ [DOCKER-DEV] Aguardando serviços ficarem saudáveis...
+ℹ [DOCKER-DEV] Tentativa 1/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 2/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 3/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 4/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 5/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 6/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 7/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 8/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 9/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 10/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 11/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 12/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 13/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 14/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 15/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 16/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 17/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 18/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 19/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 20/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 21/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 22/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 23/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 24/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 25/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 26/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 27/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 28/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 29/30 (saudáveis: 3/4)
+ℹ [DOCKER-DEV] Tentativa 30/30 (saudáveis: 3/4)
+✗ [DOCKER-DEV] Timeout aguardando serviços
+✗ [DOCKER-DEV] Falha ao iniciar serviços
+
+---
+
+e porque isso aconteceu?
+
+---
+
+ha algum arquivo para comitar por causa desse ajuste?
+
+---
+
+sim
