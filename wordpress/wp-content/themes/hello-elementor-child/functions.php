@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @author  Daniel Cambría + Warp
- * @version 2.2.2
+ * @version 2.2.4
  */
 
 // Prevent direct access
@@ -305,15 +305,17 @@ function bureau_it_page_has_espiral_widget(): bool {
  */
 add_action( 'wp_head', 'bureau_it_preload_homepage_lcp', 1 );
 function bureau_it_preload_homepage_lcp() {
+    // Só aplica no blog 1 (raiz). Blog 2 tem sua própria função bureau_it_cultura_preload_lcp.
+    if ( is_multisite() && get_current_blog_id() !== 1 ) {
+        return;
+    }
     if ( ! ( is_front_page() || is_home() ) ) {
         return;
     }
-    // Attachment ID do container hero (A-floresta-e-seus-misterios...)
-    $attachment_id = 89988;
-    $url = wp_get_attachment_url( $attachment_id );
-    if ( ! $url ) {
-        return;
-    }
+    // URL construída via network_site_url para evitar dependência do upload_dir em cache Redis.
+    // Attachment 89988: A-floresta-e-seus-misterios... (hero da homepage raiz).
+    $path = '/wp-content/uploads/2026/03/A-floresta-e-seus-misterios-oleo-sobre-tela-110x300-cm-2024-fotografo-Taiguara-Luciano.webp';
+    $url  = network_site_url( $path, 'https' );
     echo '<link rel="preload" href="' . esc_url( $url ) . '" as="image" fetchpriority="high">' . "\n";
 }
 
@@ -385,6 +387,7 @@ function bureau_it_enqueue_admin_bar_css() {
     );
 }
 
+
 /**
  * ============================================================================
  * JETENGINE CUSTOMIZATIONS
@@ -393,6 +396,38 @@ function bureau_it_enqueue_admin_bar_css() {
 add_filter('jet-engine/maps-listings/data-settings', function($settings) {
     $settings['clustererImg'] = get_stylesheet_directory_uri() . '/markerclusterer-img/m';
     return $settings;
+});
+
+/**
+ * Disable Leaflet scrollWheelZoom on mobile to prevent scroll hijacking.
+ * Desktop keeps wheel zoom enabled (controlled by widget setting).
+ *
+ * @since 2.2.3
+ */
+add_action('wp_footer', function() {
+    ?>
+    <script>
+    (function() {
+        if (window.innerWidth > 768) return;
+        function disableMobileScrollZoom() {
+            if (!window.jQuery) return;
+            jQuery('.jet-map-listing').each(function() {
+                var map = jQuery(this).data('mapInstance');
+                if (map && map.scrollWheelZoom) {
+                    map.scrollWheelZoom.disable();
+                }
+            });
+        }
+        if (document.readyState === 'complete') {
+            setTimeout(disableMobileScrollZoom, 2000);
+        } else {
+            window.addEventListener('load', function() {
+                setTimeout(disableMobileScrollZoom, 2000);
+            });
+        }
+    })();
+    </script>
+    <?php
 });
 
 /**
