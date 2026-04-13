@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.2.7
+Version: 2.2.8
 Template: hello-elementor
 */
 
@@ -248,5 +248,10 @@ Template: hello-elementor
     font-family: var(--e-global-typography-primary-font-family), sans-serif;
     font-weight: var(--e-global-typography-primary-font-weight);
     text-transform: none;
+}
+
+/* Footer — "Cadastre-se para receber novidades" deve ser branco em ambos os subsites */
+.elementor-location-footer .elementor-element-40199ad4 .elementor-heading-title {
+    color: var(--txt-invertido, #FFFFFF) !important;
 }
 
