@@ -13,7 +13,7 @@ html {
     font-size         : 16px;
     scrollbar-gutter  : stable;
     scroll-behavior   : smooth;
-    scrollbar-color   : var(--background-invertido, #C02975) var(--background-offwhite, #DEDDD1);
+    scrollbar-color   : var(--e-global-color-accent, #47DEA8) var(--background-offwhite, #DEDDD1);
     scrollbar-width   : thin;
 }
 
@@ -97,12 +97,12 @@ html body a[href*="mailto"]:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-    background   : var(--background-invertido, #C02975);
+    background   : var(--e-global-color-accent, #47DEA8);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in lab, var(--background-invertido, #C02975) 75%, black 25%);
+    background: color-mix(in lab, var(--e-global-color-accent, #47DEA8) 75%, black 25%);
 }
 
 
