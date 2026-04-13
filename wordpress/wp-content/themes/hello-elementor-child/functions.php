@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @author  Daniel Cambría + Warp
- * @version 2.2.4
+ * @version 2.2.6
  */
 
 // Prevent direct access
