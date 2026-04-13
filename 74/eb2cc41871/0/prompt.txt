@@ -1,0 +1,354 @@
+[Image #1] compare a listagem /Users/dcambria/Downloads/20260412-2211-2026_Atlas\ Cultural_Versao\ Trabalho_MB_CP\ -\ ATUALIZAÇÃO\ \(2\)_geolocalizado.csv com a lista de Atlas Cultural post-type=artistas.
+Somente artistas do csv devem estar no dev
+
+---
+
+[Image source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_km58DO/Captura de Tela 2026-04-13 às 04.04.08.png]
+
+---
+
+[Image #2] porque o marcador do TedxAmazônia não estao funcionando no map listing do jet engine?
+
+---
+
+[Image source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_540yJ4/Captura de Tela 2026-04-13 às 04.23.19.png]
+
+---
+
+atualize também os glossarios (todos foram convertidos de csv para data source [Image #3] manual)
+
+---
+
+[Image source: /Users/dcambria/Downloads/Captura de Tela 2026-04-13 às 04.42.27.png]
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+separei os dados para facilitar
+
+Categoria    Área de atuação    Estados    Cidades
+Artista    Arquitetura    Acre    (Aldeia Sete Estrelas TI Yawanawa Rio Gregório) Tarauacá 
+Produção Cultural    Arte digital    Amapá    (Aldeia Umariaçú ll) Tabatinga
+Galeria    Arte urbana    Amazonas    (Terra Indígena Sawé Muybu)  Itaituba e Trairão
+TedxAmazônia    Artes cênicas    Maranhão    (TI Yawanawa Rio Gregório) Tarauacá 
+    Artes literárias    Mato Grosso    Abaetetuba
+    Artes Musicais    Pará    Açailandia
+    Artes plásticas    Rondônia    Açailândia
+    Artes visuais    Roraima    Afuá, Marajó
+    Artesanato    Tocantins    Aldeia Demini
+    Audiovisual    Distrito Federal    Aldeia Jamari
+    Design    Peru (País)    Aldeia São João Batista, Amazonas
+    Fotografia    São Paulo    Almeirim
+    Moda    Colômbia (País)    Alta Floresta
+    Narrativa gráfica    Estados Unidos (País)    Alta Foresta
+    TedxAmazônia    México (País)    Altamira
+        Alemanha (País)    Alter do Chão
+        Rio Grande do Sul    Amarante do Maranhão
+        Equador (País)    Ananindeua
+        Goiás    Araguaína
+        Pernambuco    Ariquemes
+        Alagoas    Assis Brasil
+        Holanda (País)    Aurora do Tocantins
+        Inglaterra (País)    Baixo Tapajós
+        Bahia    Barra dos Garças
+        Rio de Janeiro    Barreirinha
+        Finlândia (País)    Belém
+        Santa Catarina    Belém 
+        Ceará    Belém dos Solimões
+        Israel (País)    Benjamin Constant
+        Suriname (País)    Boa Vista
+        Venezuela (País)    Boca do Acre
+        Paraná    Bom Jardim
+        Indonésia (País)    Bragança
+        Camarões (País)    Brasília
+        Guiana (País)    Breves
+        Bolívia (País)    Breves 
+            Breves - Arquipélago do Marajó
+            Cáceres
+            Cachoeira do Arari
+            Cametá
+            Campinas
+            Canaã dos Carajás
+            Canaã dos Carajás 
+            Capanema
+            Caracaraí
+            Carajás
+            Carauari
+            Careiro
+            Careiro castanho
+            Castanhal
+            Comunidade do Tumbira - Iranduba
+            Comunidade Quilombola de Itamatatiua
+            Cruzeiro do Sul
+            Cuiabá
+            Curitiba
+            Curuçá
+            Darí
+            Filadélfia
+            Fortaleza
+            General Carneiro
+            Goiânia
+            Goiatins
+            Guajará-Mirim
+            Icapuí
+            Icoaraci 
+            Igarapé-Miri
+            Ilha de Soure
+            Ilha do Marajó
+            Ilha do Outeiro
+            Imperatriz
+            Indianopolis
+            Iranduba
+            Itacoatiara
+            Itatiaia
+            Jalapãp
+            Ji-Paraná
+            Jordão
+            Juruti
+            Lábrea
+            Lima
+            Macapá
+            Macapá 
+            Manaquiri
+            Manaus
+            Manaus 
+            Marabá
+            Marajó
+            Marapanim
+            Marechal Taumaturgo
+            Marituba
+            Maués
+            Melgaço
+            Moju
+            Monte Alegre
+            Muaná
+            Nação Guarani Kaiowá
+            Nhamundá
+            Normandia
+            Novo Airão
+            Oiapoque
+            Olinda
+            Ourém
+            Palmas
+            Palmas 
+            Palmeirópolis
+            Paragominas
+            Paranatinga
+            Parauapebas
+            Parintins
+            Pedro Afonso
+            Penalva
+            Pinheiro
+            Pio XII 
+            Pirenópolis
+            Ponta de Pedras
+            Porto Alegre
+            Porto Nacional
+            Porto Velho
+            Poxoréu
+            Rio Branco
+            Rio de Janeiro
+            Rondonópolis
+            Rurópolis
+            Salvador
+            Salvaterra
+            Santa Izabel do Pará
+            Santa Luzia
+            Santa Rita
+            Santana
+            Santarém
+            Santo Antônio do Iça
+
+---
+
+remova o Belém  com espaço
+E corrija Açailândia, tanto no glossario quanto na listagem dos artistas
+
+---
+
+icone do tedx não esta aparecendo novamente
+
+---
+
+[Image #5] precisaria desativar a rolagem do zoom com mouse wheel zoom so no mobile
+
+---
+
+[Image source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_rIF8fc/Captura de Tela 2026-04-13 às 04.58.05.png]
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user (Daniel Cambría) had multiple sequential requests for the Concertação Amazônica WordPress site (blog 2 at `/cultura/`):
+   - **Sync artistas**: Compare CSV file with WP `artistas` post type and ensure only CSV artistas exist in dev (delete extras, remove duplicates, create missing)
+   - **Fix TEDx map markers**: TEDxAmazônia markers not appearing on JetEngine Map Listing due to case mismatch in field_value
+   - **Update glossaries**: Convert 4 JetEngine glossaries from CSV file source to manual data source with updated data
+   - **Data cleanup**: Remove "Belém " (trailing space) and fix "Açailandia" → "Açailândia" in both glossary and artista posts
+   - **TEDx fix again**: The Elementor editor reverted the TEDx fix; needed to also fix revisions
+   - **Mobile scroll zoom**: Disable mouse wheel zoom on the Leaflet map only on mobile devices
+
+2. Key Technical Concepts:
+   - WordPress Multisite (blog 1 = root, blog 2 = `/cultura/`, tables prefixed `wp_2_*`)
+   - JetEngine Map Listing widget with Leaflet (not Google Maps) rendering
+   - Elementor `_elementor_data` stored as JSON in post_meta (page 57548)
+   - JetEngine `multiple_markers` conditional markers matching `field_name`/`field_value` against post meta (case-sensitive `==` comparison)
+   - JetEngine glossaries stored in `wp_jet_post_types` table with serialized `labels`, `args`, `meta_fields` columns
+   - Leaflet map container has `_leaflet_id` and `_leaflet_events` but NOT `_leaflet_map`; `JetEngineMaps` exists as a global JS object
+   - WP-CLI must always use `--url=` for multisite operations
+   - All docker commands via `docker-dev.sh`, never `docker compose` directly
+
+3. Files and Code Sections:
+   - **`/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/wp-content/themes/hello-elementor-child/functions.php`**
+     - Main theme file, version 2.2.2
+     - Contains JetEngine customizations starting at line ~391
+     - Modified to add mobile scroll zoom disable script (currently has a bug - see pending tasks)
+     - Current code added at line ~400:
+     ```php
+     add_action('wp_footer', function() {
+         ?>
+         <script>
+         (function() {
+             if (window.innerWidth > 768) return;
+             function disableMobileScrollZoom() {
+                 document.querySelectorAll('.leaflet-container').forEach(function(el) {
+                     var key = Object.keys(el).find(function(k) { return k.indexOf('_leaflet_id') === 0; });
+                     if (!key) return;
+                     var mapId = el[key];
+                     if (!mapId || !window.L) return;
+                     L.Map.prototype.eachLayer || (L.Map.prototype.eachLayer = function(){});
+                     var map = el._leaflet_map;
+                     if (map && map.scrollWheelZoom) {
+                         map.scrollWheelZoom.disable();
+                     }
+                 });
+             }
+             if (document.readyState === 'complete') {
+                 setTimeout(disableMobileScrollZoom, 1000);
+             } else {
+                 window.addEventListener('load', function() {
+                     setTimeout(disableMobileScrollZoom, 1000);
+                 });
+             }
+         })();
+         </script>
+         <?php
+     });
+     ```
+
+   - **Page 57548** (`_elementor_data` in `wp_2_postmeta`)
+     - Atlas Cultural das Amazônias page containing `jet-engine-maps-listing` widget (element ID `03ae1d7`)
+     - Widget settings: `marker_width: 40px`, `marker_pin_size: 20px`, `lat_lng_address_field: coordenada`, `multiple_marker_types: yes`, 15 conditional markers matching `field_name: "tema"`
+     - TEDx marker: `field_value` was `TedxAmazônia`, corrected to `TEDxAmazônia` (fixed in main data + 4 revisions)
+     - TEDx marker_image: `REDACTED.png` (168x65px, renders at 40x15px)
+
+   - **JetEngine render.php** (`wordpress/wp-content/plugins/jet-engine/includes/modules/maps-listings/inc/render.php`)
+     - Line 430: `$condition_met = ( $field_value == $saved_value );` — case-sensitive comparison
+     - Line 467: `<img>` tag generated without width/height for image-type markers
+     - `get_conditional_marker()` at line 377 processes `multiple_markers`
+
+   - **JetEngine glossaries data.php** (`includes/components/glossaries/data.php`)
+     - Glossary fields format: `array("value" => "...", "label" => "...", "is_checked" => false)`
+     - Storage: `wp_jet_post_types` table, `status = 'glossary'`
+     - `update_item_in_db()` takes 1 argument (the item array), not 2
+
+   - **CSV file**: `/Users/dcambria/Downloads/20260412-2211-2026_Atlas Cultural_Versao Trabalho_MB_CP - ATUALIZAÇÃO (2)_geolocalizado.csv`
+     - 657 unique artista names (656 normalized), columns include Categoria, Área de atuação, Artista, Cidade, Estado, GEOLOCALIZAÇÃO
+
+4. Errors and fixes:
+   - **`update_item_in_db()` API misuse**: Called with 2 args (data, id) but method takes 1 arg. Fix: Used direct `$wpdb->update()` on `wp_jet_post_types` table.
+   - **TEDx field_value case mismatch**: `TedxAmazônia` vs `TEDxAmazônia`. Fix: Updated `_elementor_data` JSON in post_meta.
+   - **TEDx fix reverted by Elementor editor**: Opening the editor re-saved from a revision with old data. Fix: Updated `_elementor_data` AND all 4 revisions.
+   - **JSON parsing failures**: ANSI color codes from docker-dev.sh output mixed with JSON. Fix: Used `grep -v` to filter ANSI lines, or used `wp eval` for clean PHP output.
+   - **`comm` comparison noise**: ANSI codes and CSV headers polluted the comparison. Fix: Used Python for clean comparison with normalization.
+   - **Mobile scroll zoom JS**: `container._leaflet_map` is `undefined` — the Leaflet map instance is not stored on the container element. Bug still exists in the code.
+
+5. Problem Solving:
+   - **Artista sync**: Completed. 806→656 posts (deleted 1 non-matching + 150 duplicates, created Celdo Braga ID 91971)
+   - **TEDx markers**: Fixed twice. Case mismatch `TedxAmazônia` → `TEDxAmazônia` in Elementor widget data + revisions. 148 artistas have `tema=TEDxAmazônia`, 17 visible TEDx markers confirmed rendering with logo image.
+   - **Glossaries**: All 4 updated from file→manual source with correct data (4+165+35+15 items)
+   - **Data cleanup**: "Belém " fixed in 4 posts, "Açailandia" fixed in 1 post + removed from glossary
+   - **Mobile scroll zoom**: IN PROGRESS — JS snippet added but uses wrong approach (`container._leaflet_map` doesn't exist). Need to find Leaflet map instance via `JetEngineMaps` global or alternative method.
+
+6. All user messages:
+   - "compare a listagem [CSV path] com a lista de Atlas Cultural post-type=artistas. Somente artistas do csv devem estar no dev" [with screenshot of WP admin]
+   - "redimensionei a imagem 168x65px"
+   - "porque o marcador do TedxAmazônia não estao funcionando no map listing do jet engine?" [with screenshot]
+   - "atualize também os glossarios (todos foram convertidos de csv para data source manual)" [with screenshot of JetEngine dashboard showing 4 glossaries]
+   - "separei os dados para facilitar" [with tab-separated data for Categoria, Área de atuação, Estados, Cidades columns]
+   - "remova o Belém com espaço. E corrija Açailândia, tanto no glossario quanto na listagem dos artistas"
+   - "icone do tedx não esta aparecendo novamente"
+   - "precisaria desativar a rolagem do zoom com mouse wheel zoom so no mobile" [with screenshot showing Mouse Wheel Zoom setting in Elementor]
+
+7. Pending Tasks:
+   - **Fix the mobile scroll zoom JS code**: The current implementation in `functions.php` tries to access `container._leaflet_map` which doesn't exist. Need to find the Leaflet map instance through `JetEngineMaps` global object or another method, then call `map.scrollWheelZoom.disable()`.
+
+8. Current Work:
+   Working on disabling Leaflet scrollWheelZoom on mobile only. Added a `wp_footer` JS snippet to `functions.php` but discovered the approach is broken because `container._leaflet_map` is `undefined`. Browser investigation revealed:
+   - Leaflet container has `_leaflet_events` and `_leaflet_id` (value: 3) but NO `_leaflet_map`
+   - `window.JetEngineMaps` exists as a global object (type: "object")
+   - The map container has `data-init` with `{"zoomControl":true,...}` and `data-markers` with marker data
+   
+   Need to fix the JS to access the map instance correctly, likely via `JetEngineMaps` or by finding the Leaflet map through `L` internals.
+
+9. Optional Next Step:
+   Fix the mobile scroll zoom JavaScript in `functions.php`. The user said: "precisaria desativar a rolagem do zoom com mouse wheel zoom so no mobile". The current code at `functions.php:400` has `el._leaflet_map` which is undefined. Need to:
+   1. Investigate `JetEngineMaps` structure to find the Leaflet map instance
+   2. Update the JS snippet to correctly access the map and call `scrollWheelZoom.disable()` on mobile
+   3. Test in mobile viewport to confirm scroll works without zooming the map
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/580b8ecb-64f5-4223-ae18-3741806c8c21.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+teste com playwright
+
+---
+
+versione e comite
+
+---
+
+suba a alteração para o servidor green
+
+---
+
+e em green?
+
+---
+
+configure as cores para ::-webkit-scrollbar-thumb ::-webkit-scrollbar-thumb:hover ::-webkit-scrollbar para exibir contraste com o layout
+
+---
+
+nao estou vendo em dev. voce v^e?
+
+---
+
+nao aparecem cores de scroll ainda [Image #6]
+
+---
+
+[Image source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_yj5I5W/Captura de Tela 2026-04-13 às 05.44.40.png]
+
+---
+
+nao. teste com playwright para acelerar o debug
+
+---
+
+funcionou. quais outras cores que não o vinho?
+
+---
+
+funcionou. quais outras cores em global colors do elementor para substituir o vinho? Não ha vinho nessa paleta de cores.
+
+---
+
+excelente. versione, comite e envie a alteração para o servidor green
