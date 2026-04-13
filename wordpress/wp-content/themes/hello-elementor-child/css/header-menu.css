@@ -152,26 +152,37 @@
 }
 
 /* --- 9.4 Mobile / Tablet --- */
-#menuPrincipal nav.elementor-nav-menu--dropdown {
-    top: 19px !important;
-}
-
-#menuPrincipal nav.elementor-nav-menu--dropdown {
+.elementor-location-header nav.elementor-nav-menu--dropdown {
+    top             : 19px !important;
     background-color: var(--menu-mobile-background) !important;
 }
 
-#menuPrincipal nav.elementor-nav-menu--dropdown > ul#menu-2-27229d66.elementor-nav-menu > li.menu-item > a + ul.sub-menu {
-    background-color: var(--submenu-background) !important;
+.elementor-location-header nav.elementor-nav-menu--dropdown > ul.elementor-nav-menu > li.menu-item > a + ul.sub-menu {
+    background-color: var(--menu-mobile-background) !important;
     margin          : 0 0.5rem !important;
     border-radius   : 0.5rem;
 }
 
-.elementor-nav-menu .elementor-nav-menu--dropdown ul li a:hover,
-.elementor-nav-menu--dropdown ul li a:focus {
+.elementor-location-header .elementor-nav-menu--dropdown ul li a {
+    color          : var(--header-txt, #FFFFFF) !important;
+    text-decoration: none !important;
+}
+
+.elementor-location-header .elementor-nav-menu--dropdown > ul > li > a {
+    font-weight: 700 !important;
+}
+
+.elementor-location-header .elementor-nav-menu--dropdown ul li a:hover,
+.elementor-location-header .elementor-nav-menu--dropdown ul li a:focus {
     background: var(--menu-mobile-background-hover) !important;
-    color     : var(--menu-mobile-background-text, #009) !important;
+    color     : var(--header-txt-hover, #F0C400) !important;
     outline   : none !important;
     border    : 0 !important;
+}
+
+.elementor-location-header .elementor-nav-menu--dropdown ul li.elementor-active > a {
+    background: var(--menu-mobile-background-hover) !important;
+    color     : var(--header-txt-active, #F0C400) !important;
 }
 
 
