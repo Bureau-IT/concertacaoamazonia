@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "0832a20bb733",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/incidents/2026-04-20-tec-crawler-cloudfront-5xx.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/08/32a20bb733/0/metadata.json",
+      "transcript": "/08/32a20bb733/0/full.jsonl",
+      "context": "/08/32a20bb733/0/context.md",
+      "content_hash": "/08/32a20bb733/0/content_hash.txt",
+      "prompt": "/08/32a20bb733/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 148,
+    "cache_creation_tokens": 555782,
+    "cache_read_tokens": 11063534,
+    "output_tokens": 65875,
+    "api_call_count": 99
+  }
+}

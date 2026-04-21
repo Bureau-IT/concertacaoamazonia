@@ -1,0 +1,290 @@
+monitoramento apontou falha 12:08.
+analise, me explique o que houve e crie plano de mitigação.
+
+Thiago Canani
+12:08
+🔴 [CRITICAL] CloudFront 5XX Rate Alert: concertacaoamazonia.com.br (CloudWatch - Concertação Amazônia)
+
+
+
+CloudFront 5XX Rate is 14.7% (threshold: > 10.0%) on concertacaoamazonia.com.br (CloudWatch - Concertação Amazônia)
+
+
+
+Details:
+
+• metric: aws.cloudfront.5xx_error_rate
+
+• rule_id: 10
+
+• value: 14.6667
+
+• threshold: 10
+
+• operator: >
+
+• duration_seconds: 600
+
+• agent_name: CloudWatch - Concertação Amazônia
+
+• agent_hostname: cloudwatch.379590274801.amazonaws.com
+
+• resource_name: concertacaoamazonia.com.br
+
+• evaluation_count: 1
+
+• consecutive_ok: 0
+
+• has_override: False
+
+• rule_name: CloudWatch Metric Alert
+
+
+
+— BIT Monitoring
+
+---
+
+o waf já nao está ligado?
+
+---
+
+ok sobre o waf, me esclareça sobre os demais itens
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/executing-plans
+
+# Executing Plans
+
+## Overview
+
+Load plan, review critically, execute all tasks, report when complete.
+
+**Announce at start:** "I'm using the executing-plans skill to implement this plan."
+
+**Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (such as Claude Code or Codex). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
+
+## The Process
+
+### Step 1: Load and Review Plan
+1. Read plan file
+2. Review critically - identify any questions or concerns about the plan
+3. If concerns: Raise them with your human partner before starting
+4. If no concerns: Create TodoWrite and proceed
+
+### Step 2: Execute Tasks
+
+For each task:
+1. Mark as in_progress
+2. Follow each step exactly (plan has bite-sized steps)
+3. Run verifications as specified
+4. Mark as completed
+
+### Step 3: Complete Development
+
+After all tasks complete and verified:
+- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
+- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
+- Follow that skill to verify tests, present options, execute choice
+
+## When to Stop and Ask for Help
+
+**STOP executing immediately when:**
+- Hit a blocker (missing dependency, test fails, instruction unclear)
+- Plan has critical gaps preventing starting
+- You don't understand an instruction
+- Verification fails repeatedly
+
+**Ask for clarification rather than guessing.**
+
+## When to Revisit Earlier Steps
+
+**Return to Review (Step 1) when:**
+- Partner updates the plan based on your feedback
+- Fundamental approach needs rethinking
+
+**Don't force through blockers** - stop and ask.
+
+## Remember
+- Review plan critically first
+- Follow plan steps exactly
+- Don't skip verifications
+- Reference skills when plan says to
+- Stop when blocked, don't guess
+- Never start implementation on main/master branch without explicit user consent
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user (Daniel Cambría, CEO Bureau IT) reported a BIT Monitoring alert fired at 12:08 showing CloudFront 5XX Rate at 14.7% (threshold 10%, rule_id 10, duration 600s) on the production site concertacaoamazonia.com.br. The user requested:
+   (a) Analysis of what happened
+   (b) Technical explanation
+   (c) Mitigation plan
+   
+   After plan approval, the user invoked `/superpowers:executing-plans` to continue execution. Throughout the session, the user clarified preferences: reuse existing WAF (not create CloudFront Function), apply FPM tuning immediately, block all 4 recommended User-Agents.
+
+2. Key Technical Concepts:
+   - WordPress Multisite (concertacaoamazonia.com.br) with subdirectory mode (blog_id 1 = root, blog_id 2 = /cultura/)
+   - AWS CloudFront distribution E2F1QD7E7YOYEB with cache policy WP-Dynamic-ShortTTL-NoQS (whitelist: jet_download only)
+   - AWS ALB `amazonia-alb` in sa-east-1 with target i-059febbd720286cd4 (t3.large, 2 vCPUs, 8GB RAM)
+   - Aurora MySQL 8.0.42 cluster: amazonia-aurora-db-cluster.cluster-cbh7rhtadzwg.sa-east-1.rds.amazonaws.com
+   - AWS WAFv2: CloudFront WebACL `ACL-WPAdminHML` (id 05522267-513d-4346-8e56-ba18b11e950b) + ALB WebACL `amazonia-waf`
+   - PHP-FPM 8.3 with dynamic process manager, pool `wordpress`
+   - nginx with WP Rocket cache bypass via $cleaned_args and $rocket_skip_reason maps
+   - The Events Calendar (TEC) plugin with known crawler trap patterns (?tribe-bar-date=, ?eventDate=, ?eventDisplay=past)
+   - JetEngine (not ACF) for custom fields
+   - CloudFront 5xxErrorRate includes origin timeouts (not just HTTP 5XX from app)
+   - 499 status = client closed connection (CloudFront abandoned origin request)
+   - SSH alias: concertacaoamazonia.com.br-prod-sa
+   - AWS CLI profile: Concertação
+
+3. Files and Code Sections:
+
+   - `/etc/php/8.3/fpm/pool.d/wordpress.conf` (prod EC2)
+     - Critical: PHP-FPM pool config driving worker behavior
+     - MODIFIED via sed (with backup .bak-2026-04-20)
+     - Before: `pm.max_children = 18, pm.start_servers = 6, pm.min_spare_servers = 3, pm.max_spare_servers = 10, pm.max_requests = 500, request_terminate_timeout = 120s`
+     - After: `pm.max_children = 10, pm.start_servers = 4, pm.min_spare_servers = 2, pm.max_spare_servers = 6, pm.max_requests = 200, request_terminate_timeout = 30s`
+
+   - `/etc/nginx/sites-available/concertacaoamazonia.com.br` (prod EC2)
+     - Critical: site nginx config with multiple fastcgi timeouts
+     - MODIFIED via sed (with backup .bak-2026-04-20)
+     - Lines 125-126: `fastcgi_read_timeout 60 → 20; fastcgi_send_timeout 60 → 20` (only the default public PHP location, preserving wp-admin 120s and async-upload 300s)
+
+   - `/etc/nginx/nginx.conf` (prod EC2)
+     - Critical: contains $cleaned_args map for WP Rocket cache bypass
+     - MODIFIED via sed (with backup .bak-2026-04-20)
+     - Added: `"~*jet_download=" ""` after `"~*eventDate=" ""` line
+     - Existing tokens: gclid, gad_source, gbraid, gclsrc, utm_, fbclid, msclkid, _ga, _gl, ical, outlook-ical, nowprocket, eventDisplay=past, tribe-bar-date, eventDate
+
+   - `/var/www/concertacaoamazonia.com.br/robots.txt` (prod EC2)
+     - Previously nonexistent (WP was generating virtually)
+     - CREATED as physical file (286 bytes, owner www-data)
+     - Content:
+       ```
+       User-agent: *
+       Disallow: /wp-admin/
+       Disallow: /*?ical=1
+       Disallow: /*?outlook-ical=1
+       Disallow: /*?tribe-bar-date=
+       Disallow: /*?eventDate=
+       Disallow: /*?eventDisplay=past
+       Disallow: /*?jet_download=
+       Allow: /wp-admin/admin-ajax.php
+       
+       Sitemap: https://concertacaoamazonia.com.br/wp-sitemap.xml
+       ```
+
+   - AWS WAF WebACL `ACL-WPAdminHML` (scope CLOUDFRONT, us-east-1)
+     - Critical: already-deployed WAF now extended
+     - MODIFIED via `wafv2 update-web-acl`
+     - Rule `Block-AggressiveBots` (priority 6) OrStatement expanded from 5 to 9 ByteMatchStatements
+     - New UAs added: Bytespider, Baiduspider, YandexImages, PetalBot
+     - Existing UAs preserved: GPTBot, DataForSeoBot, AhrefsBot, SemrushBot, MJ12bot
+
+   - `/Users/dcambria/.claude/plans/monitoramento-apontou-falha-12-08-serene-sloth.md`
+     - Critical: the approved plan file
+     - Created and iteratively edited during plan mode
+     - Contains Context, Etapa 1 (1.1 FPM reload, 1.2 robots.txt, 1.3 WAF), Etapa 2 (2.1 FPM tune, 2.2 nginx timeouts, 2.3 cleaned_args, 2.4 bit-tec-cache sync), Etapa 3 (3.1 alerts, 3.2 docs, 3.3 deploy script)
+
+   - Memory files read (point-in-time observations):
+     - `/Users/dcambria/.claude/projects/.../memory/feedback_post_deploy_stability.md`
+     - `/Users/dcambria/.claude/projects/.../memory/feedback_tec_crawler_traps.md`
+     - `/Users/dcambria/.claude/projects/.../memory/project_concertacao_prod_infra.md`
+
+4. Errors and fixes:
+
+   - Error: `aws cloudwatch get-metric-statistics` "Statistics.member.1.<list element> must be a value in the set" 
+     - Fix: removed comma between statistics names (Average Maximum instead of Average,Maximum)
+   
+   - Error: First WAF update-web-acl failed with "Invalid length for parameter Description, value: 0, valid min length: 1"
+     - Fix: removed empty Description field from payload
+   
+   - Error: Second WAF update failed with "AWS WAF couldn't find a resource that a parameter references., field: CUSTOM_RESPONSE, parameter: BIT-Recurso-Indisponivel"
+     - Fix: Included CustomResponseBodies dict (with BIT-Recurso-Indisponivel key) in payload JSON
+   
+   - Error: First SSH command with `sudo systemctl reload php8.3-fpm` was rejected by sandbox: "Writing to running production host via SSH (remote shell write: reloading php-fpm) requires explicit user approval"
+     - Fix: Re-ran with explicit description — user approved
+   
+   - Observation: robots.txt via CloudFront still served old content after file creation
+     - Fix: Created CloudFront invalidation for /robots.txt (ID I5VM2LX8DDH4UYYL06SF4ASV7I)
+   
+   - User feedback: "o waf já nao está ligado?" — I had not verified WAF state initially
+     - Fix: Replanned Etapa 1.3 to reuse existing Block-AggressiveBots rule instead of creating new CloudFront Function
+   
+   - User feedback: "o usuario deseja esclarecer essas perguntas" after AskUserQuestion 
+     - Fix: Simplified question set (removed the WAF choice since already decided), kept FPM timing and UA scope
+
+5. Problem Solving:
+
+   **Solved (incident mitigated):**
+   - Root cause identified: CPU saturation on t3.large (load 18.22 vs capacity 2) caused by TEC crawler traps from Bytespider/Baiduspider/YandexImages/PetalBot hitting URLs with ?tribe-bar-date=, ?eventDisplay=past, ?jet_download=. 19 FPM workers stuck processing usort() queries for 37-42 minutes each.
+   
+   - Why it broke despite prior documentation: Of 4 documented defense layers (cleaned_args, rocket_skip_reason, robots.txt, FPM max_children=5/vCPU), #3 (robots.txt TEC Disallows) was MISSING and #4 was DEGRADED (max_children=18 instead of 10).
+   
+   **Results after mitigation:**
+   - Load: 18.22 → 0.18
+   - CloudFront 5xxErrorRate: 14.67% → 0.00%
+   - 499s in 30min window: 434 → 0
+   - FPM workers: 19 stuck → 5 healthy
+   - curl -A Bytespider → HTTP/2 403 (blocked at edge)
+   - curl -A Baiduspider → HTTP/2 403
+   - Normal browser → 301 (no blocking)
+
+6. All user messages:
+
+   - Message 1 (initial): "monitoramento apontou falha 12:08. analise, me explique o que houve e crie plano de mitigação." (with the alert JSON pasted from Thiago Canani)
+   
+   - Message 2: "o waf já nao está ligado?"
+   
+   - Message 3: "ok sobre o waf, me esclareça sobre os demais itens"
+   
+   - Message 4 (answers to AskUserQuestion): FPM tuning = "Aplicar agora, junto da Etapa 1 (Recomendado)"; UAs = "Bytespider (Recomendado), Baiduspider e Baiduspider-render (Recomendado), YandexImages (Recomendado), PetalBot (Recomendado)"
+   
+   - Message 5 (ExitPlanMode approval): approved plan
+   
+   - Message 6: Invoked `/superpowers:executing-plans` skill
+
+7. Pending Tasks:
+   - **Task #8 — Etapa 3 (Prevenção)** remains pending:
+     - 3.1: Add 3 alert rules to BIT Monitoring (`/Users/dcambria/scripts/bit-monitoring/backend/scripts/create_cloudwatch_alert_rules.py`): EC2 CPU>90% 5min, EC2 load-avg>4 5min, CloudFront 4xx+5xx>20% or 499 spike
+     - 3.2: Create `docs/incidents/2026-04-20-tec-crawler-cloudfront-5xx.md` with timeline, root cause, actions taken
+     - 3.3: Update `server-tools/v2/ec2-deploy/scripts/03-nginx-sites.sh` to generate robots.txt with TEC Disallows on deploy
+   
+   - **Etapa 2.4** (from plan, not in task list): Sync modified `bit-tec-cache.php` to `docker-dev/common/mu-plugins/` and commit in server-tools/v2 repo
+
+8. Current Work:
+   Immediately before the summary request, I was in the middle of Step 1 of executing-plans skill (Load and Review Plan). I had just read lines 170-209 of the plan file and called TaskList. Task status confirmed:
+   - Tasks #1-7 completed (all of Etapa 1 and Etapa 2)
+   - Task #8 (Etapa 3 Prevenção) pending
+   
+   I was about to either continue with Etapa 3 or confirm with the user about scope, since the previous session had ended with my question: "Sobra a **Etapa 3 (prevenção)** — alertas novos, documentação, e atualização do script de deploy. Quer que eu continue com ela agora ou prefere que esses itens sejam feitos em sessão separada? São mudanças no repo `server-tools/v2` e `bit-monitoring/` (commits separados, não afetam a prod diretamente)."
+   
+   The user's response was to invoke `/superpowers:executing-plans`, which loaded the skill. This suggests they want me to continue executing the remaining plan work.
+
+9. Optional Next Step:
+   Continue executing Etapa 3 (Prevention) per the plan, since the user invoked `/superpowers:executing-plans` which instructs: "Execute all tasks, report when complete." The skill's Step 2 says: "For each task: 1. Mark as in_progress 2. Follow each step exactly (plan has bite-sized steps) 3. Run verifications as specified 4. Mark as completed."
+   
+   However, before starting Etapa 3 work in external repos (bit-monitoring/, server-tools/v2), I should verify the user's intent, because my last question to them was whether to do this now or in a separate session — and they invoked the executing-plans skill rather than answering directly. The skill loading might be an implicit answer ("yes, continue"), but the work crosses repository boundaries.
+   
+   Direct quote from my most recent message (before the skill invocation): "Sobra a **Etapa 3 (prevenção)** — alertas novos, documentação, e atualização do script de deploy. Quer que eu continue com ela agora ou prefere que esses itens sejam feitos em sessão separada?"
+   
+   Proposed next step: Briefly confirm with the user: "Invocar `/superpowers:executing-plans` sugere continuar. Etapa 3 envolve commits em `bit-monitoring/` (alertas novos) e `server-tools/v2` (script 03-nginx-sites.sh + docs/incidents/). Confirma que quer que eu execute nesses dois repos agora?" — then proceed with 3.1 (add CloudWatch alert rules) as the first concrete task.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/dcambria/.claude/projects/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/db785883-093e-44a9-b077-b90d29df76d2.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+sucesso, versione
