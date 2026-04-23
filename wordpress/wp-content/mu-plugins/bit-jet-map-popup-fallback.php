@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BIT JetEngine Map Popup Error Fallback
  * Description: Renderiza mensagem amigavel no popup do mapa (Atlas Cultural) quando a chamada REST falha (timeout, 5xx, offline, rate limit, nonce invalido). Patch JS injetado no wp_footer que intercepta setContent do JetLeafletPopup e substitui objetos jqXHR-like por HTML de erro legivel. Cobre todos os modos de falha do .fail() handler do JetEngine Maps.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Daniel Cambria
  *
  * Contexto: o JetEngine Maps Listings JS passa o objeto jqXHR direto para
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action( 'wp_footer', function () {
-	if ( ! wp_script_is( 'jet-engine-maps-frontend', 'enqueued' ) ) {
+	if ( ! wp_script_is( 'jet-maps-listings', 'enqueued' ) ) {
 		return;
 	}
 	?>
@@ -49,9 +49,9 @@ add_action( 'wp_footer', function () {
 							console.warn( '[Atlas Popup] Falha REST', content.status, content.statusText );
 						}
 
-						content = '<div class="bit-popup-error" style="padding:16px;font-family:inherit;max-width:240px;">'
+						content = '<div class="bit-popup-error" role="status" aria-live="polite" style="padding:16px;font-family:inherit;max-width:240px;">'
 							+ '<p style="margin:0 0 8px;font-weight:600;">Nao foi possivel carregar.</p>'
-							+ '<p style="margin:0;font-size:.9em;opacity:.75;">Tente novamente em instantes.</p>'
+							+ '<p style="margin:0;font-size:.9em;opacity:.75;">Recarregue a pagina para tentar de novo.</p>'
 							+ '</div>';
 					}
 
