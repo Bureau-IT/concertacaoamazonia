@@ -3,7 +3,7 @@
   "checkpoint_id": "e4c97ed2c6f8",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 6,
   "files_touched": [
     ".claude/commands/smoke.md"
   ],
@@ -14,13 +14,20 @@
       "context": "/e4/c97ed2c6f8/0/context.md",
       "content_hash": "/e4/c97ed2c6f8/0/content_hash.txt",
       "prompt": "/e4/c97ed2c6f8/0/prompt.txt"
+    },
+    {
+      "metadata": "/e4/c97ed2c6f8/1/metadata.json",
+      "transcript": "/e4/c97ed2c6f8/1/full.jsonl",
+      "context": "/e4/c97ed2c6f8/1/context.md",
+      "content_hash": "/e4/c97ed2c6f8/1/content_hash.txt",
+      "prompt": "/e4/c97ed2c6f8/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 51,
-    "cache_creation_tokens": 206662,
-    "cache_read_tokens": 1862256,
-    "output_tokens": 7987,
-    "api_call_count": 28
+    "input_tokens": 12167,
+    "cache_creation_tokens": 16021342,
+    "cache_read_tokens": 1067078474,
+    "output_tokens": 1396903,
+    "api_call_count": 2305
   }
 }
