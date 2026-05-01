@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      1.6.0
+ * Version:      1.6.1
  * Author:       Bureau IT
  * Network:      true
  */
@@ -269,7 +269,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 [ 'Ciência, tecnologia e inovação',                            'Espiral: Ciência, Tecnologia e Inovação',                           187  ],
                 [ 'Cultura',                                                   'Espiral: Cultura',                                                  178  ],
                 [ 'Mudança do uso do solo',                                    'Espiral: Mudança do Uso do Solo',                                   180  ],
-                [ 'Ordenamento territorial e regularização fundiária',         'Espiral: Ordenamento territorial e regularização fundiária',         1823 ],
+                [ 'Ordenamento territorial e regularização fundiária',         'Espiral: Ordenamento Territorial e Regularização Fundiária',         2013 ],
                 [ 'Infraestrutura',                                            'Espiral: Infraestrutura',                                           182  ],
                 [ 'Comunicação e mídia',                                       'Espiral: Comunicação e mídia',                                      183  ],
                 [ 'Mudanças Climáticas',                                       'Espiral: Mudanças Climáticas',                                      184  ],
@@ -278,9 +278,9 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 [ 'Bioeconomia',                                               'Espiral: Bioeconomia',                                              604  ],
                 [ 'Segurança',                                                 'Espiral: Segurança',                                                598  ],
                 [ 'Saúde',                                                     'Espiral: Saúde',                                                    2479 ],
-                [ 'Cidades',                                                   'Espiral: Cidades',                                                  1130 ],
+                [ 'Cidades',                                                   'Espiral: Cidades',                                                  2360 ],
                 [ 'Biodiversidade',                                            'Espiral: Biodiversidade',                                           2463 ],
-                [ 'Povos indígenas, quilombolas e comunidades tradicionais',   'Espiral: Povos indígenas quilombolas e comunidades tradicionais',   2466 ],
+                [ 'Povos indígenas, quilombolas e comunidades tradicionais',   'Espiral: PIQCTs',                                                   2401 ],
                 [ 'Direitos humanos',                                          'Espiral: Direitos humanos',                                         2464 ],
             ];
             $rows = [];
@@ -430,7 +430,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
 
             $this->add_control( 'plugin_info', [
                 'type'            => \Elementor\Controls_Manager::RAW_HTML,
-                'raw'             => '<small style="color:#888">BIT Espiral do Conhecimento v1.6.0<br>Bureau de Tecnologia</small>',
+                'raw'             => '<small style="color:#888">BIT Espiral do Conhecimento v1.6.1<br>Bureau de Tecnologia</small>',
                 'content_classes' => 'elementor-descriptor',
             ] );
 
