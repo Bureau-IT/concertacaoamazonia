@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 983 945" class="SVGSpiral2026">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 983 945" class="SVGSpiral2026 Spiral26Animate">
     <defs>
 
       <radialGradient id="spiral2026-middle-gradient" cx="45%" cy="45%" r="50%">
@@ -72,10 +72,37 @@
 
             /* * Animation and condictional class for animation */
 
-            @keyframes olaEspiral { 50% { opacity: 0; } }
+            /* Anima FUNDO (use) e TEXTO (foreignObject) separadamente para dar
+               controle independente sobre cor, opacity, filter e escala do texto.
+               Vars vazias caem nos fallbacks → comportamento original preservado.
 
-            .SVGSpiral2026.Spiral26Animate .spiral26AxisLinksGroup a {
-                animation: olaEspiral var(--spiral2026-animation-duration) var(--spiral2026-animation-delay-calc) ease-in-out forwards;
+               Vars do FUNDO:
+                 --spiral2026-anim-fill          (default: var(--spiral2026-backgroundcolor))
+                 --spiral2026-anim-filter        (default: none)
+               Vars do TEXTO:
+                 --spiral2026-anim-text-color    (default: var(--spiral2026-foreignobject-color))
+                 --spiral2026-anim-text-opacity  (default: 0   — pisca junto)
+                 --spiral2026-anim-text-scale    (default: 1   — sem zoom)
+            */
+            @keyframes olaEspiralBg {
+                0%   { opacity: 1; fill: var(--spiral2026-anim-fill, var(--spiral2026-backgroundcolor)); filter: var(--spiral2026-anim-filter, none); }
+                50%  { opacity: 0; fill: var(--spiral2026-anim-fill, var(--spiral2026-backgroundcolor)); filter: var(--spiral2026-anim-filter, none); }
+                100% { opacity: 1; fill: var(--spiral2026-backgroundcolor); filter: none; }
+            }
+
+            @keyframes olaEspiralText {
+                0%   { opacity: 1;                                            color: var(--spiral2026-anim-text-color, var(--spiral2026-foreignobject-color)); transform: scale(var(--spiral2026-anim-text-scale, 1)); }
+                50%  { opacity: var(--spiral2026-anim-text-opacity, 0);       color: var(--spiral2026-anim-text-color, var(--spiral2026-foreignobject-color)); transform: scale(var(--spiral2026-anim-text-scale, 1)); }
+                100% { opacity: 1;                                            color: var(--spiral2026-foreignobject-color);                                   transform: scale(1); }
+            }
+
+            .SVGSpiral2026.Spiral26Animate .spiral26AxisLinksGroup a > use {
+                animation: olaEspiralBg var(--spiral2026-animation-duration) var(--spiral2026-animation-delay-calc) ease-in-out forwards;
+            }
+            .SVGSpiral2026.Spiral26Animate .spiral26AxisLinksGroup a > foreignObject {
+                animation: olaEspiralText var(--spiral2026-animation-duration) var(--spiral2026-animation-delay-calc) ease-in-out forwards;
+                transform-origin: center;
+                transform-box: fill-box;
             }
 
             /* * Only the delays */
@@ -140,6 +167,14 @@
                 height     : var(--spiral2026-foreignobject-height, 88px);
                 letter-spacing: var(--spiral2026-foreignobject-letterspacing, 0);
             }
+            /* Deslocamento Y: foreignObject não respeita `transform` nem
+               `margin` de forma confiável em SVG. Wrapping no conteúdo via
+               .bit-espiral-text-inner permite usar `position: relative; top:`,
+               que funciona em todos browsers porque é HTML dentro do SVG. */
+            .SVGSpiral2026 foreignObject .bit-espiral-text-inner {
+                position: relative;
+                top: var(--spiral2026-foreignobject-y-offset, 0px);
+            }
 
         
         /* Fix hover: foreignObject blocks mouse events */
@@ -196,7 +231,7 @@
         </g>
         <g id="spiral26IDAxisLinksGroup" class="spiral26AxisLinksGroup" data-scope="Spiral2026 Texts">
             <g>
-              <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo1&amp;jsf=jet-engine:estudos&amp;tax=eixos:172" id="Spiral26Text-1" aria-label="Governança">
+              <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo1&amp;jsf=jet-engine:estudos&amp;tax=eixos:172#estudos" id="Spiral26Text-1" aria-label="Governança">
                       <title>Governança</title>
                       <use href="#eixo-1"></use>
                       <foreignObject x="468" y="150" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -212,7 +247,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo2&amp;jsf=jet-engine:estudos&amp;tax=eixos:174" id="Spiral26Text-2" aria-label="Instrumentos de financiamento">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo2&amp;jsf=jet-engine:estudos&amp;tax=eixos:174#estudos" id="Spiral26Text-2" aria-label="Instrumentos de financiamento">
                       <title>Instrumentos de financiamento</title>
                       <use href="#eixo-2"></use>
                       <foreignObject x="600" y="200" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -228,7 +263,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo3&amp;jsf=jet-engine:estudos&amp;tax=eixos:175" id="Spiral26Text-3" aria-label="Planos e políticas públicas">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo3&amp;jsf=jet-engine:estudos&amp;tax=eixos:175#estudos" id="Spiral26Text-3" aria-label="Planos e políticas públicas">
                       <title>Planos e políticas públicas</title>
                       <use href="#eixo-3"></use>
                       <foreignObject x="690" y="300" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -244,7 +279,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo4&amp;jsf=jet-engine:estudos&amp;tax=eixos:176" id="Spiral26Text-4" aria-label="Negócios">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo4&amp;jsf=jet-engine:estudos&amp;tax=eixos:176#estudos" id="Spiral26Text-4" aria-label="Negócios">
                       <title>Negócios</title>
                       <use href="#eixo-4"></use>
                       <foreignObject x="728" y="429" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -260,7 +295,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo5&amp;jsf=jet-engine:estudos&amp;tax=eixos:177" id="Spiral26Text-5" aria-label="Sociedade civil">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo5&amp;jsf=jet-engine:estudos&amp;tax=eixos:177#estudos" id="Spiral26Text-5" aria-label="Sociedade civil">
                       <title>Sociedade civil</title>
                       <use href="#eixo-5"></use>
                       <foreignObject x="720" y="544" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -276,7 +311,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo6&amp;jsf=jet-engine:estudos&amp;tax=eixos:187" id="Spiral26Text-6" aria-label="Ciência, tecnologia e inovação">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo6&amp;jsf=jet-engine:estudos&amp;tax=eixos:187#estudos" id="Spiral26Text-6" aria-label="Ciência, tecnologia e inovação">
                       <title>Ciência, tecnologia e inovação</title>
                       <use href="#eixo-6"></use>
                       <foreignObject x="671" y="648" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -292,7 +327,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo7&amp;jsf=jet-engine:estudos&amp;tax=eixos:178" id="Spiral26Text-7" aria-label="Cultura">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo7&amp;jsf=jet-engine:estudos&amp;tax=eixos:178#estudos" id="Spiral26Text-7" aria-label="Cultura">
                       <title>Cultura</title>
                       <use href="#eixo-7"></use>
                       <foreignObject x="580" y="738" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -308,7 +343,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo8&amp;jsf=jet-engine:estudos&amp;tax=eixos:180" id="Spiral26Text-8" aria-label="Mudança do uso do solo" style="--spiral2026-foreignobject-width: 70px;">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo8&amp;jsf=jet-engine:estudos&amp;tax=eixos:180#estudos" id="Spiral26Text-8" aria-label="Mudança do uso do solo" style="--spiral2026-foreignobject-width: 70px;">
                       <title>Mudança do uso do solo</title>
                       <use href="#eixo-8"></use>
                       <foreignObject x="489" y="750" width="70" height="88" data-language="pt" xml:lang="pt">
@@ -324,7 +359,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo10&amp;jsf=jet-engine:estudos&amp;tax=eixos:1823" id="Spiral26Text-9" aria-label="Ordenamento territorial e regularização fundiária">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo10&amp;jsf=jet-engine:estudos&amp;tax=eixos:1823#estudos" id="Spiral26Text-9" aria-label="Ordenamento territorial e regularização fundiária">
                       <title>Ordenamento territorial e regularização fundiária</title>
                       <use href="#eixo-9"></use>
                       <foreignObject x="355" y="742" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -340,7 +375,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo11&amp;jsf=jet-engine:estudos&amp;tax=eixos:182" id="Spiral26Text-10" aria-label="Infraestrutura">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo11&amp;jsf=jet-engine:estudos&amp;tax=eixos:182#estudos" id="Spiral26Text-10" aria-label="Infraestrutura">
                       <title>Infraestrutura</title>
                       <use href="#eixo-10"></use>
                       <foreignObject x="245" y="719" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -356,7 +391,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo12&amp;jsf=jet-engine:estudos&amp;tax=eixos:183" id="Spiral26Text-11" aria-label="Comunicação e mídia">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo12&amp;jsf=jet-engine:estudos&amp;tax=eixos:183#estudos" id="Spiral26Text-11" aria-label="Comunicação e mídia">
                       <title>Comunicação e mídia</title>
                       <use href="#eixo-11"></use>
                       <foreignObject x="175" y="630" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -372,7 +407,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo13&amp;jsf=jet-engine:estudos&amp;tax=eixos:184" id="Spiral26Text-12" aria-label="Mudanças Climáticas">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo13&amp;jsf=jet-engine:estudos&amp;tax=eixos:184#estudos" id="Spiral26Text-12" aria-label="Mudanças Climáticas">
                       <title>Mudanças Climáticas</title>
                       <use href="#eixo-12"></use>
                       <foreignObject x="145" y="526" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -388,7 +423,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo14&amp;jsf=jet-engine:estudos&amp;tax=eixos:185" id="Spiral26Text-13" aria-label="Agenda Internacional">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo14&amp;jsf=jet-engine:estudos&amp;tax=eixos:185#estudos" id="Spiral26Text-13" aria-label="Agenda Internacional">
                       <title>Agenda Internacional</title>
                       <use href="#eixo-13"></use>
                       <foreignObject x="148" y="432" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -404,7 +439,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo15&amp;jsf=jet-engine:estudos&amp;tax=eixos:1819" id="Spiral26Text-14" aria-label="Educação">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo15&amp;jsf=jet-engine:estudos&amp;tax=eixos:1819#estudos" id="Spiral26Text-14" aria-label="Educação">
                       <title>Educação</title>
                       <use href="#eixo-14"></use>
                       <foreignObject x="196" y="350" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -420,7 +455,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo16&amp;jsf=jet-engine:estudos&amp;tax=eixos:604" id="Spiral26Text-15" aria-label="Bioeconomia">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo16&amp;jsf=jet-engine:estudos&amp;tax=eixos:604#estudos" id="Spiral26Text-15" aria-label="Bioeconomia">
                       <title>Bioeconomia</title>
                       <use href="#eixo-15"></use>
                       <foreignObject x="269" y="285" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -436,7 +471,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo17&amp;jsf=jet-engine:estudos&amp;tax=eixos:598" id="Spiral26Text-16" aria-label="Segurança">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo17&amp;jsf=jet-engine:estudos&amp;tax=eixos:598#estudos" id="Spiral26Text-16" aria-label="Segurança">
                       <title>Segurança</title>
                       <use href="#eixo-16"></use>
                       <foreignObject x="362" y="259" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -452,7 +487,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo17&amp;jsf=jet-engine:estudos&amp;tax=eixos:2479" id="Spiral26Text-17" aria-label="Saúde">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo17&amp;jsf=jet-engine:estudos&amp;tax=eixos:2479#estudos" id="Spiral26Text-17" aria-label="Saúde">
                       <title>Saúde</title>
                       <use href="#eixo-17"></use>
                       <foreignObject x="448" y="271" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -468,7 +503,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo18&amp;jsf=jet-engine:estudos&amp;tax=eixos:1130" id="Spiral26Text-18" aria-label="Cidades">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo18&amp;jsf=jet-engine:estudos&amp;tax=eixos:1130#estudos" id="Spiral26Text-18" aria-label="Cidades">
                       <title>Cidades</title>
                       <use href="#eixo-18"></use>
                       <foreignObject x="521" y="313" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -484,7 +519,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo19&amp;jsf=jet-engine:estudos&amp;tax=eixos:2463" id="Spiral26Text-19" aria-label="Biodiversidade">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo19&amp;jsf=jet-engine:estudos&amp;tax=eixos:2463#estudos" id="Spiral26Text-19" aria-label="Biodiversidade">
                       <title>Biodiversidade</title>
                       <use href="#eixo-19"></use>
                       <foreignObject x="578" y="381" width="130" height="88" data-language="pt" xml:lang="pt">
@@ -500,7 +535,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo20&amp;jsf=jet-engine:estudos&amp;tax=eixos:2466" id="Spiral26Text-20" aria-label="Povos indígenas, quilombolas e comunidades tradicionais" style="--spiral2026-foreignobject-width: 135px; --spiral2026-foreignobject-letterspacing: -0.05em;">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo20&amp;jsf=jet-engine:estudos&amp;tax=eixos:2466#estudos" id="Spiral26Text-20" aria-label="Povos indígenas, quilombolas e comunidades tradicionais" style="--spiral2026-foreignobject-width: 135px; --spiral2026-foreignobject-letterspacing: -0.05em;">
                       <title>Povos indígenas, quilombolas e comunidades tradicionais</title>
                       <use href="#eixo-20"></use>
                       <foreignObject x="594" y="436" width="135" height="88" data-language="pt" xml:lang="pt">
@@ -516,7 +551,7 @@
                   </a>
 
 
-                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo21&amp;jsf=jet-engine:estudos&amp;tax=eixos:2464" id="Spiral26Text-21" aria-label="Direitos humanos" style="--spiral2026-foreignobject-width: 90px;">
+                      <a tabindex="0" href="/conhecimento/espiral-de-conhecimento/?eixo=eixo21&amp;jsf=jet-engine:estudos&amp;tax=eixos:2464#estudos" id="Spiral26Text-21" aria-label="Direitos humanos" style="--spiral2026-foreignobject-width: 90px;">
                       <title>Direitos humanos</title>
                       <use href="#eixo-21"></use>
                       <foreignObject x="610" y="511" width="90" height="88" data-language="pt" xml:lang="pt">
