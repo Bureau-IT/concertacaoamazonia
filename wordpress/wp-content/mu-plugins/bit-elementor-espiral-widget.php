@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      1.5.0
+ * Version:      1.6.0
  * Author:       Bureau IT
  * Network:      true
  */
@@ -430,7 +430,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
 
             $this->add_control( 'plugin_info', [
                 'type'            => \Elementor\Controls_Manager::RAW_HTML,
-                'raw'             => '<small style="color:#888">BIT Espiral do Conhecimento v1.5.0<br>Bureau de Tecnologia</small>',
+                'raw'             => '<small style="color:#888">BIT Espiral do Conhecimento v1.6.0<br>Bureau de Tecnologia</small>',
                 'content_classes' => 'elementor-descriptor',
             ] );
 
@@ -493,6 +493,15 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 'default'      => $this->get_default_axes_repeater(),
                 'title_field'  => '{{{ segment_label }}}',
                 'prevent_empty'=> false,
+            ] );
+
+            $this->add_control( 'estudos_anchor_offset', [
+                'label'       => 'Offset da âncora #estudos (px)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'size_units'  => [ 'px' ],
+                'range'       => [ 'px' => [ 'min' => 0, 'max' => 800, 'step' => 10 ] ],
+                'default'     => [ 'unit' => 'px', 'size' => 420 ],
+                'description' => 'Espaço acima do bloco de resultados quando a página rola até #estudos. Valores maiores mostram os filtros e o título acima dos cards. Aplicado via scroll-margin-top no #estudos.',
             ] );
 
             $this->end_controls_section();
@@ -1127,13 +1136,28 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                             . '</style>';
             }
 
+            // ── 2.2. scroll-margin-top no #estudos ────────────────────────
+            // Quando o usuário clica num eixo da espiral, o link tem #estudos
+            // como âncora. Sem esse offset, a página rola até o topo do grid
+            // de cards e esconde os filtros logo acima. Esse <style> escopa
+            // a regra para o widget Listing Grid com id=estudos.
+            $anchor_style = '';
+            if ( isset( $s['estudos_anchor_offset']['size'] ) && $s['estudos_anchor_offset']['size'] > 0 ) {
+                $anchor_offset = (int) $s['estudos_anchor_offset']['size'];
+                $anchor_style = sprintf(
+                    '<style data-bit-espiral-anchor>#estudos{scroll-margin-top:%dpx}</style>',
+                    $anchor_offset
+                );
+            }
+
             // ── 3. Fix fill nos <use> shadow clones ───────────────────────
             $svg = preg_replace_callback(
                 '/(<svg\b[^>]*>)/s',
-                static function ( $m ) use ( $api_style, $typo_style ) {
+                static function ( $m ) use ( $api_style, $typo_style, $anchor_style ) {
                     return $m[1]
                         . $api_style
                         . $typo_style
+                        . $anchor_style
                         . '<style data-bit-espiral-use-fix>'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a{'
                         . 'fill:var(--spiral2026-backgroundcolor);}'
@@ -1147,7 +1171,64 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                 1
             );
 
+            // ── 4. IntersectionObserver: dispara animação só quando a SVG
+            // entra na viewport. Sem isso, a espiral termina o ciclo de fade
+            // antes do usuário rolar até ela e o usuário só vê o estado final.
+            // Remover `Spiral26Animate` do <svg root> para que o JS abaixo
+            // adicione no momento certo.
+            $svg = preg_replace_callback(
+                '/(<svg\b[^>]*\bclass=")([^"]*)(")/',
+                static function ( $m ) {
+                    $cls = preg_replace( '/\bSpiral26Animate\b/', '', $m[2] );
+                    $cls = preg_replace( '/\s+/', ' ', trim( $cls ) );
+                    return $m[1] . $cls . $m[3];
+                },
+                $svg,
+                1
+            );
+
             echo $svg; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+
+            // JS: observa a entrada do .SVGSpiral2026 na viewport e adiciona
+            // a classe `Spiral26Animate` para começar a animação. Re-execução
+            // segura: já adicionada → no-op. Carregado uma vez por página.
+            static $observer_printed = false;
+            if ( ! $observer_printed ) {
+                $observer_printed = true;
+                ?>
+                <script id="bit-espiral-viewport-observer">
+                (function(){
+                  if (window.__bitEspiralViewportObserver) return;
+                  window.__bitEspiralViewportObserver = true;
+
+                  function start(){
+                    var svgs = document.querySelectorAll('svg.SVGSpiral2026:not(.Spiral26Animate)');
+                    if (!svgs.length) return;
+                    if (!('IntersectionObserver' in window)) {
+                      // Fallback: dispara imediatamente se IO não suportado
+                      svgs.forEach(function(s){ s.classList.add('Spiral26Animate'); });
+                      return;
+                    }
+                    var io = new IntersectionObserver(function(entries){
+                      entries.forEach(function(entry){
+                        if (entry.isIntersecting && entry.intersectionRatio >= 0.2) {
+                          entry.target.classList.add('Spiral26Animate');
+                          io.unobserve(entry.target);
+                        }
+                      });
+                    }, { threshold: [0, 0.2, 0.5] });
+                    svgs.forEach(function(s){ io.observe(s); });
+                  }
+
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', start);
+                  } else {
+                    start();
+                  }
+                })();
+                </script>
+                <?php
+            }
         }
 
     } // end class Bureau_Espiral_Widget
