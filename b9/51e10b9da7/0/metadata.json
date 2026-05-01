@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "b951e10b9da7",
+  "session_id": "34524ba3-cd15-47e1-a6c9-93eb0c696232",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-01T02:48:22.170262Z",
+  "branch": "main",
+  "checkpoints_count": 19,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bit-elementor-espiral-widget.php",
+    "wordpress/wp-content/themes/hello-elementor-child/svg/espiral-do-conhecimento.svg"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8f910ae530de",
+  "token_usage": {
+    "input_tokens": 675,
+    "cache_creation_tokens": 845939,
+    "cache_read_tokens": 57726144,
+    "output_tokens": 148059,
+    "api_call_count": 233
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-01T02:48:21.594222Z",
+    "agent_lines": 1214,
+    "human_added": 0,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 1216,
+    "agent_percentage": 99.83552631578947
+  }
+}

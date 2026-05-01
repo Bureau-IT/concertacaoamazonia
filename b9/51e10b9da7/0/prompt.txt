@@ -1,0 +1,696 @@
+[Image #1] porque a animação original de entrada da espiral não está funcionando?
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_D6WQNT/Captura de Tela 2026-04-30 às 17.23.01.png]
+
+---
+
+consegue melhorar o plugin da espiral para que ao editar o widget do elementor, o desenvolvedor consiga associar o eixo (taxonomia) a partir de um drop down, e automaticamente já inserindo o #estudos no final?
+Facilitaria bastante e evitaria novos erros.[Image #2]
+gostaria também que aparecesse no widget as cores da animação e um botãozinho para testar a animação
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_ZKiAkj/Captura de Tela 2026-04-30 às 17.31.15.png]
+
+---
+
+[Image #3] [Image #4] essas cores de referencia nao fazem sentido, pode remover.
+o botao de testar animação nao funciona
+falta adicionar as cores da animação
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_NyPrvx/Captura de Tela 2026-04-30 às 18.33.51.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-30 às 18.33.46.png]
+
+---
+
+[Image #5] [Image #6] [Image #7] a cor final nao fez muito sentido em existir. porem, os eixos da espiral ficam com fundo transparente ao longo da animação, com a cor do texto tambem transparente (ou sem texto, nao sei). Isso precisa ser customizável
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_CCbsrj/Captura de Tela 2026-04-30 às 18.46.48.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-30 às 18.46.44.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-30 às 18.46.46.png]
+
+---
+
+o botao testar animação nao esta funcionando
+
+---
+
+ainda nao funcionou
+
+---
+
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+react-dom.js?ver=18.3.1.1:29905 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+env.js?ver=3.35.8:2 @elementor/editor-site-navigation - Settings object not found
+parse @ env.js?ver=3.35.8:2
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.holdReady is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+(anonymous) @ jquery-migrate-js-after:2
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.fn.bind() is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+$.fn.tipsy @ tipsy.js?ver=1.0.0:180
+(anonymous) @ editor.js?ver=3.35.8:sourcemap:26376
+each @ jquery.js?ver=3.7.1:383
+each @ jquery.js?ver=3.7.1:205
+addTooltip @ editor.js?ver=3.35.8:sourcemap:26374
+onRender @ editor.js?ver=3.35.8:sourcemap:26307
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+_triggerEventOnBehaviors @ backbone.marionette.js?ver=2.4.5.e1:1960
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1949
+render @ backbone.marionette.js?ver=2.4.5.e1:2097
+Jn @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+_renderView @ backbone.marionette.js?ver=2.4.5.e1:1222
+show @ backbone.marionette.js?ver=2.4.5.e1:1152
+showChildView @ backbone.marionette.js?ver=2.4.5.e1:3117
+onBeforeShow @ editor.js?ver=3.35.8:sourcemap:38069
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1947
+Marionette.triggerMethodOn @ backbone.marionette.js?ver=2.4.5.e1:728
+show @ backbone.marionette.js?ver=2.4.5.e1:1159
+constructor @ editor.js?ver=3.35.8:sourcemap:39746
+_buildRegionFromRegionClass @ backbone.marionette.js?ver=2.4.5.e1:1423
+buildRegion @ backbone.marionette.js?ver=2.4.5.e1:1392
+addRegion @ backbone.marionette.js?ver=2.4.5.e1:1469
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:1456
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:1448
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:3592
+initPanel @ editor.js?ver=3.35.8:sourcemap:28983
+onFirstPreviewLoaded @ editor.js?ver=3.35.8:sourcemap:29581
+onPreviewLoaded @ editor.js?ver=3.35.8:sourcemap:29559
+(anonymous) @ editor.js?ver=3.35.8:sourcemap:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:sourcemap:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+web-cli.js?ver=3.35.8:7242 TypeError: Cannot read properties of null (reading 'parentElement')
+    at ToggleIcon.apply (checklist.js?ver=3.35.8:1086:62)
+    at ToggleIcon.run (web-cli.js?ver=3.35.8:5569:19)
+    at Commands.runInstance (web-cli.js?ver=3.35.8:1131:28)
+    at Commands.run (web-cli.js?ver=3.35.8:1111:19)
+    at checklist.js?ver=3.35.8:3695:23
+    at checklist.js?ver=3.35.8:2188:18
+    at Generator.<anonymous> (checklist.js?ver=3.35.8:1966:51)
+    at Generator.next (checklist.js?ver=3.35.8:2097:21)
+    at asyncGeneratorStep (checklist.js?ver=3.35.8:1682:17)
+    at _next (checklist.js?ver=3.35.8:1696:9)
+error @ web-cli.js?ver=3.35.8:7242
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTField Object
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTExp 1777586674
+/wp-json/elementor/v1/checklist/user-progress:1  Failed to load resource: net::ERR_CONNECTION_CLOSED
+web-cli.js?ver=3.35.8:7242 Object
+error @ web-cli.js?ver=3.35.8:7242
+web-cli.js?ver=3.35.8:7242 TypeError: Failed to fetch
+    at web-cli.js?ver=3.35.8:1918:27
+    at web-cli.js?ver=3.35.8:8283:18
+    at Generator.<anonymous> (web-cli.js?ver=3.35.8:8061:51)
+    at Generator.next (web-cli.js?ver=3.35.8:8192:21)
+    at asyncGeneratorStep (web-cli.js?ver=3.35.8:7579:17)
+    at _next (web-cli.js?ver=3.35.8:7593:9)
+    at web-cli.js?ver=3.35.8:7598:7
+    at new Promise (<anonymous>)
+    at web-cli.js?ver=3.35.8:7590:12
+    at web-cli.js?ver=3.35.8:1972:24
+error @ web-cli.js?ver=3.35.8:7242
+/wp-admin/admin-ajax.php:1  Failed to load resource: net::ERR_CONNECTION_CLOSED
+
+---
+
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+post.php?post=26826&action=elementor:3707 [bit-espiral] replay JS v3 inicializado
+react-dom.js?ver=18.3.1.1:29905 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+env.js?ver=3.35.8:2 @elementor/editor-site-navigation - Settings object not found
+parse @ env.js?ver=3.35.8:2
+get @ env.js?ver=3.35.8:2
+init @ editor-site-navigation.js?ver=3.35.8:2
+(anonymous) @ editor-site-navigation.js?ver=3.35.8:2
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.holdReady is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+(anonymous) @ jquery-migrate-js-after:2
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+(anonymous) @ jquery-migrate-js-after:2
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.fn.bind() is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+$.fn.tipsy @ tipsy.js?ver=1.0.0:180
+(anonymous) @ editor.js?ver=3.35.8:26376
+each @ jquery.js?ver=3.7.1:383
+each @ jquery.js?ver=3.7.1:205
+addTooltip @ editor.js?ver=3.35.8:26374
+onRender @ editor.js?ver=3.35.8:26307
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+_triggerEventOnBehaviors @ backbone.marionette.js?ver=2.4.5.e1:1960
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1949
+render @ backbone.marionette.js?ver=2.4.5.e1:2097
+Jn @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+_renderView @ backbone.marionette.js?ver=2.4.5.e1:1222
+show @ backbone.marionette.js?ver=2.4.5.e1:1152
+showChildView @ backbone.marionette.js?ver=2.4.5.e1:3117
+onBeforeShow @ editor.js?ver=3.35.8:38069
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1947
+Marionette.triggerMethodOn @ backbone.marionette.js?ver=2.4.5.e1:728
+show @ backbone.marionette.js?ver=2.4.5.e1:1159
+constructor @ editor.js?ver=3.35.8:39746
+_buildRegionFromRegionClass @ backbone.marionette.js?ver=2.4.5.e1:1423
+buildRegion @ backbone.marionette.js?ver=2.4.5.e1:1392
+addRegion @ backbone.marionette.js?ver=2.4.5.e1:1469
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:1456
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:1448
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:3592
+initPanel @ editor.js?ver=3.35.8:28983
+onFirstPreviewLoaded @ editor.js?ver=3.35.8:29581
+onPreviewLoaded @ editor.js?ver=3.35.8:29559
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+$.fn.tipsy @ tipsy.js?ver=1.0.0:180
+(anonymous) @ editor.js?ver=3.35.8:26376
+each @ jquery.js?ver=3.7.1:383
+each @ jquery.js?ver=3.7.1:205
+addTooltip @ editor.js?ver=3.35.8:26374
+onRender @ editor.js?ver=3.35.8:26307
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+_triggerEventOnBehaviors @ backbone.marionette.js?ver=2.4.5.e1:1960
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1949
+render @ backbone.marionette.js?ver=2.4.5.e1:2097
+Jn @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+_renderView @ backbone.marionette.js?ver=2.4.5.e1:1222
+show @ backbone.marionette.js?ver=2.4.5.e1:1152
+showChildView @ backbone.marionette.js?ver=2.4.5.e1:3117
+onBeforeShow @ editor.js?ver=3.35.8:38069
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1947
+Marionette.triggerMethodOn @ backbone.marionette.js?ver=2.4.5.e1:728
+show @ backbone.marionette.js?ver=2.4.5.e1:1159
+constructor @ editor.js?ver=3.35.8:39746
+_buildRegionFromRegionClass @ backbone.marionette.js?ver=2.4.5.e1:1423
+buildRegion @ backbone.marionette.js?ver=2.4.5.e1:1392
+addRegion @ backbone.marionette.js?ver=2.4.5.e1:1469
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:1456
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:1448
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:3592
+initPanel @ editor.js?ver=3.35.8:28983
+onFirstPreviewLoaded @ editor.js?ver=3.35.8:29581
+onPreviewLoaded @ editor.js?ver=3.35.8:29559
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+web-cli.js?ver=3.35.8:7242 TypeError: Cannot read properties of null (reading 'parentElement')
+    at ToggleIcon.apply (checklist.js?ver=3.35.8:1086:62)
+    at ToggleIcon.run (web-cli.js?ver=3.35.8:5569:19)
+    at Commands.runInstance (web-cli.js?ver=3.35.8:1131:28)
+    at Commands.run (web-cli.js?ver=3.35.8:1111:19)
+    at checklist.js?ver=3.35.8:3695:23
+    at checklist.js?ver=3.35.8:2188:18
+    at Generator.<anonymous> (checklist.js?ver=3.35.8:1966:51)
+    at Generator.next (checklist.js?ver=3.35.8:2097:21)
+    at asyncGeneratorStep (checklist.js?ver=3.35.8:1682:17)
+    at _next (checklist.js?ver=3.35.8:1696:9)
+error @ web-cli.js?ver=3.35.8:7242
+catchApply @ web-cli.js?ver=3.35.8:1318
+runInstance @ web-cli.js?ver=3.35.8:1133
+run @ web-cli.js?ver=3.35.8:1111
+(anonymous) @ checklist.js?ver=3.35.8:3695
+(anonymous) @ checklist.js?ver=3.35.8:2188
+(anonymous) @ checklist.js?ver=3.35.8:1966
+(anonymous) @ checklist.js?ver=3.35.8:2097
+asyncGeneratorStep @ checklist.js?ver=3.35.8:1682
+_next @ checklist.js?ver=3.35.8:1696
+(anonymous) @ checklist.js?ver=3.35.8:1701
+(anonymous) @ checklist.js?ver=3.35.8:1693
+_checklistStartup @ checklist.js?ver=3.35.8:3715
+checklistStartup @ checklist.js?ver=3.35.8:3682
+p @ backbone.min.js?ver=1.6.0:2
+f @ backbone.min.js?ver=1.6.0:2
+a @ backbone.min.js?ver=1.6.0:2
+e.trigger @ backbone.min.js?ver=1.6.0:2
+(anonymous) @ editor.js?ver=3.35.8:3125
+Promise.then
+apply @ editor.js?ver=3.35.8:3121
+run @ web-cli.js?ver=3.35.8:5569
+runInstance @ web-cli.js?ver=3.35.8:1131
+run @ web-cli.js?ver=3.35.8:1111
+internal @ web-cli.js?ver=3.35.8:537
+onPreviewLoaded @ editor.js?ver=3.35.8:29573
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTField {user: {…}, website: {…}, subscription: {…}, iat: 1777586985, exp: 1777587285}
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTExp 1777587285
+post.php?post=26826&action=elementor:3751 [bit-espiral] botão de replay encontrado e vinculado <button type=​"button" class=​"bit-espiral-replay-btn" onclick=​"if(window.bitEspiralReplay)​{bitEspiralReplay(event)​}​else{console.warn('[bit-espiral]​ handler não carregado')​}​" style=​"width:​100%;​margin-top:​6px;​padding:​8px;​background:​#3c6fff;​color:​#fff;​border:​none;​border-radius:​3px;​cursor:​pointer;​font-size:​12px;​font-weight:​600;​letter-spacing:​.3px" data-bit-bound=​"1">​↻ Testar animação​</button>​
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+
+
+nao funcionou, mas aparece no console
+
+---
+
+nada ainda
+
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+post.php?post=26826&action=elementor:3707 [bit-espiral] replay JS v3 inicializado
+react-dom.js?ver=18.3.1.1:29905 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+env.js?ver=3.35.8:2 @elementor/editor-site-navigation - Settings object not found
+parse @ env.js?ver=3.35.8:2
+get @ env.js?ver=3.35.8:2
+init @ editor-site-navigation.js?ver=3.35.8:2
+(anonymous) @ editor-site-navigation.js?ver=3.35.8:2
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.holdReady is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+(anonymous) @ jquery-migrate-js-after:2
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+(anonymous) @ jquery-migrate-js-after:2
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.fn.bind() is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+$.fn.tipsy @ tipsy.js?ver=1.0.0:180
+(anonymous) @ editor.js?ver=3.35.8:26376
+each @ jquery.js?ver=3.7.1:383
+each @ jquery.js?ver=3.7.1:205
+addTooltip @ editor.js?ver=3.35.8:26374
+onRender @ editor.js?ver=3.35.8:26307
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+_triggerEventOnBehaviors @ backbone.marionette.js?ver=2.4.5.e1:1960
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1949
+render @ backbone.marionette.js?ver=2.4.5.e1:2097
+Jn @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+_renderView @ backbone.marionette.js?ver=2.4.5.e1:1222
+show @ backbone.marionette.js?ver=2.4.5.e1:1152
+showChildView @ backbone.marionette.js?ver=2.4.5.e1:3117
+onBeforeShow @ editor.js?ver=3.35.8:38069
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1947
+Marionette.triggerMethodOn @ backbone.marionette.js?ver=2.4.5.e1:728
+show @ backbone.marionette.js?ver=2.4.5.e1:1159
+constructor @ editor.js?ver=3.35.8:39746
+_buildRegionFromRegionClass @ backbone.marionette.js?ver=2.4.5.e1:1423
+buildRegion @ backbone.marionette.js?ver=2.4.5.e1:1392
+addRegion @ backbone.marionette.js?ver=2.4.5.e1:1469
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:1456
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:1448
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:3592
+initPanel @ editor.js?ver=3.35.8:28983
+onFirstPreviewLoaded @ editor.js?ver=3.35.8:29581
+onPreviewLoaded @ editor.js?ver=3.35.8:29559
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+$.fn.tipsy @ tipsy.js?ver=1.0.0:180
+(anonymous) @ editor.js?ver=3.35.8:26376
+each @ jquery.js?ver=3.7.1:383
+each @ jquery.js?ver=3.7.1:205
+addTooltip @ editor.js?ver=3.35.8:26374
+onRender @ editor.js?ver=3.35.8:26307
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+_triggerEventOnBehaviors @ backbone.marionette.js?ver=2.4.5.e1:1960
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1949
+render @ backbone.marionette.js?ver=2.4.5.e1:2097
+Jn @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+_renderView @ backbone.marionette.js?ver=2.4.5.e1:1222
+show @ backbone.marionette.js?ver=2.4.5.e1:1152
+showChildView @ backbone.marionette.js?ver=2.4.5.e1:3117
+onBeforeShow @ editor.js?ver=3.35.8:38069
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1947
+Marionette.triggerMethodOn @ backbone.marionette.js?ver=2.4.5.e1:728
+show @ backbone.marionette.js?ver=2.4.5.e1:1159
+constructor @ editor.js?ver=3.35.8:39746
+_buildRegionFromRegionClass @ backbone.marionette.js?ver=2.4.5.e1:1423
+buildRegion @ backbone.marionette.js?ver=2.4.5.e1:1392
+addRegion @ backbone.marionette.js?ver=2.4.5.e1:1469
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:1456
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:1448
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:3592
+initPanel @ editor.js?ver=3.35.8:28983
+onFirstPreviewLoaded @ editor.js?ver=3.35.8:29581
+onPreviewLoaded @ editor.js?ver=3.35.8:29559
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+web-cli.js?ver=3.35.8:7242 TypeError: Cannot read properties of null (reading 'parentElement')
+    at ToggleIcon.apply (checklist.js?ver=3.35.8:1086:62)
+    at ToggleIcon.run (web-cli.js?ver=3.35.8:5569:19)
+    at Commands.runInstance (web-cli.js?ver=3.35.8:1131:28)
+    at Commands.run (web-cli.js?ver=3.35.8:1111:19)
+    at checklist.js?ver=3.35.8:3695:23
+    at checklist.js?ver=3.35.8:2188:18
+    at Generator.<anonymous> (checklist.js?ver=3.35.8:1966:51)
+    at Generator.next (checklist.js?ver=3.35.8:2097:21)
+    at asyncGeneratorStep (checklist.js?ver=3.35.8:1682:17)
+    at _next (checklist.js?ver=3.35.8:1696:9)
+error @ web-cli.js?ver=3.35.8:7242
+catchApply @ web-cli.js?ver=3.35.8:1318
+runInstance @ web-cli.js?ver=3.35.8:1133
+run @ web-cli.js?ver=3.35.8:1111
+(anonymous) @ checklist.js?ver=3.35.8:3695
+(anonymous) @ checklist.js?ver=3.35.8:2188
+(anonymous) @ checklist.js?ver=3.35.8:1966
+(anonymous) @ checklist.js?ver=3.35.8:2097
+asyncGeneratorStep @ checklist.js?ver=3.35.8:1682
+_next @ checklist.js?ver=3.35.8:1696
+(anonymous) @ checklist.js?ver=3.35.8:1701
+(anonymous) @ checklist.js?ver=3.35.8:1693
+_checklistStartup @ checklist.js?ver=3.35.8:3715
+checklistStartup @ checklist.js?ver=3.35.8:3682
+p @ backbone.min.js?ver=1.6.0:2
+f @ backbone.min.js?ver=1.6.0:2
+a @ backbone.min.js?ver=1.6.0:2
+e.trigger @ backbone.min.js?ver=1.6.0:2
+(anonymous) @ editor.js?ver=3.35.8:3125
+Promise.then
+apply @ editor.js?ver=3.35.8:3121
+run @ web-cli.js?ver=3.35.8:5569
+runInstance @ web-cli.js?ver=3.35.8:1131
+run @ web-cli.js?ver=3.35.8:1111
+internal @ web-cli.js?ver=3.35.8:537
+onPreviewLoaded @ editor.js?ver=3.35.8:29573
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTField {user: {…}, website: {…}, subscription: {…}, iat: 1777587359, exp: 1777587659}
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTExp 1777587659
+www.google.com/recaptcha/api2/anchor?ar=1&REDACTED&REDACTED..&hl=pt-BR&type=v3&v=gTpTIWhbKpxADzTzkcabhXN4&size=invisible&badge=bottomleft&sa=Form&anchor-ms=20000&execute-ms=30000&cb=klk3brsgs688:1 Loading the script 'https://www.gstatic.com/recaptcha/releases/gTpTIWhbKpxADzTzkcabhXN4/recaptcha__pt_br.js' violates the following Content Security Policy directive: "script-src 'unsafe-inline'". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The policy is report-only, so the violation has been logged but no further action has been taken.
+recaptcha__pt_br.js:608 Creating a worker from 'https://www.google.com/recaptcha/api2/webworker.js?hl=pt-BR&v=gTpTIWhbKpxADzTzkcabhXN4' violates the following Content Security Policy directive: "script-src 'unsafe-inline'". Note that 'worker-src' was not explicitly set, so 'script-src' is used as a fallback. The policy is report-only, so the violation has been logged but no further action has been taken.
+post.php?post=26826&action=elementor:3763 [bit-espiral] botão de replay encontrado e vinculado <button type=​"button" class=​"bit-espiral-replay-btn" onclick=​"if(window.bitEspiralReplay)​{bitEspiralReplay(event)​}​else{console.warn('[bit-espiral]​ handler não carregado')​}​" style=​"width:​100%;​margin-top:​6px;​padding:​8px;​background:​#3c6fff;​color:​#fff;​border:​none;​border-radius:​3px;​cursor:​pointer;​font-size:​12px;​font-weight:​600;​letter-spacing:​.3px" data-bit-bound=​"1">​↻ Testar animação​</button>​
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+
+---
+
+nao ainda.
+o reload da animação estava funcionando antes de te solicitar a alteração para remover a cor final (logo antes deste prompt: 
+❯ [Image #5] [Image #6] [Image #7] a cor final nao fez muito sentido em existir. porem, os eixos da
+  espiral ficam com fundo transparente ao longo da animação, com a cor do texto tambem transparente
+  (ou sem texto, nao sei). Isso precisa ser customizável)
+
+atualmente esta assim:
+ [Image #13]
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+post.php?post=26826&action=elementor:3707 [bit-espiral] replay JS v4 inicializado (clone-replace)
+react-dom.js?ver=18.3.1.1:29905 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+env.js?ver=3.35.8:2 @elementor/editor-site-navigation - Settings object not found
+parse @ env.js?ver=3.35.8:2
+get @ env.js?ver=3.35.8:2
+init @ editor-site-navigation.js?ver=3.35.8:2
+(anonymous) @ editor-site-navigation.js?ver=3.35.8:2
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.holdReady is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+(anonymous) @ jquery-migrate-js-after:2
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+(anonymous) @ jquery-migrate-js-after:2
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: jQuery.fn.bind() is deprecated
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+$.fn.tipsy @ tipsy.js?ver=1.0.0:180
+(anonymous) @ editor.js?ver=3.35.8:26376
+each @ jquery.js?ver=3.7.1:383
+each @ jquery.js?ver=3.7.1:205
+addTooltip @ editor.js?ver=3.35.8:26374
+onRender @ editor.js?ver=3.35.8:26307
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+_triggerEventOnBehaviors @ backbone.marionette.js?ver=2.4.5.e1:1960
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1949
+render @ backbone.marionette.js?ver=2.4.5.e1:2097
+Jn @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+_renderView @ backbone.marionette.js?ver=2.4.5.e1:1222
+show @ backbone.marionette.js?ver=2.4.5.e1:1152
+showChildView @ backbone.marionette.js?ver=2.4.5.e1:3117
+onBeforeShow @ editor.js?ver=3.35.8:38069
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1947
+Marionette.triggerMethodOn @ backbone.marionette.js?ver=2.4.5.e1:728
+show @ backbone.marionette.js?ver=2.4.5.e1:1159
+constructor @ editor.js?ver=3.35.8:39746
+_buildRegionFromRegionClass @ backbone.marionette.js?ver=2.4.5.e1:1423
+buildRegion @ backbone.marionette.js?ver=2.4.5.e1:1392
+addRegion @ backbone.marionette.js?ver=2.4.5.e1:1469
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:1456
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:1448
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:3592
+initPanel @ editor.js?ver=3.35.8:28983
+onFirstPreviewLoaded @ editor.js?ver=3.35.8:29581
+onPreviewLoaded @ editor.js?ver=3.35.8:29559
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:170
+$.fn.tipsy @ tipsy.js?ver=1.0.0:180
+(anonymous) @ editor.js?ver=3.35.8:26376
+each @ jquery.js?ver=3.7.1:383
+each @ jquery.js?ver=3.7.1:205
+addTooltip @ editor.js?ver=3.35.8:26374
+onRender @ editor.js?ver=3.35.8:26307
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+_triggerEventOnBehaviors @ backbone.marionette.js?ver=2.4.5.e1:1960
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1949
+render @ backbone.marionette.js?ver=2.4.5.e1:2097
+Jn @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+_renderView @ backbone.marionette.js?ver=2.4.5.e1:1222
+show @ backbone.marionette.js?ver=2.4.5.e1:1152
+showChildView @ backbone.marionette.js?ver=2.4.5.e1:3117
+onBeforeShow @ editor.js?ver=3.35.8:38069
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:692
+triggerMethod @ backbone.marionette.js?ver=2.4.5.e1:1947
+Marionette.triggerMethodOn @ backbone.marionette.js?ver=2.4.5.e1:728
+show @ backbone.marionette.js?ver=2.4.5.e1:1159
+constructor @ editor.js?ver=3.35.8:39746
+_buildRegionFromRegionClass @ backbone.marionette.js?ver=2.4.5.e1:1423
+buildRegion @ backbone.marionette.js?ver=2.4.5.e1:1392
+addRegion @ backbone.marionette.js?ver=2.4.5.e1:1469
+(anonymous) @ backbone.marionette.js?ver=2.4.5.e1:1456
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+(anonymous) @ underscore.min.js?ver=1.13.7:2
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:1448
+addRegions @ backbone.marionette.js?ver=2.4.5.e1:3592
+initPanel @ editor.js?ver=3.35.8:28983
+onFirstPreviewLoaded @ editor.js?ver=3.35.8:29581
+onPreviewLoaded @ editor.js?ver=3.35.8:29559
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+web-cli.js?ver=3.35.8:7242 TypeError: Cannot read properties of null (reading 'parentElement')
+    at ToggleIcon.apply (checklist.js?ver=3.35.8:1086:62)
+    at ToggleIcon.run (web-cli.js?ver=3.35.8:5569:19)
+    at Commands.runInstance (web-cli.js?ver=3.35.8:1131:28)
+    at Commands.run (web-cli.js?ver=3.35.8:1111:19)
+    at checklist.js?ver=3.35.8:3695:23
+    at checklist.js?ver=3.35.8:2188:18
+    at Generator.<anonymous> (checklist.js?ver=3.35.8:1966:51)
+    at Generator.next (checklist.js?ver=3.35.8:2097:21)
+    at asyncGeneratorStep (checklist.js?ver=3.35.8:1682:17)
+    at _next (checklist.js?ver=3.35.8:1696:9)
+error @ web-cli.js?ver=3.35.8:7242
+catchApply @ web-cli.js?ver=3.35.8:1318
+runInstance @ web-cli.js?ver=3.35.8:1133
+run @ web-cli.js?ver=3.35.8:1111
+(anonymous) @ checklist.js?ver=3.35.8:3695
+(anonymous) @ checklist.js?ver=3.35.8:2188
+(anonymous) @ checklist.js?ver=3.35.8:1966
+(anonymous) @ checklist.js?ver=3.35.8:2097
+asyncGeneratorStep @ checklist.js?ver=3.35.8:1682
+_next @ checklist.js?ver=3.35.8:1696
+(anonymous) @ checklist.js?ver=3.35.8:1701
+(anonymous) @ checklist.js?ver=3.35.8:1693
+_checklistStartup @ checklist.js?ver=3.35.8:3715
+checklistStartup @ checklist.js?ver=3.35.8:3682
+p @ backbone.min.js?ver=1.6.0:2
+f @ backbone.min.js?ver=1.6.0:2
+a @ backbone.min.js?ver=1.6.0:2
+e.trigger @ backbone.min.js?ver=1.6.0:2
+(anonymous) @ editor.js?ver=3.35.8:3125
+Promise.then
+apply @ editor.js?ver=3.35.8:3121
+run @ web-cli.js?ver=3.35.8:5569
+runInstance @ web-cli.js?ver=3.35.8:1131
+run @ web-cli.js?ver=3.35.8:1111
+internal @ web-cli.js?ver=3.35.8:537
+onPreviewLoaded @ editor.js?ver=3.35.8:29573
+(anonymous) @ editor.js?ver=3.35.8:64958
+onPreviewLoaded @ editor.js?ver=3.35.8:64976
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTField {user: {…}, website: {…}, subscription: {…}, iat: 1777587603, exp: 1777587903}
+550-c7fe8503f87d8bc0.js:1 [iframe-app > auth-token] getJWTExp 1777587903
+Framing 'https://www.google.com/' violates the following report-only Content Security Policy directive: "frame-ancestors 'self'". The violation has been logged, but no further action has been taken.
+
+Framing 'https://www.google.com/' violates the following report-only Content Security Policy directive: "frame-ancestors 'self'". The violation has been logged, but no further action has been taken.
+
+post.php?post=26826&action=elementor:3765 [bit-espiral] botão de replay encontrado e vinculado <button type=​"button" class=​"bit-espiral-replay-btn" onclick=​"if(window.bitEspiralReplay)​{bitEspiralReplay(event)​}​else{console.warn('[bit-espiral]​ handler não carregado')​}​" style=​"width:​100%;​margin-top:​6px;​padding:​8px;​background:​#3c6fff;​color:​#fff;​border:​none;​border-radius:​3px;​cursor:​pointer;​font-size:​12px;​font-weight:​600;​letter-spacing:​.3px" data-bit-bound=​"1">​↻ Testar animação​</button>​
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3746 [bit-espiral] replay: animação reiniciada
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3746 [bit-espiral] replay: animação reiniciada
+post.php?post=26826&action=elementor:3729 [bit-espiral] replay: SVGs encontradas = 1
+post.php?post=26826&action=elementor:3746 [bit-espiral] replay: animação reiniciada
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_oh9jb8/Captura de Tela 2026-04-30 às 19.22.06.png]
+
+---
+
+sim voltou a funcionar. vamos testar as alternativas.
+
+---
+
+excelente! Mas nao quero que o texto mude de cor [Image #15]
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_tdvqrg/Captura de Tela 2026-04-30 às 19.40.38.png]
+
+---
+
+ficou excelente. 
+agora, [Image #16] aplique controles individuais por eixo. acrescente posição y relativa para ajustar a centralização vertical
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_5KLF3z/Captura de Tela 2026-04-30 às 20.12.53.png]
+
+---
+
+[Image #17] insira a posição Y nessa seção global de controle de fonte
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-30 às 20.23.18.png]
+
+---
+
+[Image #19] o eixo y nao funciona
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-04-30 às 20.32.51.png]
+
+---
+
+[Image #20] [Image #21] Y nao funciona nem no geral, nem no individual
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_KoZSlK/Captura de Tela 2026-04-30 às 20.39.54.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_0QD59x/Captura de Tela 2026-04-30 às 20.40.12.png]
+
+---
+
+[Image #22] agora funcionou, mas tem um limitador no topo. o ideal é ajustar a posição do foreign object, por ex
+
+<foreignObject x="600" y="200" width="130" height="88" data-language="pt" xml:lang="pt"><div class="bit-espiral-text-inner">Instrumentos de financiamento</div></foreignObject>
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_dJQGfO/Captura de Tela 2026-04-30 às 20.54.14.png]
+
+---
+
+[Image #23] a espiral sumiu
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_lvLy57/Captura de Tela 2026-04-30 às 21.04.09.png]
+
+---
+
+volte o codigo para antes deste prompt:
+
+
+[Image #22] agora funcionou, mas tem um limitador no topo. o ideal é ajustar a posição do foreign object, por ex
+
+<foreignObject x="600" y="200" width="130" height="88" data-language="pt" xml:lang="pt"><div class="bit-espiral-text-inner">Instrumentos de financiamento</div></foreignObject>
+
+---
+
+ficou excelente. versione, comite e push

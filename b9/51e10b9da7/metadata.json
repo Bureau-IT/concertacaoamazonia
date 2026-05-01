@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "b951e10b9da7",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 19,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bit-elementor-espiral-widget.php",
+    "wordpress/wp-content/themes/hello-elementor-child/svg/espiral-do-conhecimento.svg"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b9/51e10b9da7/0/metadata.json",
+      "transcript": "/b9/51e10b9da7/0/full.jsonl",
+      "context": "/b9/51e10b9da7/0/context.md",
+      "content_hash": "/b9/51e10b9da7/0/content_hash.txt",
+      "prompt": "/b9/51e10b9da7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 675,
+    "cache_creation_tokens": 845939,
+    "cache_read_tokens": 57726144,
+    "output_tokens": 148059,
+    "api_call_count": 233
+  }
+}
