@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "b9846e059285",
+  "session_id": "0147bb50-a0f5-4736-9b3f-29a4b681d9c7",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-02T02:39:25.443615Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/commands/smoke.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "fcdc88b99f79",
+  "token_usage": {
+    "input_tokens": 3968,
+    "cache_creation_tokens": 765467,
+    "cache_read_tokens": 59646432,
+    "output_tokens": 194338,
+    "api_call_count": 232
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-02T02:39:24.749548Z",
+    "agent_lines": 0,
+    "human_added": 119,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 119,
+    "agent_percentage": 0
+  }
+}
