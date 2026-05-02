@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "29a908b70f9d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".claude/commands/smoke.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/29/a908b70f9d/0/metadata.json",
+      "transcript": "/29/a908b70f9d/0/full.jsonl",
+      "context": "/29/a908b70f9d/0/context.md",
+      "content_hash": "/29/a908b70f9d/0/content_hash.txt",
+      "prompt": "/29/a908b70f9d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 429,
+    "cache_creation_tokens": 722427,
+    "cache_read_tokens": 49661118,
+    "output_tokens": 181676,
+    "api_call_count": 214
+  }
+}
