@@ -521,6 +521,52 @@ Após varredura no DEV (Snippet 1), espera-se ~15-25 paths:
 
 Valida que o plugin Complianz GDPR está renderizando o banner de consent corretamente, que botões respondem, e que após "aceitar tudo" os scripts de tracking carregam (Google Analytics, GTM, YouTube embeds, RDStation).
 
+### Snippet 0 — Multisite check (rodar PRIMEIRO)
+
+Complianz é Network Active. O banner DEVE aparecer em ambos os blogs (raiz `/` e `/cultura/`). Se aparecer só em um, configuração do plugin foi feita por blog em vez de network.
+
+```js
+async (page) => {
+  const audit = async (url) => {
+    await page.context().clearCookies();
+    await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(3500); // Complianz inicializa via JS — não DOMContentLoaded sync
+    return await page.evaluate(() => {
+      const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, [class*="cmplz-banner"]');
+      const html = document.documentElement.outerHTML;
+      const cmplzScripts = Array.from(document.querySelectorAll('script[src]'))
+        .filter(s => /cmplz|complianz/i.test(s.src)).length;
+      return {
+        url: location.href,
+        banner_visible: banner ? getComputedStyle(banner).display !== 'none' : false,
+        has_accept: !!document.querySelector('.cmplz-accept, [data-cmplz-action="accept"]'),
+        has_deny:   !!document.querySelector('.cmplz-deny, [data-cmplz-action="deny"]'),
+        cmplz_html_count: (html.match(/cmplz-banner|cmplz-cookiebanner|cmplz-accept|cmplz-deny/gi) || []).length,
+        cmplz_scripts_loaded: cmplzScripts,
+        window_complianz: typeof window.complianz !== 'undefined',
+      };
+    });
+  };
+  return {
+    blog1_root:    await audit('https://concertacaoamazonia.com.br/'),
+    blog2_cultura: await audit('https://concertacaoamazonia.com.br/cultura/'),
+    blog2_atlas:   await audit('https://concertacaoamazonia.com.br/cultura/atlas-cultural-das-amazonias/'),
+  };
+}
+```
+
+### Apresentar matriz multisite
+
+```
+| Local              | banner | accept | deny | scripts | window.complianz | Status |
+|--------------------|--------|--------|------|--------:|------------------|--------|
+| Blog 1 / (raiz)    | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
+| Blog 2 /cultura/   | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
+| Blog 2 Atlas       | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
+```
+
+🚨 **FAIL multisite** se qualquer dos blogs mostra `banner_visible === false`. Ação: verificar `wp_options.cmplz_options` (blog 1) E `wp_2_options.cmplz_options` (blog 2). Multisite com Complianz Network Active geralmente exige config por subsite.
+
 ### Snippet — Complianz cookie flow
 
 ```js
@@ -617,6 +663,79 @@ async (page) => {
 - `afterAccept.banner_hidden_after_accept === false` — banner não some após clicar
 - `afterAccept.gtm_loaded === false` E `afterAccept.ga_loaded === false` — analytics não carrega após consent (perde tracking)
 - `afterDeny.gtm_blocked === false` ou `afterDeny.ga_blocked === false` — tracking dispara mesmo após negar (violação LGPD)
+
+## Fase 7.7 — Google Tag Manager (mu-plugin bit-gtm)
+
+Valida que o mu-plugin `bit-gtm.php` (canonico em `docker-dev/common/mu-plugins/`) injeta o snippet GTM no `<head>` em produção. Plugin lê constante `GTM_CONTAINER_ID` do `wp-config.php` e só ativa quando `WP_ENVIRONMENT_TYPE = 'production'`.
+
+### Snippet — GTM injection check
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(2000);
+
+  return await page.evaluate(() => {
+    const html = document.documentElement.outerHTML;
+
+    // 1. Snippet inline no <head>: detectar via comentário "Google Tag Manager"
+    const head_snippet = /<!-- Google Tag Manager -->/.test(html);
+    const head_id_match = html.match(/googletagmanager\.com\/gtm\.js\?id=(GTM-[A-Z0-9]+)/);
+
+    // 2. Noscript após <body>: detectar via iframe ns.html
+    const body_noscript = /<iframe[^>]*googletagmanager\.com\/ns\.html\?id=GTM-/i.test(html);
+    const body_id_match = html.match(/googletagmanager\.com\/ns\.html\?id=(GTM-[A-Z0-9]+)/);
+
+    // 3. dataLayer inicializado
+    const datalayer = typeof window.dataLayer !== 'undefined' && Array.isArray(window.dataLayer);
+    const datalayer_events = datalayer ? window.dataLayer.length : 0;
+
+    // 4. Script gtm.js carregado (rede)
+    const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+    const gtm_script_loaded = scripts.some(s => /googletagmanager\.com\/gtm\.js/.test(s));
+
+    // 5. Container ID consistente entre head e body
+    const head_id = head_id_match ? head_id_match[1] : null;
+    const body_id = body_id_match ? body_id_match[1] : null;
+    const ids_match = head_id && body_id && head_id === body_id;
+
+    return {
+      head_snippet_present: head_snippet,
+      head_container_id: head_id,
+      body_noscript_present: body_noscript,
+      body_container_id: body_id,
+      ids_consistent: ids_match,
+      datalayer_initialized: datalayer,
+      datalayer_events_count: datalayer_events,
+      gtm_script_loaded,
+    };
+  });
+}
+```
+
+### Apresentar matriz GTM
+
+```
+| Verificacao                   | Esperado    | Real           | Status |
+|-------------------------------|-------------|----------------|--------|
+| <head> snippet                | true        | true           | ✅     |
+| <head> container_id           | GTM-XXX     | GTM-PPHN5B6    | ✅     |
+| <body> noscript               | true        | true           | ✅     |
+| Container IDs consistentes    | true        | true           | ✅     |
+| dataLayer inicializado        | true        | true           | ✅     |
+| dataLayer events              | >= 1        | 5              | ✅     |
+| gtm.js carregado (rede)       | true        | true           | ✅     |
+```
+
+### Gates GTM
+
+🚨 **FAIL** se:
+- `head_snippet_present === false` — snippet não injetado em prod (verificar `WP_ENVIRONMENT_TYPE='production'` no wp-config + `GTM_CONTAINER_ID` definido)
+- `body_noscript_present === false` — fallback noscript ausente (acessibilidade + crawler tracking)
+- `ids_consistent === false` — IDs do head e body divergem (configuração corrompida)
+- `datalayer_initialized === false` E `gtm_script_loaded === false` — GTM não carrega no browser
+- Após Complianz "Negar": GTM continua carregando — violação LGPD (testar em conjunto com Fase 7.6)
 
 ## Fase 8 — Warm-up de cache do menu (prod e green)
 
