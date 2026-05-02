@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "8f1732eac66c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-Italic-VariableFont.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-VariableFont.woff2"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8f/1732eac66c/0/metadata.json",
+      "transcript": "/8f/1732eac66c/0/full.jsonl",
+      "context": "/8f/1732eac66c/0/context.md",
+      "content_hash": "/8f/1732eac66c/0/content_hash.txt",
+      "prompt": "/8f/1732eac66c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 164990,
+    "cache_read_tokens": 1291537,
+    "output_tokens": 10865,
+    "api_call_count": 16
+  }
+}
