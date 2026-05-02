@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Deploy Flow — Concertacao Blue-Green</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; height: 100vh; overflow: hidden; font-family: 'Inter', -apple-system, sans-serif;
+    display: flex; flex-direction: row; }
+
+  /* Canvas area */
+  #wrap { flex: 1; height: 100vh; position: relative; }
+  #wrap canvas { position: absolute; top: 0; left: 0; }
+
+  /* Title */
+  #title {
+    position: fixed; top: 16px; left: 16px; z-index: 100;
+    background: #161b22ee; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 20px; color: #f0f6fc; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.5px; pointer-events: none; backdrop-filter: blur(8px);
+  }
+</style>
+</head>
+<body>
+<div id="title">BLUE-GREEN DEPLOY FLOW &mdash; Uma Concertacao Pela Amazonia</div>
+<div id="wrap"></div>
+
+<script type="module">
+import { BitCanvas } from '/bit-canvas/bit-canvas.js';
+
+// ─── Color palette ───
+// Tons frios/verdes = consolidado e automatizado
+// Tons quentes = pontos frageis ou que exigem atencao manual
+const C = {
+  // ── Consolidado (verde frio) ──
+  solidGreen:  '#2ea043',   // Fluxo principal automatizado e estavel
+  scriptGreen: '#3fb950',   // Scripts numerados que rodam sem intervencao
+  infraCyan:   '#21a0a0',   // Recursos AWS gerenciados (ALB, EIP, S3)
+
+  // ── Atencao (tons quentes) ──
+  warn:        '#d29922',   // Requer configuracao manual ou validacao
+  danger:      '#f85149',   // Fragil — falha silenciosa ou risco de downtime
+  critical:    '#da3633',   // Critico — ponto conhecido de quebra
+
+  // ── Contexto ──
+  optSlate:    '#7c8fa6',   // Scripts opcionais (trigger manual)
+  decision:    '#bc8cff',   // Gate de decisao humana
+  dataFlow:    '#58a6ff',   // Indicador de fluxo de dados
+};
+
+// ─── Renderer ───
+let canvasRef = null;
+function drawNode(ctx, node, { selected, scale, registerPort }) {
+  const { x, y, width: w, height: h, data } = node;
+  const c = data.color || '#8b949e';
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = selected ? 12 : 6;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = c + '18';
+  ctx.strokeStyle = selected ? canvasRef?._theme?.text ?? '#f0f6fc' : c;
+  ctx.lineWidth = selected ? 2 : 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // Phase badge (top-left)
+  if (data.phase) {
+    const badgeW = ctx.measureText(data.phase).width + 10;
+    ctx.fillStyle = c + '55';
+    ctx.beginPath();
+    ctx.roundRect(x + 4, y + 4, badgeW, 16, 3);
+    ctx.fill();
+    ctx.fillStyle = c;
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(data.phase, x + 9, y + 15);
+  }
+  // Icon badge (top-right)
+  if (data.icon) {
+    ctx.fillStyle = c + '88';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(data.icon, x + w - 6, y + 15);
+  }
+
+  // Title
+  ctx.fillStyle = canvasRef?._theme?.text ?? '#f0f6fc';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  const titleY = data.phase ? y + 32 : y + 18;
+  ctx.fillText(data.label, x + w / 2, titleY);
+
+  // Sub text (word-wrapped)
+  if (data.sub) {
+    ctx.fillStyle = canvasRef?._theme?.textSub ?? '#8b949e';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    const words = data.sub.split(' ');
+    let line = '', lineY = titleY + 14;
+    const maxW = w - 12;
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line, x + w / 2, lineY);
+        line = word; lineY += 12;
+      } else { line = test; }
+    }
+    if (line) ctx.fillText(line, x + w / 2, lineY);
+  }
+
+  // Version (bottom-right)
+  if (data.version) {
+    ctx.fillStyle = canvasRef?._theme?.textFaint ?? '#484f58';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(data.version, x + w - 6, y + h - 6);
+  }
+
+  // Ports
+  registerPort('out', x + w, y + h / 2, 'out');
+  registerPort('in',  x,     y + h / 2, 'in');
+  registerPort('bottom', x + w / 2, y + h, 'out');
+  registerPort('top',    x + w / 2, y,     'in');
+}
+
+// ─── Canvas ───
+const canvas = new BitCanvas({
+  container: document.getElementById('wrap'),
+  renderer: drawNode,
+  edges: true,
+  grid: { style: 'dots', size: 30 },
+  snap: { enabled: true, size: 10 },
+  rulers: { show: true, size: 20 },
+  zoomBar: true,
+  contextMenu: true,
+  objectToolbar: true,
+  layerPanel: true,
+  layerLabels: {
+    [C.solidGreen]:  'Consolidado / Automatizado',
+    [C.scriptGreen]: 'Scripts Numerados (auto)',
+    [C.infraCyan]:   'Infraestrutura AWS',
+    [C.optSlate]:    'Scripts Opcionais (manual)',
+    [C.warn]:        'Ponto de Atencao',
+    [C.danger]:      'Fragil / Risco',
+    [C.critical]:    'Critico — risco de quebra',
+    [C.decision]:    'Decisao Manual',
+    [C.dataFlow]:    'Fluxo de Dados',
+  },
+  persistence: { key: 'deploy-flow-v2-deep', debounce: 500 },
+  mode: 'edit',
+  defaultNodeSize: { w: 190, h: 90 },
+});
+canvasRef = canvas;
+
+// ─── Layout constants ───
+const Y0 = 80;
+const ROW = 110;
+const NW = 190, NH = 85;
+const LW = 210, LH = 95;
+const SW = 180, SH = 78;
+
+// Column X positions
+const P0   = 60;    // Phase 0 — Export
+const P1   = 310;   // Phase 1 — EC2
+const P2A  = 570;   // Phase 2 col A (01-08)
+const P2B  = 790;   // Phase 2 col B (09-18)
+const POPT = 1050;  // Optional scripts
+const P3   = 1310;  // Phase 3 — Validation
+const P4   = 1570;  // Phase 4 — Cutover
+const P5   = 1830;  // Phase 5 — Cleanup
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  PHASE 0 — DEV EXPORT                                              ║
+// ║  Exporta artefatos do Docker local e envia para S3                  ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+canvas.addNode('dev-env', {
+  label: 'Docker Dev Local',
+  sub: 'Ambiente de desenvolvimento Docker (std). Fonte de verdade para DB e wp-content. Todo deploy comeca aqui.',
+  phase: 'PHASE 0', icon: 'LOCAL', color: C.solidGreen,
+}, { x: P0, y: Y0, width: NW, height: NH });
+
+canvas.addNode('export-db', {
+  label: 'std export-db',
+  sub: 'Gera dump SQL via WP-CLI (wp db export), compacta com gzip, calcula checksum SHA256 e envia para S3. Caminho: s3://concertacao-backups/concertacao/prod/sql/',
+  phase: 'EXPORT', icon: 'S3', color: C.solidGreen, version: 'v2.1.0',
+}, { x: P0, y: Y0 + ROW, width: NW, height: LH });
+
+canvas.addNode('export-wpc', {
+  label: 'std export-wpcontent',
+  sub: 'Empacota wp-content em .tar.gz (exclui uploads/ por padrao — uploads vao direto do filesystem EC2). Envia para S3. Caminho: s3://concertacao-backups/concertacao/prod/wp/',
+  phase: 'EXPORT', icon: 'S3', color: C.solidGreen, version: 'v1.1.0',
+}, { x: P0, y: Y0 + ROW * 2, width: NW, height: LH });
+
+canvas.addNode('s3-artifacts', {
+  label: 'S3: concertacao-backups',
+  sub: 'Bucket centralizado. SQL em /prod/sql/, wp-content em /prod/wp/. Ambos com checksum SHA256 para validacao na importacao.',
+  phase: 'STORAGE', icon: 'AWS', color: C.dataFlow,
+}, { x: P0, y: Y0 + ROW * 3.1, width: NW, height: LH });
+
+canvas.addNode('env-file', {
+  label: '.env Config',
+  sub: 'SQL_IMPORT_FILE, WP_IMPORT_FILE apontam para os artefatos no S3. DB_NAME_HML define o banco Aurora. FQDN_HML/PROD define dominio. Erro aqui = deploy inteiro quebrado.',
+  phase: 'CONFIG', icon: '!!', color: C.warn,
+}, { x: P0, y: Y0 + ROW * 4.2, width: NW, height: LH });
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  PHASE 1 — CREATE EC2                                               ║
+// ║  Provisiona instancia GREEN na AWS                                   ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+canvas.addNode('create-ec2', {
+  label: 'create-ec2.sh',
+  sub: 'Provisiona instancia GREEN. Ubuntu 24.04 (AMI via SSM), t3.large, sa-east-1. Associa EIP, registra no Target Group, configura IAM role, volume gp3. Injeta user-data.yml.',
+  phase: 'PHASE 1', icon: 'EC2', color: C.solidGreen, version: '~1039L',
+}, { x: P1, y: Y0, width: LW, height: LH });
+
+canvas.addNode('user-data', {
+  label: 'user-data.yml',
+  sub: 'Cloud-init: instala pacotes base (nginx, git, mysql-client, htop, jq), configura timezone SP, hostname via tags EC2, health check nginx na porta 8080 (/health.txt + /healthz).',
+  phase: 'CLOUD-INIT', color: C.solidGreen,
+}, { x: P1, y: Y0 + ROW, width: LW, height: NH });
+
+canvas.addNode('aurora-db', {
+  label: 'Aurora MySQL 8.0',
+  sub: 'CREATE DATABASE wp_concertacao_YYYYMMDD. Endpoint: amazonia-aurora-db-cluster...sa-east-1.rds.amazonaws.com. MANUAL — precisa criar o DB antes do post-deploy.',
+  phase: 'AWS', icon: 'RDS', color: C.warn,
+}, { x: P1, y: Y0 + ROW * 2.1, width: LW, height: LH });
+
+canvas.addNode('secrets-mgr', {
+  label: 'Secrets Manager',
+  sub: 'Atualizar DB_NAME_HML com nome do novo banco. Credenciais do admin WP tambem ficam aqui. Usado pelo a1-wordpress-autoconfigure.',
+  phase: 'AWS', icon: 'SEC', color: C.warn,
+}, { x: P1, y: Y0 + ROW * 3.2, width: LW, height: NH });
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  PHASE 2 — POST-DEPLOY (Scripts 01-18)                              ║
+// ║  Orquestrador executa scripts sequencialmente via SSH                ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+canvas.addNode('post-deploy-sh', {
+  label: 'post-deploy.sh (Orquestrador)',
+  sub: 'Descobre scripts por pattern (NN-*.sh numerados, XN-*.sh opcionais). Ordena, transfere via SCP, executa via SSH. Cada script e idempotente (flag de conclusao). Sync de .env via wp-env.sh temporario.',
+  phase: 'PHASE 2', icon: 'ORCH', color: C.solidGreen, version: 'v2.1.0',
+}, { x: P2A, y: Y0, width: P2B + SW - P2A, height: 85 });
+
+const scY = Y0 + 105;
+
+// ── Column A (01-08): Infra + WordPress core ──
+
+canvas.addNode('s01', {
+  label: '01 Bootstrap',
+  sub: 'Pacotes essenciais via apt (curl, unzip, etc). Fallback caso cloud-init nao tenha rodado. Configura timezone, cria dirs. Idempotente.',
+  phase: '01', color: C.scriptGreen,
+}, { x: P2A, y: scY, width: SW, height: SH });
+
+canvas.addNode('s02', {
+  label: '02 PHP-FPM',
+  sub: 'Instala PHP 8.3 + extensoes WP (gd, mbstring, xml, redis, imagick). Configura OPcache (file_cache em /var/cache/php-opcache), pool FPM (pm.max_children calculado por RAM). Recarrega FPM.',
+  phase: '02', color: C.scriptGreen,
+}, { x: P2A, y: scY + ROW, width: SW, height: SH + 10 });
+
+canvas.addNode('s03', {
+  label: '03 Nginx Sites',
+  sub: 'Cria vhost com SSL via ALB (listen 80, X-Forwarded-Proto detecta HTTPS). CSP headers, rate limiting, WP Rocket bypass rules, gzip, multisite rewrites, WebP. Inclui try_files correto para WP.',
+  phase: '03', color: C.scriptGreen, version: 'v1.8.0',
+}, { x: P2A, y: scY + ROW * 2.1, width: SW, height: SH + 10 });
+
+canvas.addNode('s04', {
+  label: '04 WP Install',
+  sub: 'Baixa WordPress via WP-CLI, gera wp-config.php com credenciais Aurora (FQDN, DB_NAME, DB_USER de .env). Para multisite: define MULTISITE, SUBDOMAIN_INSTALL. CRITICO — se falhar, tudo abaixo quebra.',
+  phase: '04', color: C.critical, icon: '!!',
+}, { x: P2A, y: scY + ROW * 3.2, width: SW, height: SH + 10 });
+
+canvas.addNode('s05', {
+  label: '05 WP-Cron',
+  sub: 'Desativa wp-cron HTTP (DISABLE_WP_CRON=true). Cria crontab do sistema: */5 * * * * wp cron event run --due-now. Evita que crawlers disparem cron via HTTP.',
+  phase: '05', color: C.scriptGreen,
+}, { x: P2A, y: scY + ROW * 4.3, width: SW, height: SH });
+
+canvas.addNode('s06', {
+  label: '06 S3 Uploads',
+  sub: 'Configura plugin S3-Uploads (humanmade). Define bucket, region, prefixo. Em concertacao PROD: desligado (filesystem EC2 direto). Util para sites com CDN de midia.',
+  phase: '06', color: C.scriptGreen,
+}, { x: P2A, y: scY + ROW * 5.3, width: SW, height: SH });
+
+canvas.addNode('s07', {
+  label: '07 Redis',
+  sub: 'Instala Redis server ou configura ElastiCache endpoint. Copia object-cache.php, define WP_REDIS_HOST e WP_REDIS_PORT em wp-config. FLUSHDB proibido em prod (Redis compartilhado).',
+  phase: '07', color: C.scriptGreen,
+}, { x: P2A, y: scY + ROW * 6.3, width: SW, height: SH });
+
+canvas.addNode('s08', {
+  label: '08 Img Optimization',
+  sub: 'Instala jpegoptim, optipng, pngquant, gifsicle, webp tools. Usado pelo EWWW Image Optimizer para comprimir uploads. Sem config WP — so instala binarios.',
+  phase: '08', color: C.scriptGreen,
+}, { x: P2A, y: scY + ROW * 7.3, width: SW, height: SH });
+
+// ── Column B (09-18): Dados + Caches ──
+
+canvas.addNode('s09', {
+  label: '09 Import Database',
+  sub: 'Baixa .sql.gz do S3, valida checksum, importa via WP-CLI (wp db import). Executa search-replace do FQDN antigo para novo. Limpa options WPML/ATE que causam erro 426 pos-import. FRAGIL — timeout em DBs grandes.',
+  phase: '09', icon: '!!', color: C.danger, version: 'v2.3.1',
+}, { x: P2B, y: scY, width: SW, height: SH + 15 });
+
+canvas.addNode('s10', {
+  label: '10 Import WP-Content',
+  sub: 'Baixa .tar.gz do S3, extrai em /tmp, faz swap atomico (mv wp-content wp-content.old, mv extracted wp-content). Se falhar no meio, wp-content.old preserva o estado anterior. FRAGIL — disco cheio mata o swap.',
+  phase: '10', icon: '!!', color: C.danger, version: 'v1.3.0',
+}, { x: P2B, y: scY + ROW * 1.15, width: SW, height: SH + 15 });
+
+canvas.addNode('s11', {
+  label: '11 Fix Permissions',
+  sub: 'chmod 755 dirs, 644 files em wp-content. chown www-data:www-data recursivo. Necessario porque tar.gz preserva UID/GID do ambiente de origem (Docker UID != EC2 UID).',
+  phase: '11', color: C.scriptGreen, version: 'v1.0.0',
+}, { x: P2B, y: scY + ROW * 2.3, width: SW, height: SH });
+
+canvas.addNode('s12', {
+  label: '12 HyperDB',
+  sub: 'Configura db.php (HyperDB) para split read/write no Aurora cluster. Writer endpoint para INSERT/UPDATE, Reader endpoint para SELECT. Melhora performance em sites com muitas leituras.',
+  phase: '12', color: C.scriptGreen, version: 'v1.0.0',
+}, { x: P2B, y: scY + ROW * 3.3, width: SW, height: SH });
+
+canvas.addNode('s13', {
+  label: '13 Install Utils',
+  sub: 'Copia scripts utilitarios para ~ubuntu/bin/ (logging, export, import helpers). Disponibiliza ferramentas de operacao no servidor para troubleshooting manual.',
+  phase: '13', color: C.scriptGreen, version: 'v2.0.0',
+}, { x: P2B, y: scY + ROW * 4.3, width: SW, height: SH });
+
+canvas.addNode('s14', {
+  label: '14 Renew All Caches',
+  sub: 'Flush agressivo: OPcache (rm .bin + reload FPM), Redis (FLUSHDB se local), Nginx (reload), WordPress transients, Elementor CSS, WP Rocket (page cache). PERIGOSO — se rodar em prod ativa, causa cold start.',
+  phase: '14', icon: '!!', color: C.danger, version: 'v2.3.0',
+}, { x: P2B, y: scY + ROW * 5.3, width: SW, height: SH + 10 });
+
+canvas.addNode('s15', {
+  label: '15 WP Memory',
+  sub: 'Define WP_MEMORY_LIMIT (256M) e WP_MAX_MEMORY_LIMIT (512M) em wp-config.php. Evita fatal errors em operacoes pesadas (import Elementor, WPML sync).',
+  phase: '15', color: C.scriptGreen, version: 'v1.0.1',
+}, { x: P2B, y: scY + ROW * 6.4, width: SW, height: SH });
+
+canvas.addNode('s16', {
+  label: '16 Export Database',
+  sub: 'Gera backup do banco JA CONFIGURADO no GREEN. Envia para S3 com timestamp. Serve como snapshot de seguranca antes do cutover. Caminho: s3://concertacao-backups/.../sql/',
+  phase: '16', icon: 'S3', color: C.scriptGreen, version: 'v1.0.0',
+}, { x: P2B, y: scY + ROW * 7.4, width: SW, height: SH });
+
+canvas.addNode('s17', {
+  label: '17 Export WP-Content',
+  sub: 'Backup do wp-content configurado no GREEN. Envia para S3. Junto com 16, forma um snapshot completo restauravel do estado pre-cutover.',
+  phase: '17', icon: 'S3', color: C.scriptGreen, version: 'v1.0.0',
+}, { x: P2B, y: scY + ROW * 8.4, width: SW, height: SH });
+
+canvas.addNode('s18', {
+  label: '18 Final Cache Flush',
+  sub: 'Flush de todos os caches apos todas as configuracoes. Garante que nenhum cache stale interfira na validacao. Nginx reload + Redis FLUSHDB + WP transients + Elementor + WP Rocket + OPcache.',
+  phase: '18', color: C.scriptGreen, version: 'v1.0.0',
+}, { x: (P2A + P2B) / 2, y: scY + ROW * 9.5, width: SW, height: SH });
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  SCRIPTS OPCIONAIS (a1-f1)                                          ║
+// ║  Nao rodam automaticamente — trigger manual pos post-deploy          ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+canvas.addNode('opt-header', {
+  label: 'Scripts Opcionais',
+  sub: 'Nao executam automaticamente no post-deploy. Rodam manualmente via SSH ou via post-deploy.sh com flag --scripts. Cada um e idempotente.',
+  phase: 'a-f', icon: 'OPT', color: C.optSlate,
+}, { x: POPT, y: Y0, width: LW, height: NH });
+
+canvas.addNode('a1', {
+  label: 'a1 WP Autoconfigure',
+  sub: 'wp core install + config. Usa Secrets Manager para credenciais admin. Util quando 04 so cria wp-config mas nao roda install.',
+  phase: 'A1', color: C.optSlate, version: 'v1.3.2',
+}, { x: POPT, y: Y0 + ROW, width: SW, height: SH });
+
+canvas.addNode('d1', {
+  label: 'd1 FPM Tuning',
+  sub: 'Calcula pm.max_children ideal por RAM e vCPU (~5 workers/vCPU). t3.large (8GB): ~10 workers. Evita OOM killer e request queuing.',
+  phase: 'D1', color: C.optSlate, version: 'v2.2.0',
+}, { x: POPT, y: Y0 + ROW * 2, width: SW, height: SH });
+
+canvas.addNode('d2', {
+  label: 'd2 Nginx Tuning',
+  sub: 'Gzip level, worker_connections, proxy_buffers, client_max_body_size, mime.types. Corrige mime.types que impede CSS de carregar (incident deploy #2).',
+  phase: 'D2', color: C.optSlate, version: 'v2.1.0',
+}, { x: POPT, y: Y0 + ROW * 3, width: SW, height: SH });
+
+canvas.addNode('d3', {
+  label: 'd3 MySQL Tuning',
+  sub: 'innodb_buffer_pool_size, query_cache (se MySQL local), max_connections. Para Aurora: skip — Aurora gerencia internamente.',
+  phase: 'D3', color: C.optSlate, version: 'v1.0.0',
+}, { x: POPT, y: Y0 + ROW * 4, width: SW, height: SH });
+
+canvas.addNode('b2', {
+  label: 'b2 Security Hardening',
+  sub: 'fail2ban (SSH + WP login), sshd_config (PasswordAuth no, PermitRoot no), UFW rules, wp-login rate limit.',
+  phase: 'B2', color: C.optSlate, version: 'v1.2.0',
+}, { x: POPT, y: Y0 + ROW * 5, width: SW, height: SH });
+
+canvas.addNode('e1', {
+  label: 'e1 Swap Setup',
+  sub: 'Cria swapfile (2x RAM ate 4GB). vm.swappiness=10. Protecao contra OOM killer em spikes de trafego.',
+  phase: 'E1', color: C.optSlate, version: 'v1.0.0',
+}, { x: POPT, y: Y0 + ROW * 6, width: SW, height: SH });
+
+canvas.addNode('f1', {
+  label: 'f1 Emergency Fix',
+  sub: 'Mitiga overload: desativa WP Rocket preload storm, mata Action Scheduler runaway, para wp-cron loops. Usar quando CPU > 90% apos deploy.',
+  phase: 'F1', icon: '!!', color: C.danger, version: 'v1.0.0',
+}, { x: POPT, y: Y0 + ROW * 7, width: SW, height: SH });
+
+canvas.addNode('d4', {
+  label: 'd4 Cache Warmup',
+  sub: 'Curl local em todas as paginas (sitemap.xml) + versoes EN (WPML). Popula page cache WP Rocket. OBRIGATORIO pre-cutover — sem warmup, usuarios pegam MISS em todas as paginas.',
+  phase: 'D4', icon: 'HOT', color: C.critical, version: 'v1.2.0',
+}, { x: POPT, y: Y0 + ROW * 8, width: SW + 10, height: SH + 6 });
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  PHASE 3 — VALIDATION                                               ║
+// ║  Testes no GREEN antes de receber trafego real                       ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+canvas.addNode('phase3', {
+  label: 'Validacao Green',
+  sub: 'Executar no GREEN antes do cutover. Health check, downloads, warmup. Se algo falhar aqui, NAO prosseguir para cutover.',
+  phase: 'PHASE 3', icon: 'CHECK', color: C.decision,
+}, { x: P3, y: Y0, width: LW, height: NH });
+
+canvas.addNode('c1', {
+  label: 'c1 Health Check',
+  sub: 'Valida: nginx respond, PHP-FPM alive, Redis connected, WP responds 200, DB accessible. Testa localhost:80 e localhost:8080.',
+  phase: 'C1', color: C.optSlate, version: 'v1.0.1',
+}, { x: P3, y: Y0 + ROW, width: SW, height: SH });
+
+canvas.addNode('c2', {
+  label: 'c2 Validate Downloads',
+  sub: 'Testa links de download (editais, documentos). Confirma que jet_download funciona (QS precisa estar na whitelist do CloudFront).',
+  phase: 'C2', color: C.optSlate, version: 'v1.0.0',
+}, { x: P3, y: Y0 + ROW * 2, width: SW, height: SH });
+
+canvas.addNode('warmup-exec', {
+  label: 'd4 Warmup Exec',
+  sub: 'Executa d4-cache-warmup.sh no GREEN. Curl em cada URL do sitemap via localhost. Popula WP Rocket page cache. Sem isso: TTFB de 3-5s na primeira visita.',
+  phase: 'WARM', icon: 'HOT', color: C.critical, version: 'v1.2.0',
+}, { x: P3, y: Y0 + ROW * 3, width: SW + 10, height: SH + 6 });
+
+canvas.addNode('warmup-risk', {
+  label: 'wp-content/cache/wp-rocket/',
+  sub: 'ESSE DIR DEVE EXISTIR. advanced-cache.php falha silenciosamente se ausente — WP Rocket nao gera page cache, site roda sem cache. Sintoma: TTFB alto, CPU alta.',
+  phase: 'RISCO', icon: '!!', color: C.critical,
+}, { x: P3, y: Y0 + ROW * 4.1, width: SW + 25, height: SH + 6 });
+
+canvas.addNode('wpr-config', {
+  label: 'WP Rocket Config',
+  sub: 'preload_bot:1 (popula cache), purge_cron:0 (NAO limpar periodicamente), rucss:0 (Remove Unused CSS OFF — causa flush loop). manual_preload:1.',
+  phase: 'CONFIG', icon: '!', color: C.warn,
+}, { x: P3, y: Y0 + ROW * 5.2, width: SW + 15, height: SH + 6 });
+
+canvas.addNode('xtest-green', {
+  label: 'X-Test-Green',
+  sub: 'Header no CloudFront: roteia para green-tg via ALB rule temporaria. Permite validar o GREEN pelo dominio prod antes do cutover. Usar ModHeader ou Playwright.',
+  phase: 'VALIDATE', icon: 'CF', color: C.warn,
+}, { x: P3, y: Y0 + ROW * 6.3, width: SW + 15, height: SH + 6 });
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  PHASE 4 — CUTOVER                                                  ║
+// ║  Decisao manual: GREEN vira PROD                                    ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+canvas.addNode('cutover-gate', {
+  label: 'CUTOVER',
+  sub: 'DECISAO MANUAL: green vira prod. Irreversivel sem re-deploy. Validar: health check OK, warmup completo, downloads OK, X-Test-Green validado.',
+  phase: 'PHASE 4', icon: 'GATE', color: C.decision,
+}, { x: P4, y: Y0, width: LW, height: LH });
+
+canvas.addNode('alb-register', {
+  label: 'ALB Register/Deregister',
+  sub: 'Registra GREEN no prod-tg (Target Group de producao). Deregistra BLUE do prod-tg. ALB comeca a enviar trafego para GREEN. Draining de 300s no BLUE.',
+  phase: 'ALB', color: C.infraCyan, icon: 'AWS',
+}, { x: P4, y: Y0 + ROW, width: NW, height: LH });
+
+canvas.addNode('eip-swap', {
+  label: 'EIP Swap',
+  sub: 'Move Elastic IP de producao (52.67.96.50) do BLUE para GREEN. Necessario para SSH direto e acesso sem ALB. aws ec2 associate-address.',
+  phase: 'EIP', icon: '!', color: C.warn,
+}, { x: P4, y: Y0 + ROW * 2.1, width: NW, height: NH });
+
+canvas.addNode('hostname-tag', {
+  label: 'Hostname + Tags EC2',
+  sub: 'Renomeia hostname: auto-green-YYYYMMDD-concertacao -> auto-blueprod-YYYYMMDD-concertacao. Atualiza Tag Name EC2: [GREEN] -> [BLUE-PROD]. Convenção: feedback_hostname_convention.',
+  phase: 'ID', color: C.warn,
+}, { x: P4, y: Y0 + ROW * 3.2, width: LW, height: SH });
+
+canvas.addNode('ssh-alias', {
+  label: 'SSH Alias Update',
+  sub: 'Atualizar ~/.ssh/config: concertacaoamazonia.com.br-prod-sa deve apontar para novo IP (ou EIP ja resolve). Cuidado com green-sa vs prod-sa.',
+  phase: 'SSH', color: C.warn,
+}, { x: P4, y: Y0 + ROW * 4.2, width: SW, height: SH });
+
+canvas.addNode('known-hosts', {
+  label: 'known_hosts Reset',
+  sub: 'Host key muda com EIP swap — ssh-keygen -R obrigatorio para o IP antigo. Sem isso, SSH recusa conexao com WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED.',
+  phase: 'SSH', icon: '!!', color: C.danger,
+}, { x: P4, y: Y0 + ROW * 5.3, width: SW + 15, height: SH });
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  PHASE 5 — CLEANUP                                                  ║
+// ║  Limpeza pos-cutover                                                 ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+canvas.addNode('cleanup', {
+  label: 'Cleanup Pos-Cutover',
+  sub: 'Executar apos confirmar que GREEN (agora PROD) esta estavel. Manter BLUE por 1-2h como rollback rapido.',
+  phase: 'PHASE 5', color: C.infraCyan,
+}, { x: P5, y: Y0, width: SW, height: SH });
+
+canvas.addNode('terminate-blue', {
+  label: 'Terminate Blue',
+  sub: 'Desabilitar termination protection (aws ec2 modify-instance-attribute). Adicionar tag DEPRECATED. Terminar instancia. Verificar que EIP nao esta associado.',
+  phase: 'EC2', color: C.infraCyan,
+}, { x: P5, y: Y0 + ROW, width: SW + 10, height: SH });
+
+canvas.addNode('dereg-green-tg', {
+  label: 'Esvaziar green-tg',
+  sub: 'Deregistrar instancia do green-tg (Target Group temporario). Manter TG vazio para proximo ciclo de deploy.',
+  phase: 'ALB', color: C.infraCyan,
+}, { x: P5, y: Y0 + ROW * 2, width: SW + 10, height: SH });
+
+canvas.addNode('alb-rules', {
+  label: 'ALB Rules Cleanup',
+  sub: 'Remover regra X-Test-Green do ALB (era temporaria para validacao). Remover qualquer bypass de VPN. Manter apenas regra default -> prod-tg.',
+  phase: 'ALB', color: C.infraCyan,
+}, { x: P5, y: Y0 + ROW * 3, width: SW + 20, height: SH });
+
+canvas.addNode('cf-invalidation', {
+  label: 'CloudFront Invalidation',
+  sub: 'Invalidar paths especificos (NAO /*). Ex: / , /cultura/ , /editais/ . Distribution: E2F1QD7E7YOYEB. Invalidacao global causa avalanche de MISS.',
+  phase: 'CDN', icon: '!', color: C.warn,
+}, { x: P5, y: Y0 + ROW * 4, width: SW + 20, height: SH });
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  EDGES — Conexoes entre os cards                                    ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+// Phase 0: Export chain
+canvas._addEdgeDirect('e-dev-expdb',    'dev-env',      'bottom', 'export-db',    'top', {});
+canvas._addEdgeDirect('e-expdb-expwpc', 'export-db',    'bottom', 'export-wpc',   'top', {});
+canvas._addEdgeDirect('e-expwpc-s3',    'export-wpc',   'bottom', 's3-artifacts', 'top', {});
+canvas._addEdgeDirect('e-s3-env',       's3-artifacts', 'bottom', 'env-file',     'top', {});
+
+// Phase 0 -> 1: Artifacts flow to EC2
+canvas._addEdgeDirect('e-s3-ec2',     's3-artifacts', 'out', 'create-ec2',  'in', {});
+canvas._addEdgeDirect('e-env-aurora',  'env-file',     'out', 'aurora-db',   'in', {});
+canvas._addEdgeDirect('e-env-secrets', 'env-file',     'out', 'secrets-mgr', 'in', {});
+
+// Phase 1: EC2 setup chain
+canvas._addEdgeDirect('e-ec2-ud',       'create-ec2', 'bottom', 'user-data',   'top', {});
+canvas._addEdgeDirect('e-ud-aurora',    'user-data',  'bottom', 'aurora-db',   'top', {});
+canvas._addEdgeDirect('e-aurora-secrets','aurora-db',  'bottom', 'secrets-mgr', 'top', {});
+
+// Phase 1 -> 2: EC2 ready, start post-deploy
+canvas._addEdgeDirect('e-ec2-postdeploy', 'create-ec2', 'out', 'post-deploy-sh', 'in', {});
+
+// Phase 2: Orchestrator to script columns
+canvas._addEdgeDirect('e-pd-s01', 'post-deploy-sh', 'bottom', 's01', 'top', {});
+canvas._addEdgeDirect('e-pd-s09', 'post-deploy-sh', 'bottom', 's09', 'top', {});
+
+// Column A chain (01-08)
+canvas._addEdgeDirect('e-s01-s02', 's01', 'bottom', 's02', 'top', {});
+canvas._addEdgeDirect('e-s02-s03', 's02', 'bottom', 's03', 'top', {});
+canvas._addEdgeDirect('e-s03-s04', 's03', 'bottom', 's04', 'top', {});
+canvas._addEdgeDirect('e-s04-s05', 's04', 'bottom', 's05', 'top', {});
+canvas._addEdgeDirect('e-s05-s06', 's05', 'bottom', 's06', 'top', {});
+canvas._addEdgeDirect('e-s06-s07', 's06', 'bottom', 's07', 'top', {});
+canvas._addEdgeDirect('e-s07-s08', 's07', 'bottom', 's08', 'top', {});
+
+// Column B chain (09-18)
+canvas._addEdgeDirect('e-s09-s10', 's09', 'bottom', 's10', 'top', {});
+canvas._addEdgeDirect('e-s10-s11', 's10', 'bottom', 's11', 'top', {});
+canvas._addEdgeDirect('e-s11-s12', 's11', 'bottom', 's12', 'top', {});
+canvas._addEdgeDirect('e-s12-s13', 's12', 'bottom', 's13', 'top', {});
+canvas._addEdgeDirect('e-s13-s14', 's13', 'bottom', 's14', 'top', {});
+canvas._addEdgeDirect('e-s14-s15', 's14', 'bottom', 's15', 'top', {});
+canvas._addEdgeDirect('e-s15-s16', 's15', 'bottom', 's16', 'top', {});
+canvas._addEdgeDirect('e-s16-s17', 's16', 'bottom', 's17', 'top', {});
+
+// Columns converge at 18
+canvas._addEdgeDirect('e-s08-s18',  's08', 'bottom', 's18', 'top', {});
+canvas._addEdgeDirect('e-s17-s18',  's17', 'bottom', 's18', 'top', {});
+
+// Optional scripts
+canvas._addEdgeDirect('e-pd-opt',   'post-deploy-sh', 'out', 'opt-header', 'in', {});
+canvas._addEdgeDirect('e-opt-a1',   'opt-header', 'bottom', 'a1',  'top', {});
+canvas._addEdgeDirect('e-a1-d1',    'a1',  'bottom', 'd1',  'top', {});
+canvas._addEdgeDirect('e-d1-d2',    'd1',  'bottom', 'd2',  'top', {});
+canvas._addEdgeDirect('e-d2-d3',    'd2',  'bottom', 'd3',  'top', {});
+canvas._addEdgeDirect('e-d3-b2',    'd3',  'bottom', 'b2',  'top', {});
+canvas._addEdgeDirect('e-b2-e1',    'b2',  'bottom', 'e1',  'top', {});
+canvas._addEdgeDirect('e-e1-f1',    'e1',  'bottom', 'f1',  'top', {});
+canvas._addEdgeDirect('e-f1-d4',    'f1',  'bottom', 'd4',  'top', {});
+
+// Phase 2 -> 3
+canvas._addEdgeDirect('e-s18-p3', 's18', 'out', 'phase3', 'in', {});
+
+// Phase 3: Validation chain
+canvas._addEdgeDirect('e-p3-c1',       'phase3',     'bottom', 'c1',          'top', {});
+canvas._addEdgeDirect('e-c1-c2',       'c1',         'bottom', 'c2',          'top', {});
+canvas._addEdgeDirect('e-c2-warmup',   'c2',         'bottom', 'warmup-exec', 'top', {});
+canvas._addEdgeDirect('e-warmup-risk', 'warmup-exec','bottom', 'warmup-risk', 'top', {});
+canvas._addEdgeDirect('e-risk-wpr',    'warmup-risk','bottom', 'wpr-config',  'top', {});
+canvas._addEdgeDirect('e-wpr-xtest',   'wpr-config', 'bottom', 'xtest-green', 'top', {});
+canvas._addEdgeDirect('e-d4-warmup',   'd4',         'out',    'warmup-exec', 'in', {});
+
+// Phase 3 -> 4
+canvas._addEdgeDirect('e-xtest-cutover', 'xtest-green', 'out', 'cutover-gate', 'in', {});
+
+// Phase 4: Cutover chain
+canvas._addEdgeDirect('e-cut-alb',     'cutover-gate', 'bottom', 'alb-register',  'top', {});
+canvas._addEdgeDirect('e-alb-eip',     'alb-register', 'bottom', 'eip-swap',      'top', {});
+canvas._addEdgeDirect('e-eip-host',    'eip-swap',     'bottom', 'hostname-tag',  'top', {});
+canvas._addEdgeDirect('e-host-ssh',    'hostname-tag', 'bottom', 'ssh-alias',     'top', {});
+canvas._addEdgeDirect('e-ssh-known',   'ssh-alias',    'bottom', 'known-hosts',   'top', {});
+
+// Phase 4 -> 5
+canvas._addEdgeDirect('e-known-cleanup', 'known-hosts', 'out', 'cleanup', 'in', {});
+
+// Phase 5: Cleanup chain
+canvas._addEdgeDirect('e-clean-term',   'cleanup',       'bottom', 'terminate-blue', 'top', {});
+canvas._addEdgeDirect('e-term-dereg',   'terminate-blue', 'bottom', 'dereg-green-tg', 'top', {});
+canvas._addEdgeDirect('e-dereg-rules',  'dereg-green-tg','bottom', 'alb-rules',      'top', {});
+canvas._addEdgeDirect('e-rules-cf',     'alb-rules',     'bottom', 'cf-invalidation', 'top', {});
+
+// ─── Fit view ───
+setTimeout(() => canvas.fitToNodes(), 200);
+
+// ─── Theme sync: update title element ───
+canvas.on('theme:changed', ({ theme }) => {
+  const t = theme === 'light'
+    ? { bg: '#ffffff', surface: '#f6f8fa', border: '#d0d7de', text: '#1f2328' }
+    : { bg: '#0d1117', surface: '#161b22', border: '#30363d', text: '#f0f6fc' };
+  document.body.style.background = t.bg;
+  const title = document.getElementById('title');
+  title.style.background = t.surface + 'ee';
+  title.style.borderColor = t.border;
+  title.style.color = t.text;
+});
+
+</script>
+</body>
+</html>

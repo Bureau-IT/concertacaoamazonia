@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Deploy Green — Concertacao Amazonica — 2026-04-12</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; height: 100vh; overflow: hidden; font-family: monospace; }
+  #wrap { width: 100%; height: 100%; position: relative; }
+  #wrap canvas { position: absolute; top: 0; left: 0; }
+  #legend {
+    position: fixed; top: 12px; left: 12px; z-index: 100;
+    background: #161b22ee; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px 16px; color: #c9d1d9; font-size: 11px; line-height: 1.8;
+    pointer-events: none;
+  }
+  #legend b { color: #e2e8f0; font-size: 12px; }
+  .leg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div id="legend">
+  <b>Deploy Green — Concertacao 2026-04-12</b><br>
+  <span class="leg-dot" style="background:#f97316"></span>Sequencial (blocker)<br>
+  <span class="leg-dot" style="background:#22c55e"></span>Paralelo (independente)<br>
+  <span class="leg-dot" style="background:#3b82f6"></span>Infra / tuning<br>
+  <span class="leg-dot" style="background:#a855f7"></span>Validacao<br>
+  <span class="leg-dot" style="background:#ef4444"></span>Virada (cutover)<br>
+  <span class="leg-dot" style="background:#6b7280"></span>Concluido
+</div>
+<div id="wrap"></div>
+<script type="module">
+// Serve from ~/scripts: npx serve ~/scripts -p 7654
+// Then open: http://localhost:7654/server-tools/v2/docker-dev/sites/concertacao/docs/deploy-green-flow.html
+import { BitCanvas } from '/bit-canvas/bit-canvas.js';
+
+// ── Cores por tipo ──
+const C = {
+  seq:    '#f97316', // sequencial / blocker
+  par:    '#22c55e', // paralelo
+  infra:  '#3b82f6', // infra/tuning
+  valid:  '#a855f7', // validacao
+  cut:    '#ef4444', // cutover
+  done:   '#6b7280', // concluido
+};
+
+// ── Renderer ──
+function drawNode(ctx, node, { selected, scale, registerPort }) {
+  const { x, y, width: w, height: h, data } = node;
+  const color = data.color || '#334155';
+  const done = data.done;
+
+  // Fundo
+  ctx.fillStyle = done ? '#1e293b' : (color + '22');
+  ctx.strokeStyle = done ? '#6b7280' : color;
+  ctx.lineWidth = selected ? 2.5 : 1.2;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  // Checkmark ou step number
+  if (done) {
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('\u2713', x + 8, y + 18);
+  } else if (data.step) {
+    ctx.fillStyle = color;
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(data.step, x + 8, y + 16);
+  }
+
+  // Label principal
+  ctx.fillStyle = done ? '#6b7280' : '#e2e8f0';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(data.label, x + w / 2, y + h / 2 - 2);
+
+  // Sub-label
+  if (data.sub) {
+    ctx.fillStyle = done ? '#4b5563' : '#8b949e';
+    ctx.font = '9px monospace';
+    ctx.fillText(data.sub, x + w / 2, y + h / 2 + 12);
+  }
+
+  // Tipo tag
+  if (data.tag) {
+    const tagColor = data.tag === 'SEQ' ? '#f97316' :
+                     data.tag === 'PAR' ? '#22c55e' :
+                     data.tag === 'CUT' ? '#ef4444' : '#8b949e';
+    ctx.fillStyle = tagColor + '44';
+    ctx.strokeStyle = tagColor;
+    ctx.lineWidth = 0.5;
+    const tw = ctx.measureText(data.tag).width + 8;
+    ctx.beginPath();
+    ctx.roundRect(x + w - tw - 6, y + 4, tw, 14, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = tagColor;
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(data.tag, x + w - tw / 2 - 6, y + 13);
+  }
+
+  // Portas
+  registerPort('out', x + w, y + h / 2, 'out');
+  registerPort('in',  x,     y + h / 2, 'in');
+  registerPort('bot', x + w / 2, y + h, 'out');
+  registerPort('top', x + w / 2, y, 'in');
+}
+
+const canvas = new BitCanvas({
+  container: document.getElementById('wrap'),
+  renderer: drawNode,
+  edges: true,
+  grid: { style: 'dots', size: 20 },
+  snap: { enabled: true, size: 20 },
+  rulers: { show: true, size: 20 },
+  zoomBar: true,
+  contextMenu: true,
+  objectToolbar: true,
+  mode: 'view',
+  persistence: { key: 'deploy-green-concertacao', debounce: 500 },
+});
+
+// ── Nodes ──
+const W = 200, H = 60;
+const gx = 240; // gap horizontal
+const gy = 100; // gap vertical
+
+// Row 0 — Fase 1: Prep (.env + exports) — DONE
+canvas.addNode('env', { label: '.env review', sub: 'HML=GREEN semântica', color: C.done, done: true, tag: 'SEQ' },
+  { x: 60, y: 40, width: W, height: H });
+canvas.addNode('export-db', { label: 'Export DB dev', sub: 'db_20260412...sql.gz', color: C.done, done: true, tag: 'PAR' },
+  { x: 60 + gx, y: 40, width: W, height: H });
+canvas.addNode('export-wp', { label: 'Export wp-content', sub: 'wpcontent_20260412...tar.gz', color: C.done, done: true, tag: 'PAR' },
+  { x: 60 + gx * 2, y: 40, width: W, height: H });
+
+// Row 1 — Fase 2: Infra AWS — DONE
+canvas.addNode('secrets', { label: 'Secrets Manager', sub: 'DB_NAME_HML atualizado', color: C.done, done: true, tag: 'SEQ' },
+  { x: 60, y: 40 + gy, width: W, height: H });
+canvas.addNode('grant', { label: 'GRANT Aurora', sub: 'wp_concertacao_20260412', color: C.done, done: true, tag: 'SEQ' },
+  { x: 60 + gx, y: 40 + gy, width: W, height: H });
+canvas.addNode('s3-copy', { label: 'S3 copy dev→hml', sub: 'sql/ + wp/ paths', color: C.done, done: true, tag: 'SEQ' },
+  { x: 60 + gx * 2, y: 40 + gy, width: W, height: H });
+
+// Row 2 — Fase 3: EC2 + post-deploy — MIXED
+canvas.addNode('ec2', { label: 'Create EC2', sub: 'i-0f3787bccdd936dac', color: C.done, done: true, tag: 'SEQ' },
+  { x: 60, y: 40 + gy * 2, width: W, height: H });
+canvas.addNode('post-base', { label: 'Post-deploy base', sub: '01-08 (infra+PHP+nginx)', color: C.done, done: true, tag: 'SEQ' },
+  { x: 60 + gx, y: 40 + gy * 2, width: W, height: H });
+canvas.addNode('import-db', { label: '09-importdatabase', sub: 'DB importado com sucesso', color: C.done, done: true, tag: 'SEQ' },
+  { x: 60 + gx * 2, y: 40 + gy * 2, width: W, height: H });
+
+// Row 3 — Pós-DB: paralelizáveis
+canvas.addNode('a1-autoconf', { label: 'a1-autoconfigure', sub: 'WP config + plugins', color: C.seq, tag: 'SEQ', step: '1' },
+  { x: 60, y: 40 + gy * 3, width: W, height: H });
+canvas.addNode('import-wpc', { label: '10-importwpcontent', sub: 'tema + mu-plugins', color: C.par, tag: 'PAR', step: '||' },
+  { x: 60 + gx, y: 40 + gy * 3, width: W, height: H });
+canvas.addNode('c2-validate', { label: 'c2-validate-downloads', sub: 'verificar S3 imports', color: C.par, tag: 'PAR', step: '||' },
+  { x: 60 + gx * 2, y: 40 + gy * 3, width: W, height: H });
+
+// Row 4 — Config + tuning (paralelo)
+canvas.addNode('wpmemory', { label: '15-wpmemoryconfig', sub: 'limites de memória WP', color: C.seq, tag: 'SEQ', step: '2' },
+  { x: 60, y: 40 + gy * 4, width: W, height: H });
+canvas.addNode('d2-nginx', { label: 'd2-nginx-tuning', sub: 'nginx performance', color: C.infra, tag: 'PAR', step: '||' },
+  { x: 60 + gx, y: 40 + gy * 4, width: W, height: H });
+canvas.addNode('d3-mysql', { label: 'd3-mysql-tuning', sub: 'Aurora tuning', color: C.infra, tag: 'PAR', step: '||' },
+  { x: 60 + gx * 2, y: 40 + gy * 4, width: W, height: H });
+
+// Row 5 — Export + FPM
+canvas.addNode('export-bkp', { label: '16-exportdatabase', sub: 'backup pós-config', color: C.seq, tag: 'SEQ', step: '3' },
+  { x: 60, y: 40 + gy * 5, width: W, height: H });
+canvas.addNode('fpm-override', { label: 'FPM Override', sub: '10 workers (não 25)', color: C.infra, tag: 'PAR', step: '||' },
+  { x: 60 + gx, y: 40 + gy * 5, width: W, height: H });
+
+// Row 6 — Validação (tudo paralelo)
+canvas.addNode('v-frontend', { label: 'Validar frontend', sub: 'visual, links, nav', color: C.valid, tag: 'PAR', step: 'V' },
+  { x: 60, y: 40 + gy * 6.5, width: W, height: H });
+canvas.addNode('v-tec', { label: 'Validar TEC', sub: 'eventos, calendário', color: C.valid, tag: 'PAR', step: 'V' },
+  { x: 60 + gx, y: 40 + gy * 6.5, width: W, height: H });
+canvas.addNode('v-wpml', { label: 'Validar WPML', sub: 'traduções EN/PT', color: C.valid, tag: 'PAR', step: 'V' },
+  { x: 60 + gx * 2, y: 40 + gy * 6.5, width: W, height: H });
+canvas.addNode('v-perf', { label: 'Validar performance', sub: 'cache, WP Rocket, Redis', color: C.valid, tag: 'PAR', step: 'V' },
+  { x: 60 + gx * 3, y: 40 + gy * 6.5, width: W, height: H });
+canvas.addNode('v-license', { label: 'Licenças', sub: 'Elementor, Rocket, WPML', color: C.valid, tag: 'PAR', step: 'V' },
+  { x: 60 + gx * 3, y: 40 + gy * 5, width: W, height: H });
+
+// Row 7 — Cutover
+canvas.addNode('cutover', { label: 'VIRADA PROD', sub: 'ALB swap + EIP + CF invalidation', color: C.cut, tag: 'CUT', step: '!' },
+  { x: 60 + gx, y: 40 + gy * 7.5, width: W + 40, height: H + 10 });
+
+// ── Edges ──
+let eid = 0;
+const e = (from, fp, to, tp) => canvas.addEdge('e' + (++eid), from, fp, to, tp, {});
+
+// Row 0 → Row 1
+e('env', 'bot', 'secrets', 'top');
+e('export-db', 'bot', 's3-copy', 'top');
+e('export-wp', 'bot', 's3-copy', 'top');
+
+// Row 1 → Row 2
+e('secrets', 'bot', 'ec2', 'top');
+e('grant', 'out', 's3-copy', 'in');
+e('ec2', 'out', 'post-base', 'in');
+e('post-base', 'out', 'import-db', 'in');
+e('s3-copy', 'bot', 'import-db', 'top');
+
+// Row 2 → Row 3 (após DB import)
+e('import-db', 'bot', 'a1-autoconf', 'top');
+e('import-db', 'bot', 'import-wpc', 'top');
+e('import-db', 'bot', 'c2-validate', 'top');
+
+// Row 3 → Row 4
+e('a1-autoconf', 'bot', 'wpmemory', 'top');
+e('import-wpc', 'bot', 'd2-nginx', 'top');
+e('c2-validate', 'bot', 'd3-mysql', 'top');
+
+// Row 4 → Row 5
+e('wpmemory', 'bot', 'export-bkp', 'top');
+e('d2-nginx', 'bot', 'fpm-override', 'top');
+
+// Row 5 → Validation
+e('export-bkp', 'bot', 'v-frontend', 'top');
+e('fpm-override', 'bot', 'v-tec', 'top');
+e('export-bkp', 'bot', 'v-wpml', 'top');
+e('fpm-override', 'bot', 'v-perf', 'top');
+e('d3-mysql', 'bot', 'v-license', 'top');
+
+// Validation → Cutover
+e('v-frontend', 'bot', 'cutover', 'top');
+e('v-tec', 'bot', 'cutover', 'top');
+e('v-wpml', 'bot', 'cutover', 'top');
+e('v-perf', 'bot', 'cutover', 'top');
+e('v-license', 'bot', 'cutover', 'top');
+
+// Fit view
+setTimeout(() => canvas.fitToNodes(), 200);
+</script>
+</body>
+</html>

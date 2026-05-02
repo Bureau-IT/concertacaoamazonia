@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Fluxo S3: Docker Dev → S3 → EC2 — Concertacao</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; height: 100vh; overflow: hidden; font-family: monospace; }
+  #wrap { width: 100%; height: 100%; position: relative; }
+  #wrap canvas { position: absolute; top: 0; left: 0; }
+  #legend {
+    position: fixed; top: 12px; left: 12px; z-index: 100;
+    background: #161b22ee; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px 16px; color: #c9d1d9; font-size: 11px; line-height: 1.9;
+    pointer-events: none; max-width: 280px;
+  }
+  #legend b { color: #e2e8f0; font-size: 12px; }
+  .ld { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div id="legend">
+  <b>Fluxo S3 — Export / Import</b><br>
+  <span class="ld" style="background:#22c55e"></span>Docker Dev (origem)<br>
+  <span class="ld" style="background:#f97316"></span>S3 Bucket (transito)<br>
+  <span class="ld" style="background:#3b82f6"></span>EC2 (destino)<br>
+  <span class="ld" style="background:#a855f7"></span>.env (controle)<br>
+  <span class="ld" style="background:#6b7280"></span>Comando / operacao
+</div>
+<div id="wrap"></div>
+<script type="module">
+// Serve from ~/scripts: npx serve ~/scripts -p 7654
+// Then open: http://localhost:7654/server-tools/v2/docker-dev/sites/concertacao/docs/s3-import-flow.html
+import { BitCanvas } from '/bit-canvas/bit-canvas.js';
+
+const C = {
+  docker: '#22c55e',
+  s3:     '#f97316',
+  ec2:    '#3b82f6',
+  env:    '#a855f7',
+  cmd:    '#6b7280',
+};
+
+// ── Renderer ──
+function drawNode(ctx, node, { selected, scale, registerPort }) {
+  const { x, y, width: w, height: h, data } = node;
+  const color = data.color || '#334155';
+
+  // Fundo
+  ctx.fillStyle = color + (data.dim ? '11' : '1a');
+  ctx.strokeStyle = color;
+  ctx.lineWidth = selected ? 2.5 : (data.wide ? 1.5 : 1);
+  if (data.dashed) ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, data.round || 6);
+  ctx.fill();
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Icone / badge top-left
+  if (data.icon) {
+    ctx.fillStyle = color;
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(data.icon, x + 8, y + 16);
+  }
+
+  // Label principal
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = `bold ${data.fontSize || 11}px monospace`;
+  ctx.textAlign = 'center';
+  const lines = (data.label || '').split('\n');
+  const lineH = (data.fontSize || 11) + 4;
+  const startY = y + h / 2 - ((lines.length - 1) * lineH) / 2;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x + w / 2, startY + i * lineH);
+  });
+
+  // Sub-label
+  if (data.sub) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    const subLines = data.sub.split('\n');
+    subLines.forEach((sl, i) => {
+      ctx.fillText(sl, x + w / 2, startY + lines.length * lineH + i * 12 + 2);
+    });
+  }
+
+  // Numero de passo
+  if (data.step) {
+    ctx.fillStyle = '#161b22';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x + w - 14, y + 14, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(data.step, x + w - 14, y + 14);
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // Portas
+  registerPort('out', x + w, y + h / 2, 'out');
+  registerPort('in',  x,     y + h / 2, 'in');
+  registerPort('bot', x + w / 2, y + h, 'out');
+  registerPort('top', x + w / 2, y, 'in');
+  registerPort('out-top', x + w, y + h * 0.3, 'out');
+  registerPort('out-bot', x + w, y + h * 0.7, 'out');
+  registerPort('in-top', x, y + h * 0.3, 'in');
+  registerPort('in-bot', x, y + h * 0.7, 'in');
+}
+
+const canvas = new BitCanvas({
+  container: document.getElementById('wrap'),
+  renderer: drawNode,
+  edges: true,
+  grid: { style: 'dots', size: 20 },
+  snap: { enabled: true, size: 20 },
+  rulers: { show: true, size: 20 },
+  zoomBar: true,
+  contextMenu: true,
+  objectToolbar: true,
+  mode: 'view',
+  persistence: { key: 's3-import-flow-concertacao', debounce: 500 },
+});
+
+// ════════════════════════════════════════
+// COLUNA 1: DOCKER DEV (origem)
+// ════════════════════════════════════════
+const col1 = 60, col2 = 340, col3 = 700, col4 = 1060;
+const W = 240, Ws = 200, Wl = 280;
+
+// Header Docker
+canvas.addNode('hdr-docker', {
+  label: 'DOCKER DEV', sub: 'Mac local (cambrasmax)', color: C.docker, icon: 'DEV', fontSize: 13, wide: true, round: 10,
+}, { x: col1, y: 40, width: Wl, height: 50 });
+
+// export-db
+canvas.addNode('exp-db-cmd', {
+  label: 'std export-db', sub: 'export-db.sh', color: C.docker, step: '1',
+}, { x: col1, y: 120, width: W, height: 55 });
+
+canvas.addNode('exp-db-dump', {
+  label: 'mysqldump', sub: 'container mysql → .sql\ngzip → .sql.gz\nsha256 checksum', color: C.cmd,
+}, { x: col1, y: 200, width: W, height: 70 });
+
+canvas.addNode('exp-db-local', {
+  label: 'Arquivo local', sub: 'exports/databases/\ndb_20260412_234811_...sql.gz', color: C.docker, dashed: true,
+}, { x: col1, y: 300, width: W, height: 60 });
+
+// export-wpcontent
+canvas.addNode('exp-wp-cmd', {
+  label: 'std export-wpcontent', sub: 'export-wpcontent.sh', color: C.docker, step: '2',
+}, { x: col1, y: 400, width: W, height: 55 });
+
+canvas.addNode('exp-wp-tar', {
+  label: 'tar + gzip', sub: 'wp-content/ (sem uploads)\nexclui: cache, db-config,\nobject-cache, wp-rocket-config', color: C.cmd,
+}, { x: col1, y: 480, width: W, height: 80 });
+
+canvas.addNode('exp-wp-local', {
+  label: 'Arquivo local', sub: 'exports/wpcontent/wp/\nwpcontent_20260412_...tar.gz', color: C.docker, dashed: true,
+}, { x: col1, y: 590, width: W, height: 60 });
+
+// ════════════════════════════════════════
+// COLUNA 2: S3 BUCKET (transito)
+// ════════════════════════════════════════
+
+// Header S3
+canvas.addNode('hdr-s3', {
+  label: 'S3 BUCKET', sub: 'concertacao-backups', color: C.s3, icon: 'S3', fontSize: 13, wide: true, round: 10,
+}, { x: col2, y: 40, width: Wl, height: 50 });
+
+// DB path
+canvas.addNode('s3-db-dir', {
+  label: 'concertacao/dev/sql/', sub: 'aws s3 cp → upload\n+ .sha256 + .meta.json', color: C.s3, step: '3',
+}, { x: col2, y: 200, width: Wl, height: 65 });
+
+canvas.addNode('s3-db-copy', {
+  label: 'aws s3 cp\ndev/sql → hml/sql', sub: 'Copia entre ambientes\n(necessario quando ENVIRONMENT=hml)', color: C.cmd, dashed: true,
+}, { x: col2, y: 300, width: Wl, height: 70 });
+
+canvas.addNode('s3-db-hml', {
+  label: 'concertacao/hml/sql/', sub: 'db_20260412_...sql.gz\n(fonte do import EC2)', color: C.s3, wide: true,
+}, { x: col2, y: 400, width: Wl, height: 60 });
+
+// WP path
+canvas.addNode('s3-wp-dir', {
+  label: 'concertacao/dev/wp/', sub: 'aws s3 cp → upload\n+ .sha256 + .meta.json', color: C.s3, step: '4',
+}, { x: col2, y: 500, width: Wl, height: 65 });
+
+canvas.addNode('s3-wp-copy', {
+  label: 'aws s3 cp\ndev/wp → hml/wp', sub: 'Copia entre ambientes', color: C.cmd, dashed: true,
+}, { x: col2, y: 590, width: Wl, height: 55 });
+
+canvas.addNode('s3-wp-hml', {
+  label: 'concertacao/hml/wp/', sub: 'wpcontent_20260412_...tar.gz\n(fonte do import EC2)', color: C.s3, wide: true,
+}, { x: col2, y: 670, width: Wl, height: 60 });
+
+// ════════════════════════════════════════
+// COLUNA 3: EC2 (destino)
+// ════════════════════════════════════════
+
+// Header EC2
+canvas.addNode('hdr-ec2', {
+  label: 'EC2 GREEN', sub: 'i-0f3787bccdd936dac (54.207.84.130)', color: C.ec2, icon: 'EC2', fontSize: 13, wide: true, round: 10,
+}, { x: col3, y: 40, width: Wl + 40, height: 50 });
+
+// 09-importdatabase
+canvas.addNode('imp-db-cmd', {
+  label: '09-importdatabase.sh', sub: 'via post-deploy.sh (SSH)', color: C.ec2, step: '5',
+}, { x: col3, y: 140, width: Wl, height: 55 });
+
+canvas.addNode('imp-db-s3dl', {
+  label: 'aws s3 cp', sub: 's3://concertacao-backups/\nconcertacao/hml/sql/db_*.gz\n→ /tmp/', color: C.cmd,
+}, { x: col3, y: 220, width: Wl, height: 75 });
+
+canvas.addNode('imp-db-gunzip', {
+  label: 'gunzip + backup', sub: '.pre-import-backup.sql.gz\n(rollback se falhar)', color: C.cmd,
+}, { x: col3, y: 320, width: Wl, height: 55 });
+
+canvas.addNode('imp-db-import', {
+  label: 'wp db import', sub: '--skip-plugins\n→ wp_concertacao_20260412', color: C.ec2, wide: true,
+}, { x: col3, y: 400, width: Wl, height: 60 });
+
+canvas.addNode('imp-db-sr', {
+  label: 'wp search-replace', sub: 'cambrasmax.local:8484\n→ concertacaoamazonia.com.br\n(https, http, json-escaped)', color: C.ec2,
+}, { x: col3, y: 485, width: Wl, height: 75 });
+
+canvas.addNode('imp-db-wpml', {
+  label: 'Cleanup WPML', sub: 'Deleta ate_error_details,\nSitekey.lock (evita erro 426)\nAtualiza ate_original_site_url', color: C.cmd, dashed: true,
+}, { x: col3, y: 585, width: Wl, height: 70 });
+
+// 10-importwpcontent
+canvas.addNode('imp-wp-cmd', {
+  label: '10-importwpcontent.sh', sub: 'via post-deploy.sh (SSH)', color: C.ec2, step: '6',
+}, { x: col3, y: 690, width: Wl, height: 55 });
+
+canvas.addNode('imp-wp-s3dl', {
+  label: 'aws s3 cp', sub: 's3://concertacao-backups/\nconcertacao/hml/wp/wpcontent_*.gz\n→ $WP_ROOT/', color: C.cmd,
+}, { x: col3, y: 770, width: Wl, height: 75 });
+
+canvas.addNode('imp-wp-extract', {
+  label: 'tar extract + swap', sub: 'wp-content.new/ (extract)\nmv wp-content → wp-content.old\nmv wp-content.new → wp-content', color: C.ec2, wide: true,
+}, { x: col3, y: 870, width: Wl, height: 75 });
+
+canvas.addNode('imp-wp-perm', {
+  label: 'chown + chmod', sub: 'www-data:www-data\nrecursivo em wp-content/', color: C.cmd,
+}, { x: col3, y: 970, width: Wl, height: 55 });
+
+// ════════════════════════════════════════
+// COLUNA 4: .env (controle)
+// ════════════════════════════════════════
+
+canvas.addNode('hdr-env', {
+  label: '.ENV', sub: '.env.concertacaoamazonia.com.br.sa', color: C.env, icon: 'CFG', fontSize: 13, wide: true, round: 10,
+}, { x: col4, y: 40, width: Wl, height: 50 });
+
+canvas.addNode('env-bucket', {
+  label: 'BACKUP_BUCKET_S3_*', sub: '"concertacao-backups"\n(mesmo bucket, todos os envs)', color: C.env,
+}, { x: col4, y: 140, width: Wl, height: 65 });
+
+canvas.addNode('env-dirs', {
+  label: 'S3 Directories', sub: 'SQL_EXPORT_S3_DIR_DEV=concertacao/dev/sql\nSQL_IMPORT_S3_DIR_HML=concertacao/hml/sql\nWP_EXPORT_S3_DIR_DEV=concertacao/dev/wp\nWP_IMPORT_S3_DIR_HML=concertacao/hml/wp', color: C.env, fontSize: 10,
+}, { x: col4, y: 240, width: Wl, height: 90 });
+
+canvas.addNode('env-files-db', {
+  label: 'SQL_IMPORT_FILE_HML', sub: '"db_20260412_234811_\ncambrasmax_concertacao_...\n_dev.sql.gz"', color: C.env, wide: true,
+}, { x: col4, y: 380, width: Wl, height: 80 });
+
+canvas.addNode('env-files-wp', {
+  label: 'WP_IMPORT_FILE_HML', sub: '"wpcontent_20260412_234814_\ncambrasmax_concertacao_\ndev.tar.gz"', color: C.env, wide: true,
+}, { x: col4, y: 500, width: Wl, height: 80 });
+
+canvas.addNode('env-note', {
+  label: 'Ponte dev → hml', sub: 'Exporta de DEV, copia para\npath HML no S3, import file\naponta para o path HML.\nScripts EC2 leem _HML vars.', color: C.env, dashed: true, fontSize: 10,
+}, { x: col4, y: 630, width: Wl, height: 80 });
+
+// Idempotency note
+canvas.addNode('idemp', {
+  label: 'Idempotencia', sub: 'Cada script cria flag:\n.deploy-{script}.done\nRerun pula se flag existe.', color: C.cmd, dashed: true, fontSize: 10,
+}, { x: col4, y: 760, width: Wl, height: 70 });
+
+// ════════════════════════════════════════
+// EDGES
+// ════════════════════════════════════════
+let eid = 0;
+const e = (from, fp, to, tp) => canvas.addEdge('e' + (++eid), from, fp, to, tp, {});
+
+// Docker: export-db flow
+e('exp-db-cmd', 'bot', 'exp-db-dump', 'top');
+e('exp-db-dump', 'bot', 'exp-db-local', 'top');
+e('exp-db-local', 'out', 's3-db-dir', 'in');
+
+// Docker: export-wp flow
+e('exp-wp-cmd', 'bot', 'exp-wp-tar', 'top');
+e('exp-wp-tar', 'bot', 'exp-wp-local', 'top');
+e('exp-wp-local', 'out', 's3-wp-dir', 'in');
+
+// S3: db path
+e('s3-db-dir', 'bot', 's3-db-copy', 'top');
+e('s3-db-copy', 'bot', 's3-db-hml', 'top');
+
+// S3: wp path
+e('s3-wp-dir', 'bot', 's3-wp-copy', 'top');
+e('s3-wp-copy', 'bot', 's3-wp-hml', 'top');
+
+// S3 → EC2: db
+e('s3-db-hml', 'out', 'imp-db-s3dl', 'in');
+
+// S3 → EC2: wp
+e('s3-wp-hml', 'out', 'imp-wp-s3dl', 'in');
+
+// EC2: import-db flow
+e('imp-db-cmd', 'bot', 'imp-db-s3dl', 'top');
+e('imp-db-s3dl', 'bot', 'imp-db-gunzip', 'top');
+e('imp-db-gunzip', 'bot', 'imp-db-import', 'top');
+e('imp-db-import', 'bot', 'imp-db-sr', 'top');
+e('imp-db-sr', 'bot', 'imp-db-wpml', 'top');
+
+// EC2: import-wp flow
+e('imp-wp-cmd', 'bot', 'imp-wp-s3dl', 'top');
+e('imp-wp-s3dl', 'bot', 'imp-wp-extract', 'top');
+e('imp-wp-extract', 'bot', 'imp-wp-perm', 'top');
+
+// .env → S3 (controle de paths)
+e('env-bucket', 'in', 'hdr-s3', 'out');
+e('env-files-db', 'in', 's3-db-hml', 'out');
+e('env-files-wp', 'in', 's3-wp-hml', 'out');
+
+// Fit view
+setTimeout(() => canvas.fitToNodes(), 200);
+</script>
+</body>
+</html>

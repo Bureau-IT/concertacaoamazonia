@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Atlas Cultural — Fluxo dos mu-plugins anti "[object Object]"</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; height: 100vh; overflow: hidden; font-family: system-ui, sans-serif; }
+  #wrap { width: 100%; height: 100%; position: relative; }
+  #wrap canvas { position: absolute; top: 0; left: 0; }
+  #legend {
+    position: absolute; top: 12px; left: 12px; z-index: 100;
+    background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+    padding: 12px 16px; color: #e5e7eb; font-size: 12px; line-height: 1.6;
+    max-width: 320px;
+  }
+  #legend h2 { font-size: 13px; margin-bottom: 8px; color: #60a5fa; }
+  #legend .lg-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  #legend .sw {
+    width: 16px; height: 10px; border-radius: 2px; border: 1px solid #475569;
+  }
+  #layout-toggle {
+    position: absolute; top: 12px; right: 12px; z-index: 100;
+    display: flex; background: #1e293b; border: 1px solid #334155;
+    border-radius: 6px; overflow: hidden;
+    font-family: system-ui, sans-serif; font-size: 12px;
+  }
+  #layout-toggle button {
+    background: transparent; color: #94a3b8; border: 0;
+    padding: 8px 14px; cursor: pointer; font-size: 12px;
+    transition: background 0.15s, color 0.15s;
+  }
+  #layout-toggle button:hover { background: #334155; color: #e5e7eb; }
+  #layout-toggle button.active { background: #60a5fa; color: #0d1117; font-weight: 600; }
+  #layout-toggle button + button { border-left: 1px solid #334155; }
+</style>
+</head>
+<body>
+<div id="legend">
+  <h2>Atlas Cultural — Popup "[object Object]" fix</h2>
+  <div class="lg-row"><span class="sw" style="background:#60a5fa"></span>Browser / JS cliente</div>
+  <div class="lg-row"><span class="sw" style="background:#a78bfa"></span>CDN / CloudFront</div>
+  <div class="lg-row"><span class="sw" style="background:#f59e0b"></span>WordPress REST core</div>
+  <div class="lg-row"><span class="sw" style="background:#4ade80"></span>mu-plugin fix</div>
+  <div class="lg-row"><span class="sw" style="background:#ef4444"></span>Erro / falha</div>
+  <div class="lg-row"><span class="sw" style="background:#eab308"></span>Terminal / fim</div>
+  <div style="margin-top: 10px; color: #94a3b8; font-size: 11px;">
+    Ctrl+Scroll = zoom · Drag = mover · Scroll = pan
+  </div>
+</div>
+<div id="wrap"></div>
+<div id="layout-toggle">
+  <button id="btn-columnar" type="button">Colunar</button>
+  <button id="btn-free" type="button">Livre</button>
+</div>
+
+<script src="./elk.bundled.js"></script>
+<script type="module">
+import { BitCanvas } from './bit-canvas.js';
+
+const LAYOUT_KEY = 'atlas-popup-layout-mode';
+
+const canvas = new BitCanvas({
+  container: document.getElementById('wrap'),
+  renderer: 'standard',
+  edges: true,
+  grid: { style: 'dots', size: 30 },
+  snap: { enabled: true, size: 20 },
+  rulers: { show: true, size: 20 },
+  zoomBar: true,
+  contextMenu: true,
+  objectToolbar: true,
+  mode: 'edit',
+});
+
+// === Swimlanes (4 camadas horizontais) ===
+const LANE_W = 1400;
+const LANES = {
+  browser: { x: 20, y: 20,  w: LANE_W, h: 220, title: 'BROWSER (cliente)',     color: '#60a5fa' },
+  cdn:     { x: 20, y: 260, w: LANE_W, h: 180, title: 'CDN — CloudFront + WP Rocket', color: '#a78bfa' },
+  wpcore:  { x: 20, y: 460, w: LANE_W, h: 280, title: 'WORDPRESS REST CORE',   color: '#f59e0b' },
+  muplugin:{ x: 20, y: 760, w: LANE_W, h: 220, title: 'mu-plugins (servidor + cliente)', color: '#4ade80' },
+};
+
+const LANE_IDS = Object.keys(LANES).map(k => 'lane-' + k);
+
+Object.entries(LANES).forEach(([key, lane]) => {
+  canvas.addNode('lane-' + key, {
+    shape: 'swimlane', groupTitle: lane.title, color: lane.color,
+  }, { x: lane.x, y: lane.y, width: lane.w, height: lane.h });
+});
+
+// Snapshot das posicoes colunares para restauracao ao alternar modos.
+const COLUMNAR_POSITIONS = new Map();
+
+// === Nos: BROWSER ===
+canvas.addNode('n-user', {
+  label: 'Usuario', sub: 'clica em marker do mapa',
+  shape: 'terminal', color: '#60a5fa',
+}, { x: 60, y: 100, width: 150, height: 90 });
+
+canvas.addNode('n-jetmap', {
+  label: 'JetEngine Maps JS', sub: 'fetch /jet-engine/v2/get-map-marker-info',
+  phase: 'REQ', icon: '[JS]', color: '#60a5fa',
+}, { x: 260, y: 80, width: 200, height: 130 });
+
+canvas.addNode('n-nonce', {
+  label: 'X-WP-Nonce header', sub: 'embutido no HTML cacheado (12h tick)',
+  shape: 'document', color: '#ef4444',
+  comment: 'Nonce do WP tem tick de 12h (wp_nonce_tick). Apos esse tempo, o HTML cacheado contem nonce invalido.',
+}, { x: 510, y: 80, width: 220, height: 130 });
+
+canvas.addNode('n-popup-setcontent', {
+  label: 'JetLeafletPopup.setContent',
+  sub: 'recebe HTML ou objeto jqXHR',
+  phase: 'RES', icon: '[DOM]', color: '#60a5fa',
+}, { x: 820, y: 80, width: 220, height: 130 });
+
+canvas.addNode('n-popup-ok', {
+  label: 'Popup renderizado', sub: 'nome + localidade + link do artista',
+  shape: 'terminal', color: '#4ade80',
+}, { x: 1100, y: 100, width: 200, height: 90 });
+
+// === Nos: CDN ===
+canvas.addNode('n-cf', {
+  label: 'CloudFront cache', sub: 'serve HTML cacheado (Vary: Cookie)',
+  shape: 'cylinder', icon: '[CDN]', color: '#a78bfa',
+}, { x: 260, y: 310, width: 220, height: 110 });
+
+canvas.addNode('n-rocket', {
+  label: 'WP Rocket page cache', sub: 'origem: HTML com nonce embutido',
+  shape: 'cylinder', icon: '[CACHE]', color: '#a78bfa',
+}, { x: 520, y: 310, width: 220, height: 110 });
+
+canvas.addNode('n-cf-rest', {
+  label: 'CloudFront REST cache', sub: 'Cache-Control public max-age=3600',
+  shape: 'cylinder', icon: '[CDN]', color: '#4ade80',
+  comment: 'Novo cache na camada CDN habilitado pelo mu-plugin 1. Elimina carga no FPM para requests anonimas repetidas.',
+}, { x: 820, y: 310, width: 220, height: 110 });
+
+// === Nos: WORDPRESS REST CORE ===
+canvas.addNode('n-serve', {
+  label: 'WP_REST_Server::serve_request',
+  sub: 'ordem: auth -> dispatch',
+  phase: '01', icon: '[WP]', color: '#f59e0b',
+}, { x: 60, y: 510, width: 220, height: 130 });
+
+canvas.addNode('n-auth', {
+  label: 'check_authentication()',
+  sub: 'filter: rest_authentication_errors',
+  phase: '02', icon: '[AUTH]', color: '#f59e0b',
+}, { x: 330, y: 510, width: 220, height: 130 });
+
+canvas.addNode('n-cookie-check', {
+  label: 'rest_cookie_check_errors',
+  sub: 'priority 100 — valida nonce',
+  phase: '03', icon: '[WP]', color: '#f59e0b',
+}, { x: 600, y: 510, width: 220, height: 130 });
+
+canvas.addNode('n-403', {
+  label: '403 rest_cookie_invalid_nonce',
+  shape: 'terminal', color: '#ef4444',
+  comment: 'Sem o fix, qualquer request com nonce expirado morre aqui antes do dispatch.',
+}, { x: 870, y: 530, width: 230, height: 90 });
+
+canvas.addNode('n-dispatch', {
+  label: 'dispatch()', sub: 'permission_callback = true',
+  phase: '04', icon: '[WP]', color: '#f59e0b',
+}, { x: 600, y: 660, width: 200, height: 70 });
+
+canvas.addNode('n-endpoint', {
+  label: 'get_map_marker_info', sub: 'guarda drafts/privates via current_user_can',
+  phase: '05', icon: '[EP]', color: '#f59e0b',
+}, { x: 850, y: 660, width: 260, height: 70 });
+
+// === Nos: mu-plugins ===
+canvas.addNode('n-mu1', {
+  label: 'bit-jet-map-public-endpoint',
+  sub: 'v1.2.0 — rest_authentication_errors priority 99',
+  phase: 'MU1', icon: '[PHP]', color: '#4ade80',
+  comment: 'Roda ANTES do rest_cookie_check_errors (priority 100). Remove X-WP-Nonce da request em GET para o endpoint publico.',
+}, { x: 60, y: 810, width: 280, height: 130 });
+
+canvas.addNode('n-cc', {
+  label: 'Cache-Control headers',
+  sub: 'public s-maxage=86400 + Vary: Cookie',
+  shape: 'document', color: '#4ade80',
+  comment: 'Anonimos recebem cache CDN-friendly. Logados recebem private, no-store (short-circuit de seguranca).',
+}, { x: 370, y: 810, width: 240, height: 130 });
+
+canvas.addNode('n-mu2', {
+  label: 'bit-jet-map-popup-fallback',
+  sub: 'v1.1.0 — guard wp_script_is jet-maps-listings',
+  phase: 'MU2', icon: '[JS]', color: '#4ade80',
+  comment: 'Injeta patch JS no wp_footer. Intercepta setContent do JetLeafletPopup e detecta objetos jqXHR-like.',
+}, { x: 650, y: 810, width: 280, height: 130 });
+
+canvas.addNode('n-error-html', {
+  label: 'HTML de erro a11y',
+  sub: 'role=status + aria-live=polite',
+  shape: 'document', color: '#4ade80',
+  comment: 'Recarregue a pagina para tentar de novo (WCAG 3.3.3). Cobre timeout, 5xx, offline, rate limit, nonce invalido.',
+}, { x: 960, y: 810, width: 240, height: 130 });
+
+// === EDGES ===
+
+// Fluxo horizontal no browser
+canvas.addEdge('e-user-jet', 'n-user', 'out', 'n-jetmap', 'in');
+canvas.addEdge('e-jet-nonce', 'n-jetmap', 'out', 'n-nonce', 'in', { label: 'inclui' });
+
+// Browser -> CDN (pedido desce)
+canvas.addEdge('e-nonce-cf', 'n-nonce', 'bottom', 'n-cf', 'top');
+
+// CDN miss -> REST core (WP)
+canvas.addEdge('e-cf-serve', 'n-cf', 'bottom', 'n-serve', 'top', { label: 'miss' });
+
+// WP core: auth chain
+canvas.addEdge('e-serve-auth', 'n-serve', 'out', 'n-auth', 'in');
+canvas.addEdge('e-auth-cookie', 'n-auth', 'out', 'n-cookie-check', 'in');
+
+// Caminho ruim: 403
+canvas.addEdge('e-cookie-403', 'n-cookie-check', 'out', 'n-403', 'in', { label: 'nonce invalido' });
+
+// Caminho bom: dispatch -> endpoint
+canvas.addEdge('e-cookie-disp', 'n-cookie-check', 'bottom', 'n-dispatch', 'top', { label: 'ok' });
+canvas.addEdge('e-disp-ep', 'n-dispatch', 'out', 'n-endpoint', 'in');
+
+// mu-plugin 1 intercepta ANTES do cookie-check
+canvas.addEdge('e-mu1-auth', 'n-mu1', 'top', 'n-auth', 'bottom', { label: 'prio 99 — remove nonce' });
+
+// mu-plugin 1 adiciona headers no response
+canvas.addEdge('e-mu1-cc', 'n-mu1', 'out', 'n-cc', 'in');
+canvas.addEdge('e-cc-cfrest', 'n-cc', 'top', 'n-cf-rest', 'bottom', { label: 'permite cache' });
+
+// Response path: endpoint -> CDN REST cache -> setContent
+canvas.addEdge('e-ep-cfrest', 'n-endpoint', 'top', 'n-cf-rest', 'bottom');
+canvas.addEdge('e-cfrest-setc', 'n-cf-rest', 'top', 'n-popup-setcontent', 'bottom', { label: '200 + JSON' });
+
+// setContent -> popup ok (caminho feliz)
+canvas.addEdge('e-setc-ok', 'n-popup-setcontent', 'out', 'n-popup-ok', 'in');
+
+// mu-plugin 2: intercepta setContent se content eh jqXHR-like
+canvas.addEdge('e-mu2-setc', 'n-mu2', 'top', 'n-popup-setcontent', 'bottom', { label: 'monkey-patch' });
+canvas.addEdge('e-mu2-err', 'n-mu2', 'out', 'n-error-html', 'in');
+canvas.addEdge('e-err-setc', 'n-error-html', 'top', 'n-popup-setcontent', 'bottom', { label: 'fallback a11y' });
+
+// Origem do HTML cacheado
+canvas.addEdge('e-rocket-cf', 'n-rocket', 'out', 'n-cf', 'in', { label: 'origem' });
+
+// Duplo-clique para novos nos
+canvas.on('canvas:dblclick', ({ world }) => {
+  const id = 'n-' + Date.now();
+  canvas.addNode(id, { label: 'Novo', color: '#f59e0b' }, {
+    x: world.x - 65, y: world.y - 55, width: 130, height: 110,
+  });
+});
+
+canvas.on('node:duplicate', ({ id, node }) => {
+  canvas.addNode(id + '_copy', { ...node.data }, {
+    x: node.x + 30, y: node.y + 30, width: node.width, height: node.height,
+  });
+});
+
+// === Captura snapshot colunar apos criar todos os nos ===
+for (const node of canvas._nodes.values()) {
+  COLUMNAR_POSITIONS.set(node.id, {
+    x: node.x, y: node.y, width: node.width, height: node.height,
+  });
+}
+
+// === Toggle de layout: colunar (swimlanes) x livre (ELK) ===
+const btnCol = document.getElementById('btn-columnar');
+const btnFree = document.getElementById('btn-free');
+
+function setActiveButton(mode) {
+  btnCol.classList.toggle('active', mode === 'columnar');
+  btnFree.classList.toggle('active', mode === 'free');
+}
+
+async function applyColumnar() {
+  // Restaura posicoes originais dos nos
+  for (const [id, pos] of COLUMNAR_POSITIONS) {
+    canvas.updateNode(id, pos);
+  }
+  // Mostra swimlanes
+  for (const id of LANE_IDS) canvas.setNodeVisible(id, true);
+  // Roteia edges preservando posicoes
+  await canvas.autoLayout({ preservePositions: true });
+  canvas.fitToNodes();
+}
+
+async function applyFree() {
+  // Esconde swimlanes
+  for (const id of LANE_IDS) canvas.setNodeVisible(id, false);
+  // ELK recoloca e reroteia tudo
+  await canvas.autoLayout({ preservePositions: false });
+  canvas.fitToNodes();
+}
+
+let layoutBusy = false;
+async function setMode(mode, { persist = true } = {}) {
+  if (layoutBusy) return;
+  layoutBusy = true;
+  btnCol.disabled = true;
+  btnFree.disabled = true;
+  setActiveButton(mode);
+  if (persist) {
+    try { localStorage.setItem(LAYOUT_KEY, mode); } catch (_) {}
+  }
+  try {
+    if (mode === 'free') await applyFree();
+    else await applyColumnar();
+  } finally {
+    btnCol.disabled = false;
+    btnFree.disabled = false;
+    layoutBusy = false;
+  }
+}
+
+btnCol.addEventListener('click', () => setMode('columnar'));
+btnFree.addEventListener('click', () => setMode('free'));
+
+// Modo inicial: restaurar do localStorage ou colunar
+let initialMode = 'columnar';
+try {
+  const saved = localStorage.getItem(LAYOUT_KEY);
+  if (saved === 'free' || saved === 'columnar') initialMode = saved;
+} catch (_) {}
+
+canvas.on('canvas:ready', () => {
+  setTimeout(() => setMode(initialMode, { persist: false }), 100);
+});
+</script>
+</body>
+</html>
