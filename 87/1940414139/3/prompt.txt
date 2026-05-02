@@ -1,0 +1,60 @@
+analise os arquivos alterados que não estao comitados.
+
+---
+
+ambos
+
+---
+
+dispare 10 agentes para analisar cuidadosamente cada arquivo e seu respectivo contexto
+
+---
+
+Deleção dos wp-config.php.pre-
+
+---
+
+Continue from where you left off.
+
+---
+
+.menu-map.env ainda está sendo utilizado? se nao me engano criamos um mu-plugin que substitui totalmente isso
+
+---
+
+se ja em contra nos mu-plugins, .menu-map.env + sync-menus.sh perde a função e pode ser removido do sistema
+
+---
+
+[Request interrupted by user]
+
+---
+
+ok comite.
+
+healthz-deep.php que script utiliza isso?
+
+---
+
+se o deep nao esta sendo usado por nenhum script, delete
+sibre i menu-map, comite
+
+---
+
+nao precisa rotacionar.
+
+---
+
+1. mantenha
+
+---
+
+sim
+
+---
+
+ha algum commit que precise ser feito? analise
+
+---
+
+1. sim 2. sim
