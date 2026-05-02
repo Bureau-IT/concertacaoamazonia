@@ -1,0 +1,1030 @@
+custom-jet-blocks.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-2553.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-26826.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-39359.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-72234.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-28187.css:1  Failed to load resource: the server responded with a status of 404 ()
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+post-4360.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-9199.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-14763.css:1  Failed to load resource: the server responded with a status of 404 ()
+jquery-migrate.js?ver=3.4.1:136 JQMIGRATE: Number-typed values are deprecated for jQuery.fn.css( "--menu-height", value )
+migrateWarn @ jquery-migrate.js?ver=3.4.1:136
+jquery-migrate.js?ver=3.4.1:138 console.trace
+migrateWarn @ jquery-migrate.js?ver=3.4.1:138
+(anonymous) @ jquery-migrate.js?ver=3.4.1:650
+obj.<computed> @ jquery-migrate.js?ver=3.4.1:181
+setMenuHeight @ frontend.js?ver=3.35.1:194
+reassignMobileMenuHeight @ frontend.js?ver=3.35.1:198
+(anonymous) @ frontend.js?ver=3.35.8:495
+dispatch @ jquery.js?ver=3.7.1:5145
+elemData.handle @ jquery.js?ver=3.7.1:4949
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187#estudos:1 The resource https://concertacao.bureau-it.com/wp-content/uploads/2026/04/Herculino-Jorge-Araujo-Alves-24.jpg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187#estudos:1 The resource https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+/estudos/policy-brief-desafios-e-perspectivas-do-monitoramento-da-qualidade-do-ar-na-amazonia-legal-uma-visao-integrada-entre-tecnologias-contextos-socioambientais-e-politicas-publicas/:1  Failed to load resource: net::ERR_CONNECTION_CLOSED
+/estudos/guia-synergia-de-restauracao-florestal-na-amazonia-solucoes-baseadas-nas-pessoas/:1  Failed to load resource: the server responded with a status of 503 ()
+custom-jet-blocks.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-2553.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-26826.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-28187.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-39359.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-72234.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-4360.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-14763.css:1  Failed to load resource: the server responded with a status of 404 ()
+post-9199.css:1  Failed to load resource: the server responded with a status of 404 ()
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187#estudos:1 The resource https://concertacao.bureau-it.com/wp-content/uploads/2026/04/Herculino-Jorge-Araujo-Alves-24.jpg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187#estudos:1 The resource https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+
+https://concertacao.bureau-it.com/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187#estudos
+
+porque a pagina esta com erro nos css?
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/using-superpowers
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, skip this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. This is not optional. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## Instruction Priority
+
+Superpowers skills override default system prompt behavior, but **user instructions always take precedence**:
+
+1. **User's explicit instructions** (CLAUDE.md, GEMINI.md, AGENTS.md, direct requests) — highest priority
+2. **Superpowers skills** — override default system behavior where they conflict
+3. **Default system prompt** — lowest priority
+
+If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "always use TDD," follow the user's instructions. The user is in control.
+
+## How to Access Skills
+
+**In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you—follow it directly. Never use the Read tool on skill files.
+
+**In Copilot CLI:** Use the `skill` tool. Skills are auto-discovered from installed plugins. The `skill` tool works the same as Claude Code's `Skill` tool.
+
+**In Gemini CLI:** Skills activate via the `activate_skill` tool. Gemini loads skill metadata at session start and activates the full content on demand.
+
+**In other environments:** Check your platform's documentation for how skills are loaded.
+
+## Platform Adaptation
+
+Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+
+# Using Skills
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action.** Even a 1% chance a skill might apply means that you should invoke the skill to check. If an invoked skill turns out to be wrong for the situation, you don't need to use it.
+
+```dot
+digraph skill_flow {
+    "User message received" [shape=doublecircle];
+    "About to EnterPlanMode?" [shape=doublecircle];
+    "Already brainstormed?" [shape=diamond];
+    "Invoke brainstorming skill" [shape=box];
+    "Might any skill apply?" [shape=diamond];
+    "Invoke Skill tool" [shape=box];
+    "Announce: 'Using [skill] to [purpose]'" [shape=box];
+    "Has checklist?" [shape=diamond];
+    "Create TodoWrite todo per item" [shape=box];
+    "Follow skill exactly" [shape=box];
+    "Respond (including clarifications)" [shape=doublecircle];
+
+    "About to EnterPlanMode?" -> "Already brainstormed?";
+    "Already brainstormed?" -> "Invoke brainstorming skill" [label="no"];
+    "Already brainstormed?" -> "Might any skill apply?" [label="yes"];
+    "Invoke brainstorming skill" -> "Might any skill apply?";
+
+    "User message received" -> "Might any skill apply?";
+    "Might any skill apply?" -> "Invoke Skill tool" [label="yes, even 1%"];
+    "Might any skill apply?" -> "Respond (including clarifications)" [label="definitely not"];
+    "Invoke Skill tool" -> "Announce: 'Using [skill] to [purpose]'";
+    "Announce: 'Using [skill] to [purpose]'" -> "Has checklist?";
+    "Has checklist?" -> "Create TodoWrite todo per item" [label="yes"];
+    "Has checklist?" -> "Follow skill exactly" [label="no"];
+    "Create TodoWrite todo per item" -> "Follow skill exactly";
+}
+```
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, debugging) - these determine HOW to approach the task
+2. **Implementation skills second** (frontend-design, mcp-builder) - these guide execution
+
+"Let's build X" → brainstorming first, then implementation skills.
+"Fix this bug" → debugging first, then domain-specific skills.
+
+## Skill Types
+
+**Rigid** (TDD, debugging): Follow exactly. Don't adapt away discipline.
+
+**Flexible** (patterns): Adapt principles to context.
+
+The skill itself tells you which.
+
+## User Instructions
+
+Instructions say WHAT, not HOW. "Add X" or "Fix Y" doesn't mean skip workflows.
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/systematic-debugging
+
+# Systematic Debugging
+
+## Overview
+
+Random fixes waste time and create new bugs. Quick patches mask underlying issues.
+
+**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
+
+**Violating the letter of this process is violating the spirit of debugging.**
+
+## The Iron Law
+
+```
+NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+```
+
+If you haven't completed Phase 1, you cannot propose fixes.
+
+## When to Use
+
+Use for ANY technical issue:
+- Test failures
+- Bugs in production
+- Unexpected behavior
+- Performance problems
+- Build failures
+- Integration issues
+
+**Use this ESPECIALLY when:**
+- Under time pressure (emergencies make guessing tempting)
+- "Just one quick fix" seems obvious
+- You've already tried multiple fixes
+- Previous fix didn't work
+- You don't fully understand the issue
+
+**Don't skip when:**
+- Issue seems simple (simple bugs have root causes too)
+- You're in a hurry (rushing guarantees rework)
+- Manager wants it fixed NOW (systematic is faster than thrashing)
+
+## The Four Phases
+
+You MUST complete each phase before proceeding to the next.
+
+### Phase 1: Root Cause Investigation
+
+**BEFORE attempting ANY fix:**
+
+1. **Read Error Messages Carefully**
+   - Don't skip past errors or warnings
+   - They often contain the exact solution
+   - Read stack traces completely
+   - Note line numbers, file paths, error codes
+
+2. **Reproduce Consistently**
+   - Can you trigger it reliably?
+   - What are the exact steps?
+   - Does it happen every time?
+   - If not reproducible → gather more data, don't guess
+
+3. **Check Recent Changes**
+   - What changed that could cause this?
+   - Git diff, recent commits
+   - New dependencies, config changes
+   - Environmental differences
+
+4. **Gather Evidence in Multi-Component Systems**
+
+   **WHEN system has multiple components (CI → build → signing, API → service → database):**
+
+   **BEFORE proposing fixes, add diagnostic instrumentation:**
+   ```
+   For EACH component boundary:
+     - Log what data enters component
+     - Log what data exits component
+     - Verify environment/config propagation
+     - Check state at each layer
+
+   Run once to gather evidence showing WHERE it breaks
+   THEN analyze evidence to identify failing component
+   THEN investigate that specific component
+   ```
+
+   **Example (multi-layer system):**
+   ```bash
+   # Layer 1: Workflow
+   echo "=== Secrets available in workflow: ==="
+   echo "IDENTITY: ${IDENTITY:+SET}${IDENTITY:-UNSET}"
+
+   # Layer 2: Build script
+   echo "=== Env vars in build script: ==="
+   env | grep IDENTITY || echo "IDENTITY not in environment"
+
+   # Layer 3: Signing script
+   echo "=== Keychain state: ==="
+   security list-keychains
+   security find-identity -v
+
+   # Layer 4: Actual signing
+   codesign --sign "$IDENTITY" --verbose=4 "$APP"
+   ```
+
+   **This reveals:** Which layer fails (secrets → workflow ✓, workflow → build ✗)
+
+5. **Trace Data Flow**
+
+   **WHEN error is deep in call stack:**
+
+   See `root-cause-tracing.md` in this directory for the complete backward tracing technique.
+
+   **Quick version:**
+   - Where does bad value originate?
+   - What called this with bad value?
+   - Keep tracing up until you find the source
+   - Fix at source, not at symptom
+
+### Phase 2: Pattern Analysis
+
+**Find the pattern before fixing:**
+
+1. **Find Working Examples**
+   - Locate similar working code in same codebase
+   - What works that's similar to what's broken?
+
+2. **Compare Against References**
+   - If implementing pattern, read reference implementation COMPLETELY
+   - Don't skim - read every line
+   - Understand the pattern fully before applying
+
+3. **Identify Differences**
+   - What's different between working and broken?
+   - List every difference, however small
+   - Don't assume "that can't matter"
+
+4. **Understand Dependencies**
+   - What other components does this need?
+   - What settings, config, environment?
+   - What assumptions does it make?
+
+### Phase 3: Hypothesis and Testing
+
+**Scientific method:**
+
+1. **Form Single Hypothesis**
+   - State clearly: "I think X is the root cause because Y"
+   - Write it down
+   - Be specific, not vague
+
+2. **Test Minimally**
+   - Make the SMALLEST possible change to test hypothesis
+   - One variable at a time
+   - Don't fix multiple things at once
+
+3. **Verify Before Continuing**
+   - Did it work? Yes → Phase 4
+   - Didn't work? Form NEW hypothesis
+   - DON'T add more fixes on top
+
+4. **When You Don't Know**
+   - Say "I don't understand X"
+   - Don't pretend to know
+   - Ask for help
+   - Research more
+
+### Phase 4: Implementation
+
+**Fix the root cause, not the symptom:**
+
+1. **Create Failing Test Case**
+   - Simplest possible reproduction
+   - Automated test if possible
+   - One-off test script if no framework
+   - MUST have before fixing
+   - Use the `superpowers:test-driven-development` skill for writing proper failing tests
+
+2. **Implement Single Fix**
+   - Address the root cause identified
+   - ONE change at a time
+   - No "while I'm here" improvements
+   - No bundled refactoring
+
+3. **Verify Fix**
+   - Test passes now?
+   - No other tests broken?
+   - Issue actually resolved?
+
+4. **If Fix Doesn't Work**
+   - STOP
+   - Count: How many fixes have you tried?
+   - If < 3: Return to Phase 1, re-analyze with new information
+   - **If ≥ 3: STOP and question the architecture (step 5 below)**
+   - DON'T attempt Fix #4 without architectural discussion
+
+5. **If 3+ Fixes Failed: Question Architecture**
+
+   **Pattern indicating architectural problem:**
+   - Each fix reveals new shared state/coupling/problem in different place
+   - Fixes require "massive refactoring" to implement
+   - Each fix creates new symptoms elsewhere
+
+   **STOP and question fundamentals:**
+   - Is this pattern fundamentally sound?
+   - Are we "sticking with it through sheer inertia"?
+   - Should we refactor architecture vs. continue fixing symptoms?
+
+   **Discuss with your human partner before attempting more fixes**
+
+   This is NOT a failed hypothesis - this is a wrong architecture.
+
+## Red Flags - STOP and Follow Process
+
+If you catch yourself thinking:
+- "Quick fix for now, investigate later"
+- "Just try changing X and see if it works"
+- "Add multiple changes, run tests"
+- "Skip the test, I'll manually verify"
+- "It's probably X, let me fix that"
+- "I don't fully understand but this might work"
+- "Pattern says X but I'll adapt it differently"
+- "Here are the main problems: [lists fixes without investigation]"
+- Proposing solutions before tracing data flow
+- **"One more fix attempt" (when already tried 2+)**
+- **Each fix reveals new problem in different place**
+
+**ALL of these mean: STOP. Return to Phase 1.**
+
+**If 3+ fixes failed:** Question the architecture (see Phase 4.5)
+
+## your human partner's Signals You're Doing It Wrong
+
+**Watch for these redirections:**
+- "Is that not happening?" - You assumed without verifying
+- "Will it show us...?" - You should have added evidence gathering
+- "Stop guessing" - You're proposing fixes without understanding
+- "Ultrathink this" - Question fundamentals, not just symptoms
+- "We're stuck?" (frustrated) - Your approach isn't working
+
+**When you see these:** STOP. Return to Phase 1.
+
+## Common Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "Issue is simple, don't need process" | Simple issues have root causes too. Process is fast for simple bugs. |
+| "Emergency, no time for process" | Systematic debugging is FASTER than guess-and-check thrashing. |
+| "Just try this first, then investigate" | First fix sets the pattern. Do it right from the start. |
+| "I'll write test after confirming fix works" | Untested fixes don't stick. Test first proves it. |
+| "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
+| "Reference too long, I'll adapt the pattern" | Partial understanding guarantees bugs. Read it completely. |
+| "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
+| "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
+
+## Quick Reference
+
+| Phase | Key Activities | Success Criteria |
+|-------|---------------|------------------|
+| **1. Root Cause** | Read errors, reproduce, check changes, gather evidence | Understand WHAT and WHY |
+| **2. Pattern** | Find working examples, compare | Identify differences |
+| **3. Hypothesis** | Form theory, test minimally | Confirmed or new hypothesis |
+| **4. Implementation** | Create test, fix, verify | Bug resolved, tests pass |
+
+## When Process Reveals "No Root Cause"
+
+If systematic investigation reveals issue is truly environmental, timing-dependent, or external:
+
+1. You've completed the process
+2. Document what you investigated
+3. Implement appropriate handling (retry, timeout, error message)
+4. Add monitoring/logging for future investigation
+
+**But:** 95% of "no root cause" cases are incomplete investigation.
+
+## Supporting Techniques
+
+These techniques are part of systematic debugging and available in this directory:
+
+- **`root-cause-tracing.md`** - Trace bugs backward through call stack to find original trigger
+- **`defense-in-depth.md`** - Add validation at multiple layers after finding root cause
+- **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
+
+**Related skills:**
+- **superpowers:test-driven-development** - For creating failing test case (Phase 4, Step 1)
+- **superpowers:verification-before-completion** - Verify fix worked before claiming success
+
+## Real-World Impact
+
+From debugging sessions:
+- Systematic approach: 15-30 minutes to fix
+- Random fixes approach: 2-3 hours of thrashing
+- First-time fix rate: 95% vs 40%
+- New bugs introduced: Near zero vs common
+
+---
+
+ainda ta com erro no console
+
+https://concertacao.bureau-it.com/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187#estudos
+
+analise com playwright 
+
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:338  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/custom-jet-blocks.css?ver=1.4.0 net::ERR_ABORTED 404 (Not Found)
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:339  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-2553.css?ver=1777622911 net::ERR_ABORTED 404 (Not Found)
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:347  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-28187.css?ver=1777627042 net::ERR_ABORTED 404 (Not Found)
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:349  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-72234.css?ver=1777622920 net::ERR_ABORTED 404 (Not Found)
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:348  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-39359.css?ver=1777622920 net::ERR_ABORTED 404 (Not Found)
+/conhecimento/espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:346  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-26826.css?ver=1777627042 net::ERR_ABORTED 404 (Not Found)
+espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:5413  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-4360.css?ver=1777622912 net::ERR_ABORTED 404 (Not Found)
+jquery-migrate.js?ver=3.4.1:104 JQMIGRATE: Migrate is installed with logging active, version 3.4.1
+espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:5423  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-14763.css?ver=1777622913 net::ERR_ABORTED 404 (Not Found)
+espiral-de-conhecimento/?eixo=eixo6&jsf=jet-engine:estudos&tax=eixos:187:5424  GET https://concertacao.bureau-it.com/wp-content/elementor-cache/elementor/css/post-9199.css?ver=1777622913 net::ERR_ABORTED 404 (Not Found)
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+o que o /smoke valida?
+
+---
+
+quero que o smoke teste os formulários com submit
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec self-review\n(fix inline)" [shape=box];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec self-review\n(fix inline)";
+    "Spec self-review\n(fix inline)" -> "User reviews spec?";
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Self-Review:**
+After writing the spec document, look at it with fresh eyes:
+
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
+3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
+4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+
+Fix any issues inline. No need to re-review — just fix and move on.
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+c
+
+---
+
+a
+
+---
+
+rode um /smoke em prod
+
+---
+
+Bateria smoke pós-deploy. Testa 5 páginas críticas + 2 formulários em prod e green:
+
+| # | Página | URL |
+|---|--------|-----|
+| 1 | Home | `https://concertacaoamazonia.com.br/` |
+| 2 | Atlas PT | `https://concertacaoamazonia.com.br/cultura/atlas-cultural-das-amazonias/` |
+| 3 | Atlas EN | `https://concertacaoamazonia.com.br/cultura/en/cultural-atlas-of-the-amazon/` |
+| 4 | Espiral | `https://concertacaoamazonia.com.br/conhecimento/espiral-de-conhecimento/` |
+| 5 | Eventos | `https://concertacaoamazonia.com.br/eventos-calendario/` |
+| 6 | **Newsletter footer (na home)** | seletor `form[name=Newsletter]` ou `<form>` com `<input placeholder*="email">` no footer |
+| 7 | **Contato** | `https://concertacaoamazonia.com.br/contato/` |
+
+## Workflow
+
+Para cada página, faça:
+1. `browser_close`
+2. `browser_run_code` com **prod** (sem header)
+3. `browser_close`
+4. `browser_run_code` com **green** (X-Test-Green:true via context)
+
+**Páginas 6 e 7 (formulários):**
+- Estado **prod**: usar snippet "validação de formulário — PROD" (apenas presença, sem submit)
+- Estado **green**: usar snippet "submit real — GREEN" (preenche com marcador, submete, valida resposta visual, retry 1x)
+
+### Snippet base por estado (páginas 1-5)
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders(HEADER_VAL);
+  await ctx.clearCookies();
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+  return await page.evaluate(async () => {
+    const r = await fetch('/check-ec2.php?cb=' + Date.now(), { cache: 'no-store' });
+    const text = await r.text();
+    const hostname = (text.match(/Hostname:\s*([^\n<]+)/) || [])[1]?.trim() || 'unknown';
+
+    const jsf = window.JetSmartFilterSettings?.props || {};
+    const allFoundPosts = [];
+    for (const provider in jsf) for (const qid in jsf[provider]) {
+      allFoundPosts.push({k: provider + '/' + qid, v: jsf[provider][qid].found_posts});
+    }
+    const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+
+    return {
+      hostname,
+      title: document.title,
+      html_size: document.documentElement.outerHTML.length,
+      stylesheets: cssLinks.length,
+      uploads_elementor_css: cssLinks.filter(l => /\/uploads\/(?:sites\/\d+\/)?elementor\//.test(l.href)).length,
+      elementor_cache_404s: 'set via response listener',
+      jet_max_found_posts: Math.max(0, ...allFoundPosts.map(o => o.v || 0)),
+      listing_items: document.querySelectorAll('.jet-listing-grid__item').length,
+    };
+  });
+}
+```
+
+### Snippet validação de formulário — PROD (páginas 6 e 7, sem header)
+
+Detecta presença e renderização correta. **NÃO submete** o form em prod.
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders(HEADER_VAL);
+  await ctx.clearCookies();
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  return await page.evaluate(() => {
+    // Detectar formulários Elementor + JetEngine
+    const forms = Array.from(document.querySelectorAll('form.elementor-form, form.jet-form, form[name]'));
+    const out = forms.map(f => {
+      const fields = Array.from(f.querySelectorAll('input, select, textarea')).map(el => ({
+        type: el.type || el.tagName.toLowerCase(),
+        name: el.name || el.id || '?',
+        required: !!el.required,
+        placeholder: el.placeholder || null,
+      }));
+      const submitBtn = f.querySelector('button[type=submit], input[type=submit], .elementor-button[type=submit]');
+      const action = f.action || '';
+      return {
+        form_name: f.getAttribute('name') || f.id || '?',
+        action: action.replace(location.origin, ''),
+        method: (f.method || 'POST').toUpperCase(),
+        fields_count: fields.filter(f => !['hidden','submit'].includes(f.type)).length,
+        fields: fields.filter(f => !['hidden','submit'].includes(f.type)).slice(0, 8),
+        submit_visible: submitBtn ? getComputedStyle(submitBtn).display !== 'none' : false,
+        submit_label: submitBtn?.innerText?.trim() || submitBtn?.value || null,
+      };
+    });
+    return { form_count: forms.length, forms: out };
+  });
+}
+```
+
+### Snippet submit real — GREEN (páginas 6 e 7, com `X-Test-Green:true`)
+
+Submete o form com marcador rastreável (`smoke+<ts>@bureau-it.com`) e valida resposta visual. Retry 1x com backoff 2s. Falha nas 2 tentativas dispara gate.
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders({ 'X-Test-Green': 'true' });
+  await ctx.clearCookies();
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  const ts = Date.now();
+  const marker = {
+    email: `smoke+${ts}@bureau-it.com`,
+    nome: `SMOKE TEST ${ts}`,
+    msg: 'Automated smoke test from /smoke command — safe to delete.',
+  };
+
+  const submit = async (m) => {
+    return await page.evaluate(async (m) => {
+      const form = document.querySelector('form.elementor-form, form.jet-form, form[name]');
+      if (!form) return { ok: false, reason: 'form_not_found' };
+
+      const fill = (selector, value) => {
+        const el = form.querySelector(selector);
+        if (el) {
+          el.value = value;
+          el.dispatchEvent(new Event('input',  { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+      fill('input[type=email], input[name*=email i], input[placeholder*=email i]', m.email);
+      fill('input[name*=nome i], input[placeholder*=nome i], input[name*=name i]', m.nome);
+      fill('textarea, input[name*=mensagem i], input[name*=message i]', m.msg);
+
+      const sel = form.querySelector('select');
+      if (sel && sel.options.length > 1) sel.selectedIndex = 1;
+
+      const btn = form.querySelector('button[type=submit], input[type=submit], .elementor-button[type=submit]');
+      if (!btn) return { ok: false, reason: 'submit_btn_not_found' };
+      btn.click();
+
+      const deadline = Date.now() + 15000;
+      while (Date.now() < deadline) {
+        const success = document.querySelector(
+          '.elementor-message-success, .jet-form-builder-message--success, .elementor-message.elementor-message-success'
+        );
+        const error = document.querySelector(
+          '.elementor-message-danger, .jet-form-builder-message--error, .elementor-message.elementor-message-danger'
+        );
+        if (success) return { ok: true,  message: success.innerText.trim().slice(0, 200) };
+        if (error)   return { ok: false, reason: 'error_message', message: error.innerText.trim().slice(0, 200) };
+        await new Promise(r => setTimeout(r, 250));
+      }
+      return { ok: false, reason: 'timeout_15s' };
+    }, m);
+  };
+
+  let result = await submit(marker);
+
+  if (!result.ok) {
+    await page.waitForTimeout(2000);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    result = await submit(marker);
+    result.retry = true;
+  }
+
+  return {
+    submit_ok: result.ok,
+    submit_reason: result.reason || null,
+    submit_message: result.message || null,
+    submit_retry_used: !!result.retry,
+    marker,
+  };
+}
+```
+
+## Apresentar matriz
+
+### Páginas 1-5 (conteúdo)
+
+```
+| Página      | PROD hostname | PROD items | PROD jet_max | GREEN hostname | GREEN items | GREEN jet_max | Status |
+|-------------|---------------|-----------:|-------------:|----------------|------------:|--------------:|--------|
+| Home        | blue          |        N   |          N   | hml            |         N   |          N    | ✅     |
+| Atlas PT    | blue          |        1   |          1   | hml            |         4   |        656    | ✅     |
+| Atlas EN    | blue          |        1   |          1   | hml            |         4   |        656    | ✅     |
+| Espiral     | blue          |       12   |         12   | hml            |        12   |         12    | ✅     |
+| Eventos     | blue          |        N   |          N   | hml            |         N   |          N    | ✅     |
+```
+
+### Páginas 6-7 (formulários)
+
+```
+| Página              | PROD form | PROD fields | PROD submit | GREEN submit_ok | retry | marker email                    | Status |
+|---------------------|----------:|------------:|-------------|-----------------|-------|---------------------------------|--------|
+| Newsletter (home)   |     1     |     2       | "ENVIAR"    | ✅              | no    | smoke+1730487123@bureau-it.com  | ✅     |
+| Contato             |     1     |     N       | "ENVIAR"    | ✅              | yes   | smoke+1730487145@bureau-it.com  | ✅     |
+```
+
+PROD valida apenas presença/campos/label do submit. GREEN executa submit real com marcador rastreável (`smoke+<ts>@bureau-it.com`) e valida resposta visual de sucesso/erro.
+
+## Gates de FAIL (qualquer um falha o smoke)
+
+🚨 **FAIL** se:
+1. Atlas (PT ou EN) GREEN: `jet_max_found_posts < 100`
+2. Qualquer página GREEN: `uploads_elementor_css > 0` (mu-plugin v2 deve garantir 0)
+3. Qualquer página GREEN: 404s em `/elementor-cache/2026/*.jpg|jpeg|png|webp` (bug v2.0.4 — fix em v2.0.5)
+4. Qualquer página GREEN: `hostname` sem `hml`
+5. Qualquer página GREEN: `listing_items === 0` quando `jet_max_found_posts > 0`
+6. Console errors com `ERR_CONNECTION_CLOSED` em qualquer página
+7. **Form Newsletter (PROD)**: `form_count === 0` (form sumiu) OU `fields_count < 2` (campos perdidos) OU `submit_label !== "ENVIAR"`
+8. **Form Contato (PROD)**: `form_count === 0` OU `fields_count < 3` (deve ter pelo menos nome, email, mensagem) OU `submit_visible === false`
+9. **Newsletter submit (GREEN)**: `submit_ok === false` após retry. Reportar `submit_reason` (form_not_found / submit_btn_not_found / error_message / timeout_15s) e `submit_message` se houver.
+10. **Contato submit (GREEN)**: `submit_ok === false` após retry. Reportar `submit_reason` e `submit_message`.
+
+## Veredicto
+
+✅ **SMOKE PASS** — todas as 5 páginas + 2 formulários verdes prontos para cutover.
+🚨 **SMOKE FAIL** — listar gates disparados, sugerir fixes.
+
+---
+
+A+C
+
+---
+
+sim, prossiga. o site prod está terrivelmente lento
+
+---
+
+sim
+
+---
+
+sim
+
+---
+
+pode ser agente de campanha? as paginsa deveriam estar cacheadas e respondendo rapido.
+
+---
+
+sim.
+
+---
+
+prossiga.
+
+paralelamente, a pagina 
+https://concertacaoamazonia.com.br/sobre-nos/
+esta bloqueando codigo do google. Porque?
+
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+jquery-migrate.min.js?ver=3.4.1:2 JQMIGRATE: Migrate is installed, version 3.4.1
+VM471 loader.js:114 Loading the stylesheet 'https://www.gstatic.com/charts/51/css/core/tooltip.css' violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.cdnfonts.com". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.
+(anonymous) @ VM471 loader.js:114
+nc @ VM471 loader.js:114
+(anonymous) @ VM471 loader.js:115
+K @ VM471 loader.js:74
+oc @ VM471 loader.js:115
+(anonymous) @ VM471 loader.js:117
+Promise.then
+vc @ VM471 loader.js:117
+yc @ VM471 loader.js:120
+(anonymous) @ VM471 loader.js:121
+rc @ VM433 loader.js:139
+(anonymous) @ VM433 loader.js:142
+Promise.then
+Ac @ VM433 loader.js:142
+Dc @ VM433 loader.js:143
+(anonymous) @ sobre-nos/:842
+VM471 loader.js:114 Loading the stylesheet 'https://www.gstatic.com/charts/51/css/util/util.css' violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.cdnfonts.com". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.
+(anonymous) @ VM471 loader.js:114
+nc @ VM471 loader.js:114
+(anonymous) @ VM471 loader.js:115
+K @ VM471 loader.js:74
+oc @ VM471 loader.js:115
+(anonymous) @ VM471 loader.js:117
+Promise.then
+vc @ VM471 loader.js:117
+yc @ VM471 loader.js:120
+(anonymous) @ VM471 loader.js:121
+rc @ VM433 loader.js:139
+(anonymous) @ VM433 loader.js:142
+Promise.then
+Ac @ VM433 loader.js:142
+Dc @ VM433 loader.js:143
+(anonymous) @ sobre-nos/:842
+loader.js:114 Loading the stylesheet 'https://www.gstatic.com/charts/51/css/core/tooltip.css' violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.cdnfonts.com". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.
+(anonymous) @ loader.js:114
+nc @ loader.js:114
+(anonymous) @ loader.js:115
+K @ loader.js:74
+oc @ loader.js:115
+(anonymous) @ loader.js:117
+Promise.then
+vc @ loader.js:117
+yc @ loader.js:120
+(anonymous) @ loader.js:121
+rc @ loader.js:139
+(anonymous) @ loader.js:142
+Promise.then
+Ac @ loader.js:142
+Dc @ loader.js:143
+(anonymous) @ sobre-nos/:908
+loader.js:114 Loading the stylesheet 'https://www.gstatic.com/charts/51/css/util/util.css' violates the following Content Security Policy directive: "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.cdnfonts.com". Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as a fallback. The action has been blocked.
+(anonymous) @ loader.js:114
+nc @ loader.js:114
+(anonymous) @ loader.js:115
+K @ loader.js:74
+oc @ loader.js:115
+(anonymous) @ loader.js:117
+Promise.then
+vc @ loader.js:117
+yc @ loader.js:120
+(anonymous) @ loader.js:121
+rc @ loader.js:139
+(anonymous) @ loader.js:142
+Promise.then
+Ac @ loader.js:142
+Dc @ loader.js:143
+(anonymous) @ sobre-nos/:908
+sobre-nos/:1 Uncaught (in promise) Event {isTrusted: true, type: 'error', target: link#load-css-0, currentTarget: null, eventPhase: 0, …}
+Promise.then
+Cc @ VM433 loader.js:143
+(anonymous) @ sobre-nos/:843
+sobre-nos/:1 Uncaught (in promise) Event {isTrusted: true, type: 'error', target: link#load-css-0, currentTarget: null, eventPhase: 0, …}
+Promise.then
+Cc @ loader.js:143
+(anonymous) @ sobre-nos/:910
+6e654cf7-3d68-42ea-856e-6946c35998d3-loader.js:1 TrafficSourceCookie initialized
+6e654cf7-3d68-42ea-856e-6946c35998d3-loader.js:1 FormIntegration; ver.2.0.0 initialized
+6e654cf7-3d68-42ea-856e-6946c35998d3-loader.js:1 [RDTracker] initialized
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+
+---
+
+sim. atualize tambem nos scripts de post-deploy
+
+---
+
+prossiga com smoke
+
+---
+
+porque o loader (page transitions do elementor com a espiral rodando) parou de ser exibido?
+
+---
+
+sim, porque a copia de /green para /assets nao ocorreu no post-deploy?
+
+---
+
+sim. Depois, atualize o cutover sim
+
+---
+
+dispare 5 agentes para auditar o que foi feito
+
+---
+
+avance em todos imediatamente. distribua 5 agentes para a primeira fase de implementação/correção e depois mais 5 agentes para a segunda fase de auditoria. Realize 3 ciclos implementação-auditoria
