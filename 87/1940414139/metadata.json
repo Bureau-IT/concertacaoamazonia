@@ -3,7 +3,7 @@
   "checkpoint_id": "871940414139",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "docs/superpowers/specs/2026-05-02-self-host-plus-jakarta-sans-design.md",
     "wordpress/wp-content/mu-plugins/bit-disable-unused-archives.php"
@@ -22,13 +22,20 @@
       "context": "/87/1940414139/1/context.md",
       "content_hash": "/87/1940414139/1/content_hash.txt",
       "prompt": "/87/1940414139/1/prompt.txt"
+    },
+    {
+      "metadata": "/87/1940414139/2/metadata.json",
+      "transcript": "/87/1940414139/2/full.jsonl",
+      "context": "/87/1940414139/2/context.md",
+      "content_hash": "/87/1940414139/2/content_hash.txt",
+      "prompt": "/87/1940414139/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 11145,
-    "cache_creation_tokens": 1131827,
-    "cache_read_tokens": 92472220,
-    "output_tokens": 275138,
-    "api_call_count": 333
+    "input_tokens": 11248,
+    "cache_creation_tokens": 1235198,
+    "cache_read_tokens": 95942965,
+    "output_tokens": 311121,
+    "api_call_count": 377
   }
 }
