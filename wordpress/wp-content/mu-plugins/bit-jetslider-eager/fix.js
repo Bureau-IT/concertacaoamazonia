@@ -1,0 +1,1 @@
+(function(){function f(){document.querySelectorAll(".jet-slider").forEach(function(el){var s=jQuery(el).find(".slider-pro");if(!s.length)return;var i=s.data("sliderPro");if(i&&typeof i.resize==="function")i.resize()})}if(document.readyState==="complete")f();else window.addEventListener("load",f)})();

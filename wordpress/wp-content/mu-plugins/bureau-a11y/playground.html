@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bureau A11y v2.4.0 — Playground (A11y + VLibras)</title>
+<link rel="stylesheet" href="./bureau-a11y.css">
+<style>
+/* ============================================================
+   PLAYGROUND CHROME
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background: #1a2e20;
+    color: #F0EDE1;
+    min-height: 100vh;
+}
+
+/* Toolbar */
+#pg-toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 99999999;
+    background: rgba(9,28,16,0.95);
+    border-bottom: 1px solid rgba(189,248,57,0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    font-size: 12px;
+    backdrop-filter: blur(8px);
+}
+
+#pg-toolbar strong {
+    color: #BDF839;
+    font-size: 13px;
+    margin-right: 0.5rem;
+}
+
+.pg-btn {
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid rgba(189,248,57,0.3);
+    background: rgba(189,248,57,0.1);
+    color: #BDF839;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: inherit;
+}
+.pg-btn:hover { background: rgba(189,248,57,0.2); }
+.pg-btn.active { background: rgba(189,248,57,0.25); box-shadow: 0 0 0 1px #BDF839; }
+
+.pg-sep { width: 1px; height: 20px; background: rgba(255,255,255,0.1); }
+.pg-note { color: rgba(240,237,225,0.4); font-size: 10px; }
+
+/* Simulated page content */
+#pg-page {
+    padding: 6rem 2rem 4rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#pg-page h1 { font-size: 2rem; color: #BDF839; margin-bottom: 0.5rem; }
+#pg-page h2 { font-size: 1.3rem; color: #F0EDE1; margin: 2rem 0 0.5rem; }
+#pg-page p { color: rgba(240,237,225,0.75); line-height: 1.7; margin-bottom: 1rem; }
+#pg-page a { color: #BDF839; }
+#pg-page img { max-width: 100%; border-radius: 8px; }
+
+.pg-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+/* Mobile viewport simulation */
+body.pg-mobile {
+    max-width: 375px;
+    margin: 0 auto;
+    border-left: 1px solid rgba(189,248,57,0.15);
+    border-right: 1px solid rgba(189,248,57,0.15);
+}
+
+/* Light bg simulation */
+body.pg-light { background: #f5f5f0; color: #1a2e20; }
+body.pg-light #pg-page p { color: #444; }
+body.pg-light #pg-page h1 { color: #0B4334; }
+body.pg-light #pg-page h2 { color: #1a2e20; }
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div id="pg-toolbar">
+    <strong>Bureau A11y v2.4.0 + VLibras — Playground</strong>
+    <div class="pg-sep"></div>
+    <button class="pg-btn" id="btn-mobile" onclick="toggleMobile()">Mobile 375px</button>
+    <button class="pg-btn" id="btn-light" onclick="toggleLight()">Fundo claro</button>
+    <button class="pg-btn" id="btn-open" onclick="togglePanel()">Toggle A11y</button>
+    <div class="pg-sep"></div>
+    <span class="pg-note" id="pg-vlibras-status">VLibras: carregando…</span>
+</div>
+
+<!-- Simulated page structure (header + footer for FocusMode testing) -->
+<header data-elementor-type="header" style="background:rgba(9,28,16,0.7);padding:0.75rem 1.5rem;border-bottom:1px solid rgba(189,248,57,0.2);display:flex;align-items:center;justify-content:space-between;margin-top:40px;">
+    <strong style="color:#BDF839">Concertação Amazônia [header demo]</strong>
+    <nav><a href="#" style="color:#F0EDE1;margin:0 0.5rem">Home</a><a href="#" style="color:#F0EDE1;margin:0 0.5rem">Sobre</a></nav>
+</header>
+
+<div id="pg-page">
+    <h1>Concertação Amazônia</h1>
+    <p>Este é um playground para ajuste visual fino do Bureau A11y. O painel de acessibilidade está pré-aberto à direita. Teste todos os ícones SVG, tabs e o footer com o logotipo "it_" da Bureau IT.</p>
+
+    <div class="pg-card">
+        <h2>Checklist visual</h2>
+        <p>
+            ☐ Tabs sem emojis — ícones SVG outline consistentes<br>
+            ☐ Cards sem emojis — ícones SVG 26px visíveis<br>
+            ☐ Footer: logo "it_" completa, 34px, discreta (~0.7 opacity)<br>
+            ☐ Hover no logo: opacity 1<br>
+            ☐ Botão reset (↺) visível no lado direito do footer<br>
+            ☐ Sem texto "Desenvolvido por"
+        </p>
+    </div>
+
+    <div class="pg-card">
+        <h2>Tipografia de teste</h2>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum. Donec in efficitur leo, in commodo orci. Sed et lobortis lorem, in euismod dolor.</p>
+        <p><a href="#">Link de exemplo para testar "Destacar links"</a> — mais <a href="#">outro link</a> aqui.</p>
+        <p>Texto com <strong>negrito</strong> e <em>itálico</em> para testar modo dislexia e espaçamento.</p>
+    </div>
+
+    <div class="pg-card">
+        <h2>Imagem de teste</h2>
+        <img src="https://picsum.photos/seed/amazonia/600/200" alt="Floresta Amazônica (imagem de teste)" loading="lazy">
+        <p style="font-size:11px;opacity:0.5;margin-top:0.5rem">Imagem de teste para "Sem imagens"</p>
+    </div>
+</div>
+
+<!-- ============================================================
+     BUREAU A11Y PANEL (pré-aberto)
+     ============================================================ -->
+
+<div id="bureau-a11y-ruler" aria-hidden="true"></div>
+
+<button
+    id="bureau-a11y-trigger"
+    aria-label="Abrir painel de acessibilidade"
+    aria-expanded="true"
+    aria-controls="bureau-a11y-panel"
+>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+        <path d="M256,112a56,56,0,1,1,56-56A56.06,56.06,0,0,1,256,112Z"/>
+        <path d="M432,112.8l-.45.12h0l-.42.13c-1,.28-2,.58-3,.89-18.61,5.46-108.93,30.92-172.56,30.92-59.13,0-141.28-22-167.56-29.47a73.79,73.79,0,0,0-8-2.58c-19-5-32,14.3-32,31.94,0,17.47,15.7,25.79,31.55,31.76v.28l95.22,29.74c9.73,3.73,12.33,7.54,13.6,10.84,4.13,10.59.83,31.56-.34,38.88l-5.8,45L150.05,477.44q-.15.72-.27,1.47l-.23,1.27h0c-2.32,16.15,9.54,31.82,32,31.82,19.6,0,28.25-13.53,32-31.94h0s28-157.57,42-157.57,42.84,157.57,42.84,157.57h0c3.75,18.41,12.4,31.94,32,31.94,22.52,0,34.38-15.74,32-31.94-.21-1.38-.46-2.74-.76-4.06L329,301.27l-5.79-45c-4.19-26.21-.82-34.87.32-36.9a1.09,1.09,0,0,0,.08-.15c1.08-2,6-6.48,17.48-10.79l89.28-31.21a16.9,16.9,0,0,0,1.62-.52c16-6,32-14.3,32-31.93S451,107.81,432,112.8Z"/>
+    </svg>
+</button>
+
+<button id="bureau-a11y-back-to-top" aria-label="Voltar ao topo" data-id="a11yBackToTopButton">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 115.4 122.88" aria-hidden="true" focusable="false">
+        <path d="M24.94 67.88A14.66 14.66 0 0 1 4.38 47L47.83 4.21a14.66 14.66 0 0 1 20.56 0L111 46.15a14.66 14.66 0 0 1-20.54 20.91l-18-17.69-.29 59.17c-.1 19.28-29.42 19-29.33-.25l.3-58.29-18.2 17.88Z"/>
+    </svg>
+</button>
+
+<aside
+    id="bureau-a11y-panel"
+    role="dialog"
+    aria-label="Painel de Acessibilidade"
+    aria-hidden="false"
+>
+    <!-- Header -->
+    <div class="ba-panel__header" id="bureau-a11y-drag-handle">
+        <span class="ba-panel__title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="20" height="20" aria-hidden="true">
+                <path d="M256,112a56,56,0,1,1,56-56A56.06,56.06,0,0,1,256,112Z"/>
+                <path d="M432,112.8l-.45.12h0l-.42.13c-1,.28-2,.58-3,.89-18.61,5.46-108.93,30.92-172.56,30.92-59.13,0-141.28-22-167.56-29.47a73.79,73.79,0,0,0-8-2.58c-19-5-32,14.3-32,31.94,0,17.47,15.7,25.79,31.55,31.76v.28l95.22,29.74c9.73,3.73,12.33,7.54,13.6,10.84,4.13,10.59.83,31.56-.34,38.88l-5.8,45L150.05,477.44q-.15.72-.27,1.47l-.23,1.27h0c-2.32,16.15,9.54,31.82,32,31.82,19.6,0,28.25-13.53,32-31.94h0s28-157.57,42-157.57,42.84,157.57,42.84,157.57h0c3.75,18.41,12.4,31.94,32,31.94,22.52,0,34.38-15.74,32-31.94-.21-1.38-.46-2.74-.76-4.06L329,301.27l-5.79-45c-4.19-26.21-.82-34.87.32-36.9a1.09,1.09,0,0,0,.08-.15c1.08-2,6-6.48,17.48-10.79l89.28-31.21a16.9,16.9,0,0,0,1.62-.52c16-6,32-14.3,32-31.93S451,107.81,432,112.8Z"/>
+            </svg>
+            Acessibilidade
+        </span>
+        <div class="ba-header-actions">
+            <button class="ba-hints-btn" id="ba-hints-toggle" aria-pressed="true"
+                aria-label="Mostrar ou ocultar descrições de ajuda">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </button>
+            <button class="ba-panel__close" id="bureau-a11y-close" aria-label="Fechar painel">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Bar -->
+    <nav class="ba-tab-bar" role="tablist" aria-label="Categorias de acessibilidade">
+        <button class="ba-tab-btn" role="tab" data-tab="visual"
+            aria-selected="true" tabindex="0"
+            id="ba-tab-btn-visual" aria-controls="ba-tabpanel-visual">
+            <span class="ba-tab-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+            </span>
+            Visual
+        </button>
+        <button class="ba-tab-btn" role="tab" data-tab="contraste"
+            aria-selected="false" tabindex="-1"
+            id="ba-tab-btn-contraste" aria-controls="ba-tabpanel-contraste">
+            <span class="ba-tab-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="13.5" cy="6.5" r="1" fill="currentColor"/><circle cx="17.5" cy="10.5" r="1" fill="currentColor"/><circle cx="8.5" cy="7.5" r="1" fill="currentColor"/><circle cx="6.5" cy="12.5" r="1" fill="currentColor"/>
+                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+                </svg>
+            </span>
+            Cores
+        </button>
+        <button class="ba-tab-btn" role="tab" data-tab="leitura"
+            aria-selected="false" tabindex="-1"
+            id="ba-tab-btn-leitura" aria-controls="ba-tabpanel-leitura">
+            <span class="ba-tab-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+            </span>
+            Leitura
+        </button>
+    </nav>
+
+    <!-- Tab: VISUAL -->
+    <div class="ba-tab-content is-active" data-tab="visual" role="tabpanel"
+        id="ba-tabpanel-visual" aria-labelledby="ba-tab-btn-visual" tabindex="0">
+        <div class="ba-features-grid">
+
+            <div class="ba-feature--full">
+                <div class="ba-zoom-wrapper">
+                    <span class="ba-zoom-label">Tamanho do texto</span>
+                    <div class="ba-zoom-stepper">
+                        <button class="ba-zoom-btn" data-action="zoom-out" aria-label="Diminuir texto">A−</button>
+                        <span class="ba-zoom-value" id="ba-zoom-value">100%</span>
+                        <button class="ba-zoom-btn" data-action="zoom-in" aria-label="Aumentar texto">A+</button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="ba-toggle" id="ba-toggle-magnifier" data-feature="magnifier"
+                data-tooltip="Amplia área sob o cursor"
+                data-desc="Cria uma lente de aumento circular que segue o cursor pela página. Muito útil para textos pequenos, tabelas e detalhes visuais difíceis de ler."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Lupa de cursor</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-hideImages" data-feature="hideImages"
+                data-tooltip="Oculta imagens e vídeos"
+                data-desc="Oculta todas as imagens e vídeos da página, mantendo apenas o conteúdo textual. Útil para reduzir distrações visuais ou carregar páginas em conexões lentas."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-1.72-1M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2M1 1l22 22"/>
+                        <path d="m16 11-3.5-3.5-2 2-2.5-2.5L5 10.5"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Sem imagens</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-stopAnimations" data-feature="stopAnimations"
+                data-tooltip="Para todas as animações e transições"
+                data-desc="Para todas as animações, transições e efeitos de rolagem da página. Recomendado para pessoas com epilepsia fotossensível, enxaqueca ou ansiedade visual."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Sem animações</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-focusMode" data-feature="focusMode"
+                data-tooltip="Destaca conteúdo, oculta distrações"
+                data-desc="Oculta rodapés, barras laterais e outros elementos periféricos, deixando visível apenas o conteúdo principal. Ideal para leitura concentrada."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Modo Enfoque</span>
+            </button>
+
+        </div>
+    </div>
+
+    <!-- Tab: CONTRASTE -->
+    <div class="ba-tab-content" data-tab="contraste" role="tabpanel"
+        id="ba-tabpanel-contraste" aria-labelledby="ba-tab-btn-contraste" tabindex="0">
+        <div class="ba-features-grid">
+
+            <button class="ba-toggle" id="ba-toggle-highContrast" data-feature="highContrast"
+                data-tooltip="Fundo preto, texto branco"
+                data-desc="Aplica fundo preto com texto branco de máximo contraste. Indicado para baixa visão, daltonismo severo e ambientes com muita luz."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">◑</span>
+                <span class="ba-toggle__label">Alto Contraste</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-darkMode" data-feature="darkMode"
+                data-tooltip="Inverte cores mantendo imagens"
+                data-desc="Inverte as cores da página transformando fundos claros em escuros, preservando as imagens. Reduz a fadiga visual em ambientes com pouca luz."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Modo Escuro</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-grayscale" data-feature="grayscale"
+                data-tooltip="Remove todas as cores"
+                data-desc="Remove todas as cores da página, exibindo apenas tons de cinza. Auxilia quem tem dificuldade em distinguir cores específicas."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">◻</span>
+                <span class="ba-toggle__label">Escala de Cinza</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-invert" data-feature="invert"
+                data-tooltip="Inverte todas as cores"
+                data-desc="Inverte completamente todas as cores da página, incluindo imagens. Útil como alternativa ao modo escuro ou combinado com outras configurações."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">⬛</span>
+                <span class="ba-toggle__label">Invertido</span>
+            </button>
+
+            <div class="ba-feature--full">
+                <span class="ba-cb-label">Daltonismo</span>
+                <div class="ba-cb-group">
+                    <button class="ba-toggle" id="ba-toggle-cb-protanopia"
+                        data-feature="colorBlind" data-cb-type="protanopia"
+                        data-tooltip="Deficiência em vermelho" aria-pressed="false">
+                        <span class="ba-toggle__icon ba-cb-icon">P</span>
+                        <span class="ba-toggle__label">Protanopia</span>
+                    </button>
+                    <button class="ba-toggle" id="ba-toggle-cb-deuteranopia"
+                        data-feature="colorBlind" data-cb-type="deuteranopia"
+                        data-tooltip="Deficiência em verde" aria-pressed="false">
+                        <span class="ba-toggle__icon ba-cb-icon">D</span>
+                        <span class="ba-toggle__label">Deuteranopia</span>
+                    </button>
+                    <button class="ba-toggle" id="ba-toggle-cb-tritanopia"
+                        data-feature="colorBlind" data-cb-type="tritanopia"
+                        data-tooltip="Deficiência em azul" aria-pressed="false">
+                        <span class="ba-toggle__icon ba-cb-icon">T</span>
+                        <span class="ba-toggle__label">Tritanopia</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Tab: LEITURA -->
+    <div class="ba-tab-content" data-tab="leitura" role="tabpanel"
+        id="ba-tabpanel-leitura" aria-labelledby="ba-tab-btn-leitura" tabindex="0">
+        <div class="ba-features-grid">
+
+            <button class="ba-toggle" id="ba-toggle-dyslexicFont" data-feature="dyslexicFont"
+                data-tooltip="Fonte OpenDyslexic para leitura"
+                data-desc="Substitui a tipografia da página pela fonte OpenDyslexic, desenvolvida especificamente para facilitar a leitura de pessoas com dislexia."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">Aa</span>
+                <span class="ba-toggle__label">Fonte disléxica</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-textSpacing" data-feature="textSpacing"
+                data-tooltip="Aumenta espaçamento entre letras e linhas"
+                data-desc="Aumenta o espaçamento entre letras, palavras e linhas de texto. Melhora significativamente a legibilidade para dislexia, baixa visão e cansaço visual."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">↔</span>
+                <span class="ba-toggle__label">Espaçamento</span>
+            </button>
+
+            <div class="ba-feature--full">
+                <div class="ba-tts-wrapper">
+                    <div class="ba-tts-controls">
+                        <button class="ba-toggle ba-tts-play" id="ba-toggle-tts" data-feature="tts"
+                            data-tooltip="Selecione texto na página e clique para ouvir"
+                            aria-pressed="false">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 414 412" width="16" height="16" aria-hidden="true" style="flex-shrink:0">
+                                <path d="M204.11 0C91.388 0 0 91.388 0 204.111c0 112.725 91.388 204.11 204.11 204.11 112.729 0 204.11-91.385 204.11-204.11C408.221 91.388 316.839 0 204.11 0zm82.437 229.971-126.368 72.471c-17.003 9.75-30.781 1.763-30.781-17.834V140.012c0-19.602 13.777-27.575 30.781-17.827l126.368 72.466c17.004 9.752 17.004 25.566 0 35.32z"/>
+                                <rect x="99" y="100" width="220" height="220" rx="30" class="ba-tts-stop-icon"/>
+                            </svg>
+                            <span class="ba-toggle__label">Ler selecionado</span>
+                        </button>
+                        <button class="ba-toggle ba-tts-hover-btn" id="ba-toggle-ttsHoverMode" data-feature="ttsHoverMode"
+                            aria-pressed="false" title="Ler ao passar o mouse">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="5" y="2" width="14" height="20" rx="7"/><line x1="12" y1="6" x2="12" y2="10"/>
+                            </svg>
+                            <span>Hover</span>
+                        </button>
+                    </div>
+                    <div class="ba-tts-options">
+                        <div class="ba-tts-options-row">
+                            <span class="ba-label">Voz</span>
+                            <div class="ba-pill-group">
+                                <input type="radio" id="ba-tts-voice-female" name="ba-tts-voice" value="female" checked>
+                                <label for="ba-tts-voice-female" class="ba-pill">♀ Feminina</label>
+                                <input type="radio" id="ba-tts-voice-male" name="ba-tts-voice" value="male">
+                                <label for="ba-tts-voice-male" class="ba-pill">♂ Masculina</label>
+                            </div>
+                        </div>
+                        <div class="ba-tts-options-row">
+                            <label class="ba-label" for="ba-tts-rate">Vel.</label>
+                            <input id="ba-tts-rate" class="ba-slider" type="range" min="0.5" max="1.5" step="0.1" value="1.0" aria-label="Velocidade da voz">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="ba-toggle" id="ba-toggle-readingRuler" data-feature="readingRuler"
+                data-tooltip="Linha guia que segue o cursor"
+                data-desc="Exibe uma faixa horizontal colorida que segue o cursor verticalmente, ajudando a não perder a linha durante a leitura de textos longos."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.3 8.7 8.7 21.3c-1 1-2.5 1-3.4 0l-2.6-2.6c-1-1-1-2.5 0-3.4L15.3 2.7c1-1 2.5-1 3.4 0l2.6 2.6c1 1 1 2.5 0 3.4z"/>
+                        <path d="m7.5 10.5 2 2"/><path d="m10.5 7.5 2 2"/><path d="m13.5 4.5 2 2"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Régua de leitura</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-highlightLinks" data-feature="highlightLinks"
+                data-tooltip="Destaca todos os links da página"
+                data-desc="Contorna todos os links da página com uma borda verde e fundo suave, facilitando sua identificação e distinção do texto comum."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Destacar links</span>
+            </button>
+
+            <button class="ba-toggle" id="ba-toggle-focusGuide" data-feature="focusGuide"
+                data-tooltip="Indicador visual de foco por teclado"
+                data-desc="Realça com contorno azul vibrante o elemento atualmente focado pelo teclado. Essencial para quem navega sem mouse, usando Tab e setas."
+                aria-pressed="false">
+                <span class="ba-toggle__icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/>
+                    </svg>
+                </span>
+                <span class="ba-toggle__label">Guia de foco</span>
+            </button>
+
+            <div class="ba-feature--full">
+                <button class="ba-toggle ba-libras-card" id="ba-toggle-libras" data-feature="libras"
+                    data-desc="Ativa o VLibras, que traduz automaticamente o conteúdo da página em Libras (Língua Brasileira de Sinais) por meio de um avatar animado."
+                    aria-pressed="false">
+                    <span class="ba-toggle__icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10" stroke-width="1.2" opacity="0.35"/>
+                            <circle cx="12" cy="7.5" r="1.5" fill="currentColor" stroke="none"/>
+                            <path d="M12 9.2 L12 13.5"/>
+                            <path d="M12 10.5 L9 8.5 M12 10.5 L15 8.5"/>
+                            <path d="M12 13.5 L10 17.5 M12 13.5 L14 17.5"/>
+                        </svg>
+                    </span>
+                    <span class="ba-toggle__label">VLibras</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ba-panel__footer">
+        <a href="https://bureau-it.com" target="_blank" rel="noopener" class="ba-footer-logo"
+            aria-label="Bureau de Tecnologia Ltda.">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 123.81 123.81"
+                width="auto" height="34" aria-hidden="true">
+                <polygon fill="rgba(240,237,225,0.25)"
+                    points="16.59 44.68 16.59 87.58 28.69 71.86 45.68 71.86 16.59 44.68"/>
+                <path fill="rgba(240,237,225,0.25)"
+                    d="M67.86,72.32q-5,0-7.55-2.33c-1.72-1.55-2.58-3.95-2.58-7.22v-9.2H54.59V45h3.14V38.29H68.89V45h6.17v8.57H68.89v6.72a2.73,2.73,0,0,0,.69,2.12,2.93,2.93,0,0,0,2,.61A8.43,8.43,0,0,0,75,62.23V70.8a12.7,12.7,0,0,1-3.18,1.1A17.78,17.78,0,0,1,67.86,72.32Z"/>
+                <rect fill="rgba(240,237,225,0.25)" x="41.13" y="36.23" width="11.16" height="6.86"/>
+                <polygon fill="rgba(240,237,225,0.25)"
+                    points="41.13 45 41.13 64.03 49.44 71.73 52.29 71.73 52.29 45 41.13 45"/>
+                <path fill="rgba(240,237,225,0.25)" d="M78.18,73.48h29v5.58h-29Z"/>
+            </svg>
+        </a>
+        <button id="ba-reset-btn" class="ba-reset-btn" aria-label="Restaurar padrões de acessibilidade">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 7M21 3v6h-6M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 17M3 21v-6h6"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Reset confirmation modal -->
+    <div id="ba-reset-modal" class="ba-modal" role="alertdialog" aria-modal="true"
+        aria-labelledby="ba-reset-modal-msg" hidden>
+        <p id="ba-reset-modal-msg" class="ba-modal__msg">
+            Restaurar todas as configurações de acessibilidade para o padrão?
+        </p>
+        <div class="ba-modal__actions">
+            <button id="ba-reset-cancel" class="ba-btn-ghost">Cancelar</button>
+            <button id="ba-reset-confirm" class="ba-btn-confirm">Restaurar</button>
+        </div>
+    </div>
+
+</aside>
+
+<!-- VLibras container -->
+<div vw class="enabled" id="bureau-vlibras-container">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+        <div class="vw-plugin-top-wrapper"></div>
+    </div>
+</div>
+
+<!-- SVG filters for color blindness -->
+<svg id="bureau-a11y-color-filters" xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+    <defs>
+        <filter id="ba-filter-protanopia">
+            <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"/>
+        </filter>
+        <filter id="ba-filter-deuteranopia">
+            <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0"/>
+        </filter>
+        <filter id="ba-filter-tritanopia">
+            <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"/>
+        </filter>
+    </defs>
+</svg>
+
+<footer data-elementor-type="footer" style="background:rgba(9,28,16,0.7);padding:0.75rem 1.5rem;border-top:1px solid rgba(189,248,57,0.15);text-align:center;font-size:12px;color:rgba(240,237,225,0.5);margin-top:2rem;">
+    Footer demo — Bureau A11y playground
+</footer>
+
+<!-- JS -->
+<script>
+// Playground controls
+function toggleMobile() {
+    document.body.classList.toggle('pg-mobile');
+    document.getElementById('btn-mobile').classList.toggle('active');
+}
+function toggleLight() {
+    document.body.classList.toggle('pg-light');
+    document.getElementById('btn-light').classList.toggle('active');
+}
+function togglePanel() {
+    var panel = document.getElementById('bureau-a11y-panel');
+    var trigger = document.getElementById('bureau-a11y-trigger');
+    var hidden = panel.getAttribute('aria-hidden') === 'true';
+    panel.setAttribute('aria-hidden', hidden ? 'false' : 'true');
+    trigger.setAttribute('aria-expanded', hidden ? 'true' : 'false');
+}
+</script>
+<script src="https://code.responsivevoice.org/responsivevoice.js?key=rS4GfS4a"></script>
+<script>
+// VLibras — carrega e atualiza status no toolbar
+(function () {
+    var statusEl = document.getElementById('pg-vlibras-status');
+    var s = document.createElement('script');
+    s.src = 'https://vlibras.gov.br/app/vlibras-plugin.js';
+    s.onload = function () {
+        if (statusEl) statusEl.textContent = 'VLibras: script OK';
+        // Widget é inicializado pelo bureau-a11y.js quando o toggle é ativado.
+        // Para teste imediato no playground, inicializar agora:
+        if (typeof VLibras !== 'undefined') {
+            new VLibras.Widget('https://vlibras.gov.br/app');
+            // Aguardar o botão aparecer para atualizar status
+            var t = setInterval(function () {
+                if (document.querySelector('[vw-access-button] img')) {
+                    if (statusEl) statusEl.textContent = 'VLibras: pronto ✓';
+                    clearInterval(t);
+                }
+            }, 300);
+            setTimeout(function () { clearInterval(t); }, 10000);
+        }
+    };
+    s.onerror = function () {
+        if (statusEl) statusEl.textContent = 'VLibras: CDN offline';
+    };
+    document.head.appendChild(s);
+})();
+</script>
+<script src="./bureau-a11y.js"></script>
+<script>
+// Override bureauA11y config for playground (no WP globals)
+if (typeof bureauA11y === 'undefined') {
+    window.bureauA11y = { rvKey: 'rS4GfS4a', lang: 'pt_BR' };
+}
+</script>
+</body>
+</html>
