@@ -517,6 +517,107 @@ Após varredura no DEV (Snippet 1), espera-se ~15-25 paths:
 
 **EN (~10):** equivalentes WPML em `/en/`
 
+## Fase 7.6 — Gestão de cookies (Complianz)
+
+Valida que o plugin Complianz GDPR está renderizando o banner de consent corretamente, que botões respondem, e que após "aceitar tudo" os scripts de tracking carregam (Google Analytics, GTM, YouTube embeds, RDStation).
+
+### Snippet — Complianz cookie flow
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(2000);
+
+  // 1. Banner deve estar visivel inicialmente
+  const initialState = await page.evaluate(() => {
+    const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, .cmplz-show, [class*="cmplz-banner"]');
+    const acceptBtn = document.querySelector('.cmplz-accept, button.cmplz-accept-all, [data-cmplz-action="accept"]');
+    const denyBtn = document.querySelector('.cmplz-deny, button.cmplz-deny-all, [data-cmplz-action="deny"]');
+    const settingsBtn = document.querySelector('.cmplz-settings, button.cmplz-view-preferences, [data-cmplz-action="view-preferences"]');
+    return {
+      banner_visible: banner ? getComputedStyle(banner).display !== 'none' && getComputedStyle(banner).visibility !== 'hidden' : false,
+      banner_text: banner ? banner.innerText.slice(0, 200) : null,
+      has_accept: !!acceptBtn,
+      accept_label: acceptBtn?.innerText?.trim() || null,
+      has_deny: !!denyBtn,
+      deny_label: denyBtn?.innerText?.trim() || null,
+      has_settings: !!settingsBtn,
+      cookies_set_pre_accept: document.cookie.split(';').filter(c => c.trim().startsWith('cmplz_')).length,
+    };
+  });
+
+  // 2. Clicar em "aceitar tudo" e validar cookies + scripts carregam
+  await page.evaluate(() => {
+    const btn = document.querySelector('.cmplz-accept, button.cmplz-accept-all, [data-cmplz-action="accept"]');
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(2500); // tempo para scripts assincronos carregarem
+
+  const afterAccept = await page.evaluate(() => {
+    const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, [class*="cmplz-banner"]');
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const cmplzCookies = cookies.filter(c => c.startsWith('cmplz_'));
+    // Detectar scripts marketing carregados
+    const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+    return {
+      banner_hidden_after_accept: banner ? getComputedStyle(banner).display === 'none' || getComputedStyle(banner).visibility === 'hidden' : true,
+      cmplz_cookies_set: cmplzCookies.length,
+      cmplz_cookies_sample: cmplzCookies.slice(0, 5),
+      gtm_loaded: scripts.some(s => /googletagmanager|gtag/.test(s)),
+      ga_loaded: scripts.some(s => /google-analytics|ga\.js|analytics\.js/.test(s)),
+      youtube_loaded: scripts.some(s => /youtube\.com\/iframe_api/.test(s)),
+      rd_loaded: scripts.some(s => /d335luupugsy2\.cloudfront|rdstation/.test(s)),
+    };
+  });
+
+  // 3. Reset → testar "negar tudo"
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(2000);
+  await page.evaluate(() => {
+    const btn = document.querySelector('.cmplz-deny, button.cmplz-deny-all, [data-cmplz-action="deny"]');
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(2000);
+
+  const afterDeny = await page.evaluate(() => {
+    const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, [class*="cmplz-banner"]');
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const cmplzCookies = cookies.filter(c => c.startsWith('cmplz_'));
+    const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+    return {
+      banner_hidden_after_deny: banner ? getComputedStyle(banner).display === 'none' || getComputedStyle(banner).visibility === 'hidden' : true,
+      cmplz_cookies_set: cmplzCookies.length,
+      gtm_blocked: !scripts.some(s => /googletagmanager|gtag/.test(s)),
+      ga_blocked: !scripts.some(s => /google-analytics|ga\.js|analytics\.js/.test(s)),
+      youtube_blocked: !scripts.some(s => /youtube\.com\/iframe_api/.test(s)),
+    };
+  });
+
+  return { initialState, afterAccept, afterDeny };
+}
+```
+
+### Apresentar matriz Complianz
+
+```
+| Estado            | banner_visible | accept | deny | gtm | ga  | youtube | cookies | Status |
+|-------------------|----------------|--------|------|-----|-----|---------|---------|--------|
+| Pré-consent       | true           | OK     | OK   | -   | -   | -       | 0       | ✅     |
+| Pós-aceitar tudo  | hidden         | -      | -    | ✅  | ✅  | ✅      | 4+      | ✅     |
+| Pós-negar tudo    | hidden         | -      | -    | 🚫  | 🚫  | 🚫      | ?       | ✅     |
+```
+
+### Gates Complianz
+
+🚨 **FAIL** se:
+- `initialState.banner_visible === false` — banner não aparece (privacy compliance broken)
+- `initialState.has_accept === false` ou `has_deny === false` — botões essenciais ausentes (LGPD/GDPR exigem ambos)
+- `afterAccept.banner_hidden_after_accept === false` — banner não some após clicar
+- `afterAccept.gtm_loaded === false` E `afterAccept.ga_loaded === false` — analytics não carrega após consent (perde tracking)
+- `afterDeny.gtm_blocked === false` ou `afterDeny.ga_blocked === false` — tracking dispara mesmo após negar (violação LGPD)
+
 ## Fase 8 — Warm-up de cache do menu (prod e green)
 
 Descobre as páginas do menu principal scrappeando a home, faz 2 visitas em sequência (1ª aquece, 2ª mede), e valida que cada item está sendo servido rápido a partir do cache.
