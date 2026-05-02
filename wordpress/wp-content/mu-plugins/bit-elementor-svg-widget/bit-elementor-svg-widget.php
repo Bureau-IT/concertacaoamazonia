@@ -1,10 +1,10 @@
 <?php
 /**
  * Plugin Name:  BIT Elementor SVG Widget
- * Description:  Widget Elementor "Bureau SVG" — carrega SVGs inline da pasta do plugin.
+ * Description:  Widget Elementor "BIT Logos SVG" — carrega SVGs inline da pasta do plugin.
  *               Suporta qualquer subsite da rede. Substitui [wpml_logo] e resolve
  *               bug de path do JetElements. SVGs bundled: logo-concertacao, espiral-concertacao.
- * Version:      1.5.2
+ * Version:      1.7.0
  * Author:       Bureau IT
  * Network:      true
  */
@@ -20,7 +20,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
     class Bureau_SVG_Widget extends \Elementor\Widget_Base {
 
     public function get_name()        { return 'bureau_svg'; }
-    public function get_title()       { return 'Bureau SVG'; }
+    public function get_title()       { return 'BIT Logos SVG'; }
     public function get_icon()        { return 'eicon-image'; }
     public function get_categories()  { return [ 'general' ]; }
     public function get_keywords()    { return [ 'svg', 'bureau', 'logo', 'icon', 'inline' ]; }
@@ -47,7 +47,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
 
         $this->add_control( 'plugin_info', [
             'type'            => \Elementor\Controls_Manager::RAW_HTML,
-            'raw'             => '<small style="color:#888">BIT Elementor SVG Widget v1.5.2<br>Bureau de Tecnologia</small>',
+            'raw'             => '<small style="color:#888">BIT Elementor SVG Widget v1.7.0<br>Bureau de Tecnologia</small>',
             'content_classes' => 'elementor-descriptor',
         ] );
 
@@ -96,16 +96,30 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
             'default'      => '',
         ] );
 
+        $this->add_control( 'link_mode', [
+            'label'       => 'Modo do link',
+            'type'        => \Elementor\Controls_Manager::SELECT,
+            'options'     => [
+                'current'   => 'Site atual (home do blog corrente)',
+                'main_site' => 'Site principal (home do blog 1 da rede)',
+                'custom'    => 'Link customizado',
+            ],
+            'default'     => 'current',
+            'description' => 'Site atual e Site principal respeitam o idioma ativo do WPML. '
+                           . 'Em instalações single-site, "Site principal" equivale a "Site atual".',
+            'condition'   => [ 'link_enabled' => 'yes' ],
+        ] );
+
         $this->add_control( 'link_url', [
             'label'       => 'URL do link',
             'type'        => \Elementor\Controls_Manager::TEXT,
-            'placeholder' => 'Vazio = URL raiz da rede (auto)',
-            'description' => 'Vazio: usa network_home_url() com filtro wpml_home_url automaticamente '
-                           . '(retorna /en quando WPML estiver em inglês). '
-                           . 'ATENÇÃO: no site www-concertacao.com.br preencher manualmente com '
-                           . 'https://concertacaoamazonia.com.br (domínio diferente).',
+            'placeholder' => 'https://exemplo.com.br',
+            'description' => 'URL completa. Vazio: cai automaticamente em "Site atual".',
             'ai'          => [ 'active' => false ],
-            'condition'   => [ 'link_enabled' => 'yes' ],
+            'condition'   => [
+                'link_enabled' => 'yes',
+                'link_mode'    => 'custom',
+            ],
         ] );
 
         $this->add_control( 'link_target', [
@@ -185,6 +199,43 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
         return $svg;
     }
 
+    /**
+     * Resolve a URL do link conforme link_mode.
+     *
+     * Modos:
+     *  - custom    → URL manual; vazio cai em 'current'
+     *  - main_site → home do blog 1 (multisite) no idioma WPML ativo;
+     *                em single-site, equivale a 'current'
+     *  - current   → home do blog corrente no idioma WPML ativo (default)
+     *
+     * Retrocompat: instâncias antigas sem link_mode são tratadas como
+     * 'custom' (se houver link_url salvo) ou 'current'.
+     */
+    private function resolve_link_href( array $s ): string {
+        $mode = $s['link_mode'] ?? '';
+
+        if ( $mode === '' ) {
+            $mode = ! empty( $s['link_url'] ) ? 'custom' : 'current';
+        }
+
+        if ( $mode === 'custom' ) {
+            $url = trim( $s['link_url'] ?? '' );
+            if ( $url !== '' ) {
+                return $url;
+            }
+            $mode = 'current';
+        }
+
+        if ( $mode === 'main_site' && is_multisite() && get_current_blog_id() !== 1 ) {
+            switch_to_blog( 1 );
+            $url = apply_filters( 'wpml_home_url', home_url( '/' ) );
+            restore_current_blog();
+            return $url;
+        }
+
+        return apply_filters( 'wpml_home_url', home_url( '/' ) );
+    }
+
     protected function render() {
         $s = $this->get_settings_for_display();
 
@@ -227,9 +278,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
 
         // Envolver em <a> se link_enabled = 'yes'
         if ( ! empty( $s['link_enabled'] ) && $s['link_enabled'] === 'yes' ) {
-            $href   = ! empty( $s['link_url'] )
-                ? esc_url( $s['link_url'] )
-                : esc_url( apply_filters( 'wpml_home_url', network_home_url( '/' ) ) );
+            $href   = esc_url( $this->resolve_link_href( $s ) );
             $target = ( $s['link_target'] ?? '_self' ) === '_blank'
                 ? ' target="_blank" rel="noopener noreferrer"'
                 : '';

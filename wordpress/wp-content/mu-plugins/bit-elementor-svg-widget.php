@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:  BIT Elementor SVG Widget
- * Description:  Loader — carrega o plugin da subpasta (WordPress não auto-carrega mu-plugins em subdiretórios).
- * Version:      1.5.2
+ * Description:  Loader — carrega o widget BIT Logos SVG da subpasta (WordPress não auto-carrega mu-plugins em subdiretórios).
+ * Version:      1.7.0
  * Author:       Bureau IT
  * Network:      true
  */

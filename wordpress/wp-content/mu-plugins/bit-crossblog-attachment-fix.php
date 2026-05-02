@@ -8,7 +8,7 @@
  *               pré-população de cache para process_download e widget gallery.
  *               Complementa o Network Media Library, que já cobre
  *               wp_get_attachment_image_src().
- * Version:      1.2.1
+ * Version:      1.2.2
  * Author:       Bureau IT
  * Network:      true
  *
@@ -195,6 +195,7 @@ add_action( 'init', function () {
 //
 //    Widgets cobertos:
 //    - gallery (Elementor): IDs em settings.galleries[].multiple_gallery[].id
+//                           e settings.gallery[].id (single gallery type)
 //    - jet-audio: ID em settings.self_url.id  (source=self_hosted)
 //    - jet-video: ID em settings.self_hosted_url.id  (video_type=self_hosted)
 //    - jet-download-button: ID em settings.file_attachment.id
@@ -209,13 +210,16 @@ add_action( 'elementor/widget/before_render_content', function ( $widget ) {
 	switch ( $name ) {
 		case 'gallery':
 			// Elementor Pro Gallery widget (grupos) — chave 'galleries[].multiple_gallery'.
-			// O widget básico do Elementor free usa 'wp_gallery' (estrutura plana) e não
-			// é coberto aqui; o hook 1 ainda corrige URLs de forma reativa nesses casos.
 			foreach ( $settings['galleries'] ?? [] as $gallery ) {
 				foreach ( $gallery['multiple_gallery'] ?? [] as $item ) {
 					$id = absint( $item['id'] ?? 0 );
 					if ( $id ) $ids[] = $id;
 				}
+			}
+			// Single gallery type — chave 'gallery[]'.
+			foreach ( $settings['gallery'] ?? [] as $item ) {
+				$id = absint( $item['id'] ?? 0 );
+				if ( $id ) $ids[] = $id;
 			}
 			break;
 
