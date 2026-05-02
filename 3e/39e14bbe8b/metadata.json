@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "3e39e14bbe8b",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-01-smoke-form-submit-design.md",
+    "docs/superpowers/specs/2026-05-02-adr-s3-uploads-hybrid.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3e/39e14bbe8b/0/metadata.json",
+      "transcript": "/3e/39e14bbe8b/0/full.jsonl",
+      "context": "/3e/39e14bbe8b/0/context.md",
+      "content_hash": "/3e/39e14bbe8b/0/content_hash.txt",
+      "prompt": "/3e/39e14bbe8b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7772,
+    "cache_creation_tokens": 831965,
+    "cache_read_tokens": 73764260,
+    "output_tokens": 227612,
+    "api_call_count": 255
+  }
+}
