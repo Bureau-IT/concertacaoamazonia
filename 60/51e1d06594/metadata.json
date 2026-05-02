@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "6051e1d06594",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "nginx/conf.d/wordpress.conf"
+  ],
+  "sessions": [
+    {
+      "metadata": "/60/51e1d06594/0/metadata.json",
+      "transcript": "/60/51e1d06594/0/full.jsonl",
+      "context": "/60/51e1d06594/0/context.md",
+      "content_hash": "/60/51e1d06594/0/content_hash.txt",
+      "prompt": "/60/51e1d06594/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12659,
+    "cache_creation_tokens": 16504818,
+    "cache_read_tokens": 1232555030,
+    "output_tokens": 1634990,
+    "api_call_count": 2538
+  }
+}
