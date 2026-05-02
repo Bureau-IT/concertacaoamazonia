@@ -321,16 +321,76 @@ async (page) => {
 
   const measurePage = async (url) => {
     await page.context().clearCookies();
+    // Fix 4 — Capturar erros de console + 4xx/5xx em recursos.
+    // Detecta JS errors (TypeError, ReferenceError) e assets quebrados que nao
+    // aparecem na altura/headings mas indicam regressao funcional.
+    const consoleErrors = [];
+    const failedResources = [];
+    const consoleHandler = (msg) => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text().slice(0, 160));
+      }
+    };
+    const responseHandler = (resp) => {
+      if (resp.status() >= 400 && resp.status() < 600) {
+        const u = resp.url();
+        // Ignorar assets externos (CDN, ads, analytics) — só interessa o proprio site
+        if (u.includes('concertacaoamazonia.com.br') || u.includes('concertacao.bureau-it.com') || u.includes('cambrasmax.local')) {
+          failedResources.push(`${resp.status()} ${u.substring(u.lastIndexOf('/')+1).slice(0, 60)}`);
+        }
+      }
+    };
+    page.on('console', consoleHandler);
+    page.on('response', responseHandler);
+
     try {
       const resp = await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
       await page.waitForTimeout(1500);
-      return await page.evaluate((status) => {
+
+      // Fix 3 — Aceitar cookie banner Complianz (PT/EN) consistentemente em ambos
+      // Banner aparecendo em um e não em outro causa altura diferente (falso positivo gate 13).
+      await page.evaluate(() => {
+        const btns = Array.from(document.querySelectorAll('button, a'));
+        const acceptBtn = btns.find(b => /aceitar|accept|allow/i.test(b.innerText || '') && b.offsetWidth > 0);
+        if (acceptBtn) acceptBtn.click();
+      });
+      await page.waitForTimeout(500);
+
+      // Fix 2 — Forçar lazy-load: scroll até o final, voltar ao topo, aguardar imagens
+      // Sem isso, imagens fora do viewport reportam naturalWidth=0 → diff espúria entre prod/dev.
+      await page.evaluate(async () => {
+        await new Promise(resolve => {
+          const totalHeight = document.body.scrollHeight;
+          let scrolled = 0;
+          const step = 500;
+          const timer = setInterval(() => {
+            window.scrollBy(0, step);
+            scrolled += step;
+            if (scrolled >= totalHeight) {
+              clearInterval(timer);
+              window.scrollTo(0, 0);
+              resolve();
+            }
+          }, 100);
+        });
+      });
+      await page.waitForTimeout(1000); // tempo extra para lazy-loaded images decodificarem
+
+      const data = await page.evaluate((status) => {
+        // Fix 1 — Normalizar headings: whitespace múltiplo → 1 espaço; NBSP → espaço.
+        // JSON.stringify ficava sensível a \n, espaço duplo, NBSP entre prod/dev.
         const headings = Array.from(document.querySelectorAll('h1, h2, h3'))
-          .map(h => h.innerText.trim().slice(0, 80))
+          .map(h => h.innerText.trim()
+            .replace(/\s+/g, ' ')        // normaliza whitespace múltiplo
+            .replace(/ /g, ' ')     // NBSP → espaço normal
+            .slice(0, 80))
           .filter(Boolean);
         const downloadBtns = Array.from(document.querySelectorAll('a, button'))
           .filter(b => /download/i.test(b.innerText || ''))
-          .map(b => b.innerText.trim().slice(0, 40));
+          .map(b => b.innerText.trim()
+            .replace(/\s+/g, ' ')
+            .replace(/ /g, ' ')
+            .slice(0, 40));
         const imgsRendered = Array.from(document.querySelectorAll('img'))
           .filter(i => i.naturalWidth >= 100).length;
         return {
@@ -344,8 +404,24 @@ async (page) => {
           elementor_sections: document.querySelectorAll('.elementor-section, .e-con').length,
         };
       }, resp ? resp.status() : 0);
+
+      return {
+        ...data,
+        console_errors: consoleErrors,
+        console_error_count: consoleErrors.length,
+        failed_resources: failedResources,
+        failed_resource_count: failedResources.length,
+      };
     } catch (e) {
-      return { error: (e.message || '?').slice(0, 120), status: 0 };
+      return {
+        error: (e.message || '?').slice(0, 120),
+        status: 0,
+        console_errors: consoleErrors,
+        failed_resources: failedResources,
+      };
+    } finally {
+      page.off('console', consoleHandler);
+      page.off('response', responseHandler);
     }
   };
 
@@ -376,9 +452,16 @@ async (page) => {
     const fails = [];
     if (!headingsMatch)              fails.push('headings');
     if (!downloadsMatch)             fails.push('downloads');
-    if (heightDiffPct > 15)          fails.push(`height-${heightDiffPct}%`);
-    if (imagesDiffPct > 30)          fails.push(`images-${imagesDiffPct}%`);
+    if (heightDiffPct > 20)          fails.push(`height-${heightDiffPct}%`);
+    if (imagesDiffPct > 40)          fails.push(`images-${imagesDiffPct}%`);
     if (Math.abs(sectionsDiff) > 2)  fails.push(`sections-${sectionsDiff}`);
+    // Fix 4 — Console errors e failed_resources sao por-ambiente.
+    // PROD com console_errors > 0 ou failed_resources > 0 = FAIL.
+    // DEV com errors mas PROD sem = WARN (dev pode ter SES lockdown, JQMIGRATE etc).
+    if ((prod.console_error_count || 0) > 0)   fails.push(`console-prod=${prod.console_error_count}`);
+    if ((prod.failed_resource_count || 0) > 0) fails.push(`assets-prod=${prod.failed_resource_count}`);
+    if ((dev.console_error_count || 0) > (prod.console_error_count || 0))
+                                               fails.push(`console-dev=${dev.console_error_count}`);
 
     results.push({
       path,
@@ -395,6 +478,10 @@ async (page) => {
       dev_imgs: dev.rendered_images,
       images_diff_pct: imagesDiffPct,
       sections_diff: sectionsDiff,
+      prod_console_errors: prod.console_errors || [],
+      dev_console_errors: dev.console_errors || [],
+      prod_failed_resources: prod.failed_resources || [],
+      dev_failed_resources: dev.failed_resources || [],
       verdict: fails.length === 0 ? 'PASS' : `FAIL: ${fails.join(', ')}`,
     });
   }
@@ -538,9 +625,18 @@ Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_c
     - `prod_status !== 200` E `dev_status === 200` — página existe em DEV mas falha em PROD (pendência de deploy ou regressão)
     - `headings_match === false` — sequência de H1/H2/H3 diverge
     - `downloads_match === false` — botões de download (texto/quantidade) divergem
-    - `height_diff_pct > 15` — altura da página difere mais de 15% (forte indício de seção faltando)
-    - `images_diff_pct > 30` — quantidade de imagens renderizadas (naturalWidth ≥100) difere mais de 30%
+    - `height_diff_pct > 20` — altura da página difere mais de 20% (forte indício de seção faltando; tolerância +5% absorve banner Complianz e variação de lazy-load residual)
+    - `images_diff_pct > 40` — quantidade de imagens renderizadas (naturalWidth ≥100) difere mais de 40% (tolerância +10% absorve lazy-load fora do viewport mesmo após auto-scroll)
     - `Math.abs(sections_diff) > 2` — diferença de mais de 2 sections Elementor
+    - **`prod_console_errors.length > 0`** — qualquer JS error em PROD (TypeError, ReferenceError, MIME refused, CORS). Reportar `prod_console_errors[0..2]` no detalhe.
+    - **`prod_failed_resources.length > 0`** — qualquer 4xx/5xx em assets do próprio domínio em PROD (CSS, JS, imagens). Reportar `prod_failed_resources[0..2]`.
+    - `dev_console_errors.length > prod_console_errors.length` — DEV com mais erros que PROD = WARN não-bloqueante (reportar mas não falhar).
+
+    **Falsos positivos esperados (NÃO contar como erro):**
+    - `JQMIGRATE` warnings (info, não tipo `error`)
+    - `SES Removing unpermitted intrinsics` (lockdown extension MetaMask do user — só aparece em browsers com extensão instalada)
+    - YouTube `web-share` / `postMessage` warnings (de iframes embed, não controláveis)
+    - `Loading the script 'https://www.youtube.com'...` (cookie consent ainda não aceito)
 
     Reportar cada path em FAIL/ERROR com motivo específico. Sumário final: `pass_count / total_paths` e contagem de FAIL vs ERROR.
 
