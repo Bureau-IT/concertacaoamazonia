@@ -137,6 +137,7 @@ services:
       # Configuration
       - ./php/php.ini:/usr/local/etc/php/conf.d/99-custom.ini:ro
       - ./php/php.ini:/etc/php/8.3/fpm/conf.d/99-custom.ini:ro
+      - ./php/php.ini:/etc/php/8.3/cli/conf.d/99-custom.ini:ro
       - ./php/php-fpm.conf:/etc/php/8.3/fpm/pool.d/www.conf:ro
       - ./supervisor/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf:ro
     networks:
