@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      1.6.1
+ * Version:      1.7.0
  * Author:       Bureau IT
  * Network:      true
  */
@@ -430,7 +430,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
 
             $this->add_control( 'plugin_info', [
                 'type'            => \Elementor\Controls_Manager::RAW_HTML,
-                'raw'             => '<small style="color:#888">BIT Espiral do Conhecimento v1.6.1<br>Bureau de Tecnologia</small>',
+                'raw'             => '<small style="color:#888">BIT Espiral do Conhecimento v1.7.0<br>Bureau de Tecnologia</small>',
                 'content_classes' => 'elementor-descriptor',
             ] );
 
@@ -985,9 +985,15 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     if ( $n > 21 ) break;
                     $term_id = isset( $row['segment_term_id'] ) ? (int) $row['segment_term_id'] : 0;
                     if ( $term_id <= 0 ) continue;
+                    // v1.7.0: anexar _label legivel a partir do segment_label do Repeater.
+                    // Idioma da pagina (PT no PT, EN no EN). Atualiza automaticamente
+                    // quando o segment_label e renomeado no painel Elementor.
+                    $label_raw  = isset( $row['segment_label'] ) ? (string) $row['segment_label'] : '';
+                    $label_slug = sanitize_title( $label_raw );
                     $synth_links[ $n ] = sprintf(
-                        '/conhecimento/espiral-de-conhecimento/?eixo=eixo%d&jsf=jet-engine:estudos&tax=eixos:%d#estudos',
+                        '/conhecimento/espiral-de-conhecimento/?eixo=eixo%d%s&jsf=jet-engine:estudos&tax=eixos:%d#estudos',
                         $n,
+                        $label_slug !== '' ? '&_label=' . $label_slug : '',
                         $term_id
                     );
                 }
