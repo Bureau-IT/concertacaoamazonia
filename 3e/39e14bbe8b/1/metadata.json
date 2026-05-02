@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "3e39e14bbe8b",
+  "session_id": "55811d4e-34d6-42df-9582-284664a6a576",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-02T03:55:19.773367Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-02-adr-s3-uploads-hybrid.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "11dc4526c81c",
+  "token_usage": {
+    "input_tokens": 12708,
+    "cache_creation_tokens": 16543922,
+    "cache_read_tokens": 1235862958,
+    "output_tokens": 1646635,
+    "api_call_count": 2567
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-02T03:55:13.710064Z",
+    "agent_lines": 111,
+    "human_added": 9301,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 9412,
+    "agent_percentage": 1.179345516362091
+  }
+}
