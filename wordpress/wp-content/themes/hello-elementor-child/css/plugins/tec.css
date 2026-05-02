@@ -119,10 +119,15 @@
     color: var(--e-global-color-accent) !important;
 }
 
+.tribe-common .tribe-common-anchor-thin {
+    border-bottom : 0 !important;
+    transition    : none !important;
+}
+
 .tribe-common .tribe-common-anchor-thin:active,
 .tribe-common .tribe-common-anchor-thin:focus,
 .tribe-common .tribe-common-anchor-thin:hover {
-    border-bottom: 0px !important;
+    border-bottom: 0 !important;
 }
 
 .tribe-common.tribe-events .tribe-events-c-top-bar__datepicker-button-icon-svg {
@@ -230,4 +235,49 @@ button.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium path
 a.tribe-events-c-nav__prev.tribe-common-b2.tribe-common-b1--min-medium :hover,
 a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
     color: var(--e-global-color-accent);
+}
+
+
+/* ==========================================================================
+   7. Elementor Widget — Visualização de Eventos (Events View)
+   Libera controles de cor do painel Elementor para a list view.
+   O TEC Pro seta CSS vars em elementos filhos via {{WRAPPER}}, mas o CSS
+   nativo do TEC lê de :root. Estes overrides fazem o color herdar do
+   parent (onde o Elementor injeta a variável) com fallback para o valor
+   original do TEC.
+   ========================================================================== */
+
+/* Título do evento */
+.tribe-events .tribe-events-calendar-list__event-title {
+    color: var(--tec-color-text-events-title, var(--tec-color-text-event-title-list));
+}
+
+/* Data/hora do evento */
+.tribe-events .tribe-events-calendar-list__event-datetime {
+    color: var(--tec-color-text-event-date);
+}
+
+/* Descrição do evento */
+.tribe-events .tribe-events-calendar-list__event-description {
+    color: var(--tec-color-text-primary);
+}
+
+/* Local do evento */
+.tribe-events .tribe-events-calendar-list__event-venue {
+    color: var(--tec-color-text-primary);
+}
+
+/* Date tag — dia da semana */
+.tribe-events .tribe-events-calendar-list__event-date-tag-weekday {
+    color: var(--tec-color-text-secondary);
+}
+
+/* Date tag — número do dia */
+.tribe-events .tribe-events-calendar-list__event-date-tag-daynum {
+    color: var(--tec-color-text-primary);
+}
+
+/* Month separator */
+.tribe-events .tribe-events-calendar-list-month-separator__text {
+    color: var(--tec-color-text-primary);
 }

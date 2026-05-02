@@ -22,9 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 </head>
 <body <?php body_class(); ?>>
 
-	<!-- Tag Manager Plugin BEGIN -->	
-	<?php if ( function_exists( 'gtm4wp_the_gtm_tag' ) ) { gtm4wp_the_gtm_tag(); } ?>
-	<!-- Tag Manager Plugin END -->
+<?php wp_body_open(); ?>
 
 <?php
 if ( ! function_exists( 'elementor_theme_do_location' ) || ! elementor_theme_do_location( 'header' ) ) {

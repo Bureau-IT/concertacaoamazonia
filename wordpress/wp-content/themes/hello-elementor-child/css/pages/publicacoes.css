@@ -1,0 +1,62 @@
+/*
+ * publicacoes.css — Estilos para a página /publicacoes/
+ * Tema: hello-elementor-child
+ *
+ * Requer variáveis do child theme (style.css :root):
+ *   --ucpa-color-3  (alias de --color-extra-2 / sage mist)
+ *   --e-global-color-text
+ */
+
+/* ==========================================================================
+   LISTAGEM — thumbnail com fundo (mobile)
+   .listing_container_thumb_bg é aplicado via CSS class no container Elementor
+   ========================================================================== */
+
+@media (min-width: 1140px) {
+    .listing_container_thumb_bg * {
+        object-position: top;
+    }
+}
+
+@media (max-width: 1024px) {
+    .listing_container_thumb_bg {
+        background-color: var(--e-global-color-text);
+    }
+}
+
+/* ==========================================================================
+   DESTAQUE — listing com badge "Em destaque"
+   Aplicado via CSS class "listing_destaque" no JetEngine Listing Grid.
+   O :has() filtra pelo href para isolar publicações específicas em destaque.
+
+   Nota: .elementor-element-540275a é o ID do container de título/data
+   no template de listing da página. Requer revisão se o template mudar.
+   ========================================================================== */
+
+/* Garante que itens sem destaque fiquem após os em destaque (flex order) */
+.listing_destaque .jet-listing-grid__item {
+    order: 1;
+}
+
+/* Container do item em destaque */
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .e-con-inner {
+    background   : var(--ucpa-color-3);
+    border-radius: 1px;
+    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-3);
+}
+
+/* Badge "Em destaque" posicionado acima do container de título */
+.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a > .e-con-inner::before {
+    content       : "Em destaque";
+    position      : absolute;
+    top           : -1.6rem;
+    left          : 50%;
+    transform     : translateX(-50%);
+    background    : var(--ucpa-color-3);
+    padding       : 2px 6px;
+    border-radius : 5px;
+    font-size     : 12px;
+    font-weight   : bold;
+    text-transform: uppercase;
+    color         : #000000;
+}
