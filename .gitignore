@@ -21,6 +21,7 @@ wordpress/xmlrpc.php
 .env
 .env.*
 !.env.sample
+!.menu-map.env
 wordpress/wp-config.php
 .mcp.json
 
@@ -94,6 +95,11 @@ yarn.lock
 *.plan.md
 
 # -----------------------------------------------------------------------------
+# Secrets de infraestrutura (NUNCA versionar)
+# -----------------------------------------------------------------------------
+.x-origin-verify.secret
+
+# -----------------------------------------------------------------------------
 # Credenciais e Chaves SSH (NUNCA versionar)
 # -----------------------------------------------------------------------------
 totem/aws/totem-credentials.json
@@ -104,3 +110,101 @@ totem/manuais/ssh/totem.pub
 *.pem
 *_rsa
 *_ed25519
+
+# -----------------------------------------------------------------------------
+# Backups de wp-config (NUNCA versionar — contêm credenciais)
+# -----------------------------------------------------------------------------
+wordpress/wp-config.php.*
+*.bak
+
+# -----------------------------------------------------------------------------
+# Endpoints de debug/info (vazam configuração)
+# -----------------------------------------------------------------------------
+wordpress/phpinfo*.php
+wordpress/test_*.php
+wordpress/upload-svg.php
+wordpress/migrate-*.php
+
+# -----------------------------------------------------------------------------
+# Sessões e caches de ferramentas (Claude, Playwright, Superpowers)
+# -----------------------------------------------------------------------------
+.bootstrap_done
+.cache/
+.claude/
+.entire/
+.playwright-mcp/
+.superpowers/
+**/.bootstrap_done
+**/.claude/
+
+# -----------------------------------------------------------------------------
+# Screenshots e snapshots ad-hoc (raiz apenas — preserva imagens em themes/)
+# -----------------------------------------------------------------------------
+/*.png
+/*.jpg
+/*.jpeg
+
+# -----------------------------------------------------------------------------
+# Playgrounds, exports manuais e snapshots de debug
+# -----------------------------------------------------------------------------
+/*-playground.html
+/espiral-*.html
+/espiral-*.svg
+/atlas-*.md
+/prod-*.md
+/network-home.json
+/hero_check.json
+wordpress/hero_check.json
+tmp/
+wordpress/tmp/
+wordpress/templates/
+
+# -----------------------------------------------------------------------------
+# WordPress drop-ins (instalados/regenerados por plugins)
+# -----------------------------------------------------------------------------
+wordpress/wp-content/advanced-cache.php
+wordpress/wp-content/object-cache.php
+wordpress/wp-content/db.php
+wordpress/wp-content/db.sqlite3
+wordpress/wp-content/index.php
+wordpress/wp-content/elementor/
+wordpress/wp-content/elementor-cache/
+wordpress/wp-content/elementor-exports/
+wordpress/wp-content/ewww/
+wordpress/wp-content/languages/
+wordpress/wp-content/wp-rocket-config/
+wordpress/wp-content/upgrade-temp-backup/
+
+# -----------------------------------------------------------------------------
+# Themes — drop-ins core e snapshots
+# -----------------------------------------------------------------------------
+wordpress/wp-content/themes/.htaccess
+wordpress/wp-content/themes/index.php
+wordpress/wp-content/themes/.claude/
+wordpress/wp-content/themes/tema.zip
+
+# -----------------------------------------------------------------------------
+# mu_temp/ — sandbox de mu-plugins descartáveis
+# -----------------------------------------------------------------------------
+wordpress/wp-content/mu_temp/
+
+# -----------------------------------------------------------------------------
+# Exports WXR e dumps pontuais
+# -----------------------------------------------------------------------------
+wordpress/banners-export.xml
+wordpress/*.wordpress.*.xml
+*-export.xml
+
+# -----------------------------------------------------------------------------
+# Bibliotecas embedadas em docs/diagrams/
+# -----------------------------------------------------------------------------
+docs/diagrams/elk.bundled.js
+docs/diagrams/bit-canvas*.js
+
+# -----------------------------------------------------------------------------
+# Tracking/cleanup local (não versionar — referências temporárias)
+# -----------------------------------------------------------------------------
+gsc-bulk-pdf-removal.user.js
+gsc-removal-progress.txt
+pdfs-para-remover.txt
+Importar

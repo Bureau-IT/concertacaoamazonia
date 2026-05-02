@@ -73,8 +73,7 @@ Além dos mu-plugins padrão, este site tem:
 | `bit-dropdown-btn.php` | Botão dropdown customizado |
 | `bit-elementor-espiral-widget.php` | Widget Elementor para a espiral SVG |
 | `bit-wpml-circle.php` | Integração WPML com circle menu |
-| `bit-crossblog-attachment-fix.php` | Fix cross-blog para attachments do blog 1 em contexto de blog 2 (URL, path, download, gallery) |
-| `gallery-attachment-title.php` | Fallback para título de attachment do blog 1 em contexto de blog 2 (lightbox captions) |
+| `bit-crossblog-attachment-fix.php` | Fix cross-blog para attachments do blog 1 em contexto de blog 2 (URL, path, download, gallery, lightbox titles) |
 | `tunnel-url-rewrite.php` | Rewrite de URLs no modo tunnel |
 | `bit-tec-cache.php` | Cache 24h de `tribe_get_option('previous_ecp_versions')` — elimina DB query + `usort()` custoso a cada request em `tribe_events_is_new_install()` (spike CPU 02/04/2026) |
 
@@ -97,7 +96,7 @@ Além dos mu-plugins padrão, este site tem:
 - The Events Calendar
 - WPML (multilíngue)
 - WP Rocket + Redis (cache)
-- S3 Uploads (midia — **desligado em produção**, filesystem EC2)
+- S3 Uploads (mídia — **ativo em produção pós-CF-OAC**, prefix `/assets` no bucket `concertacaoamazonia-com-br-wp-static-prd-sa`)
 - EWWW Image Optimizer
 - Network Media Library (multisite)
 
@@ -148,3 +147,31 @@ Para qualquer operação de tradução:
   - Blog 2 (/cultura/): `cambrasmax.local:8484/cultura/`
 - Redis FLUSHDB proibido em prod — agente usa `wp cache flush` via WP-CLI
 - mu-plugin `bit-wpml-circle.php` integra WPML com o circle menu — não remover
+
+## Notas de Infra Prod (atualizado 2026-05-02)
+
+### S3 Uploads (CF-OAC ativo)
+
+- **Bucket:** `concertacaoamazonia-com-br-wp-static-prd-sa`
+- **Prefix em produção:** `/assets` (NÃO `/green` — esse é o prefix de warmup durante blue-green)
+- `S3_UPLOADS_BUCKET=concertacaoamazonia-com-br-wp-static-prd-sa/assets`
+- CloudFront serve `wp-content/uploads/*` da origin S3 com `OriginPath=/assets/uploads`
+- Pós-cutover blue→green: `phase7-cutover.sh v1.6.0+` faz auto-detect do swap green→assets (`CF_OAC_SWAP=auto`)
+- Validação rápida: `ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp config get S3_UPLOADS_BUCKET"` deve retornar prefix `/assets`
+
+### FPM Workers em Produção
+
+- **Atual:** `max_children=20` (override em `.env` raiz via `FPM_MAX_CHILDREN_PROD=20`)
+- Fórmula original (vCPUs*5=10) é conservadora; t3.large suporta ~27 workers (~280MB cada / 7.6GB)
+- Override aplicado em 2026-05-02 durante incidente de saturação por crawler `meta-externalagent`
+- Sites sem alto tráfego de crawler legítimo devem manter o default (10)
+
+### CSP — Google Charts (Sobre Nós)
+
+A página "Sobre Nós" usa Google Charts (gstatic). CSP precisa de `gstatic.com` em `style-src`:
+
+```
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.gstatic.com;
+```
+
+Sem isso, o widget de gráficos do Google Charts não estiliza — gráficos aparecem sem formatação ou quebrados visualmente.
