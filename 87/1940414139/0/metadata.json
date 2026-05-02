@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "871940414139",
+  "session_id": "0147bb50-a0f5-4736-9b3f-29a4b681d9c7",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-02T04:22:35.749132Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-02-self-host-plus-jakarta-sans-design.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "723af6f32e87",
+  "token_usage": {
+    "input_tokens": 11054,
+    "cache_creation_tokens": 862710,
+    "cache_read_tokens": 84946380,
+    "output_tokens": 247041,
+    "api_call_count": 272
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-02T04:22:34.907298Z",
+    "agent_lines": 151,
+    "human_added": 24,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 175,
+    "agent_percentage": 86.28571428571429
+  }
+}

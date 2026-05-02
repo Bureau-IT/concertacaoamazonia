@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "871940414139",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-02-self-host-plus-jakarta-sans-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/87/1940414139/0/metadata.json",
+      "transcript": "/87/1940414139/0/full.jsonl",
+      "context": "/87/1940414139/0/context.md",
+      "content_hash": "/87/1940414139/0/content_hash.txt",
+      "prompt": "/87/1940414139/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11054,
+    "cache_creation_tokens": 862710,
+    "cache_read_tokens": 84946380,
+    "output_tokens": 247041,
+    "api_call_count": 272
+  }
+}
