@@ -234,6 +234,16 @@ function bureau_it_custom_fonts_css() {
     font-display: swap;
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
+@font-face {
+    font-family: 'Plus Jakarta Sans';
+    src: url('{$fonts_woff}/PlusJakartaSans-latin-w400-700.woff2') format('woff2-variations'),
+         url('{$fonts_woff}/PlusJakartaSans-latin-w400-700.woff2') format('woff2');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 ";
 
     wp_register_style('bureau-custom-fonts', false);
@@ -256,6 +266,7 @@ function bureau_it_preload_critical_fonts() {
     $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Franie-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/JustSans-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+    echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/PlusJakartaSans-latin-w400-700.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
 
     // Preload Roboto apenas em páginas que renderizam o widget espiral
     if ( bureau_it_page_has_espiral_widget() ) {

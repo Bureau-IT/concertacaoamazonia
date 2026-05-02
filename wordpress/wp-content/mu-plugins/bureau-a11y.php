@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.5.24
+ * Version: 2.6.0
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.5.24' );
+define( 'BUREAU_A11Y_VERSION', '2.6.0' );
 define( 'BUREAU_A11Y_CSS_VERSION', '2.5.21' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.5.24' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
@@ -20,15 +20,11 @@ define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
 define( 'BUREAU_A11Y_URL', plugin_dir_url( __FILE__ ) . 'bureau-a11y/' );
 
 /**
- * Preconnect para Google Fonts (prioridade 1 no head)
- */
-add_action( 'wp_head', function () {
-	echo '<link rel="preconnect" href="https://fonts.googleapis.com">';
-	echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
-}, 1 );
-
-/**
  * Enqueue CSS e JS assets
+ *
+ * Plus Jakarta Sans é self-hosted no tema child desde 2026-05-02 (variable font subset
+ * Latin, ~27KB). Spec: docs/superpowers/specs/2026-05-02-self-host-plus-jakarta-sans-design.md
+ * Removido preconnect/enqueue para fonts.googleapis.com — site não depende mais de CDN externo.
  */
 add_action( 'wp_enqueue_scripts', 'bureau_a11y_enqueue_assets' );
 function bureau_a11y_enqueue_assets() {
@@ -37,16 +33,9 @@ function bureau_a11y_enqueue_assets() {
 	}
 
 	wp_enqueue_style(
-		'ba-font',
-		'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap',
-		[],
-		null
-	);
-
-	wp_enqueue_style(
 		'bureau-a11y',
 		BUREAU_A11Y_URL . 'bureau-a11y.css',
-		[ 'ba-font' ],
+		[],
 		BUREAU_A11Y_CSS_VERSION
 	);
 
