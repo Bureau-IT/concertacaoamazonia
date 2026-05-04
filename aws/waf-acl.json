@@ -1,0 +1,981 @@
+{
+    "WebACL": {
+        "Name": "ACL-WPAdminHML",
+        "Id": "05522267-513d-4346-8e56-ba18b11e950b",
+        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/webacl/ACL-WPAdminHML/05522267-513d-4346-8e56-ba18b11e950b",
+        "DefaultAction": {
+            "Allow": {}
+        },
+        "Description": "",
+        "Rules": [
+            {
+                "Name": "Allow-DevTeam-WPAdmin",
+                "Priority": 0,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "IPSetReferenceStatement": {
+                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWFkbWluLw==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Allow-DevTeam-WPAdmin"
+                }
+            },
+            {
+                "Name": "Allow-DevTeam-WPLogin",
+                "Priority": 1,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "IPSetReferenceStatement": {
+                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWxvZ2luLnBocA==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Allow-DevTeam-WPLogin"
+                }
+            },
+            {
+                "Name": "Block-NonDev-WPAdmin",
+                "Priority": 2,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "NotStatement": {
+                                    "Statement": {
+                                        "IPSetReferenceStatement": {
+                                            "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWFkbWluLw==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 403,
+                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-NonDev-WPAdmin"
+                }
+            },
+            {
+                "Name": "Block-NonDev-WPLogin",
+                "Priority": 3,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "NotStatement": {
+                                    "Statement": {
+                                        "IPSetReferenceStatement": {
+                                            "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWxvZ2luLnBocA==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 403,
+                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-NonDev-WPLogin"
+                }
+            },
+            {
+                "Name": "Block-TikTokSpider",
+                "Priority": 4,
+                "Statement": {
+                    "ByteMatchStatement": {
+                        "SearchString": "VkdsclZHOXJVM0JwWkdWeQ==",
+                        "FieldToMatch": {
+                            "SingleHeader": {
+                                "Name": "user-agent"
+                            }
+                        },
+                        "TextTransformations": [
+                            {
+                                "Priority": 0,
+                                "Type": "NONE"
+                            }
+                        ],
+                        "PositionalConstraint": "CONTAINS"
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 429
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-TikTokSpider"
+                }
+            },
+            {
+                "Name": "Allow-WPRocketSaaS",
+                "Priority": 5,
+                "Statement": {
+                    "IPSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/WPRocketSaaS/1a6e4123-ef11-4d41-abea-ba727bb3444e"
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Allow-WPRocketSaaS"
+                }
+            },
+            {
+                "Name": "Block-AggressiveBots",
+                "Priority": 6,
+                "Statement": {
+                    "OrStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "R1BUQm90",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "RGF0YUZvclNlb0JvdA==",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "QWhyZWZzQm90",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "U2VtcnVzaEJvdA==",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "TUoxMmJvdA==",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Qnl0ZXNwaWRlcg==",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "QmFpZHVzcGlkZXI=",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "WWFuZGV4SW1hZ2Vz",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "UGV0YWxCb3Q=",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 403
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-AggressiveBots"
+                }
+            },
+            {
+                "Name": "RateLimit-300-Block",
+                "Priority": 7,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 300,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "IP",
+                        "ScopeDownStatement": {
+                            "NotStatement": {
+                                "Statement": {
+                                    "IPSetReferenceStatement": {
+                                        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "RateLimit-300-Block"
+                }
+            },
+            {
+                "Name": "Block-XMLRPC",
+                "Priority": 8,
+                "Statement": {
+                    "ByteMatchStatement": {
+                        "SearchString": "L3htbHJwYy5waHA=",
+                        "FieldToMatch": {
+                            "UriPath": {}
+                        },
+                        "TextTransformations": [
+                            {
+                                "Priority": 0,
+                                "Type": "LOWERCASE"
+                            },
+                            {
+                                "Priority": 1,
+                                "Type": "URL_DECODE"
+                            }
+                        ],
+                        "PositionalConstraint": "ENDS_WITH"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-XMLRPC"
+                }
+            },
+            {
+                "Name": "Allow-AdminAjax-Prod",
+                "Priority": 9,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "YWRtaW4tYWpheC5waHA=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "d3d3LmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AllowAdminAjaxProd"
+                }
+            },
+            {
+                "Name": "Allow-Prod-WPAdmin-Root",
+                "Priority": 10,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "IPSetReferenceStatement": {
+                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWFkbWluLw==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "d3d3LmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Allow-Prod-WPAdmin-Root"
+                }
+            },
+            {
+                "Name": "Allow-Prod-WPLogin",
+                "Priority": 11,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "IPSetReferenceStatement": {
+                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "d3d3LmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWxvZ2luLnBocA==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Allow-Prod-WPLogin"
+                }
+            },
+            {
+                "Name": "Allow-Prod-WPAdmin-Subsite",
+                "Priority": 12,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "IPSetReferenceStatement": {
+                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWFkbWluLw==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "d3d3LmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Allow-Prod-WPAdmin-Subsite"
+                }
+            },
+            {
+                "Name": "Block-NonDev-WPAdmin-Prod",
+                "Priority": 13,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "NotStatement": {
+                                    "Statement": {
+                                        "IPSetReferenceStatement": {
+                                            "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWFkbWluLw==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "d3d3LmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-NonDev-WPAdmin-Prod"
+                }
+            },
+            {
+                "Name": "Block-NonDev-WPLogin-Prod",
+                "Priority": 14,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "NotStatement": {
+                                    "Statement": {
+                                        "IPSetReferenceStatement": {
+                                            "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "d3d3LmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "host"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "EXACTLY"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWxvZ2luLnBocA==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-NonDev-WPLogin-Prod"
+                }
+            },
+            {
+                "Name": "Block-AttackerRanges-2026-03-31",
+                "Priority": 15,
+                "Statement": {
+                    "IPSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/AttackerRanges-2026-03-31/d84444a2-8020-4c42-b20f-9c18060a9b42"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-AttackerRanges-2026-03-31"
+                }
+            },
+            {
+                "Name": "AWS-WordPress-ManagedRules",
+                "Priority": 16,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesWordPressRuleSet"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-WordPress-ManagedRules"
+                }
+            },
+            {
+                "Name": "RateLimit-WPLogin-POST",
+                "Priority": 17,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 50,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "FORWARDED_IP",
+                        "ScopeDownStatement": {
+                            "AndStatement": {
+                                "Statements": [
+                                    {
+                                        "ByteMatchStatement": {
+                                            "SearchString": "L3dwLWxvZ2luLnBocA==",
+                                            "FieldToMatch": {
+                                                "UriPath": {}
+                                            },
+                                            "TextTransformations": [
+                                                {
+                                                    "Priority": 0,
+                                                    "Type": "LOWERCASE"
+                                                }
+                                            ],
+                                            "PositionalConstraint": "ENDS_WITH"
+                                        }
+                                    },
+                                    {
+                                        "ByteMatchStatement": {
+                                            "SearchString": "UE9TVA==",
+                                            "FieldToMatch": {
+                                                "Method": {}
+                                            },
+                                            "TextTransformations": [
+                                                {
+                                                    "Priority": 0,
+                                                    "Type": "NONE"
+                                                }
+                                            ],
+                                            "PositionalConstraint": "EXACTLY"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        "ForwardedIPConfig": {
+                            "HeaderName": "X-Forwarded-For",
+                            "FallbackBehavior": "MATCH"
+                        }
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "RateLimit-WPLogin-POST"
+                }
+            }
+        ],
+        "VisibilityConfig": {
+            "SampledRequestsEnabled": true,
+            "CloudWatchMetricsEnabled": true,
+            "MetricName": "ACL-WPAdminHML"
+        },
+        "Capacity": 316,
+        "ManagedByFirewallManager": false,
+        "LabelNamespace": "awswaf:379590274801:webacl:ACL-WPAdminHML:",
+        "CustomResponseBodies": {
+            "BIT-Recurso-Indisponivel": {
+                "ContentType": "TEXT_PLAIN",
+                "Content": "bureau-it.com =============== recurso indisponivel"
+            }
+        },
+        "RetrofittedByFirewallManager": false,
+        "OnSourceDDoSProtectionConfig": {
+            "ALBLowReputationMode": "ACTIVE_UNDER_DDOS"
+        }
+    },
+    "LockToken": "36b2e7cd-37ee-4f6c-879f-e414de9b158d"
+}
