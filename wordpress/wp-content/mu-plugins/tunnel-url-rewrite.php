@@ -38,9 +38,27 @@ if (!isset($tunnel_configs[TUNNEL_ORIGINAL_HOST])) {
 
 $config = $tunnel_configs[TUNNEL_ORIGINAL_HOST];
 
-// Porta local lida dinamicamente do siteurl atual — evita drift quando NGINX_SSL_PORT muda no .env
-$_siteurl_port = parse_url(get_option('siteurl'), PHP_URL_PORT);
-$_local_port   = $_siteurl_port ? ':' . (int) $_siteurl_port : '';
+// Porta local: precisamos cobrir TODAS as portas que podem aparecer em URLs
+// geradas dentro do request — o siteurl do blog atual pode estar tunelizado
+// (sem porta), mas switch_to_blog($outro) pode gerar URLs do blog raiz com
+// porta local. Estratégia: parse do siteurl atual + parse do request server
+// port + fallback regex no ob_start cobrindo qualquer porta numerica.
+$_ports = [];
+$_p = parse_url(get_option('siteurl'), PHP_URL_PORT);
+if ($_p) $_ports[(int) $_p] = true;
+if (is_multisite()) {
+    // Buscar porta do blog raiz tambem
+    switch_to_blog(get_main_site_id());
+    $_p = parse_url(get_option('siteurl'), PHP_URL_PORT);
+    if ($_p) $_ports[(int) $_p] = true;
+    restore_current_blog();
+}
+if (!empty($_SERVER['SERVER_PORT'])) {
+    $_ports[(int) $_SERVER['SERVER_PORT']] = true;
+}
+
+// String de porta primaria (a primeira encontrada) para os defines legados
+$_local_port = !empty($_ports) ? ':' . array_key_first($_ports) : '';
 
 define('TUNNEL_LOCAL_URL',    'https://cambrasmax.local' . $_local_port);
 define('TUNNEL_LOCAL_ALT',    'https://localhost' . $_local_port);
@@ -48,13 +66,25 @@ define('TUNNEL_LOCAL_NOPORT', 'https://cambrasmax.local');
 define('TUNNEL_PUBLIC_URL',   $config['public_url']);
 define('TUNNEL_SUBSITE_PATH', $config['subsite_path']);
 
-// URLs a substituir — ORDEM IMPORTA: subsite com prefixo primeiro, depois base
+// Cobrir TODAS as portas detectadas (nao so a primaria) + variantes sem porta.
+// switch_to_blog do main site dentro de um subsite gera URLs locais com porta
+// que precisam ser tunelizadas no output buffer.
+$_local_hosts = [];
+foreach (array_keys($_ports) as $port) {
+    $_local_hosts[] = 'https://cambrasmax.local:' . $port;
+    $_local_hosts[] = 'https://localhost:'        . $port;
+}
+$_local_hosts[] = 'https://cambrasmax.local';
+$_local_hosts[] = 'https://localhost';
+
+// URLs a substituir — ORDEM IMPORTA: subsite com prefixo primeiro (mais
+// especifico), depois base. Em cada categoria, hosts COM porta vem antes
+// dos sem porta (str_replace itera o array em ordem).
 $tunnel_search  = [];
 $tunnel_replace = [];
 
 if (TUNNEL_SUBSITE_PATH !== '') {
-    // Subsite URLs (com prefixo) → tunnel root (strip prefix)
-    foreach ([TUNNEL_LOCAL_URL, TUNNEL_LOCAL_ALT, TUNNEL_LOCAL_NOPORT] as $local) {
+    foreach ($_local_hosts as $local) {
         $tunnel_search[]  = $local . TUNNEL_SUBSITE_PATH;
         $tunnel_search[]  = str_replace('/', '\\/', $local . TUNNEL_SUBSITE_PATH);
         $tunnel_replace[] = TUNNEL_PUBLIC_URL;
@@ -62,13 +92,17 @@ if (TUNNEL_SUBSITE_PATH !== '') {
     }
 }
 
-// Base URLs (shared resources: wp-content, wp-includes) → tunnel root
-foreach ([TUNNEL_LOCAL_URL, TUNNEL_LOCAL_ALT, TUNNEL_LOCAL_NOPORT] as $local) {
+foreach ($_local_hosts as $local) {
     $tunnel_search[]  = $local;
     $tunnel_search[]  = str_replace('/', '\\/', $local);
     $tunnel_replace[] = TUNNEL_PUBLIC_URL;
     $tunnel_replace[] = str_replace('/', '\\/', TUNNEL_PUBLIC_URL);
 }
+
+// Compartilhado entre ob_start e tunnel_rewrite_url() — uso de globals para
+// que a funcao nao precise reconstruir os arrays a cada chamada.
+$GLOBALS['_tunnel_search']  = $tunnel_search;
+$GLOBALS['_tunnel_replace'] = $tunnel_replace;
 
 // Global output buffer - captura TODO output PHP (HTML, JSON, AJAX, REST)
 ob_start(function ($html) use ($tunnel_search, $tunnel_replace) {
@@ -76,22 +110,7 @@ ob_start(function ($html) use ($tunnel_search, $tunnel_replace) {
 });
 
 function tunnel_rewrite_url($url) {
-    if (TUNNEL_SUBSITE_PATH !== '') {
-        $url = str_replace(
-            [
-                TUNNEL_LOCAL_URL . TUNNEL_SUBSITE_PATH,
-                TUNNEL_LOCAL_ALT . TUNNEL_SUBSITE_PATH,
-                TUNNEL_LOCAL_NOPORT . TUNNEL_SUBSITE_PATH,
-            ],
-            [TUNNEL_PUBLIC_URL, TUNNEL_PUBLIC_URL, TUNNEL_PUBLIC_URL],
-            $url
-        );
-    }
-    return str_replace(
-        [TUNNEL_LOCAL_URL, TUNNEL_LOCAL_ALT, TUNNEL_LOCAL_NOPORT],
-        [TUNNEL_PUBLIC_URL, TUNNEL_PUBLIC_URL, TUNNEL_PUBLIC_URL],
-        $url
-    );
+    return str_replace($GLOBALS['_tunnel_search'], $GLOBALS['_tunnel_replace'], $url);
 }
 
 // Option-level (interceptação mais cedo possível)

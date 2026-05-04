@@ -2,11 +2,14 @@
 /**
  * Plugin Name: Concertação - Menu Compartilhado
  * Plugin URI:  https://concertacaoamazonia.com.br
- * Description: Define menu compartilhado entre todos os subsites da Concertação.
- *              Intercepta o menu "concertacao-lp" em qualquer blog e retorna
- *              a estrutura canônica definida neste arquivo.
- *              Para atualizar o menu, edite concertacao_shared_menu_items().
- * Version:     1.0.0
+ * Description: Sincroniza os menus 'principal', 'principal-en' e 'footer' entre
+ *              os blogs do multisite. Blog 1 (raiz) é a fonte da verdade — o
+ *              admin do WP-Admin manda. Subsites (blog 2 = /cultura/) leem o
+ *              mesmo menu cadastrado no blog 1 via switch_to_blog(1) em runtime.
+ *              Itens com path /cultura/* permanecem como custom links no menu
+ *              do blog 1 — pertencem ao blog 2 mas devem aparecer no menu de
+ *              ambos os blogs.
+ * Version:     2.0.0
  * Author:      Bureau IT
  * Author URI:  https://bureaudetecnologia.com.br
  */
@@ -76,74 +79,42 @@ function concertacao_build_menu_items( array $definition, int $id_offset = 90000
  *
  * @return object[]
  */
-function concertacao_shared_menu_items(): array {
-    static $items = null;
-    if ( $items !== null ) {
-        return $items;
+/**
+ * Resolve o permalink de uma página em runtime, opcionalmente via switch_to_blog.
+ *
+ * Uso: concertacao_resolve_url('atuacao/encontros') no contexto blog 1, ou
+ *      concertacao_resolve_url('linha-do-tempo', 2) para uma página do blog 2.
+ *
+ * Falha-segura: se a página não existir, retorna `home_url('/' . $path)`
+ * preservando o caminho — o item ainda renderiza e a navegação funciona via
+ * rewrite do WP, embora o admin nunca deva chegar a esse fallback (auditar via
+ * `WP_DEBUG_LOG` quando isso ocorrer).
+ *
+ * @param string $path  Path relativo sem leading slash (ex: 'sobre-nos/4-amazonias')
+ * @param int    $blog  blog_id alvo; 0 = blog atual
+ * @return string URL absoluta (com host atual; tunnel-url-rewrite.php cuida do scheme/host em dev)
+ */
+function concertacao_resolve_url( string $path, int $blog = 1 ): string {
+    $switched = false;
+    if ( function_exists( 'is_multisite' ) && is_multisite() && get_current_blog_id() !== $blog ) {
+        switch_to_blog( $blog );
+        $switched = true;
     }
 
-    // ===================================================================
-    // ESTRUTURA DO MENU PRINCIPAL
-    // Para atualizar: edite abaixo e salve o arquivo.
-    // Todos os links são do próprio site concertacao (porta dev :8484 →
-    // tunnel concertacao.bureau-it.com → prod concertacaoamazonia.com.br).
-    // /cultura/ é blog_id=2 do mesmo multisite.
-    // ===================================================================
+    $path = trim( $path, '/' );
+    if ( $path === '' ) {
+        $url = trailingslashit( home_url( '/' ) );
+    } else {
+        $page = get_page_by_path( $path );
+        $url  = $page ? get_permalink( $page->ID ) : trailingslashit( home_url( '/' . $path ) );
+    }
 
-    $def   = [];
-    $sobre = 90000;
-    $atua  = 90005;
-    $conh  = 90011;
-    $cult  = 90015;
-
-    // ── Sobre nós ──────────────────────────────────────────────────────
-    $def[] = [ 'Sobre nós',             'https://cambrasmax.local:8484/sobre-nos/' ];                                                // ID 90000
-    $def[] = [ 'Rede',                  'https://www.concertacaoamazonia.com.br/sobre-nos/#nucleogovernanca', $sobre ];
-    $def[] = [ '4 Amazônias',           'https://cambrasmax.local:8484/sobre-nos/4-amazonias/',               $sobre ];
-    $def[] = [ '5 Pilares',             'https://cambrasmax.local:8484/sobre-nos/5-pilares/',                 $sobre ];
-    $def[] = [ 'Agenda Integradora',    'https://cambrasmax.local:8484/sobre-nos/agenda-integradora/',        $sobre ];
-
-    // ── Atuação ────────────────────────────────────────────────────────
-    $def[] = [ 'Atuação',               'https://cambrasmax.local:8484/atuacao/' ];                           // ID 90005
-    $def[] = [ 'Encontros',             'https://cambrasmax.local:8484/atuacao/encontros/',                $atua ];
-    $def[] = [ 'Grupos de Trabalho',    'https://cambrasmax.local:8484/atuacao/grupos-de-trabalho/',       $atua ];
-    $def[] = [ 'Iniciativas Estruturantes', 'https://cambrasmax.local:8484/atuacao/iniciativas-estruturantes/', $atua ];
-    $def[] = [ 'Atuação Internacional', 'https://cambrasmax.local:8484/atuacao/atuacao-internacional/',    $atua ];
-    $def[] = [ 'Perguntas e Respostas', 'https://cambrasmax.local:8484/atuacao/faq/',                      $atua ];
-
-    // ── Conhecimento ───────────────────────────────────────────────────
-    $def[] = [ 'Conhecimento',           'https://cambrasmax.local:8484/conhecimento/' ];                     // ID 90011
-    $def[] = [ 'Espiral de Conhecimento','https://cambrasmax.local:8484/conhecimento/espiral-de-conhecimento/', $conh ];
-    $def[] = [ 'Mapa de Plataformas',    'https://cambrasmax.local:8484/conhecimento/mapa-das-plataformas/',    $conh ];
-    $def[] = [ 'Publicações',            'https://cambrasmax.local:8484/publicacoes/',                          $conh ];
-
-    // ── Cultura (blog 2 em /cultura/) ──────────────────────────────────
-    $def[] = [ 'Cultura',                        'https://cambrasmax.local:8484/cultura/' ];                  // ID 90016
-    $def[] = [ 'Linha do Tempo',                 'https://cambrasmax.local:8484/cultura/linha-do-tempo/',                $cult ];
-    $def[] = [ 'Atlas Cultural das Amazônias',   'https://cambrasmax.local:8484/cultura/atlas-cultural-das-amazonias/',  $cult ];
-    $def[] = [ 'Galeria',                        'https://cambrasmax.local:8484/cultura/galeria/',                       $cult ];
-    $def[] = [ 'Exposição Porosidades',          'https://cambrasmax.local:8484/cultura/porosidades/',                   $cult ];
-    $def[] = [ 'Exposição Cores do Futuro',      'https://cambrasmax.local:8484/cultura/exposicao-cores-do-futuro/',     $cult ];
-    $def[] = [ 'Exposição Poéticas do Possível', 'https://cambrasmax.local:8484/cultura/poeticas-do-possivel/',          $cult ];
-
-    // ── Contato ────────────────────────────────────────────────────────
-    $def[] = [ 'Contato',                'https://cambrasmax.local:8484/contato/' ];
-
-    $items = concertacao_build_menu_items( $def, 90000 );
-    return $items;
+    if ( $switched ) {
+        restore_current_blog();
+    }
+    return $url;
 }
 
-/**
- * Intercepta wp_get_nav_menu_items para menus com slug 'concertacao-lp'
- * e retorna a estrutura compartilhada definida em concertacao_shared_menu_items().
- *
- * Funciona em qualquer blog dos dois stacks (www-concertacao e www2-concertacao).
- *
- * @param WP_Post[]|false $items Itens originais (ou false se erro)
- * @param WP_Term|object  $menu  Objeto do menu
- * @param object          $args  Argumentos da chamada
- * @return WP_Post[]|false
- */
 /**
  * Retorna os itens do menu de footer (apenas os 5 itens principais).
  *
@@ -156,11 +127,11 @@ function concertacao_footer_menu_items(): array {
     }
 
     $def = [
-        [ 'Sobre nós',    'https://cambrasmax.local:8484/sobre-nos/'    ],
-        [ 'Atuação',      'https://cambrasmax.local:8484/atuacao/'      ],
-        [ 'Conhecimento', 'https://cambrasmax.local:8484/conhecimento/' ],
-        [ 'Cultura',      'https://cambrasmax.local:8484/cultura/'      ],
-        [ 'Contato',      'https://cambrasmax.local:8484/contato/'      ],
+        [ 'Sobre nós',    concertacao_resolve_url( 'sobre-nos' )    ],
+        [ 'Atuação',      concertacao_resolve_url( 'atuacao' )      ],
+        [ 'Conhecimento', concertacao_resolve_url( 'conhecimento' ) ],
+        [ 'Cultura',      concertacao_resolve_url( '', 2 )          ],
+        [ 'Contato',      concertacao_resolve_url( 'contato' )      ],
     ];
 
     $items = concertacao_build_menu_items( $def, 91000 );
@@ -168,30 +139,69 @@ function concertacao_footer_menu_items(): array {
 }
 
 /**
- * Slugs de menus a interceptar:
+ * Espelha um menu do blog 1 para o blog atual (>1) via switch_to_blog().
  *
- * Header (menu principal com submenus):
- *   concertacao-lp → www-concertacao blogs 1-4
- *   principal      → www2-concertacao blog 1 (PT e EN)
+ * O menu principal/footer é mantido como fonte única no blog 1 (admin do
+ * WP-Admin é a fonte da verdade). Subsites (blog 2 = /cultura/) leem o
+ * mesmo menu cadastrado no blog 1, sem necessidade de duplicar items no
+ * banco do subsite.
  *
- * Footer (apenas itens top-level):
- *   footer         → todos os sites
+ * @param string $slug Slug do menu no blog 1 (ex: 'principal', 'principal-en', 'footer')
+ * @return WP_Post[]|false Items do menu, ou false se inexistente
  */
-add_filter( 'wp_get_nav_menu_items', function ( $items, $menu, $args ) {
+function concertacao_pull_menu_from_blog1( string $slug ) {
+    static $cache = [];
+    if ( isset( $cache[ $slug ] ) ) {
+        return $cache[ $slug ];
+    }
+
+    if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
+        return false;
+    }
+
+    switch_to_blog( 1 );
+    // Pegar items SEM disparar o nosso próprio filtro (para evitar recursão).
+    remove_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10 );
+    $items = wp_get_nav_menu_items( $slug );
+    add_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10, 3 );
+    restore_current_blog();
+
+    $cache[ $slug ] = $items;
+    return $items;
+}
+
+/**
+ * Filtro principal: nos subsites (blog_id > 1), substitui menus 'principal',
+ * 'principal-en' e 'footer' pelos itens cadastrados no blog 1.
+ *
+ * No blog 1 retorna $items intocados — admin do WP-Admin manda. Permite que
+ * mudanças feitas no admin reflitam tanto no blog 1 quanto no blog 2.
+ *
+ * Slug 'concertacao-lp' é histórico (legado da landing page); mantido por
+ * compatibilidade.
+ *
+ * @param WP_Post[]|false $items Items originais
+ * @param WP_Term|object  $menu  Objeto do menu (precisa ter ->slug)
+ * @return WP_Post[]|false
+ */
+function concertacao_shared_menu_filter( $items, $menu, $args ) {
     if ( ! is_object( $menu ) || ! isset( $menu->slug ) ) {
         return $items;
     }
-
-    if ( in_array( $menu->slug, [ 'concertacao-lp', 'principal' ], true ) ) {
-        return concertacao_shared_menu_items();
+    // No blog 1, admin é a fonte da verdade — não interceptar.
+    if ( get_current_blog_id() === 1 ) {
+        return $items;
     }
-
+    if ( in_array( $menu->slug, [ 'principal', 'principal-en', 'concertacao-lp' ], true ) ) {
+        $blog1_items = concertacao_pull_menu_from_blog1( $menu->slug );
+        return $blog1_items ?: $items;
+    }
     if ( $menu->slug === 'footer' ) {
         return concertacao_footer_menu_items();
     }
-
     return $items;
-}, 10, 3 );
+}
+add_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10, 3 );
 
 /**
  * WPML: substitui nome por extenso pelo código de 2 letras no switcher.
