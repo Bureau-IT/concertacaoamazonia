@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "8d465590ac1d",
+  "session_id": "4b492b3d-63a9-4270-837f-cd8a6093ce9c",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-04T19:53:54.934303Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-04-adr-cloudfront-error-caching-ttl.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a810528f6023",
+  "token_usage": {
+    "input_tokens": 384,
+    "cache_creation_tokens": 2118394,
+    "cache_read_tokens": 61263353,
+    "output_tokens": 208929,
+    "api_call_count": 235
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-04T19:53:54.010471Z",
+    "agent_lines": 0,
+    "human_added": 135,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 135,
+    "agent_percentage": 0
+  }
+}
