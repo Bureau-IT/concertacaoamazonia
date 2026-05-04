@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'BUREAU_A11Y_VERSION', '2.6.1' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.5.21' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.5.22' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.5.25' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );

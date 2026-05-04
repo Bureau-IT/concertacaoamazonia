@@ -236,13 +236,17 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
                 width 0.22s cubic-bezier(0.4,0,0.2,1);
 }
 
-#bureau-a11y-panel[aria-hidden="true"] {
+/* v2.6.1: seletores migrados de [aria-hidden="true|false"] para [inert] / :not([inert])
+   alinhado com mudanca em bureau-a11y.js Panel.open()/close() que usa el.inert.
+   inert ja bloqueia eventos nativamente — pointer-events:none redundante mas
+   mantido por compatibilidade com Firefox/WebKit que aplicam via computed style. */
+#bureau-a11y-panel[inert] {
     opacity: 0;
     transform: translateX(8px) scale(0.95);
     pointer-events: none;
 }
 
-#bureau-a11y-panel[aria-hidden="false"] {
+#bureau-a11y-panel:not([inert]) {
     opacity: 1;
     transform: translateX(0) scale(1);
     pointer-events: auto;
@@ -1470,12 +1474,13 @@ html > body > header {
         transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
     }
 
-    #bureau-a11y-panel[aria-hidden="false"] {
+    /* v2.6.1: migrado para [inert] / :not([inert]) — ver comentario no estilo base */
+    #bureau-a11y-panel:not([inert]) {
         transform: translateY(0);
         opacity: 1;
     }
 
-    #bureau-a11y-panel[aria-hidden="true"] {
+    #bureau-a11y-panel[inert] {
         transform: translateY(100%);
         opacity: 0;
     }
