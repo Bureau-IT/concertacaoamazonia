@@ -1,5 +1,35 @@
 # bit-waf — CHANGELOG
 
+## 1.2.0 — 2026-05-04 (Fatia 3)
+
+### Adicionado
+- `playbooks/incident-diagnose.md` — passo a passo executavel para diagnostico
+  de incidente edge AWS. Sequencia: rodar /diagnose-edge → interpretar VERDICT
+  → branch por tipo (origin-degraded vs edge-anomaly vs mixed vs inconclusive)
+  → identificar rule responsavel → proximos passos. Inclui scripts curtos para
+  agregacao de WAF logs S3 quando logs estao habilitados.
+- `playbooks/deploy-rule.md` — workflow seguro de aplicacao de WAF rule em prod.
+  7 steps: pre-flight auth → snapshot pre-mudanca → construir payload →
+  check-capacity → apply → validate → monitor 30min. Rollback documentado via
+  git show de commit anterior. Casos especiais: custom response body, adicionar
+  rule nova, remover rule.
+- `docs/managed-rule-groups.md` — referencia das AWS managed rule groups
+  relevantes para WordPress (AWSManagedRulesWordPressRuleSet usado, outros
+  avaliados). Workflow para ativar nova managed rule (Count → 7-14d → Block).
+  Bot Control descartado por orcamento.
+- `docs/anti-templates.md` — 6 antipatterns documentados com causa raiz +
+  sintoma + fix correto + source: rate-limit sem scope-down, Allow priority 0
+  amplo, IPSet attacker com ranges AWS, rules duplicadas, Allow apos Block,
+  mexer em OnSourceDDoSProtectionConfig em CF scope.
+- Memory: `feedback_skill_bit_waf.md` registrando criacao da skill e como usar.
+
+### Notas
+- Fatia 3 fecha o MVP da skill. Restam apenas:
+  - v1.3 (futuro): helper apply-rule.sh com diff visual + rollback automatizado
+  - v1.4 (futuro): /audit-acl slash command + playbooks/audit-acl.md
+- Templates ainda nao foram aplicados em produção a partir da skill — proximo
+  uso real sera o teste de fogo da Fatia 1+2+3.
+
 ## 1.1.0 — 2026-05-04 (Fatia 2)
 
 ### Adicionado
