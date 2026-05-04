@@ -85,9 +85,9 @@ function concertacao_shared_menu_items(): array {
     // ===================================================================
     // ESTRUTURA DO MENU PRINCIPAL
     // Para atualizar: edite abaixo e salve o arquivo.
-    // Mapeamento dev:
-    //   :8490 → www-concertacao  (www.concertacaoamazonia.com.br)
-    //   :8484 → www2-concertacao (concertacaoamazonia.com.br e /cultura/)
+    // Todos os links são do próprio site concertacao (porta dev :8484 →
+    // tunnel concertacao.bureau-it.com → prod concertacaoamazonia.com.br).
+    // /cultura/ é blog_id=2 do mesmo multisite.
     // ===================================================================
 
     $def   = [];
@@ -96,28 +96,28 @@ function concertacao_shared_menu_items(): array {
     $conh  = 90011;
     $cult  = 90015;
 
-    // ── Sobre nós (:8490) ──────────────────────────────────────────────
-    $def[] = [ 'Sobre nós',             'https://cambrasmax.local:8490/sobre-nos/' ];                                                // ID 90000
+    // ── Sobre nós ──────────────────────────────────────────────────────
+    $def[] = [ 'Sobre nós',             'https://cambrasmax.local:8484/sobre-nos/' ];                                                // ID 90000
     $def[] = [ 'Rede',                  'https://www.concertacaoamazonia.com.br/sobre-nos/#nucleogovernanca', $sobre ];
-    $def[] = [ '4 Amazônias',           'https://cambrasmax.local:8490/sobre-nos/4-amazonias/',               $sobre ];
-    $def[] = [ '5 Pilares',             'https://cambrasmax.local:8490/sobre-nos/5-pilares/',                 $sobre ];
-    $def[] = [ 'Agenda Integradora',    'https://cambrasmax.local:8490/sobre-nos/agenda-integradora/',        $sobre ];
+    $def[] = [ '4 Amazônias',           'https://cambrasmax.local:8484/sobre-nos/4-amazonias/',               $sobre ];
+    $def[] = [ '5 Pilares',             'https://cambrasmax.local:8484/sobre-nos/5-pilares/',                 $sobre ];
+    $def[] = [ 'Agenda Integradora',    'https://cambrasmax.local:8484/sobre-nos/agenda-integradora/',        $sobre ];
 
-    // ── Atuação (:8490) ────────────────────────────────────────────────
-    $def[] = [ 'Atuação',               'https://cambrasmax.local:8490/atuacao/' ];                           // ID 90005
+    // ── Atuação ────────────────────────────────────────────────────────
+    $def[] = [ 'Atuação',               'https://cambrasmax.local:8484/atuacao/' ];                           // ID 90005
     $def[] = [ 'Encontros',             'https://cambrasmax.local:8484/atuacao/encontros/',                $atua ];
-    $def[] = [ 'Grupos de Trabalho',    'https://cambrasmax.local:8490/atuacao/grupos-de-trabalho/',       $atua ];
-    $def[] = [ 'Iniciativas Estruturantes', 'https://cambrasmax.local:8490/atuacao/iniciativas-estruturantes/', $atua ];
-    $def[] = [ 'Atuação Internacional', 'https://cambrasmax.local:8490/atuacao/atuacao-internacional/',    $atua ];
-    $def[] = [ 'Perguntas e Respostas', 'https://cambrasmax.local:8490/atuacao/faq/',                      $atua ];
+    $def[] = [ 'Grupos de Trabalho',    'https://cambrasmax.local:8484/atuacao/grupos-de-trabalho/',       $atua ];
+    $def[] = [ 'Iniciativas Estruturantes', 'https://cambrasmax.local:8484/atuacao/iniciativas-estruturantes/', $atua ];
+    $def[] = [ 'Atuação Internacional', 'https://cambrasmax.local:8484/atuacao/atuacao-internacional/',    $atua ];
+    $def[] = [ 'Perguntas e Respostas', 'https://cambrasmax.local:8484/atuacao/faq/',                      $atua ];
 
-    // ── Conhecimento (:8484) ───────────────────────────────────────────
+    // ── Conhecimento ───────────────────────────────────────────────────
     $def[] = [ 'Conhecimento',           'https://cambrasmax.local:8484/conhecimento/' ];                     // ID 90011
     $def[] = [ 'Espiral de Conhecimento','https://cambrasmax.local:8484/conhecimento/espiral-de-conhecimento/', $conh ];
     $def[] = [ 'Mapa de Plataformas',    'https://cambrasmax.local:8484/conhecimento/mapa-das-plataformas/',    $conh ];
     $def[] = [ 'Publicações',            'https://cambrasmax.local:8484/publicacoes/',                          $conh ];
 
-    // ── Cultura (:8484 — blog 2 em /cultura/) ─────────────────────────
+    // ── Cultura (blog 2 em /cultura/) ──────────────────────────────────
     $def[] = [ 'Cultura',                        'https://cambrasmax.local:8484/cultura/' ];                  // ID 90016
     $def[] = [ 'Linha do Tempo',                 'https://cambrasmax.local:8484/cultura/linha-do-tempo/',                $cult ];
     $def[] = [ 'Atlas Cultural das Amazônias',   'https://cambrasmax.local:8484/cultura/atlas-cultural-das-amazonias/',  $cult ];
@@ -126,8 +126,8 @@ function concertacao_shared_menu_items(): array {
     $def[] = [ 'Exposição Cores do Futuro',      'https://cambrasmax.local:8484/cultura/exposicao-cores-do-futuro/',     $cult ];
     $def[] = [ 'Exposição Poéticas do Possível', 'https://cambrasmax.local:8484/cultura/poeticas-do-possivel/',          $cult ];
 
-    // ── Contato (:8490) ────────────────────────────────────────────────
-    $def[] = [ 'Contato',                'https://cambrasmax.local:8490/contato/' ];
+    // ── Contato ────────────────────────────────────────────────────────
+    $def[] = [ 'Contato',                'https://cambrasmax.local:8484/contato/' ];
 
     $items = concertacao_build_menu_items( $def, 90000 );
     return $items;
@@ -156,11 +156,11 @@ function concertacao_footer_menu_items(): array {
     }
 
     $def = [
-        [ 'Sobre nós',    'https://cambrasmax.local:8490/sobre-nos/'    ],
-        [ 'Atuação',      'https://cambrasmax.local:8490/atuacao/'      ],
+        [ 'Sobre nós',    'https://cambrasmax.local:8484/sobre-nos/'    ],
+        [ 'Atuação',      'https://cambrasmax.local:8484/atuacao/'      ],
         [ 'Conhecimento', 'https://cambrasmax.local:8484/conhecimento/' ],
         [ 'Cultura',      'https://cambrasmax.local:8484/cultura/'      ],
-        [ 'Contato',      'https://cambrasmax.local:8490/contato/'      ],
+        [ 'Contato',      'https://cambrasmax.local:8484/contato/'      ],
     ];
 
     $items = concertacao_build_menu_items( $def, 91000 );

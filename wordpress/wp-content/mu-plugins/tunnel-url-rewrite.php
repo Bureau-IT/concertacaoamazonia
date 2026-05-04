@@ -3,17 +3,21 @@
  * Cloudflare Tunnel URL Rewrite — Path-based Multisite Routing
  *
  * Funciona em conjunto com sunrise.php que faz o domain mapping real.
- * Reescreve URLs no output substituindo cambrasmax.local:8490 pelo tunnel hostname,
- * preservando os paths dos subsites (/5anos/, /rota26-30/, /100-dias/).
+ * Reescreve URLs no output substituindo cambrasmax.local:<porta> pelo tunnel hostname,
+ * preservando os paths dos subsites (/cultura/).
  *
- * Um único tunnel serve todos os subsites:
- *   - www-concertacao.bureau-it.com/          → blog_id=1 (site raiz)
- *   - www-concertacao.bureau-it.com/5anos/    → blog_id=2
- *   - www-concertacao.bureau-it.com/rota26-30/ → blog_id=3
- *   - www-concertacao.bureau-it.com/100-dias/  → blog_id=4
+ * Single tunnel serve todos os subsites:
+ *   - concertacao.bureau-it.com/         → blog_id=1 (site raiz)
+ *   - concertacao.bureau-it.com/cultura/ → blog_id=2
  *
  * Customizado para subsite domain mapping - EDITAR COM CUIDADO
  */
+
+// Belt-and-suspenders: este mu-plugin é DEV-ONLY. Em prod (mesmo se sunrise.php
+// for sincronizado por engano com mapping de tunnel), aborta antes de qualquer ob_start.
+if (function_exists('wp_get_environment_type') && wp_get_environment_type() !== 'development') {
+    return;
+}
 
 // TUNNEL_ORIGINAL_HOST é definido pelo sunrise.php (antes do multisite init)
 if (!defined('TUNNEL_ORIGINAL_HOST')) {
@@ -22,8 +26,8 @@ if (!defined('TUNNEL_ORIGINAL_HOST')) {
 
 // Configuração por tunnel hostname
 $tunnel_configs = [
-    'www-concertacao.bureau-it.com' => [
-        'public_url'   => 'https://www-concertacao.bureau-it.com',
+    'concertacao.bureau-it.com' => [
+        'public_url'   => 'https://concertacao.bureau-it.com',
         'subsite_path' => '',   // site raiz — sem strip de path
     ],
 ];
@@ -34,8 +38,12 @@ if (!isset($tunnel_configs[TUNNEL_ORIGINAL_HOST])) {
 
 $config = $tunnel_configs[TUNNEL_ORIGINAL_HOST];
 
-define('TUNNEL_LOCAL_URL',    'https://cambrasmax.local:8490');
-define('TUNNEL_LOCAL_ALT',    'https://localhost:8490');
+// Porta local lida dinamicamente do siteurl atual — evita drift quando NGINX_SSL_PORT muda no .env
+$_siteurl_port = parse_url(get_option('siteurl'), PHP_URL_PORT);
+$_local_port   = $_siteurl_port ? ':' . (int) $_siteurl_port : '';
+
+define('TUNNEL_LOCAL_URL',    'https://cambrasmax.local' . $_local_port);
+define('TUNNEL_LOCAL_ALT',    'https://localhost' . $_local_port);
 define('TUNNEL_LOCAL_NOPORT', 'https://cambrasmax.local');
 define('TUNNEL_PUBLIC_URL',   $config['public_url']);
 define('TUNNEL_SUBSITE_PATH', $config['subsite_path']);
@@ -123,3 +131,29 @@ add_filter('redirect_canonical', '__return_false');
 
 // Redirect URLs (header Location: não é capturado pelo ob_start)
 add_filter('wp_redirect', 'tunnel_rewrite_url');
+
+// dns-prefetch / preconnect hints: wp_resource_hints() emite hints em formatos variados
+// — string "cambrasmax.local" (host puro, gerado por wp_dependencies_unique_hosts),
+// "//cambrasmax.local" (sem scheme), "https://cambrasmax.local:8484" (com scheme/porta),
+// ou array ['href' => ..., 'crossorigin' => ...]. Nenhum casa o str_replace do ob_start.
+//
+// Prioridade PHP_INT_MAX-10: garantir execução APÓS WP Rocket / Site Kit / S3-Uploads
+// (todos prio 10) que podem injetar hints próprios apontando para o host local.
+add_filter('wp_resource_hints', function ($hints, $relation_type) {
+    $tunnel_host = parse_url(TUNNEL_PUBLIC_URL, PHP_URL_HOST);
+    foreach ($hints as $i => $hint) {
+        $url = is_array($hint) ? ($hint['href'] ?? '') : $hint;
+        if (stripos($url, 'cambrasmax.local') === false && stripos($url, 'localhost') === false) continue;
+        // Anchors `^` + lookahead `(?=/|$)`: só casa quando o segmento é exatamente
+        // o host (eventualmente com scheme + porta), não substring de outro hostname
+        // como `sub.cambrasmax.local` ou `cambrasmax.local.example.com`.
+        $new_url = preg_replace(
+            '#^((?:https?:)?//)?(?:cambrasmax\.local|localhost)(?::\d+)?(?=/|$)#i',
+            '$1' . $tunnel_host,
+            $url
+        );
+        if (is_array($hint)) { $hint['href'] = $new_url; $hints[$i] = $hint; }
+        else                 { $hints[$i]    = $new_url; }
+    }
+    return $hints;
+}, PHP_INT_MAX - 10, 2);
