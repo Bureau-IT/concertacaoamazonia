@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "name": "rate-limit-wplogin-post",
+    "version": "1.0.0",
+    "description": "Rate-limit anti-brute-force para POST em /wp-login.php. 50/5min/IP e suficiente para uso humano (1 login = 1 POST), agressivo o bastante para barrar brute-force coordenado per-IP. Brute-force distribuido (botnet) nao e coberto - usar IPSet AttackerRanges complementarmente.",
+    "source_incident": null,
+    "wcu_estimate": 6,
+    "applies_to": ["wordpress"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {},
+    "notes": [
+      "Forwarded-IP: usa X-Forwarded-For (CloudFront passa o IP real)",
+      "FallbackBehavior MATCH: se XFF ausente, ainda aplica rate-limit (defesa)",
+      "Action Block - retorna 403 sem custom response (signal claro de brute-force pra atacante)"
+    ]
+  },
+  "rule": {
+    "Name": "RateLimit-WPLogin-POST",
+    "Priority": 17,
+    "Statement": {
+      "RateBasedStatement": {
+        "Limit": 50,
+        "EvaluationWindowSec": 300,
+        "AggregateKeyType": "FORWARDED_IP",
+        "ForwardedIPConfig": {
+          "HeaderName": "X-Forwarded-For",
+          "FallbackBehavior": "MATCH"
+        },
+        "ScopeDownStatement": {
+          "AndStatement": {
+            "Statements": [
+              {
+                "ByteMatchStatement": {
+                  "SearchString": "L3dwLWxvZ2luLnBocA==",
+                  "FieldToMatch": {"UriPath": {}},
+                  "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                  "PositionalConstraint": "ENDS_WITH"
+                }
+              },
+              {
+                "ByteMatchStatement": {
+                  "SearchString": "UE9TVA==",
+                  "FieldToMatch": {"Method": {}},
+                  "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                  "PositionalConstraint": "EXACTLY"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Action": {"Block": {}},
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "RateLimit-WPLogin-POST"
+    }
+  }
+}

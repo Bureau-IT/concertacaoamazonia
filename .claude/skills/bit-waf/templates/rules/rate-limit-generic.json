@@ -1,0 +1,85 @@
+{
+  "_meta": {
+    "name": "rate-limit-generic",
+    "version": "1.0.0",
+    "description": "Rate-based rule per-IP com scope-down para WordPress: exclui paths estaticos (wp-content, wp-includes, favicon, robots.txt) e DevTeam IPSet. Limit 600/5min cobre navegacao humana intensa (10 paginas em 5min com cache parcial).",
+    "source_incident": "feedback_waf_ratelimit_static_paths",
+    "wcu_estimate": 8,
+    "applies_to": ["wordpress", "elementor"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {
+      "{{DEV_IPSET_ARN}}": "ARN do IPSet do DevTeam (waf-sites.yaml: dev_ipset_arn)"
+    },
+    "notes": [
+      "Nao alterar Limit abaixo de 600 — WordPress + Elementor + JetEngine geram volume alto em navegacao real",
+      "Action mantida como Block (nao Challenge) para evitar quebrar AJAX automatico (instant-page)",
+      "Para Concertacao: replicar exatamente este template (testado em prod 2026-05-04)"
+    ]
+  },
+  "rule": {
+    "Name": "RateLimit-300-Block",
+    "Priority": 7,
+    "Statement": {
+      "RateBasedStatement": {
+        "Limit": 600,
+        "EvaluationWindowSec": 300,
+        "AggregateKeyType": "IP",
+        "ScopeDownStatement": {
+          "AndStatement": {
+            "Statements": [
+              {
+                "NotStatement": {
+                  "Statement": {
+                    "IPSetReferenceStatement": {
+                      "ARN": "{{DEV_IPSET_ARN}}"
+                    }
+                  }
+                }
+              },
+              {
+                "NotStatement": {
+                  "Statement": {
+                    "OrStatement": {
+                      "Statements": [
+                        {
+                          "ByteMatchStatement": {
+                            "SearchString": "L3dwLWNvbnRlbnQv",
+                            "FieldToMatch": {"UriPath": {}},
+                            "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                            "PositionalConstraint": "STARTS_WITH"
+                          }
+                        },
+                        {
+                          "ByteMatchStatement": {
+                            "SearchString": "L3dwLWluY2x1ZGVzLw==",
+                            "FieldToMatch": {"UriPath": {}},
+                            "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                            "PositionalConstraint": "STARTS_WITH"
+                          }
+                        },
+                        {
+                          "ByteMatchStatement": {
+                            "SearchString": "L2Zhdmljb24uaWNv",
+                            "FieldToMatch": {"UriPath": {}},
+                            "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                            "PositionalConstraint": "EXACTLY"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Action": {"Block": {}},
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "RateLimit-300-Block"
+    }
+  }
+}

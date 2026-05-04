@@ -1,0 +1,35 @@
+{
+  "_meta": {
+    "name": "allow-admin-ajax",
+    "version": "1.0.0",
+    "description": "Allow /wp-admin/admin-ajax.php para qualquer IP. admin-ajax.php e usado por Elementor, JetEngine listings, Complianz banner, plugins frontend - bloqueio NonDev-WPAdmin pegaria isso e quebraria o site. Esta rule precede Block-NonDev-WPAdmin (priority menor que 2).",
+    "source_incident": null,
+    "wcu_estimate": 3,
+    "applies_to": ["wordpress", "elementor", "jet-engine"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {},
+    "notes": [
+      "Priority 9 funciona porque Block priority 2 nao casa quando UriPath inclui /wp-admin/admin-ajax.php especificamente? NAO - Block-NonDev-WPAdmin usa STARTS_WITH /wp-admin que casa /wp-admin/admin-ajax.php tambem. Allow precisa estar com priority MENOR que Block (priority 2) para terminar avaliacao antes.",
+      "Concertacao tem isso em priority 9 - REVISAR. Pode estar em dead code se Block priority 2 termina antes.",
+      "Solucao alternativa: scope-down em Block-NonDev-WPAdmin com NOT path EXACTLY /wp-admin/admin-ajax.php"
+    ]
+  },
+  "rule": {
+    "Name": "Allow-AdminAjax",
+    "Priority": 1,
+    "Statement": {
+      "ByteMatchStatement": {
+        "SearchString": "L3dwLWFkbWluL2FkbWluLWFqYXgucGhw",
+        "FieldToMatch": {"UriPath": {}},
+        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+        "PositionalConstraint": "ENDS_WITH"
+      }
+    },
+    "Action": {"Allow": {}},
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Allow-AdminAjax"
+    }
+  }
+}

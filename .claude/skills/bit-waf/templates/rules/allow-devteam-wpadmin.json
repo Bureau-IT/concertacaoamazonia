@@ -1,0 +1,57 @@
+{
+  "_meta": {
+    "name": "allow-devteam-wpadmin",
+    "version": "1.0.0",
+    "description": "Allow rule priority 0 que permite acesso a /wp-admin/* apenas para IPs do DevTeam (NordVPN BR/Italy CIDR via IPSet). Combinada com Block-NonDev-WPAdmin priority 2 que bloqueia tudo fora desse IPSet. Allow e terminating - rules abaixo nao avaliam para tráfego que casar.",
+    "source_incident": null,
+    "wcu_estimate": 4,
+    "applies_to": ["wordpress"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {
+      "{{DEV_IPSET_ARN}}": "ARN do IPSet do DevTeam (waf-sites.yaml: dev_ipset_arn) - geralmente NordBrazil90CIDR",
+      "{{HOST_HEADER_BASE64}}": "Host header do site em base64 (ex: 'concertacaoamazonia.com.br' = 'Y29uY2VydGFjYW9hbWF6b25pYS5jb20uYnI=')"
+    },
+    "notes": [
+      "Allow e terminating - cuidado com prioridade. Se priority 0, intercepta TODOS os requests do DevTeam para /wp-admin/, mesmo se outras rules deveriam bloquear.",
+      "Se site tem multisite, considerar regex match em UriPath para /(/[^/]+)?/wp-admin",
+      "Atualizar IPSet quando NordVPN rotacionar pool (~mensal)"
+    ]
+  },
+  "rule": {
+    "Name": "Allow-DevTeam-WPAdmin",
+    "Priority": 0,
+    "Statement": {
+      "AndStatement": {
+        "Statements": [
+          {
+            "IPSetReferenceStatement": {
+              "ARN": "{{DEV_IPSET_ARN}}"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "L3dwLWFkbWlu",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "STARTS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "{{HOST_HEADER_BASE64}}",
+              "FieldToMatch": {"SingleHeader": {"Name": "host"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "EXACTLY"
+            }
+          }
+        ]
+      }
+    },
+    "Action": {"Allow": {}},
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Allow-DevTeam-WPAdmin"
+    }
+  }
+}

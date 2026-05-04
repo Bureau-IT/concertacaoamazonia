@@ -1,0 +1,68 @@
+{
+  "_meta": {
+    "name": "block-nondev-wpadmin",
+    "version": "1.0.0",
+    "description": "Block /wp-admin/* para todo IP que NAO esta no IPSet DevTeam. Pareada com Allow-DevTeam-WPAdmin priority 0 (que termina avaliacao para DevTeam). Esta rule cobre o restante. Custom response 'BIT-Recurso-Indisponivel' (texto no CustomResponseBodies da ACL).",
+    "source_incident": null,
+    "wcu_estimate": 4,
+    "applies_to": ["wordpress"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {
+      "{{DEV_IPSET_ARN}}": "ARN do IPSet do DevTeam (waf-sites.yaml: dev_ipset_arn)",
+      "{{HOST_HEADER_BASE64}}": "Host header em base64 (mesmo da Allow-DevTeam-WPAdmin)"
+    },
+    "notes": [
+      "CustomResponseBodyKey 'BIT-Recurso-Indisponivel' deve existir em WebACL.CustomResponseBodies. Se criar nova ACL, definir tambem.",
+      "ResponseCode 403 retorna direto sem cair em CustomErrorResponses do CloudFront (que serviria error-403.html)",
+      "admin-ajax.php precisa ser exception - criar Allow-AdminAjax-Prod priority menor"
+    ]
+  },
+  "rule": {
+    "Name": "Block-NonDev-WPAdmin",
+    "Priority": 2,
+    "Statement": {
+      "AndStatement": {
+        "Statements": [
+          {
+            "NotStatement": {
+              "Statement": {
+                "IPSetReferenceStatement": {
+                  "ARN": "{{DEV_IPSET_ARN}}"
+                }
+              }
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "L3dwLWFkbWlu",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "STARTS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "{{HOST_HEADER_BASE64}}",
+              "FieldToMatch": {"SingleHeader": {"Name": "host"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "EXACTLY"
+            }
+          }
+        ]
+      }
+    },
+    "Action": {
+      "Block": {
+        "CustomResponse": {
+          "ResponseCode": 403,
+          "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+        }
+      }
+    },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Block-NonDev-WPAdmin"
+    }
+  }
+}

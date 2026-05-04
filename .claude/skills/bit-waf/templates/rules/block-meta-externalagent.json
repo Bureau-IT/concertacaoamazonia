@@ -1,0 +1,62 @@
+{
+  "_meta": {
+    "name": "block-meta-externalagent",
+    "version": "1.0.0",
+    "description": "Block meta-externalagent (Facebook crawler) em paths HTML mas LIBERA /wp-content/uploads/ (open graph image fetch legitimo). Sem isso, FB compartilhamento quebra. Implementado tambem no nginx (memory feedback_meta_crawler_block) - WAF e defesa em profundidade.",
+    "source_incident": "feedback_meta_crawler_block",
+    "wcu_estimate": 4,
+    "applies_to": ["wordpress"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {},
+    "notes": [
+      "Diferente de facebookexternalhit - este e usado por share buttons normais e DEVE passar sem rate limit",
+      "meta-externalagent ignora robots.txt. So bloqueio direto resolve.",
+      "Incidente 2026-05-01: 631 reqs / 357 com 499 (FPM saturado)",
+      "Mantido em paralelo com nginx map+if (mais cedo no flow, mais barato)"
+    ]
+  },
+  "rule": {
+    "Name": "Block-MetaExternalAgent",
+    "Priority": 5,
+    "Statement": {
+      "AndStatement": {
+        "Statements": [
+          {
+            "ByteMatchStatement": {
+              "_pattern": "meta-externalagent",
+              "SearchString": "bWV0YS1leHRlcm5hbGFnZW50",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "NotStatement": {
+              "Statement": {
+                "ByteMatchStatement": {
+                  "_comment": "/wp-content/uploads/ - libera para open graph image fetch",
+                  "SearchString": "L3dwLWNvbnRlbnQvdXBsb2Fkcy8=",
+                  "FieldToMatch": {"UriPath": {}},
+                  "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                  "PositionalConstraint": "STARTS_WITH"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "Action": {
+      "Block": {
+        "CustomResponse": {
+          "ResponseCode": 429
+        }
+      }
+    },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Block-MetaExternalAgent"
+    }
+  }
+}

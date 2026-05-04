@@ -1,5 +1,28 @@
 # bit-waf — CHANGELOG
 
+## 1.1.0 — 2026-05-04 (Fatia 2)
+
+### Adicionado
+- `templates/manifest.yaml` — metadata consolidado (WCU/priority/action/source) das 9 rules + scope-downs + roadmap de review trimestral
+- `templates/rules/rate-limit-generic.json` — rate-based 600/5min com scope-down WP completo (CRITICAL — sem isso WP satura)
+- `templates/rules/rate-limit-wplogin-post.json` — anti-brute-force POST /wp-login.php 50/5min via FORWARDED_IP
+- `templates/rules/block-xmlrpc.json` — block /xmlrpc.php (cuidado: Jetpack/WPML XMLRPC sync)
+- `templates/rules/allow-devteam-wpadmin.json` — Allow priority 0 com IPSet DevTeam + host match
+- `templates/rules/block-nondev-wpadmin.json` — Block /wp-admin para todo IP fora do IPSet (custom response 403 com BIT-Recurso-Indisponivel)
+- `templates/rules/allow-admin-ajax.json` — Allow /wp-admin/admin-ajax.php (necessario para Elementor/JetEngine/Complianz)
+- `templates/rules/block-aggressive-bots.json` — UA match para 8 bots conhecidos (SemrushBot, AhrefsBot, MJ12bot, bytespider, Amazonbot, PetalBot, DotBot, DataForSeoBot) → 429
+- `templates/rules/block-meta-externalagent.json` — block meta-externalagent em paths HTML mas LIBERA /wp-content/uploads/ (open graph)
+- `templates/rules/aws-managed-wordpress.json` — AWSManagedRulesWordPressRuleSet com OverrideAction None
+- `templates/scope-downs/wp-static-paths.json` — NotStatement reutilizavel: NOT (wp-content OR wp-includes OR favicon.ico OR robots.txt)
+- `templates/patterns/bot-uas.txt` — lista curada de UAs para rotacao independente (mantida fora do JSON para versionamento simples)
+
+### Notas
+- Todos JSONs com `_meta` field documentando version, source_incident, wcu_estimate, applies_to, last_reviewed, placeholders, notes
+- SearchString fields ja em base64 (formato exigido por aws wafv2 update-web-acl --cli-input-json)
+- Total WCU estimado dos 9 templates: ~144 (limite default AWS = 1500, folga grande)
+- AI bots (ClaudeBot, GPTBot, PerplexityBot, Google-Extended) NAO incluidos no Block-AggressiveBots — decisao por cliente. Concertacao mantem desbloqueado para advocacy ambiental
+- Templates testados teoricamente contra schema AWS WAFv2 — aplicacao real requer validate via `aws wafv2 check-capacity` antes do update
+
 ## 1.0.0 — 2026-05-04 (Fatia 1)
 
 Primeira versão. MVP com diagnóstico empírico + helpers de operação.

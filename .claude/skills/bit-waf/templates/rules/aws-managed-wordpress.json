@@ -1,0 +1,36 @@
+{
+  "_meta": {
+    "name": "aws-managed-wordpress",
+    "version": "1.0.0",
+    "description": "AWSManagedRulesWordPressRuleSet - rule group gerenciado pela AWS com protecoes para WordPress (path traversal, file inclusion, plugin/theme exploits conhecidos). Custo zero. OverrideAction.None mantem comportamento default das subrules. WCU varia (~50-100).",
+    "source_incident": null,
+    "wcu_estimate": 100,
+    "applies_to": ["wordpress"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {
+      "{{PRIORITY}}": "Numero de prioridade (default 16 — apos rules custom)"
+    },
+    "notes": [
+      "OverrideAction None = subrules atuam conforme AWS define (Block ou Count)",
+      "Para auditar subrules em modo Count antes de Block: usar OverrideAction.Count",
+      "Subrules conhecidas: WordPressBadAuth_BODY, WordPressExploitableCommands_QUERYARGUMENTS, WordPressExploitablePaths_URIPATH, etc.",
+      "Pode bloquear admin-ajax.php legitimo se body conter pattern suspeito - se houver report, considerar exclude rule especifica via RuleActionOverrides"
+    ]
+  },
+  "rule": {
+    "Name": "AWS-WordPress-ManagedRules",
+    "Priority": 16,
+    "Statement": {
+      "ManagedRuleGroupStatement": {
+        "VendorName": "AWS",
+        "Name": "AWSManagedRulesWordPressRuleSet"
+      }
+    },
+    "OverrideAction": {"None": {}},
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "AWS-WordPress-ManagedRules"
+    }
+  }
+}

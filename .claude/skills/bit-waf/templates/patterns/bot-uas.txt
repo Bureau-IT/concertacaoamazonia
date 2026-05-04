@@ -1,0 +1,54 @@
+# bit-waf — bot User-Agent patterns
+#
+# Lista curada de UAs a bloquear via WAF rule Block-AggressiveBots.
+# Atualizar conforme novos bots forem detectados nos WAF logs S3.
+# Cada entry deve ter justificativa em comentario adjacente.
+#
+# Formato: regex case-insensitive (PositionalConstraint=CONTAINS).
+#
+# Last reviewed: 2026-05-04
+# Source incidents:
+#   - feedback_meta_crawler_block (meta-externalagent satura FPM)
+#   - feedback_referer_literal_bot_block (fake-Firefox/142, Chrome/147)
+#   - feedback_tec_crawler_traps (events-calendar saturation)
+
+# === Search/SEO crawlers que ignoram robots.txt ou nao tem assinatura ativa ===
+SemrushBot                 # SEO scraper, nao temos assinatura Semrush
+AhrefsBot                  # SEO scraper, nao temos assinatura Ahrefs
+MJ12bot                    # Majestic SEO, agressivo em sites pequenos
+DotBot                     # Moz, agressivo
+PetalBot                   # Huawei search, agressivo BR
+
+# === AI training scrapers (decisao caso-a-caso por cliente) ===
+# Manter desbloqueados por padrao para Concertacao (visibilidade em IAs e estrategica
+# para advocacy ambiental). Bloquear apenas se houver saturacao FPM.
+# ClaudeBot                # Anthropic - PERMITIR para Concertacao
+# GPTBot                   # OpenAI - PERMITIR
+# PerplexityBot            # Perplexity - PERMITIR
+# Google-Extended          # Google AI training - PERMITIR
+
+bytespider                 # ByteDance/TikTok, nao respeita robots
+Amazonbot                  # Amazon training, nao agrega valor
+cohere-ai                  # Cohere training
+Claude-Web                 # Distinto de ClaudeBot - nao verificado
+
+# === Social media crawlers que saturam ===
+meta-externalagent         # Facebook, ignora robots, satura FPM (incidente 2026-05-01)
+# facebookexternalhit      # MANTER - usado por share buttons legitimos
+
+# === Spider/scanner generico identificavel ===
+TikTokSpider               # ByteDance scanning
+DataForSeoBot              # SEO data collection
+Sogou                      # Sogou search (China), agressivo
+
+# === User-Agents fake/spoof identificados ===
+# Padroes de bot fingindo ser browser real:
+# - Firefox/142.0 com Linux x86_64 (incidente 2026-05-02, 449 reqs)
+# - Chrome/147 com referer literal sem path
+# Esses sao bloqueados via nginx map (deny_bot_referer) ao inves de WAF UA match
+# por serem mais facilmente contornaveis em WAF (mudanca de UA trivial).
+
+# === Crawler genericos com nome explicito ===
+crawler                    # match generico CONTAINS - cuidado com falso-positivo
+spider                     # idem
+scraper                    # idem

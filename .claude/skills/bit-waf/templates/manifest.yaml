@@ -1,0 +1,125 @@
+# bit-waf — manifest dos templates
+#
+# Mapping de cada template JSON para metadata:
+# - WCU estimado (capacity AWS WAF, soma da ACL nao pode exceder limite)
+# - applies_to: stacks aplicaveis
+# - last_reviewed: data ISO da ultima revisao (revisar trimestral)
+# - source_incidents: feedbacks de memory que originaram o template
+# - placeholders: tokens {{...}} que precisam substituicao antes de aplicar
+#
+# Como usar:
+#   1. Escolher template em rules/<nome>.json
+#   2. Ler _meta.placeholders e substituir tokens com valores reais
+#   3. Validar capacity total: aws wafv2 check-capacity --rules ...
+#   4. Snapshot ACL atual antes: helpers/snapshot-acl.sh <site>
+#   5. Aplicar via aws wafv2 update-web-acl
+
+version: 1.0
+last_review: 2026-05-04
+total_wcu_estimate: 144  # soma de todos os templates (limite default AWS = 1500)
+
+templates:
+  rules:
+    - name: rate-limit-generic
+      file: rate-limit-generic.json
+      wcu: 8
+      priority_suggested: 7
+      action: Block
+      applies_to: [wordpress, elementor]
+      source_incidents: [feedback_waf_ratelimit_static_paths]
+      placeholders: ["{{DEV_IPSET_ARN}}"]
+      critical: true  # sem isso, sites WP saturam em navegacao normal
+
+    - name: rate-limit-wplogin-post
+      file: rate-limit-wplogin-post.json
+      wcu: 6
+      priority_suggested: 17
+      action: Block
+      applies_to: [wordpress]
+      placeholders: []
+      critical: false
+
+    - name: block-xmlrpc
+      file: block-xmlrpc.json
+      wcu: 2
+      priority_suggested: 8
+      action: Block
+      applies_to: [wordpress]
+      placeholders: []
+      critical: false  # se cliente nao usa XMLRPC
+
+    - name: allow-devteam-wpadmin
+      file: allow-devteam-wpadmin.json
+      wcu: 4
+      priority_suggested: 0
+      action: Allow
+      applies_to: [wordpress]
+      placeholders: ["{{DEV_IPSET_ARN}}", "{{HOST_HEADER_BASE64}}"]
+      critical: true  # sem isso, DevTeam fica trancado
+
+    - name: block-nondev-wpadmin
+      file: block-nondev-wpadmin.json
+      wcu: 4
+      priority_suggested: 2
+      action: Block
+      applies_to: [wordpress]
+      placeholders: ["{{DEV_IPSET_ARN}}", "{{HOST_HEADER_BASE64}}"]
+      requires_custom_response_body: BIT-Recurso-Indisponivel
+      critical: true
+
+    - name: allow-admin-ajax
+      file: allow-admin-ajax.json
+      wcu: 3
+      priority_suggested: 1
+      action: Allow
+      applies_to: [wordpress, elementor, jet-engine]
+      placeholders: []
+      critical: true  # senao Block-NonDev-WPAdmin quebra Elementor/JetEngine
+
+    - name: block-aggressive-bots
+      file: block-aggressive-bots.json
+      wcu: 5
+      priority_suggested: 6
+      action: Block-429
+      applies_to: [wordpress]
+      placeholders: []
+      ua_patterns_file: ../patterns/bot-uas.txt
+      critical: false
+
+    - name: block-meta-externalagent
+      file: block-meta-externalagent.json
+      wcu: 4
+      priority_suggested: 5
+      action: Block-429
+      applies_to: [wordpress]
+      placeholders: []
+      source_incidents: [feedback_meta_crawler_block]
+      critical: false
+
+    - name: aws-managed-wordpress
+      file: aws-managed-wordpress.json
+      wcu: 100  # estimado (varia por subrule)
+      priority_suggested: 16
+      action: ManagedRuleGroup
+      applies_to: [wordpress]
+      placeholders: []
+      critical: false
+
+  scope_downs:
+    - name: wp-static-paths
+      file: scope-downs/wp-static-paths.json
+      description: NotStatement com OrStatement de UriPath para wp-content, wp-includes, favicon, robots.txt
+      usage: Inline em RateBased rules para evitar contar sub-requests CSS/JS
+
+  ipsets:
+    # Mantidos como referencia em waf-sites.yaml por site (ARNs sao site-especificos)
+    # Templates de IPSet a documentar em v1.1:
+    #  - nordvpn-br-cidrs (DevTeam VPN)
+    #  - wp-rocket-saas (CDN WP Rocket)
+
+review_schedule:
+  next_review: 2026-08-04  # 90 dias
+  triggers:
+    - new_incident_with_unknown_pattern
+    - aws_waf_api_changes
+    - new_bot_detected_in_logs

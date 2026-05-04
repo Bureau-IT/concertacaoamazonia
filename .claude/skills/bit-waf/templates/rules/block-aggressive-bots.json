@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "name": "block-aggressive-bots",
+    "version": "1.0.0",
+    "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista de UAs em templates/patterns/bot-uas.txt para rotacao independente. Action 429 (Too Many Requests) — sinal honesto pro bot ao inves de Block silencioso.",
+    "source_incidents": [
+      "feedback_meta_crawler_block",
+      "feedback_tec_crawler_traps"
+    ],
+    "wcu_estimate": 5,
+    "applies_to": ["wordpress"],
+    "last_reviewed": "2026-05-04",
+    "placeholders": {
+      "{{UA_PATTERNS}}": "Cada pattern como ByteMatchStatement separado dentro de OrStatement. Ver bot-uas.txt para lista atual."
+    },
+    "notes": [
+      "AI bots (ClaudeBot, GPTBot, PerplexityBot) nao incluidos por padrao - decisao por cliente. Concertacao mantem desbloqueados (advocacy ambiental se beneficia de visibilidade em IA).",
+      "Para gerar JSON pronto, processar bot-uas.txt: cada linha nao-comentada vira ByteMatchStatement com SearchString=base64(pattern), CONTAINS, LOWERCASE.",
+      "Action 429 evita 'desafiar' bot real (que pode insistir) e ainda bloqueia."
+    ]
+  },
+  "rule": {
+    "Name": "Block-AggressiveBots",
+    "Priority": 6,
+    "Statement": {
+      "OrStatement": {
+        "Statements": [
+          {
+            "ByteMatchStatement": {
+              "_pattern": "SemrushBot",
+              "SearchString": "c2VtcnVzaGJvdA==",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "AhrefsBot",
+              "SearchString": "YWhyZWZzYm90",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "MJ12bot",
+              "SearchString": "bWoxMmJvdA==",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "bytespider",
+              "SearchString": "Ynl0ZXNwaWRlcg==",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "Amazonbot",
+              "SearchString": "YW1hem9uYm90",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "PetalBot",
+              "SearchString": "cGV0YWxib3Q=",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "DotBot",
+              "SearchString": "ZG90Ym90",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "DataForSeoBot",
+              "SearchString": "ZGF0YWZvcnNlb2JvdA==",
+              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          }
+        ]
+      }
+    },
+    "Action": {
+      "Block": {
+        "CustomResponse": {
+          "ResponseCode": 429
+        }
+      }
+    },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Block-AggressiveBots"
+    }
+  }
+}

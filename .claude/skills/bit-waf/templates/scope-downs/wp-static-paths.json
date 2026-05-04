@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "name": "wp-static-paths",
+    "version": "1.0.0",
+    "description": "Scope-down statement reutilizavel: matches request que NAO esta em path estatico WordPress (wp-content, wp-includes, favicon.ico, robots.txt). Usar como AndStatement child de RateBased rules para evitar contar sub-requests CSS/JS/imagens (80-150 por page load).",
+    "source_incident": "feedback_waf_ratelimit_static_paths",
+    "wcu_estimate": 6,
+    "usage": "Inline esse statement dentro de AndStatement.Statements[] junto com seu match principal. SearchString fields ja base64-encoded para uso direto em update-web-acl --cli-input-json."
+  },
+  "_NotStaticPath_AndStatement_member": {
+    "NotStatement": {
+      "Statement": {
+        "OrStatement": {
+          "Statements": [
+            {
+              "ByteMatchStatement": {
+                "_comment": "/wp-content/ (base64: L3dwLWNvbnRlbnQv)",
+                "SearchString": "L3dwLWNvbnRlbnQv",
+                "FieldToMatch": {"UriPath": {}},
+                "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                "PositionalConstraint": "STARTS_WITH"
+              }
+            },
+            {
+              "ByteMatchStatement": {
+                "_comment": "/wp-includes/ (base64: L3dwLWluY2x1ZGVzLw==)",
+                "SearchString": "L3dwLWluY2x1ZGVzLw==",
+                "FieldToMatch": {"UriPath": {}},
+                "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                "PositionalConstraint": "STARTS_WITH"
+              }
+            },
+            {
+              "ByteMatchStatement": {
+                "_comment": "/favicon.ico (base64: L2Zhdmljb24uaWNv)",
+                "SearchString": "L2Zhdmljb24uaWNv",
+                "FieldToMatch": {"UriPath": {}},
+                "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                "PositionalConstraint": "EXACTLY"
+              }
+            },
+            {
+              "ByteMatchStatement": {
+                "_comment": "/robots.txt (base64: L3JvYm90cy50eHQ=)",
+                "SearchString": "L3JvYm90cy50eHQ=",
+                "FieldToMatch": {"UriPath": {}},
+                "TextTransformations": [{"Priority": 0, "Type": "NONE"}],
+                "PositionalConstraint": "EXACTLY"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
