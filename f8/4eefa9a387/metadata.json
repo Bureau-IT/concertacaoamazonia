@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "f84eefa9a387",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-04-adr-cloudfront-error-caching-ttl.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f8/4eefa9a387/0/metadata.json",
+      "transcript": "/f8/4eefa9a387/0/full.jsonl",
+      "context": "/f8/4eefa9a387/0/context.md",
+      "content_hash": "/f8/4eefa9a387/0/content_hash.txt",
+      "prompt": "/f8/4eefa9a387/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 341,
+    "cache_creation_tokens": 1597002,
+    "cache_read_tokens": 47983490,
+    "output_tokens": 173457,
+    "api_call_count": 206
+  }
+}
