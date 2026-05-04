@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "a393e5b7ca26",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bit-concertacao-shared-menu.php",
+    "wordpress/wp-content/mu-plugins/tunnel-url-rewrite.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a3/93e5b7ca26/0/metadata.json",
+      "transcript": "/a3/93e5b7ca26/0/full.jsonl",
+      "context": "/a3/93e5b7ca26/0/context.md",
+      "content_hash": "/a3/93e5b7ca26/0/content_hash.txt",
+      "prompt": "/a3/93e5b7ca26/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1927,
+    "cache_creation_tokens": 242628,
+    "cache_read_tokens": 5386731,
+    "output_tokens": 31534,
+    "api_call_count": 55
+  }
+}
