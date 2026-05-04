@@ -10,12 +10,14 @@
 
 ## Context
 
-Em 2026-05-04 entre 14:31-14:36 BRT, usuários reais brasileiros em guia anônima (IPs `186.220.197.37`, `200.158.183.67`) receberam página estilizada "ACESSO NEGADO 403" tentando acessar a home pública do site. Investigação identificou:
+Em 2026-05-04 entre 14:31-14:36 BRT, usuários reais brasileiros em guia anônima (IPs `186.220.197.37`, `200.158.183.67`) receberam página estilizada "ACESSO NEGADO 403" tentando acessar a home pública do site. Reincidência em segunda onda 15:27-15:44 BRT (4xxErrorRate até 92.8%).
 
-1. AWS WAF `OnSourceDDoSProtectionConfig.ALBLowReputationMode: ACTIVE_UNDER_DDOS` ativou auto-bloqueio de IPs residenciais BR (CGNAT compartilhado com botnets na Amazon IP Reputation List)
-2. CloudFront `CustomErrorResponses` para 403 estava configurado com `ErrorCachingMinTTL: 60s`, apontando para `/error-403.html` no bucket S3
-3. Cache de 60s nas POPs prolongou impacto: usuários continuaram vendo 403 mesmo após mitigação WAF cessar; 4xxErrorRate caiu de 79% para 28% e oscilou por 7+ minutos pós-incidente
-4. AWS WAFv2 API não permite desativar `ALBLowReputationMode` (enum só aceita `ACTIVE_UNDER_DDOS` ou `ALWAYS_ON`); única forma destrutiva é recriar Web ACL inteira
+Investigação inicial (4h, ~40 agentes IA dispatched em 4 rodadas) levantou hipótese de `OnSourceDDoSProtectionConfig.ALBLowReputationMode: ACTIVE_UNDER_DDOS` como causa. **Hipótese refutada** ao final via documentação AWS oficial:
+
+1. `OnSourceDDoSProtectionConfig` é feature **resource-level DDoS protection para Application Load Balancers** (GA jun-2025), só atua em ACLs associadas a ALB; em ACLs scope CLOUDFRONT é **metadado cosmético** (default forçado, mas inerte)
+2. CloudFront tem proteção L7 separada (Shield Standard sempre ativo + edge-level mitigation) que pode estar gerando os blocks observados, mas não loga em WAF logs S3 (drops pre-WAF)
+3. **Causa real do incidente permanece inconclusiva** — possíveis: Shield Standard automatic mitigation, AWSManagedRulesAntiDDoSRuleGroup, cache poisoning de error response, ou outra rule não diagnosticada
+4. Mas o problema observado de **cache de 60s prolongando impacto pós-mitigação central** é REAL e tem fix válido independente da causa raiz
 
 ## Decision
 

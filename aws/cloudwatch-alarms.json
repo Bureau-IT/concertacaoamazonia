@@ -1,0 +1,23 @@
+{
+  "alarms": [
+    {
+      "name": "concertacao-cf-4xx-spike",
+      "description": "4xxErrorRate>=30% AND Requests>=50/min por 2 datapoints",
+      "sns_topic": "arn:aws:sns:us-east-1:379590274801:concertacao-edge-alerts",
+      "created": "2026-05-04T18:55:00Z"
+    },
+    {
+      "name": "concertacao-cf-traffic-anomaly",
+      "description": "Anomaly Detection band 2 std dev em Requests (5min period)",
+      "sns_topic": "arn:aws:sns:us-east-1:379590274801:concertacao-edge-alerts"
+    },
+    {
+      "name": "concertacao-cf-5xx-spike",
+      "description": "5xxErrorRate>=2% por 3 datapoints (origem saturada)",
+      "sns_topic": "arn:aws:sns:us-east-1:379590274801:concertacao-edge-alerts"
+    }
+  ],
+  "sns_topic_arn": "arn:aws:sns:us-east-1:379590274801:concertacao-edge-alerts",
+  "subscription_email": "daniel.cambria@bureau-it.com",
+  "subscription_status": "pending confirmation - awaiting click in email"
+}
