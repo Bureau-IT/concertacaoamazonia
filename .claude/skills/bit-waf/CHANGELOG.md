@@ -1,5 +1,39 @@
 # bit-waf — CHANGELOG
 
+## 1.2.1 — 2026-05-04 (patch após teste real)
+
+### Refinamentos do `/diagnose-edge` baseados em teste end-to-end
+
+Validacao do MVP em concertacao (estado normal) revelou 3 issues nao bloqueadores
+mas que poluiam output. Spec atualizada com workarounds explicitos.
+
+### Mudancas em `commands/diagnose-edge.md`
+
+- **Step 2 (origin health) — SSH timeout:** removido `timeout 10 ssh ...`
+  (comando `timeout` nao existe em macOS). Substituido por opcoes nativas SSH:
+  `-o ConnectTimeout=5 -o ServerAliveInterval=3 -o ServerAliveCountMax=2`.
+
+- **Step 7 (S3 logs) — subdirs por minuto:** snippet de aggregation atualizado
+  com `find -exec cat {} +` ao inves de `cat *.log`. AWS particiona logs WAF
+  em subdiretorios `<HH>/00/`, `<HH>/05/` etc — recursive find e mandatorio.
+
+- **Princípios + Gotchas — adicionados:**
+  - Item 8: `LC_NUMERIC=C` ou `export LC_NUMERIC=C` antes de `printf` com
+    decimais (locale pt_BR quebra `%.2f`).
+  - Secao "Gotchas conhecidos" documentando macOS vs Linux differences,
+    locale pt_BR, e S3 logs subdirs.
+
+### Validacao
+
+Teste end-to-end em concertacao (estado normal) executou todos 8 steps:
+- VERDICT correto: `inconclusive` (4xx avg 14.9%, threshold edge-anomaly = 30%)
+- 143 blocks identificados (todos Block-AggressiveBots de Singapore — UA
+  Bytespider/Android-spoof, comportamento esperado)
+- RateLimit-300-Block = 0 (fix de hoje confirmado em producao)
+- Origin health: ALB healthy, FPM ativo, 5xx=0
+- WAF logs S3 fluindo (5 arquivos / 540 events na ultima hora)
+- Tempo total real: ~3min (otimizavel com mais paralelizacao em v1.3)
+
 ## 1.2.0 — 2026-05-04 (Fatia 3)
 
 ### Adicionado

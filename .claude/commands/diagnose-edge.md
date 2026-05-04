@@ -66,17 +66,20 @@ aws cloudwatch get-metric-statistics --profile "$PROFILE" --region "$ALB_REGION"
 # 2c. ALB TargetResponseTime p95
 # (similar)
 
-# 2d. PHP-FPM saturação via SSH (timeout 10s)
-timeout 10 ssh -o ConnectTimeout=5 "$SSH_ALIAS" \
+# 2d. PHP-FPM saturação via SSH
+# IMPORTANTE: comando `timeout` nao existe em macOS — usar apenas opcoes do SSH:
+#   - ConnectTimeout=5: max 5s para abrir conexao
+#   - ServerAliveInterval=3 + ServerAliveCountMax=2: mata sessao se SSH inativo 6s
+ssh -o ConnectTimeout=5 -o ServerAliveInterval=3 -o ServerAliveCountMax=2 "$SSH_ALIAS" \
   "ss -tnp 2>/dev/null | grep ':9000' | wc -l; \
-   sudo systemctl is-active php8.3-fpm" &
+   systemctl is-active php8.3-fpm 2>/dev/null" &
 
 wait
 ```
 
 Se `--no-origin` foi passado, pular este step.
 
-Se algum step falhar (timeout SSH, ALB sem permissão), warn e continuar — não abort.
+Se algum step falhar (SSH inacessivel, ALB sem permissão), warn e continuar — não abort.
 
 ### Step 3: CloudFront métricas (last $WINDOW min)
 
@@ -149,10 +152,24 @@ aws wafv2 get-logging-configuration --profile "$PROFILE" --region us-east-1 \
 ```
 
 Se ATIVO:
-- `aws s3 cp --recursive s3://$LOG_BUCKET/AWSLogs/$ACCT/WAFLogs/cloudfront/$WEB_ACL_NAME/$YYYY/$MM/$DD/$HH/ /tmp/diagnose-edge-{site}-{ts}/waflogs/`
-- Descompactar `*.log.gz`
-- Python script (inline) agregando: total events, BLOCK count, top IPs, top URIs, top terminatingRules
-- Filtro `--ip=<addr>` se passado
+```bash
+# Download recursivo do hour atual (UTC)
+HOUR_NOW=$(date -u +%Y/%m/%d/%H)
+aws s3 cp --profile "$PROFILE" --recursive --quiet \
+  "s3://$LOG_BUCKET/AWSLogs/$ACCT/WAFLogs/cloudfront/$WEB_ACL_NAME/$HOUR_NOW/" \
+  "$OUTPUT_DIR/waflogs/"
+
+# Descompactar (mantem .gz original)
+find "$OUTPUT_DIR/waflogs" -name "*.log.gz" -exec gunzip -k {} \;
+
+# IMPORTANTE: AWS particiona por minuto (subdiretorios 00/, 05/, 10/...).
+# Concatenar TODOS os .log dos subdirs com find -exec cat (NAO usar
+# `cat *.log` — so pega root-level e perde os subdirs):
+find "$OUTPUT_DIR/waflogs" -name "*.log" -exec cat {} + > "$OUTPUT_DIR/waflogs-all.jsonl"
+
+# Agregar via Python (inline ou heredoc) — top IPs, URIs, rules, UAs
+# Filtro --ip=<addr> aplicado se passado
+```
 
 Se INATIVO: warn explícito "logs WAF não habilitados — `helpers/enable-waf-logs.sh $SITE` para habilitar (~5-10min para primeiros logs)". Não tente habilitar automaticamente.
 
@@ -216,11 +233,43 @@ Após gerar relatório, apresentar resumo curto ao Daniel:
 
 1. **READ-ONLY APENAS.** Nunca modificar WAF, CloudFront, ALB neste fluxo.
 2. **Paralelizar com `&` + `wait`** quando possível (CW, ALB, SSH são independentes).
-3. **Timeout em SSH** (10s max) — não bloquear se origin estiver isolado/lento.
+3. **SSH timeout via opções nativas** (ConnectTimeout=5 + ServerAliveInterval=3) — comando `timeout` NÃO existe em macOS por padrão, não usar.
 4. **Sem emojis decorativos** — usar `[+]`, `[!]`, `[~]`, `[i]` + cores ANSI BIT (FG_GREEN/FG_RED/FG_ORANGE/FG_BLUE).
 5. **VERDICT sempre no topo do output** — Daniel sob estresse precisa em 5s.
 6. **Se logs não habilitados**, sugerir helper `enable-waf-logs.sh` mas NÃO executar automaticamente.
 7. **Salvar relatório completo em arquivo** — terminal mostra resumo, file tem dados brutos para análise posterior.
+8. **`LC_NUMERIC=C` ou `LC_ALL=C` antes de `printf` com decimais** — locale pt_BR usa vírgula em decimal e quebra `printf '%.2f'`. Definir uma vez no topo do script.
+
+## Gotchas conhecidos (descobertos no teste 2026-05-04)
+
+### macOS vs Linux
+
+- Comando `timeout`: **inexistente no macOS por padrão**. Usar opções SSH nativas (ConnectTimeout, ServerAliveInterval) ou `gtimeout` se `coreutils` instalado via brew.
+- `date -u -v-60M`: BSD-style do macOS. Em Linux seria `date -u -d "60 minutes ago"`. Daniel usa macOS — manter BSD-style.
+
+### Locale pt_BR e printf
+
+```bash
+# ❌ ERRADO em locale pt_BR (vírgula vira separador decimal):
+printf '%.2f' "14.899004"  # → erro "número inválido"
+
+# ✅ CERTO — força locale C/POSIX:
+LC_NUMERIC=C printf '%.2f' "14.899004"  # → "14.90"
+
+# ✅ ALTERNATIVA — definir no topo do script:
+export LC_NUMERIC=C
+printf '%.2f' "14.899004"  # → "14.90"
+```
+
+### S3 logs aggregation com subdiretórios por minuto
+
+WAF logs S3 vêm particionados por minuto: `<HH>/00/`, `<HH>/05/`, etc. `cat *.log` no diretório raiz **NÃO pega subdirs**. Sempre usar:
+
+```bash
+find "$OUTPUT_DIR/waflogs" -name "*.log" -exec cat {} + > "$OUTPUT_DIR/waflogs-all.jsonl"
+```
+
+`find ... -exec cat {} +` agrupa argumentos (mais eficiente que `\;`) e atravessa subdirectories.
 
 ---
 
