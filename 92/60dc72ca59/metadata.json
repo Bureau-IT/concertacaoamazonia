@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "9260dc72ca59",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "aws/README.md",
+    "aws/alb.json",
+    "aws/cf-distribution.json",
+    "aws/waf-acl.json",
+    "docs/superpowers/specs/2026-05-04-adr-cloudfront-error-caching-ttl.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/92/60dc72ca59/0/metadata.json",
+      "transcript": "/92/60dc72ca59/0/full.jsonl",
+      "context": "/92/60dc72ca59/0/context.md",
+      "content_hash": "/92/60dc72ca59/0/content_hash.txt",
+      "prompt": "/92/60dc72ca59/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 217,
+    "cache_creation_tokens": 822185,
+    "cache_read_tokens": 24158493,
+    "output_tokens": 95486,
+    "api_call_count": 137
+  }
+}
