@@ -476,16 +476,77 @@
                 "Priority": 7,
                 "Statement": {
                     "RateBasedStatement": {
-                        "Limit": 300,
+                        "Limit": 600,
                         "EvaluationWindowSec": 300,
                         "AggregateKeyType": "IP",
                         "ScopeDownStatement": {
-                            "NotStatement": {
-                                "Statement": {
-                                    "IPSetReferenceStatement": {
-                                        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                            "AndStatement": {
+                                "Statements": [
+                                    {
+                                        "NotStatement": {
+                                            "Statement": {
+                                                "IPSetReferenceStatement": {
+                                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "NotStatement": {
+                                            "Statement": {
+                                                "OrStatement": {
+                                                    "Statements": [
+                                                        {
+                                                            "ByteMatchStatement": {
+                                                                "SearchString": "L3dwLWNvbnRlbnQv",
+                                                                "FieldToMatch": {
+                                                                    "UriPath": {}
+                                                                },
+                                                                "TextTransformations": [
+                                                                    {
+                                                                        "Priority": 0,
+                                                                        "Type": "NONE"
+                                                                    }
+                                                                ],
+                                                                "PositionalConstraint": "STARTS_WITH"
+                                                            }
+                                                        },
+                                                        {
+                                                            "ByteMatchStatement": {
+                                                                "SearchString": "L3dwLWluY2x1ZGVzLw==",
+                                                                "FieldToMatch": {
+                                                                    "UriPath": {}
+                                                                },
+                                                                "TextTransformations": [
+                                                                    {
+                                                                        "Priority": 0,
+                                                                        "Type": "NONE"
+                                                                    }
+                                                                ],
+                                                                "PositionalConstraint": "STARTS_WITH"
+                                                            }
+                                                        },
+                                                        {
+                                                            "ByteMatchStatement": {
+                                                                "SearchString": "L2Zhdmljb24uaWNv",
+                                                                "FieldToMatch": {
+                                                                    "UriPath": {}
+                                                                },
+                                                                "TextTransformations": [
+                                                                    {
+                                                                        "Priority": 0,
+                                                                        "Type": "NONE"
+                                                                    }
+                                                                ],
+                                                                "PositionalConstraint": "EXACTLY"
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        }
                                     }
-                                }
+                                ]
                             }
                         }
                     }
@@ -963,7 +1024,7 @@
             "CloudWatchMetricsEnabled": true,
             "MetricName": "ACL-WPAdminHML"
         },
-        "Capacity": 316,
+        "Capacity": 322,
         "ManagedByFirewallManager": false,
         "LabelNamespace": "awswaf:379590274801:webacl:ACL-WPAdminHML:",
         "CustomResponseBodies": {
@@ -977,5 +1038,5 @@
             "ALBLowReputationMode": "ACTIVE_UNDER_DDOS"
         }
     },
-    "LockToken": "36b2e7cd-37ee-4f6c-879f-e414de9b158d"
+    "LockToken": "fc293feb-df26-455e-86aa-28a227bec3df"
 }

@@ -16,8 +16,8 @@ Investigação inicial (4h, ~40 agentes IA dispatched em 4 rodadas) levantou hip
 
 1. `OnSourceDDoSProtectionConfig` é feature **resource-level DDoS protection para Application Load Balancers** (GA jun-2025), só atua em ACLs associadas a ALB; em ACLs scope CLOUDFRONT é **metadado cosmético** (default forçado, mas inerte)
 2. CloudFront tem proteção L7 separada (Shield Standard sempre ativo + edge-level mitigation) que pode estar gerando os blocks observados, mas não loga em WAF logs S3 (drops pre-WAF)
-3. **Causa real do incidente permanece inconclusiva** — possíveis: Shield Standard automatic mitigation, AWSManagedRulesAntiDDoSRuleGroup, cache poisoning de error response, ou outra rule não diagnosticada
-4. Mas o problema observado de **cache de 60s prolongando impacto pós-mitigação central** é REAL e tem fix válido independente da causa raiz
+3. **Causa real do incidente IDENTIFICADA EMPIRICAMENTE** (após habilitar WAF logs S3): rule `RateLimit-300-Block` (priority 7) com threshold 300/5min/IP sem scope-down para paths estáticos. WordPress carrega 80-150 sub-requests/página + plugin `instant-page` (Elementor Pro) faz prefetch silencioso = usuário real estoura 300 reqs em segundos navegando normalmente. **Fix aplicado 19:50 UTC: scope-down adicionado (NOT /wp-content/ OR /wp-includes/ OR /favicon.ico) + Limit 300→600.** RateLimit blocks caíram de 20→1/min e 4xxErrorRate→0% em 4 minutos pós-deploy.
+4. O problema observado de **cache de 60s prolongando impacto pós-mitigação** continua sendo REAL para QUALQUER 403 (não apenas o desta causa) — fix do TTL=5s + S3 no-store permanece válido.
 
 ## Decision
 
