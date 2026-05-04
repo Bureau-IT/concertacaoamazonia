@@ -1,7 +1,16 @@
 /**
  * Bureau A11y - Accessibility Module
- * Version: 2.5.24
+ * Version: 2.5.25
  * Author: Bureau de Tecnologia Ltda.
+ *
+ * v2.5.25 (2026-05-04): substituido aria-hidden por inert no Panel.
+ *   - Resolve warning Chrome "Blocked aria-hidden on element because its descendant
+ *     retained focus" ao fechar o painel com elemento focado dentro.
+ *   - inert remove de tab order + esconde de AT + desfoca automaticamente +
+ *     bloqueia input events — single-primitive solution para modal close.
+ *   - HTML inicial em bureau-a11y.php passou de aria-hidden="true" para inert.
+ *   - Escape/toggle checks: getAttribute('aria-hidden')==='false' -> !el.inert.
+ *   - Browser support: Chrome/Edge 102+, Firefox 112+, Safari 15.5+ (Baseline 2023).
  *
  * Modules: Store, Panel, FilterMutex, Features (Zoom, Magnifier, DyslexicFont,
  * TextSpacing, HideImages, StopAnimations, HighContrast, DarkMode, Grayscale,
@@ -218,7 +227,7 @@
 
             // Close on Escape
             document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape' && self.el.getAttribute('aria-hidden') === 'false') {
+                if (e.key === 'Escape' && !self.el.inert) {
                     self.close();
                 }
             });
@@ -265,7 +274,10 @@
                 panel.style.top   = y + 'px';
             }
 
-            this.el.setAttribute('aria-hidden', 'false');
+            // inert=false ANTES do focus() — focus() em descendente de elemento inert é
+            // silenciosamente ignorado. Setar inert=false libera tab order + remove a
+            // exclusão de AT, permitindo que o foco no primeiro botão funcione.
+            this.el.inert = false;
             if (this.trigger) this.trigger.setAttribute('aria-expanded', 'true');
 
             // Clamp dentro do viewport após o painel ter dimensões reais
@@ -278,7 +290,10 @@
 
         close: function () {
             if (!this.el) return;
-            this.el.setAttribute('aria-hidden', 'true');
+            // inert remove descendentes do tab order, esconde de AT, desfoca automaticamente
+            // e bloqueia eventos de input — substitui aria-hidden=true sem o bug do Chrome
+            // "Blocked aria-hidden on an element because its descendant retained focus".
+            this.el.inert = true;
             if (this.trigger) {
                 this.trigger.setAttribute('aria-expanded', 'false');
                 this.trigger.focus();
@@ -287,7 +302,7 @@
 
         toggle: function () {
             if (!this.el) return;
-            if (this.el.getAttribute('aria-hidden') === 'false') {
+            if (!this.el.inert) {
                 this.close();
             } else {
                 this.open();
@@ -1619,7 +1634,8 @@
             if (panel && hintsBtn) {
                 var obs = new MutationObserver(function () {
                     if (_hintShown) return;
-                    if (panel.getAttribute('aria-hidden') === 'false') {
+                    // Painel aberto = inert removido (open() seta inert=false que remove o attr)
+                    if (!panel.inert) {
                         _hintShown = true;
                         obs.disconnect();
                         setTimeout(function () {
@@ -1628,7 +1644,7 @@
                         }, 600);
                     }
                 });
-                obs.observe(panel, { attributes: true, attributeFilter: ['aria-hidden'] });
+                obs.observe(panel, { attributes: true, attributeFilter: ['inert'] });
             }
         }());
 
