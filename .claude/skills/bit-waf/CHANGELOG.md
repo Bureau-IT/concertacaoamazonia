@@ -1,5 +1,47 @@
 # bit-waf — CHANGELOG
 
+## 1.3.0 — 2026-05-04 (helper apply-rule)
+
+### Adicionado
+
+- `helpers/apply-rule.sh` — aplica template JSON em rule da ACL com workflow
+  seguro de 8 steps:
+  1. Carrega template + substitui placeholders (auto via YAML: DEV_IPSET_ARN,
+     HOST_HEADER_BASE64; manual via --substitute KEY=VAL)
+  2. Snapshot pre-mudanca (chama snapshot-acl.sh — pulavel via --skip-snapshot)
+  3. Get current ACL + LockToken
+  4. Construi payload (modo replace ou append, valida conflito de Priority)
+  5. Diff visual rule antiga vs nova (cores BIT)
+  6. check-capacity ANTES de update (abort se exceder limite WAF)
+  7. Confirmacao interativa (digite 'sim') — pulavel via --dry-run
+  8. update-web-acl + validacao + snapshot pos-mudanca + comando rollback
+
+### Argumentos
+
+- `<site-key>` — site no waf-sites.yaml (obrigatorio)
+- `<template-name>` — nome do template em templates/rules/ sem .json
+- `--mode=replace|append` — substituir rule existente (default) ou adicionar nova
+- `--dry-run` — mostra diff e capacity, nao aplica
+- `--skip-snapshot` — pula snapshot pre/pos-mudanca (uso em pipeline)
+- `--substitute KEY=VAL` — placeholder custom (repetivel)
+
+### Validacao em concertacao
+
+Teste --dry-run com template `rate-limit-generic`:
+- Placeholders extraidos automaticamente do YAML
+- LockToken: fc293feb-df26-455e-86aa-28a227bec3df
+- Payload: 18 -> 18 rules (replace mode)
+- Diff visual mostrou rule antes vs depois corretamente
+- check-capacity: 322 WCU total (limite 1500)
+- Payload salvo em /tmp/ para inspecao
+
+### Notas tecnicas
+
+- Shebang `#!/usr/bin/env bash` para usar bash 4+ (homebrew). macOS default
+  /bin/bash 3.x nao suporta `declare -A` (associative arrays).
+- LC_NUMERIC=C exportado no topo (printf decimais)
+- Substituicao de placeholders via perl (escape robusto para ARNs com /)
+
 ## 1.2.1 — 2026-05-04 (patch após teste real)
 
 ### Refinamentos do `/diagnose-edge` baseados em teste end-to-end

@@ -28,6 +28,20 @@ do site e commita com mensagem padrão. Use `--no-commit` para skip git.
 ```bash
 .claude/skills/bit-waf/helpers/enable-waf-logs.sh concertacao
 ```
+
+### Aplicar template de rule em produção (com diff + rollback)
+```bash
+# Dry-run primeiro (recomendado) — mostra diff e capacity sem aplicar
+.claude/skills/bit-waf/helpers/apply-rule.sh concertacao rate-limit-generic --dry-run
+
+# Aplicar (interativo, pede confirmação 'sim')
+.claude/skills/bit-waf/helpers/apply-rule.sh concertacao rate-limit-generic
+
+# Adicionar rule nova ao invés de substituir
+.claude/skills/bit-waf/helpers/apply-rule.sh concertacao block-meta-externalagent --mode=append
+```
+Snapshot pré + pós automático. Diff visual. Capacity check. Validação pós-update.
+Comando de rollback exibido ao final.
 Idempotente — re-run em site com logs ativos não quebra. Cria bucket
 `aws-waf-logs-{site}-prd-use1` + lifecycle 30d/90d + AES256 + public
 access block.
