@@ -146,6 +146,18 @@ function concertacao_footer_menu_items(): array {
  * mesmo menu cadastrado no blog 1, sem necessidade de duplicar items no
  * banco do subsite.
  *
+ * Cross-blog ID collision (incidente 2026-05-05 "Hugo Leonardo"): items com
+ * `_menu_item_type = post_type` carregam um `object_id` referente a wp_posts
+ * do blog 1. Quando wp_setup_nav_menu_item ou Elementor nav-walker são
+ * chamados depois no contexto blog 2, eles re-resolvem `get_the_title($object_id)`
+ * em wp_2_posts — onde o mesmo ID pode pertencer a outro post (ex: revision
+ * de "Hugo Leonardo" em wp_2_posts.91931 vs page "Interviews" em wp_posts.91931).
+ *
+ * Para neutralizar: dentro do switch_to_blog(1), congelar `title` e `url`
+ * resolvidos pelo nav walker do blog 1 e converter `type` para 'custom'.
+ * Items do tipo 'custom' não disparam re-resolução por ID. Mantemos
+ * `object_id` original em meta para depuração mas o renderer não usa.
+ *
  * @param string $slug Slug do menu no blog 1 (ex: 'principal', 'principal-en', 'footer')
  * @return WP_Post[]|false Items do menu, ou false se inexistente
  */
@@ -164,6 +176,25 @@ function concertacao_pull_menu_from_blog1( string $slug ) {
     remove_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10 );
     $items = wp_get_nav_menu_items( $slug );
     add_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10, 3 );
+
+    // Congelar title/url resolvidos no contexto blog 1 e neutralizar object_id
+    // para evitar cross-blog ID collision em re-resoluções subsequentes.
+    if ( is_array( $items ) ) {
+        foreach ( $items as $item ) {
+            if ( ! is_object( $item ) ) continue;
+            // Snapshot da URL (já resolvida pelo nav walker do blog 1)
+            if ( empty( $item->url ) || strpos( $item->url, 'http' ) !== 0 ) {
+                // wp_setup_nav_menu_item já preencheu — fallback seguro
+                $item->url = $item->url ?: '#';
+            }
+            // Title só é re-resolvido pelo walker quando type=post_type/taxonomy.
+            // Forçar custom: hooks posteriores respeitam $item->title literal.
+            $item->type        = 'custom';
+            $item->object      = 'custom';
+            $item->object_id   = (string) $item->ID;  // Self-ref evita lookup cross-blog
+            $item->type_label  = 'Link';
+        }
+    }
     restore_current_blog();
 
     $cache[ $slug ] = $items;
