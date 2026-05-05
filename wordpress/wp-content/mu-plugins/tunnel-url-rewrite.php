@@ -66,16 +66,22 @@ define('TUNNEL_LOCAL_NOPORT', 'https://cambrasmax.local');
 define('TUNNEL_PUBLIC_URL',   $config['public_url']);
 define('TUNNEL_SUBSITE_PATH', $config['subsite_path']);
 
-// Cobrir TODAS as portas detectadas (nao so a primaria) + variantes sem porta.
+// Cobrir TODAS as portas detectadas (nao so a primaria).
 // switch_to_blog do main site dentro de um subsite gera URLs locais com porta
 // que precisam ser tunelizadas no output buffer.
+//
+// IMPORTANTE: NAO incluir variantes sem porta de cambrasmax.local/localhost.
+// O dev sempre roda em :8484 — uma URL `https://cambrasmax.local` (sem porta)
+// nao existe na realidade. Incluir essa variante criava cenario perverso:
+// quando uma string `https://cambrasmax.local:8484/...` chegava ao str_replace,
+// se o pattern `https://cambrasmax.local` (sem porta) fosse iterado primeiro,
+// substituia o substring deixando `:8484` orfao no output. Bug observado em
+// _elementor_element_cache contaminado (incidente 2026-05-04 galeria/cultura).
 $_local_hosts = [];
 foreach (array_keys($_ports) as $port) {
     $_local_hosts[] = 'https://cambrasmax.local:' . $port;
     $_local_hosts[] = 'https://localhost:'        . $port;
 }
-$_local_hosts[] = 'https://cambrasmax.local';
-$_local_hosts[] = 'https://localhost';
 
 // URLs a substituir — ORDEM IMPORTA: subsite com prefixo primeiro (mais
 // especifico), depois base. Em cada categoria, hosts COM porta vem antes
@@ -95,6 +101,19 @@ if (TUNNEL_SUBSITE_PATH !== '') {
 foreach ($_local_hosts as $local) {
     $tunnel_search[]  = $local;
     $tunnel_search[]  = str_replace('/', '\\/', $local);
+    $tunnel_replace[] = TUNNEL_PUBLIC_URL;
+    $tunnel_replace[] = str_replace('/', '\\/', TUNNEL_PUBLIC_URL);
+}
+
+// Defesa em profundidade: catch-all para porta orfa no host publico.
+// Cobre cache stale (_elementor_element_cache, transients) que tenha sido
+// gravado em estado inconsistente onde o host foi reescrito mas a porta
+// ficou para tras. Tambem cobre qualquer outro filtro de terceiros (WPML,
+// plugins) que reescreva so o host preservando porta.
+$_public_host = parse_url(TUNNEL_PUBLIC_URL, PHP_URL_HOST);
+foreach (array_keys($_ports) as $port) {
+    $tunnel_search[]  = 'https://' . $_public_host . ':' . $port;
+    $tunnel_search[]  = str_replace('/', '\\/', 'https://' . $_public_host . ':' . $port);
     $tunnel_replace[] = TUNNEL_PUBLIC_URL;
     $tunnel_replace[] = str_replace('/', '\\/', TUNNEL_PUBLIC_URL);
 }
