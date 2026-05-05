@@ -1,5 +1,49 @@
 # bit-waf — CHANGELOG
 
+## 1.4.0 — 2026-05-04 (audit-acl + playbook)
+
+### Adicionado
+
+- `commands/audit-acl.md` — slash command de auditoria proativa de Web ACL.
+  Read-only, recomendado trimestralmente. 9 areas de check:
+
+  1. Capacity check (% do limite 1500 WCU, warning 80%, critical 95%)
+  2. Rules com Priority duplicada (validacao de invariante)
+  3. Dead code: Allow apos Block terminating com mesmo path
+  4. Rules duplicadas (mesmo Statement em prioridades diferentes)
+  5. Rules com 0 utilizacao em N dias (BlockedRequests via CloudWatch)
+  6. IPSets staleness (CloudTrail UpdateIPSet — warning 90d, critical 180d)
+  7. Block-AttackerRanges com ranges AWS/CloudFront (anti-pattern #3)
+  8. Custom Response Bodies orfaos (definidos mas nao referenciados)
+  9. WAF logs S3 ativos? + Templates last_reviewed
+
+  Argumentos: --site, --utilization-window=30, --no-cloudtrail.
+  Output classificado por severidade ([!] critico, [~] warning, [+] OK,
+  [i] info) + relatorio completo em /tmp.
+
+- `playbooks/audit-acl.md` — workflow operacional para auditoria trimestral:
+  - Quando rodar (calendario fixo: 1o dia util fev/mai/ago/nov)
+  - Triagem por severidade (critico=esta semana, warning=trimestre, info=registrar)
+  - Como aplicar fixes (remover dead code, consolidar duplicadas, limpar
+    AttackerRanges)
+  - Salvar relatorio no repo (aws/audits/audit-YYYY-MM-DD.md)
+  - Bumpar last_reviewed em templates/manifest.yaml
+  - Antipatterns ("nao auditar durante incidente", "remover sem snapshot", etc.)
+
+### Atualizado
+
+- `SKILL.md` — workflow "Auditoria trimestral" adicionado
+- `README.md` — quick start de `/audit-acl`
+
+### Notas
+
+Slash command `/audit-acl` agora aparece na lista de skills disponiveis do
+Claude Code (verificado).
+
+Apos rodar auditoria pela primeira vez em concertacao, atualizar
+templates/manifest.yaml: `last_review: 2026-05-04` e
+`next_review: 2026-08-04`.
+
 ## 1.3.0 — 2026-05-04 (helper apply-rule)
 
 ### Adicionado

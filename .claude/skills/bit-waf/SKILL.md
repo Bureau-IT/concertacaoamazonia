@@ -63,8 +63,19 @@ diagnóstico e operação WAF aprendido após o incidente de 2026-05-04.
 1. `helpers/enable-waf-logs.sh concertacao` (idempotente)
 2. Aguardar 5-10min para primeiros logs S3 chegarem
 
-### Auditoria de ACL
-- Adiada para v1.2 (não emergencial)
+### Aplicar template de rule em produção
+1. Dry-run primeiro: `helpers/apply-rule.sh concertacao <template> --dry-run`
+2. Avaliar diff visual + capacity check
+3. Aplicar (interativo): `helpers/apply-rule.sh concertacao <template>`
+4. Snapshot pré e pós automaticos. Confirmação `digite 'sim'` exigida.
+
+### Auditoria trimestral de ACL
+1. `/audit-acl` (read-only, ~1-2min)
+2. Triagem por severidade: `[!]` esta semana, `[~]` próximo trimestre
+3. Aplicar fixes via `helpers/apply-rule.sh` ou edição manual
+4. Salvar relatório em `aws/audits/audit-YYYY-MM-DD.md` (versionado)
+5. Bumpar `last_reviewed` em `templates/manifest.yaml`
+6. Ver `playbooks/audit-acl.md` para guidance completa
 
 ## Memory entries relacionadas
 
