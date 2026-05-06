@@ -325,10 +325,18 @@ async (page) => {
     // Detecta JS errors (TypeError, ReferenceError) e assets quebrados que nao
     // aparecem na altura/headings mas indicam regressao funcional.
     const consoleErrors = [];
+    const cspErrors = [];
     const failedResources = [];
     const consoleHandler = (msg) => {
       if (msg.type() === 'error') {
-        consoleErrors.push(msg.text().slice(0, 160));
+        const t = msg.text();
+        // CSP errors são sempre bugs reais — bucket separado, sem whitelist.
+        // Servidor manda header CSP, browser bloqueia, plugin nenhum reverte.
+        if (/violates the following Content Security Policy directive/i.test(t)) {
+          cspErrors.push(t.slice(0, 240));
+        } else {
+          consoleErrors.push(t.slice(0, 160));
+        }
       }
     };
     const responseHandler = (resp) => {
@@ -409,6 +417,8 @@ async (page) => {
         ...data,
         console_errors: consoleErrors,
         console_error_count: consoleErrors.length,
+        csp_errors: cspErrors,
+        csp_error_count: cspErrors.length,
         failed_resources: failedResources,
         failed_resource_count: failedResources.length,
       };
@@ -417,6 +427,7 @@ async (page) => {
         error: (e.message || '?').slice(0, 120),
         status: 0,
         console_errors: consoleErrors,
+        csp_errors: cspErrors,
         failed_resources: failedResources,
       };
     } finally {
@@ -462,6 +473,10 @@ async (page) => {
     if ((prod.failed_resource_count || 0) > 0) fails.push(`assets-prod=${prod.failed_resource_count}`);
     if ((dev.console_error_count || 0) > (prod.console_error_count || 0))
                                                fails.push(`console-dev=${dev.console_error_count}`);
+    // Gate dedicado CSP: erros de Content Security Policy nunca podem ser whitelistados.
+    // Servidor envia header CSP, browser bloqueia, plugin nenhum reverte → sempre bug real.
+    if ((prod.csp_error_count || 0) > 0) fails.push(`csp-prod=${prod.csp_error_count}`);
+    if ((dev.csp_error_count || 0) > 0)  fails.push(`csp-dev=${dev.csp_error_count}`);
 
     results.push({
       path,
@@ -480,6 +495,8 @@ async (page) => {
       sections_diff: sectionsDiff,
       prod_console_errors: prod.console_errors || [],
       dev_console_errors: dev.console_errors || [],
+      prod_csp_errors: prod.csp_errors || [],
+      dev_csp_errors: dev.csp_errors || [],
       prod_failed_resources: prod.failed_resources || [],
       dev_failed_resources: dev.failed_resources || [],
       verdict: fails.length === 0 ? 'PASS' : `FAIL: ${fails.join(', ')}`,
@@ -737,6 +754,358 @@ async (page) => {
 - `datalayer_initialized === false` E `gtm_script_loaded === false` — GTM não carrega no browser
 - Após Complianz "Negar": GTM continua carregando — violação LGPD (testar em conjunto com Fase 7.6)
 
+## Fase 7.8 — Saúde dos caches e Redis (prod)
+
+Valida client-side que as 4 camadas de cache estão funcionais. Origem do gate: incidente
+2026-05-02 (espiral 502 BAD GATEWAY) descobriu que **plugin redis-cache estava ativo mas
+inerte** porque o drop-in `wp-content/object-cache.php` não existia, e `WP_REDIS_PREFIX='hml:'`
+estava em produção (drift de HML). Sintoma: DBSIZE=0, listing JetEngine custava 13.7s cold
+(vs 5.6s pós-fix, vs 5ms warm). Esta fase pega DROP-IN AUSENTE, CACHE INERTE e WARMUP VAZIO
+sem precisar de SSH ou endpoint custom no servidor.
+
+As 4 camadas validadas:
+
+1. **Object cache (Redis via drop-in)** — bypass com cookie de logged-in deve ter HTML diferente
+2. **Page cache (WP Rocket)** — 2ª visita consecutiva tem TTFB <100ms e cache header
+3. **Edge cache (CloudFront)** — `x-cache: Hit from cloudfront` em pelo menos 50% dos hits
+4. **Browser cache (assets estáticos)** — CSS/JS com `cache-control: max-age=...`
+
+### Snippet — Cache health (rodar SOMENTE em PROD, sem header X-Test-Green)
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders({});
+  await ctx.clearCookies();
+
+  const targetUrl = 'https://concertacaoamazonia.com.br/conhecimento/espiral-de-conhecimento/';
+
+  // 1) Object cache (drop-in) — request HEAD ao arquivo. 200 = drop-in instalado.
+  // Se o drop-in não existe, nginx retorna 404 (não cai no PHP porque é arquivo inexistente).
+  // Resposta 403 indica que existe mas restringido — também conta como instalado.
+  const dropInProbe = await page.evaluate(async () => {
+    try {
+      const r = await fetch('/wp-content/object-cache.php', { method: 'HEAD', cache: 'no-store' });
+      return { status: r.status, content_length: r.headers.get('content-length') };
+    } catch (e) { return { status: 0, error: (e.message || '?').slice(0, 80) }; }
+  });
+
+  // 2) Page cache (WP Rocket): 1ª request (warm-up) → 2ª request (medição)
+  // 2ª deve ter TTFB <100ms server-side e/ou header de hit visível.
+  const measurePage = async (cacheBust) => {
+    const t0 = Date.now();
+    const url = targetUrl + '?cb=' + cacheBust;
+    const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const ttfb_ms = Date.now() - t0;
+    const headers = resp ? resp.headers() : {};
+    return {
+      status: resp ? resp.status() : 0,
+      ttfb_ms,
+      cf_cache_status: headers['cf-cache-status'] || null,
+      x_cache: headers['x-cache'] || null,
+      wp_rocket_cache: headers['x-wp-rocket-cache'] || null,
+      age: headers['age'] ? parseInt(headers['age'], 10) : null,
+      cache_control: headers['cache-control'] || null,
+    };
+  };
+
+  // Stable cb (mesmo valor 2x) — força CF a servir do cache se chave existir
+  const stableCb = 'cache-health-' + Math.floor(Date.now() / 60000);
+  const firstHit = await measurePage(stableCb);
+  await page.waitForTimeout(800);
+  const secondHit = await measurePage(stableCb);
+
+  // 3) Edge cache (CloudFront): comparar Hit/Miss entre 1ª e 2ª request com mesma chave de cache
+  const cfHitOnSecond = (secondHit.x_cache || '').toLowerCase().includes('hit')
+                     || (secondHit.cf_cache_status || '').toLowerCase().includes('hit');
+
+  // 4) Bypass com cookie de logged-in: WP Rocket DEVE bypassar cache → TTFB maior + sem
+  // header x-cache: Hit. Se TTFB for ~igual entre cookie/no-cookie, drop-in/page cache estão off.
+  const bypassUrl = 'https://concertacaoamazonia.com.br/conhecimento/espiral-de-conhecimento/?_bypass=' + Date.now();
+  await ctx.addCookies([{
+    name: 'wordpress_logged_in_smoke',
+    value: 'fake-' + Date.now(),
+    domain: '.concertacaoamazonia.com.br',
+    path: '/',
+  }]);
+  const bypassMeasure = await page.evaluate(async (u) => {
+    const t0 = performance.now();
+    const r = await fetch(u, { cache: 'no-store', credentials: 'include' });
+    const t1 = performance.now();
+    return {
+      status: r.status,
+      ttfb_ms: Math.round(t1 - t0),
+      x_cache: r.headers.get('x-cache') || null,
+      cache_control: r.headers.get('cache-control') || null,
+    };
+  }, bypassUrl);
+  await ctx.clearCookies();
+
+  // 5) Browser cache (assets estáticos): pegar 1 CSS e 1 JS da listagem; verificar cache-control
+  const assetsHealth = await page.evaluate(async () => {
+    const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map(l => l.href).filter(h => h.includes('concertacaoamazonia.com.br'));
+    const scripts = Array.from(document.querySelectorAll('script[src]'))
+      .map(s => s.src).filter(h => h.includes('concertacaoamazonia.com.br'));
+    const sample = [links[0], scripts[0]].filter(Boolean).slice(0, 2);
+    const out = [];
+    for (const url of sample) {
+      try {
+        const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+        out.push({
+          url: url.split('/').slice(-2).join('/').slice(0, 60),
+          status: r.status,
+          cache_control: r.headers.get('cache-control') || null,
+          x_cache: r.headers.get('x-cache') || null,
+          last_modified: !!r.headers.get('last-modified'),
+        });
+      } catch (e) { out.push({ url, status: 0, error: (e.message || '?').slice(0, 80) }); }
+    }
+    return out;
+  });
+
+  return {
+    object_cache_dropin: {
+      status: dropInProbe.status,
+      installed: dropInProbe.status === 200 || dropInProbe.status === 403,
+      reason: dropInProbe.status === 404 ? 'drop_in_missing' : null,
+    },
+    page_cache_wp_rocket: {
+      first_ttfb_ms: firstHit.ttfb_ms,
+      second_ttfb_ms: secondHit.ttfb_ms,
+      improvement_pct: firstHit.ttfb_ms > 0
+        ? Math.round((1 - secondHit.ttfb_ms / firstHit.ttfb_ms) * 100)
+        : 0,
+      first_status: firstHit.status,
+      second_status: secondHit.status,
+      first_x_cache: firstHit.x_cache,
+      second_x_cache: secondHit.x_cache,
+    },
+    edge_cache_cloudfront: {
+      first_hit: firstHit.x_cache,
+      second_hit: secondHit.x_cache,
+      cf_hit_on_second: cfHitOnSecond,
+      age: secondHit.age,
+    },
+    object_cache_bypass_test: {
+      no_cookie_ttfb_ms: secondHit.ttfb_ms,
+      logged_in_cookie_ttfb_ms: bypassMeasure.ttfb_ms,
+      no_cookie_x_cache: secondHit.x_cache,
+      logged_in_x_cache: bypassMeasure.x_cache,
+      bypass_works: bypassMeasure.ttfb_ms > secondHit.ttfb_ms * 2
+                 || (bypassMeasure.x_cache && !bypassMeasure.x_cache.toLowerCase().includes('hit')),
+    },
+    browser_cache_assets: assetsHealth,
+  };
+}
+```
+
+### Apresentar matriz de saúde de cache
+
+```
+| Camada                     | Verificação                              | Esperado            | Real                | Status |
+|----------------------------|------------------------------------------|---------------------|---------------------|--------|
+| Object cache drop-in       | HEAD /wp-content/object-cache.php        | 200 ou 403          | 200                 | ✅     |
+| Page cache (WP Rocket) 1ª  | TTFB request 1                           | (warm-up)           | 850ms               | —      |
+| Page cache (WP Rocket) 2ª  | TTFB request 2                           | <100ms              | 35ms                | ✅     |
+| Page cache improvement     | (1 - 2ª/1ª) × 100                        | >80%                | 96%                 | ✅     |
+| Edge cache (CloudFront)    | x-cache na 2ª request                    | Hit                 | Hit from cloudfront | ✅     |
+| Edge cache age             | header age                               | >0                  | 47s                 | ✅     |
+| Object cache bypass        | logged-in cookie aumenta TTFB ≥2x        | true                | 3.5x mais lento     | ✅     |
+| Browser cache CSS          | cache-control com max-age                | max-age=...         | max-age=31536000    | ✅     |
+| Browser cache JS           | cache-control com max-age                | max-age=...         | max-age=31536000    | ✅     |
+```
+
+### Gates Cache Health
+
+🚨 **FAIL** se:
+- `object_cache_dropin.installed === false` — drop-in `wp-content/object-cache.php` ausente.
+  Plugin redis-cache pode estar ativo mas WP NÃO está usando Redis. **Causa raiz #1 do incidente
+  2026-05-02**. Fix: `cp wp-content/plugins/redis-cache/includes/object-cache.php
+  wp-content/object-cache.php; chown www-data:www-data <arquivo>; systemctl reload php8.3-fpm`.
+- `page_cache_wp_rocket.improvement_pct < 50` — 2ª request não é significativamente mais rápida que
+  a 1ª. Page cache não está funcional. Possíveis causas: cookie de logged-in vazando para anônimos,
+  query string fora de `cache_query_strings`, `$rocket_skip_reason` ativo. Investigar com
+  `curl -sI URL | grep -i x-wp-rocket`.
+- `edge_cache_cloudfront.cf_hit_on_second === false` — CloudFront não cacheou a página entre
+  duas requests com mesma chave. Causa: response sem `Cache-Control` apropriado, cookie de sessão
+  no response, ou path com behavior `Managed-CachingDisabled` aplicado erroneamente.
+- `object_cache_bypass_test.bypass_works === false` — request com cookie de logged-in tem TTFB
+  igual ao anônimo. WP Rocket não está identificando logged-in users → todos navegam servidos do
+  cache (incluindo edição admin) ou nenhum é cacheado. Validar map `$rocket_is_logged_in` em
+  nginx.conf e configuração `rocket_cache_logged_user`.
+- Qualquer asset (CSS/JS) com `cache_control` contendo `no-store`, `no-cache`, ou `max-age=0`
+  → assets estáticos não estão sendo cacheados pelo browser. Causa: header sobrescrevendo
+  default em algum location nginx.
+
+### Snippet — Sondagem Redis via WP REST (opcional, requer endpoint configurado)
+
+Validação opt-in que confirma estado server-side do Redis. **Requer** mu-plugin
+`bit-cache-health.php` exposto em `/wp-json/bit/v1/cache-health` retornando JSON com
+DBSIZE, hit_rate, used_memory_human. Se endpoint não existir, snippet reporta `skipped: true`
+em vez de falhar — não é gate obrigatório.
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  try {
+    const data = await page.evaluate(async () => {
+      const r = await fetch('/wp-json/bit/v1/cache-health', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!r.ok) return { available: false, status: r.status };
+      const json = await r.json();
+      return { available: true, ...json };
+    });
+    return data;
+  } catch (e) {
+    return { available: false, skipped: true, error: (e.message || '?').slice(0, 80) };
+  }
+}
+```
+
+Quando disponível, esperar:
+
+```
+| Métrica Redis           | Esperado         | Real         | Status |
+|-------------------------|------------------|--------------|--------|
+| dbsize                  | >100             | 2.847        | ✅     |
+| keyspace_hit_rate_pct   | >40              | 67%          | ✅     |
+| used_memory_human       | <80% maxmemory   | 16M / 1.91G  | ✅     |
+| connected_clients       | 1-50             | 5            | ✅     |
+| evicted_keys            | 0 ou crescente lento | 0        | ✅     |
+```
+
+Gates Redis (quando endpoint disponível):
+- `dbsize < 10` durante operação normal → cache vazio, drop-in pode estar quebrado
+- `keyspace_hit_rate_pct < 20` sustentado → maioria das queries vai pra DB; investigar TTL agressivo ou prefix drift
+- `evicted_keys > 1000/min` → memória pequena, aumentar `maxmemory` Redis
+
+## Fase 7.9 — Referer block regression test (incidente 2026-05-06)
+
+Valida que o map nginx `$deny_bot_referer` bloqueia o padrão de bot
+SEM gerar falso-positivo em navegação browser real. Origem do gate:
+incidente 2026-05-06 onde regex v1.15.0 incluiu `/?` no final tornando
+o bloqueio inclusivo demais — 292 reqs LEGÍTIMAS (browsers reais
+navegando da home com `Referer: https://host/`) foram bloqueadas com
+444 em 2 dias antes da detecção.
+
+**Premissa fundamental** (não obvia, daí precisa de gate):
+- Bot envia: `Referer: https://host` (sem `/`, sem path)
+- Browser real envia: `Referer: https://host/` (com `/`) OU com path
+- Regex deve casar APENAS o primeiro padrão.
+
+### Snippet — Referer block validation (rodar SOMENTE em PROD)
+
+```js
+async (page) => {
+  const baseUrl = 'https://concertacaoamazonia.com.br';
+  const tests = [
+    // [referer, expected_blocked, description]
+    [`${baseUrl}`,                               true,  'bot literal sem /'],
+    [`http://concertacaoamazonia.com.br`,        true,  'bot http sem /'],
+    [`HTTPS://CONCERTACAOAMAZONIA.COM.BR`,       true,  'bot UPPERCASE'],
+    [`${baseUrl}/`,                              false, 'browser real com /'],
+    [`${baseUrl}/conhecimento/`,                 false, 'browser com path'],
+    [`${baseUrl}/?utm_source=x`,                 false, 'home com query string'],
+    [`https://www.concertacaoamazonia.com.br`,   true,  'bot www sem /'],
+    [`https://www.concertacaoamazonia.com.br/`,  false, 'www com / (legítimo)'],
+    [`https://google.com/`,                      false, 'referer externo'],
+  ];
+
+  const results = [];
+  for (const [referer, expected_blocked, desc] of tests) {
+    const r = await page.evaluate(async (ref) => {
+      try {
+        // fetch com Referer customizado dispara CORS preflight, mas para
+        // validar que NGINX bloqueia/passa, basta cair no lado servidor.
+        // Como CORS bloqueia leitura cross-origin, usamos Image() que envia
+        // Referer e mede via onerror/onload.
+        const resp = await fetch(`${baseUrl}/check-ec2.php?cb=${Date.now()}`, {
+          referrerPolicy: 'unsafe-url',
+          // Nota: browser MAY override Referrer-Policy do servidor; smoke
+          // detecta apenas o caminho END-TO-END.
+        }).catch(e => ({ status: 0, error: e.message }));
+        return { status: resp.status || 0 };
+      } catch (e) { return { status: 0, error: (e.message || '?').slice(0, 80) }; }
+    });
+
+    // Para teste rigoroso de Referer, usar approach via curl ou playwright
+    // setExtraHTTPHeaders. Como playwright limita headers nativos, este snippet
+    // valida APENAS o resultado server-side. Para validar regex completa,
+    // executar no servidor: curl -H "Referer: ..." http://127.0.0.1/
+    results.push({
+      desc, referer, expected_blocked,
+      // Sem capacidade de injetar Referer real do client-side, marcamos como skip:
+      validated_via: 'server-side-curl-required',
+    });
+  }
+
+  return {
+    note: 'Validação completa requer SSH+curl no servidor — playwright não permite injetar Referer arbitrário por padrão.',
+    server_side_command: `ssh prod-sa "for r in 'https://host' 'https://host/' 'https://host/path/'; do curl -s -o /dev/null -w '%{http_code}\\n' -H \\"Referer: \$r\\" -H 'Host: concertacaoamazonia.com.br' http://127.0.0.1/; done"`,
+    expected: 'Linha 1: 000 (bloqueado), Linhas 2-3: 200 (passa)',
+    tests_planned: results,
+  };
+}
+```
+
+**Limitação documentada:** Playwright não permite injetar `Referer` arbitrário
+de forma confiável (browsers ignoram se viola CORS/privacy policy). A validação
+DEFINITIVA exige curl direto no servidor. Como compensação, a Fase 7.9 emite o
+**comando exato a rodar manualmente** + critério de PASS/FAIL.
+
+### Snippet alternativo — via SSH (executar fora do Playwright)
+
+```bash
+# Rodar manualmente após smoke Playwright para validar Referer block:
+ssh concertacaoamazonia.com.br-prod-sa "
+  for r in \\
+    'https://concertacaoamazonia.com.br' \\
+    'http://concertacaoamazonia.com.br' \\
+    'HTTPS://CONCERTACAOAMAZONIA.COM.BR' \\
+    'https://concertacaoamazonia.com.br/' \\
+    'https://concertacaoamazonia.com.br/conhecimento/' \\
+    'https://www.concertacaoamazonia.com.br' \\
+    'https://www.concertacaoamazonia.com.br/'; do
+    code=\$(curl -s -o /dev/null -w '%{http_code}' \\
+      -H \"Referer: \$r\" \\
+      -H 'Host: concertacaoamazonia.com.br' \\
+      --max-time 5 http://127.0.0.1/)
+    echo \"\$code  \$r\"
+  done
+"
+```
+
+**Esperado (PASS):**
+```
+000  https://concertacaoamazonia.com.br        ← bot, bloqueado
+000  http://concertacaoamazonia.com.br         ← bot, bloqueado
+000  HTTPS://CONCERTACAOAMAZONIA.COM.BR        ← bot UPPERCASE, bloqueado
+200  https://concertacaoamazonia.com.br/       ← browser legítimo
+200  https://concertacaoamazonia.com.br/...    ← com path
+000  https://www.concertacaoamazonia.com.br    ← bot www, bloqueado
+200  https://www.concertacaoamazonia.com.br/   ← browser www legítimo
+```
+
+**FAIL crítico** se qualquer linha COM `/` retornar 000 — regex está
+inclusiva demais, replicando o bug do v1.15.0.
+
+### Auditoria de FPs históricos no log (rodar 1x para checar regressão)
+
+```bash
+# Conta hits 444 com Referer COM `/` nas últimas 24h.
+# Se > 5/dia, há FP residual — investigar.
+ssh concertacaoamazonia.com.br-prod-sa "
+  sudo awk '\$9==444' /var/log/nginx/access.log | \\
+  grep '\\\"https://concertacaoamazonia.com.br/\\\"' | wc -l
+"
+```
+
+**Esperado:** 0 hits após o fix v1.15.1 (2026-05-06). Se > 0, regex
+voltou a bloquear navegação legítima.
+
 ## Fase 8 — Warm-up de cache do menu (prod e green)
 
 Descobre as páginas do menu principal scrappeando a home, faz 2 visitas em sequência (1ª aquece, 2ª mede), e valida que cada item está sendo servido rápido a partir do cache.
@@ -822,6 +1191,252 @@ async (page) => {
 
 Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_cache`. Se nenhum: "—".
 
+## Fase 9 — Detecção de leaks e regressões silenciosas (PROD)
+
+5 gates novos que cobrem incidentes recorrentes desta sessão (2026-05-02): URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`.
+
+### Snippet — Leak detection composto (rodar 1x em PROD após Fase 7.5)
+
+Combina gates 20–24 numa única passada para reduzir custo (5 checks numa só navegação por página).
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  // Gate 23 — Google Fonts externos no DOM
+  // Distingue 3 categorias com severidades distintas:
+  //   - stylesheet: <link rel="stylesheet" href="fonts.googleapis.com/css...">
+  //                 → HIGH (baixa CSS + fonte; viola self-host de PJS)
+  //   - font_request: <link rel="preload" as="font" href="fonts.gstatic.com/...">
+  //                   → HIGH (download direto de woff2 externo)
+  //   - preconnect_only: <link rel="preconnect" href="fonts.gstatic.com">
+  //                      → INFO (apenas TCP/TLS handshake; sem request de fonte)
+  //                      Comum como resíduo do WP core wp_resource_hints filter.
+  const externalFonts = await page.evaluate(() => {
+    const links = Array.from(document.querySelectorAll('link[href]'))
+      .filter(l => /fonts\.googleapis\.com|fonts\.gstatic\.com/.test(l.href));
+    const byCategory = { stylesheet: [], font_request: [], preconnect_only: [] };
+    for (const l of links) {
+      const rel = (l.rel || '').toLowerCase();
+      const asAttr = (l.getAttribute('as') || '').toLowerCase();
+      const href = l.href.slice(0, 120);
+      if (rel === 'stylesheet') byCategory.stylesheet.push(href);
+      else if (rel === 'preload' && asAttr === 'font') byCategory.font_request.push(href);
+      else if (rel === 'preconnect' || rel === 'dns-prefetch') byCategory.preconnect_only.push(href);
+      else byCategory.font_request.push(href); // fallback conservador (rel desconhecido)
+    }
+    return byCategory;
+  });
+
+  // Gate 24 — uploads com path /green/ vazando em <img src>
+  const greenLeaks = await page.evaluate(() => {
+    const imgs = Array.from(document.querySelectorAll('img[src]'));
+    return imgs.filter(i => /\/green\//.test(i.src))
+      .map(i => i.src.split('/').slice(-3).join('/').slice(0, 80));
+  });
+
+  // Gate 21 — preloader Elementor: <e-page-transition> deve ter <svg> populado
+  const preloader = await page.evaluate(() => {
+    const el = document.querySelector('e-page-transition');
+    if (!el) return { present: false, has_svg: null, svg_size: 0 };
+    const svg = el.querySelector('svg');
+    return {
+      present: true,
+      has_svg: !!svg,
+      svg_size: svg ? svg.outerHTML.length : 0,
+    };
+  });
+
+  // Gate 22 — Elementor CSS files contém URL de DEV (concertacao.bureau-it.com / cambrasmax.local)
+  // Faz HEAD nos primeiros 5 CSS files referenciados; baixa conteúdo e procura URLs de dev.
+  const cssLeaks = await page.evaluate(async () => {
+    const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .filter(l => /\/uploads\/(?:sites\/\d+\/)?elementor\/|\/elementor-cache\//.test(l.href))
+      .slice(0, 5);
+    const leaks = [];
+    for (const link of cssLinks) {
+      try {
+        const r = await fetch(link.href, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+        if (!r.ok) continue;
+        const txt = await r.text();
+        const devRefs = txt.match(/concertacao\.bureau-it\.com|cambrasmax\.local|localhost:[0-9]+/g);
+        if (devRefs) {
+          leaks.push({
+            css: link.href.split('/').slice(-2).join('/').slice(-60),
+            ref_count: devRefs.length,
+            sample: devRefs.slice(0, 3),
+          });
+        }
+      } catch (e) { /* ignore */ }
+    }
+    return leaks;
+  });
+
+  return {
+    gate_23_google_fonts_external: {
+      // HIGH severity (real font/css download)
+      stylesheet_count: externalFonts.stylesheet.length,
+      stylesheet_leaks: externalFonts.stylesheet,
+      font_request_count: externalFonts.font_request.length,
+      font_request_leaks: externalFonts.font_request,
+      // INFO severity (TCP/TLS hint apenas, sem request de fonte)
+      preconnect_count: externalFonts.preconnect_only.length,
+      preconnect_leaks: externalFonts.preconnect_only,
+      // Compatibilidade com versões antigas do gate
+      count: externalFonts.stylesheet.length + externalFonts.font_request.length,
+    },
+    gate_24_uploads_green_leak: {
+      count: greenLeaks.length,
+      leaks: greenLeaks,
+    },
+    gate_21_preloader_empty: {
+      present: preloader.present,
+      has_svg: preloader.has_svg,
+      svg_size: preloader.svg_size,
+    },
+    gate_22_elementor_css_dev_leak: {
+      count: cssLeaks.length,
+      leaks: cssLeaks,
+    },
+  };
+}
+```
+
+### Snippet — Gate 20: Complianz banner em /en/ multisite (extensão da Fase 7.6)
+
+Estende a matriz multisite da Fase 7.6 para incluir blogs em inglês. Banner no blog EN deve mostrar texto em inglês.
+
+**Estratégia (atualizada 2026-05-02):** parsear o objeto JS `complianz` injetado inline no `<head>` (server-side, sem precisar esperar JS executar). Esse objeto contém os campos traduzíveis: `placeholdertext`, `aria_label`, `categories.{statistics,marketing}`, `page_links.{cookie-statement,privacy-statement}.title`, `locale`. Cada campo é validado independentemente — banner pode estar parcialmente traduzido (caso real Concertação 2026-05-02: textos OK, mas `page_links.title` ainda em PT em /en/).
+
+```js
+async (page) => {
+  const audit = async (url, expected_lang) => {
+    await page.context().clearCookies();
+    await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1500);
+
+    return await page.evaluate((lang) => {
+      // Objeto complianz é setado inline no <head> via wp_localize_script
+      const cfg = window.complianz;
+      if (!cfg) return { found: false, reason: 'window.complianz indefinido' };
+
+      const expectedPt = lang === 'pt';
+      const ptTerms = /aceitar|clique|necess[áa]rio|pol[ií]tica|aviso|estat[íi]sticas/i;
+      const enTerms = /accept|click|required|privacy|notice|statistics/i;
+
+      const isPt = (s) => typeof s === 'string' && ptTerms.test(s);
+      const isEn = (s) => typeof s === 'string' && enTerms.test(s);
+
+      // Campos a validar (cada um isolado)
+      const fields = {
+        placeholdertext:    cfg.placeholdertext || '',
+        aria_label:         cfg.aria_label      || '',
+        categories_stats:   cfg.categories?.statistics || '',
+        categories_mkt:     cfg.categories?.marketing  || '',
+        page_link_cookie:   cfg.page_links?.br?.['cookie-statement']?.title  || '',
+        page_link_privacy:  cfg.page_links?.br?.['privacy-statement']?.title || '',
+        locale:             cfg.locale || '',
+      };
+
+      const violations = [];
+      for (const [k, v] of Object.entries(fields)) {
+        if (!v || v.length < 2) continue; // campo vazio = ignora
+        if (k === 'locale') {
+          // locale: "lang=pt&locale=pt_BR" ou "lang=en&locale=en_US"
+          const localeMatch = v.match(/locale=([a-z]{2})_/);
+          const actualLocale = localeMatch ? localeMatch[1] : null;
+          if (lang === 'en' && actualLocale !== 'en') violations.push(`locale=${actualLocale} (esperado: en)`);
+          if (lang === 'pt' && actualLocale !== 'pt') violations.push(`locale=${actualLocale} (esperado: pt)`);
+          continue;
+        }
+        if (lang === 'en' && isPt(v) && !isEn(v))  violations.push(`${k}: PT ("${v.slice(0, 50)}...")`);
+        if (lang === 'pt' && isEn(v) && !isPt(v))  violations.push(`${k}: EN ("${v.slice(0, 50)}...")`);
+      }
+
+      return {
+        found: true,
+        url: location.href,
+        expected_lang: lang,
+        locale_actual: fields.locale,
+        violations,
+        violation_count: violations.length,
+        sample_fields: {
+          placeholdertext: fields.placeholdertext.slice(0, 80),
+          page_link_privacy: fields.page_link_privacy,
+        },
+      };
+    }, expected_lang);
+  };
+  return {
+    blog1_pt:    await audit('https://concertacaoamazonia.com.br/',                                  'pt'),
+    blog1_en:    await audit('https://concertacaoamazonia.com.br/en/',                               'en'),
+    blog2_pt:    await audit('https://concertacaoamazonia.com.br/cultura/',                          'pt'),
+    blog2_en:    await audit('https://concertacaoamazonia.com.br/cultura/en/',                       'en'),
+  };
+}
+```
+
+**Variante curl-only** (quando browser MCP indisponível): parsear o JSON inline via regex e Python.
+
+```bash
+curl -s "https://concertacaoamazonia.com.br/en/?cb=$(date +%s%N)" --max-time 30 -o /tmp/blog1_en.html
+python3 <<'EOF'
+import re, json
+html = open('/tmp/blog1_en.html').read()
+m = re.search(r'(?:var\s+|window\.)?complianz\s*=\s*(\{[^;]+\});', html, re.DOTALL)
+cfg = json.loads(m.group(1)) if m else {}
+
+def safe_page_link(cfg, slug):
+    """page_links.br pode ser dict (blog 1) ou list (blog 2 — estrutura diferente do Complianz)."""
+    pl = cfg.get('page_links', {})
+    if not isinstance(pl, dict): return ''
+    br = pl.get('br', {})
+    if isinstance(br, dict):
+        return br.get(slug, {}).get('title', '') if isinstance(br.get(slug), dict) else ''
+    if isinstance(br, list):
+        for item in br:
+            if isinstance(item, dict) and item.get('slug') == slug:
+                return item.get('title', '')
+    return ''
+
+checks = {
+    'locale': cfg.get('locale', ''),
+    'placeholdertext': cfg.get('placeholdertext', ''),
+    'categories_stats': cfg.get('categories', {}).get('statistics', '') if isinstance(cfg.get('categories'), dict) else '',
+    'page_link_privacy': safe_page_link(cfg, 'privacy-statement'),
+    'page_link_cookie':  safe_page_link(cfg, 'cookie-statement'),
+}
+violations = []
+for k, v in checks.items():
+    if k == 'locale' and 'locale=en_' not in v:
+        violations.append(f'{k}={v} (esperado en_*)')
+    elif k != 'locale' and v and any(t in v.lower() for t in ['aceitar', 'aviso', 'estatística', 'política']):
+        violations.append(f'{k}: PT ("{v[:50]}")')
+print(f'violations: {violations}')
+EOF
+```
+
+### Apresentar matriz Fase 9
+
+```
+| Gate | Verificação                                            | Esperado     | Real         | Status |
+|------|--------------------------------------------------------|--------------|--------------|--------|
+| 23a  | <link rel=stylesheet> Google Fonts (HIGH)              | 0            | 0            | ✅     |
+| 23a  | <link rel=preload as=font> Google Fonts (HIGH)         | 0            | 0            | ✅     |
+| 23b  | <link rel=preconnect/dns-prefetch> Google Fonts (INFO) | 0 ideal      | 1            | ℹ️ INFO |
+| 24   | <img src> com /green/ em prod (BLOCKER)                | 0            | 0            | ✅     |
+| 21   | <e-page-transition> tem <svg> populado                 | true, ≥100b  | true, 12.2KB | ✅     |
+| 22   | Elementor CSS contém URL de dev (BLOCKER)              | 0 leaks      | 0 leaks      | ✅     |
+| 20   | Complianz banner /en/ em inglês                        | true         | false        | 🚨     |
+```
+
+**Notas:**
+- Gate 23a (HIGH) é o que dispara FAIL — stylesheet OU preload de fonte
+- Gate 23b (INFO) reporta no relatório mas **não falha o smoke**
+- Para fix permanente do 23b: identificar plugin que mantém ref Google Fonts via `wp_resource_hints`
+
 ## Gates de FAIL (qualquer um falha o smoke)
 
 🚨 **FAIL** se:
@@ -849,6 +1464,7 @@ Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_c
     - `images_diff_pct > 40` — quantidade de imagens renderizadas (naturalWidth ≥100) difere mais de 40% (tolerância +10% absorve lazy-load fora do viewport mesmo após auto-scroll)
     - `Math.abs(sections_diff) > 2` — diferença de mais de 2 sections Elementor
     - **`prod_console_errors.length > 0`** — qualquer JS error em PROD (TypeError, ReferenceError, MIME refused, CORS). Reportar `prod_console_errors[0..2]` no detalhe.
+    - **`prod_csp_errors.length > 0` ou `dev_csp_errors.length > 0`** — qualquer CSP block em PROD ou DEV. Bucket separado, sem whitelist, gate dedicado. Reportar diretiva bloqueada e domínio (ex: `script-src bloqueou https://www.youtube.com/iframe_api`). CSP errors em DEV indicam que o ambiente está com CSP ativa que falta paridade (raro — dev normalmente sem CSP).
     - **`prod_failed_resources.length > 0`** — qualquer 4xx/5xx em assets do próprio domínio em PROD (CSS, JS, imagens). Reportar `prod_failed_resources[0..2]`.
     - `dev_console_errors.length > prod_console_errors.length` — DEV com mais erros que PROD = WARN não-bloqueante (reportar mas não falhar).
 
@@ -856,9 +1472,205 @@ Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_c
     - `JQMIGRATE` warnings (info, não tipo `error`)
     - `SES Removing unpermitted intrinsics` (lockdown extension MetaMask do user — só aparece em browsers com extensão instalada)
     - YouTube `web-share` / `postMessage` warnings (de iframes embed, não controláveis)
-    - `Loading the script 'https://www.youtube.com'...` (cookie consent ainda não aceito)
+
+    **NUNCA whitelistar:** mensagens contendo `violates the following Content Security Policy directive`
+    (CSP block do servidor — sempre é bug real, irreversível pelo browser. Não confundir com bloqueio
+    do Complianz que reescreve `script src` para `data-cmplz-src` antes do consent).
 
     Reportar cada path em FAIL/ERROR com motivo específico. Sumário final: `pass_count / total_paths` e contagem de FAIL vs ERROR.
+
+14. **Cache health (Fase 7.8) — Object cache drop-in**: `object_cache_dropin.installed === false`.
+    Plugin redis-cache pode estar ativo mas drop-in `wp-content/object-cache.php` ausente
+    → WP NÃO usa Redis. Reportar comando exato de fix no detalhe.
+15. **Cache health (Fase 7.8) — Page cache (WP Rocket)**: `page_cache_wp_rocket.improvement_pct < 50`.
+    2ª request com mesma chave de cache não foi significativamente mais rápida que a 1ª.
+    Reportar `first_ttfb_ms`, `second_ttfb_ms`, e header de cache observado nas duas.
+16. **Cache health (Fase 7.8) — Edge cache (CloudFront)**: `edge_cache_cloudfront.cf_hit_on_second === false`.
+    CloudFront não cacheou entre 2 requests sequenciais. Causa: response sem `Cache-Control`
+    apropriado, cookie de sessão no response, ou behavior `Managed-CachingDisabled` aplicado erroneamente.
+17. **Cache health (Fase 7.8) — Object cache bypass**: `object_cache_bypass_test.bypass_works === false`.
+    Cookie de logged-in não está bypassando cache (TTFB ~igual ao anônimo). Risco: edição admin
+    servindo cache stale OU cache desabilitado para todos. Validar map `$rocket_is_logged_in` em
+    nginx.conf.
+18. **Cache health (Fase 7.8) — Browser cache assets**: qualquer asset CSS/JS com `cache_control`
+    contendo `no-store`, `no-cache`, ou `max-age=0`. Assets estáticos não estão sendo cacheados
+    pelo browser → request inútil em cada page view.
+19. **Redis health (Fase 7.8 opcional)**: quando endpoint `/wp-json/bit/v1/cache-health` está
+    disponível: `dbsize < 10` (cache vazio) OU `keyspace_hit_rate_pct < 20` (drop-in inerte ou
+    prefix drift) OU `evicted_keys > 1000/min` (memória pequena). Quando endpoint não existe
+    (`available === false`), apenas reportar `skipped: true` — não dispara gate.
+
+19b. **Referer block regression (Fase 7.9)** — incidente 2026-05-06.
+    Validação executada via SSH (Playwright não permite injetar Referer arbitrário). Para
+    cada par (referer, expected_code) listado no snippet da Fase 7.9, o `curl -H "Referer: ..."`
+    deve retornar EXATAMENTE o esperado:
+    - `Referer: https://host` (sem /, sem path) → **000** (444 close, bot bloqueado)
+    - `Referer: https://host/` (com /) → **200** (browser real, NÃO bloquear)
+    - `Referer: https://host/path/` → **200** (browser com path, NÃO bloquear)
+    - `Referer: HTTPS://HOST` (UPPERCASE) → **000** (case-insensitive cobre bot)
+
+    🚨 **FAIL crítico** se Referer COM `/` retornar 000 — regex está inclusiva demais
+    e está bloqueando navegação browser legítima (bug v1.15.0 de 2026-05-06: 292 reqs
+    legítimas perdidas em 2 dias antes da detecção).
+
+    🚨 **FAIL secundário (auditoria de regressão)**: hits 444 com Referer
+    `https://host/` (com /) > 5/dia em logs. Se houver, regex voltou a ser inclusivo.
+    Comando: `sudo awk '$9==444' /var/log/nginx/access.log | grep '"https://host/"' | wc -l`
+
+20. **Complianz banner traduzido em /en/ (Fase 9)**: `violation_count > 0` em `blog1_en` ou `blog2_en`.
+
+20. **Complianz banner traduzido em /en/ (Fase 9)**: `violation_count > 0` em `blog1_en` ou `blog2_en`.
+    Validação **field-by-field** (atualizada 2026-05-02): banner Complianz pode estar
+    parcialmente traduzido. Caso real Concertação 2026-05-02 mostrou:
+    - ✅ `placeholdertext` traduzido ("Click to accept" em /en/)
+    - ✅ `aria_label` traduzido
+    - ✅ `categories.statistics` ("statistics" em /en/, "estatísticas" em /pt/)
+    - ✅ `locale` correto (`lang=en&locale=en_US`)
+    - 🚨 `page_links.br.privacy-statement.title` permanece "Aviso de Privacidade" em /en/
+      (deveria ser "Privacy Notice")
+
+    Reportar cada violação no detalhe (campo + valor + idioma esperado/encontrado). WPML
+    Network Active não traduz strings de menus/links Complianz via UI; solução é mu-plugin
+    com filtro `wpml_translate_single_string`. Ref: memo `feedback_complianz_wpml_translation.md`.
+    Severidade: **HIGH** — compliance LGPD/GDPR broken parcialmente para audiência internacional.
+
+21. **Preloader Elementor vazio (Fase 9)**: `gate_21_preloader_empty.present === true && (has_svg === false || svg_size < 100)`.
+    Tag `<e-page-transition>` está presente mas sem `<svg>` interno (ou SVG truncado <100 bytes).
+    Causa: arquivo SVG do preloader ausente no FS local após cutover (Elementor lê via
+    `get_attached_file()`, não URL pública). Fix: cópia manual do SVG OU phase7-cutover step 1e
+    (v1.6.3+ sincroniza S3→FS). Ref: memo `feedback_preloader_filesystem_local.md`.
+    Severidade: **HIGH** — page transition visualmente quebrada.
+
+22. **Elementor CSS contém URL de DEV (Fase 9) — BLOCKER**: `gate_22_elementor_css_dev_leak.count > 0`.
+    Pelo menos 1 arquivo CSS em `/uploads/elementor/` ou `/elementor-cache/` referencia
+    `concertacao.bureau-it.com`, `cambrasmax.local` ou `localhost:NNNN` em prod. Causa: Elementor
+    CSS files não foram regenerados após DB import e WP Rocket cacheia CSS poluído. Fix:
+    `wp elementor flush_css` + `rocket_clean_post --post_id=X` + invalidação CF cirúrgica.
+    Ref: memo `feedback_filesystem_cache_post_deploy.md`. Severidade: **BLOCKER** — site público
+    em prod servindo URLs de dev (vazamento silencioso, sem 4xx).
+
+23. **Google Fonts externos no DOM (Fase 9) — refinado em 2 sub-gates**:
+
+    **Gate 23a (HIGH) — fonte/CSS externa real**:
+    `gate_23_google_fonts_external.stylesheet_count > 0` OU `gate_23_google_fonts_external.font_request_count > 0`.
+    Página carrega de fato CSS (`<link rel="stylesheet">`) ou fonte (`<link rel="preload" as="font">`)
+    de `fonts.googleapis.com` / `fonts.gstatic.com`. Plus Jakarta Sans é self-hosted no tema child
+    desde 2026-05-02 — refs como stylesheet/preload indicam plugin/widget enqueue não auditado
+    (TEC, JetEngine, Elementor widget novo). Severidade: **HIGH** — viola decisão arquitetural
+    (privacidade + performance + CSP risk).
+
+    **Gate 23b (INFO) — preconnect órfão**:
+    `gate_23_google_fonts_external.preconnect_count > 0` MAS `stylesheet_count === 0` E `font_request_count === 0`.
+    `<link rel="preconnect">` ou `<link rel="dns-prefetch">` para domínio Google Fonts apenas
+    aquece TCP/TLS handshake — **não baixa CSS nem fonte**. Resíduo benigno injetado pelo WP core
+    via `wp_resource_hints` filter quando algum CSS antigo ainda lista família Google. Severidade:
+    **INFO** — não dispara FAIL, apenas reporta. Para limpar: identificar plugin que mantém ref
+    via `remove_filter('wp_resource_hints', ...)` ou `wp_dequeue_style` no CSS culpado.
+
+24. **Uploads em path /green/ vazando (Fase 9) — BLOCKER**: `gate_24_uploads_green_leak.count > 0`.
+    Pelo menos 1 `<img src>` em prod aponta para path com `/green/` — provável
+    `S3_UPLOADS_BUCKET=concertacaoamazonia-com-br-wp-static-prd-sa/green` em wp-config (deveria
+    ser `/assets`). Fix: `wp config set S3_UPLOADS_BUCKET ...prd-sa/assets --type=constant` +
+    `systemctl reload php8.3-fpm` + `aws s3 sync green/uploads/ assets/uploads/` + invalidação CF.
+    Ref: memo `feedback_cf_oac_green_to_assets_swap.md`. Severidade: **BLOCKER** — incidente
+    silencioso recorrente que causou perda de preloader Elementor por 24h em 2026-05-02.
+
+## Relatório Final Pragmático
+
+Após executar todas as fases, gerar **bloco único** com formato decisível:
+
+```
+═══════════════════════════════════════════════════════════════════
+SMOKE TEST REPORT — Concertação Amazônia
+Executado: <timestamp ISO>
+Duração: <Xmin>
+═══════════════════════════════════════════════════════════════════
+
+VEREDICTO: ✅ PASS  |  ⚠️ PASS_WITH_RESSALVAS  |  🚨 FAIL  |  ⛔ BLOCKER
+
+Critério:
+  • PASS                 = 0 gates falharam
+  • PASS_WITH_RESSALVAS  = só MEDIUM/LOW falharam, nenhum HIGH/BLOCKER
+  • FAIL                 = ≥1 gate HIGH falhou (não BLOCKER)
+  • BLOCKER              = ≥1 gate BLOCKER falhou — NÃO PROMOVER PARA PROD
+
+───────────────────────────────────────────────────────────────────
+RESUMO POR FASE
+───────────────────────────────────────────────────────────────────
+
+Fase  Cobertura                    Gates testados   Pass   Fail
+─────────────────────────────────────────────────────────────────
+1-5   Páginas críticas (PROD+GREEN)   1-6              X      Y
+6-7   Forms PROD                       7-8              X      Y
+6-7   Forms GREEN submit               9-10             X      Y
+7.5   Paridade DEV→PROD                13               X      Y
+7.6   Complianz multisite              (sem gate #)     —      —
+7.7   GTM injection                    (sem gate #)     —      —
+7.8   Cache health (4 camadas)         14-19            X      Y
+8     Menu warm-up                     11-12            X      Y
+9     Leak detection                   20-24            X      Y
+
+───────────────────────────────────────────────────────────────────
+GATES FALHARAM (ordenados por severidade)
+───────────────────────────────────────────────────────────────────
+
+⛔ BLOCKER (NÃO PROMOVER):
+  • Gate 22 — CSS de prod referencia concertacao.bureau-it.com (3 leaks)
+    → Fix: wp elementor flush_css + rocket_clean_post + CF invalidation
+  • Gate 24 — <img src> com /green/ em prod (12 imagens vazando)
+    → Fix: wp config set S3_UPLOADS_BUCKET .../assets + reload FPM + sync S3
+
+🚨 HIGH (FAIL):
+  • Gate 20 — Banner Complianz em /en/ está em PT
+    → Fix: criar mu-plugin com filtro wpml_translate_single_string
+
+⚠️ MEDIUM/LOW: <listar se houver>
+
+───────────────────────────────────────────────────────────────────
+GATES PASSARAM (sumário)
+───────────────────────────────────────────────────────────────────
+
+✅ Páginas 1-5 (PROD): hostname OK, listings populados, 0 uploads_elementor_css
+✅ Forms PROD: form_count=2, submit_label="ENVIAR"
+⏭️ Forms GREEN submit: SKIPPED (green offline — guard previne poluição CRM)
+✅ Paridade DEV→PROD em 16/16 paths do menu
+✅ Cache health: drop-in OK, page cache 96% improvement, CF hit, bypass works
+✅ Menu warm-up: todos itens TTFB <1500ms
+
+───────────────────────────────────────────────────────────────────
+AÇÕES IMEDIATAS RECOMENDADAS
+───────────────────────────────────────────────────────────────────
+
+ANTES DE PROMOVER NOVA INSTÂNCIA OU CUTOVER:
+  1. Corrigir gate 22 (CSS leak) — comando: wp elementor flush_css
+  2. Corrigir gate 24 (S3 path) — verificar wp-config WP_UPLOADS_BUCKET
+  3. Re-rodar /smoke após fixes para validar
+
+PÓS-DEPLOY (24-48h):
+  4. Corrigir gate 20 (Complianz EN) — criar mu-plugin
+  5. Monitorar /var/log/php8.3-fpm.log por novos warnings
+
+───────────────────────────────────────────────────────────────────
+MÉTRICAS DE PERFORMANCE (PROD, sample 10 páginas)
+───────────────────────────────────────────────────────────────────
+
+  TTFB médio (cached):     XX ms
+  TTFB p95 (cached):       XX ms
+  TTFB médio (origin):     XX ms
+  CF hit ratio:            XX%
+  Console errors médio:    X / página
+
+═══════════════════════════════════════════════════════════════════
+```
+
+**Regras do relatório:**
+- **Sempre incluir veredicto único** no topo (4 estados possíveis)
+- **Listar gates falhados em ordem de severidade** (BLOCKER → HIGH → MEDIUM/LOW)
+- **Para cada gate falhado: incluir comando de fix** (1-line) ou referência a memo
+- **Sumarizar gates passaram** em 1 linha cada (não detalhar)
+- **Métricas de performance**: 5-7 números agregados, sem tabela por página
+- **Ações imediatas**: máximo 5 itens, ordenados por prioridade
+- **Sem HTML/markdown rico**: ASCII puro com `─` e `═` para legibilidade em terminal e logs
 
 ## Veredicto
 
