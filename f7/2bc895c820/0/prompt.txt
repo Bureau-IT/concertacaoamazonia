@@ -1,0 +1,344 @@
+❯ podemos inserir um botão para reiniciar a posição do mapa abaixo dos sinais
+  [Image #26] de zoom +/-  em
+  https://concertacao.bureau-it.com/cultura/atlas-cultural-das-amazonias/?
+  ⎿  [Image #26][Image #2]
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_ndTFdq/Captura de Tela 2026-05-07 às 19.38.36.png]
+
+---
+
+[Image #27] quero que o mapa comece aqui. quero um icone pra identificar o botao. quero que incorpore na div do +/-
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_Ny0p8V/Captura de Tela 2026-05-07 às 20.37.04.png]
+
+---
+
+ficou genial. estou imaginando colocar o mesmo efeito de borda aqui no filtro, gostaria de manter um padrão desses controles do mapa [Image #28]
+crie opções para mim num playground para decidirmos
+
+---
+
+[Image: source: /Users/dcambria/.claude/image-cache/20944fb4-474e-49f2-aae5-103d725dcaaa/28.png]
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/playground
+
+# Playground Builder
+
+A playground is a self-contained HTML file with interactive controls on one side, a live preview on the other, and a prompt output at the bottom with a copy button. The user adjusts controls, explores visually, then copies the generated prompt back into Claude.
+
+## When to use this skill
+
+When the user asks for an interactive playground, explorer, or visual tool for a topic — especially when the input space is large, visual, or structural and hard to express as plain text.
+
+## How to use this skill
+
+1. **Identify the playground type** from the user's request
+2. **Load the matching template** from `templates/`:
+   - `templates/design-playground.md` — Visual design decisions (components, layouts, spacing, color, typography)
+   - `templates/data-explorer.md` — Data and query building (SQL, APIs, pipelines, regex)
+   - `templates/concept-map.md` — Learning and exploration (concept maps, knowledge gaps, scope mapping)
+   - `templates/document-critique.md` — Document review (suggestions with approve/reject/comment workflow)
+   - `templates/diff-review.md` — Code review (git diffs, commits, PRs with line-by-line commenting)
+   - `templates/code-map.md` — Codebase architecture (component relationships, data flow, layer diagrams)
+3. **Follow the template** to build the playground. If the topic doesn't fit any template cleanly, use the one closest and adapt.
+4. **Open in browser.** After writing the HTML file, run `open <filename>.html` to launch it in the user's default browser.
+
+## Core requirements (every playground)
+
+- **Single HTML file.** Inline all CSS and JS. No external dependencies.
+- **Live preview.** Updates instantly on every control change. No "Apply" button.
+- **Prompt output.** Natural language, not a value dump. Only mentions non-default choices. Includes enough context to act on without seeing the playground. Updates live.
+- **Copy button.** Clipboard copy with brief "Copied!" feedback.
+- **Sensible defaults + presets.** Looks good on first load. Include 3-5 named presets that snap all controls to a cohesive combination.
+- **Dark theme.** System font for UI, monospace for code/values. Minimal chrome.
+
+## State management pattern
+
+Keep a single state object. Every control writes to it, every render reads from it.
+
+```javascript
+const state = { /* all configurable values */ };
+
+function updateAll() {
+  renderPreview(); // update the visual
+  updatePrompt();  // rebuild the prompt text
+}
+// Every control calls updateAll() on change
+```
+
+## Prompt output pattern
+
+```javascript
+function updatePrompt() {
+  const parts = [];
+
+  // Only mention non-default values
+  if (state.borderRadius !== DEFAULTS.borderRadius) {
+    parts.push(`border-radius of ${state.borderRadius}px`);
+  }
+
+  // Use qualitative language alongside numbers
+  if (state.shadowBlur > 16) parts.push('a pronounced shadow');
+  else if (state.shadowBlur > 0) parts.push('a subtle shadow');
+
+  prompt.textContent = `Update the card to use ${parts.join(', ')}.`;
+}
+```
+
+## Common mistakes to avoid
+
+- Prompt output is just a value dump → write it as a natural instruction
+- Too many controls at once → group by concern, hide advanced in a collapsible section
+- Preview doesn't update instantly → every control change must trigger immediate re-render
+- No defaults or presets → starts empty or broken on load
+- External dependencies → if CDN is down, playground is dead
+- Prompt lacks context → include enough that it's actionable without the playground
+
+---
+
+gostei. agora faça o contrário, copie o estilo dos botoes do filtro para os controles de zoom/center do leafleat. Mantenha os controles que vc ja criou para referencia.
+
+---
+
+gostei o Espelhar filtros, mas falta a divisoria entre icones
+
+---
+
+quero que use somente global colors na paleta de cores. adicione os controles de cores no widget do mapa. Utilize o padrão "Espelhar filtros", ficou excelente, parabéns!
+
+---
+
+legal, ficou ótimo, aplique em dev
+
+---
+
+onde estao os controles de elementor no widget?
+
+---
+
+[Image #29]
+nao aparece, e aparentemente as cores tambem nao estao aparecendo
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_rOQOGv/Captura de Tela 2026-05-08 às 17.19.31.png]
+
+---
+
+[Image #31] a largura da divisoria entre os botões +/-/home tem que ser igual à largura da divisoria dos filtros. Quero poder ajustar a largura.
+A cor do contorno da borda e cor da divisoria devem ser independentes
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_4sgdrK/Captura de Tela 2026-05-08 às 17.35.45.png]
+
+---
+
+[Image #32] esses controles nao funcionam
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_5saSAJ/Captura de Tela 2026-05-08 às 22.34.12.png]
+
+---
+
+[Image #33] [Image #34] ainda nao funciona?
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-09 às 11.58.19.png]
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-09 às 11.58.42.png]
+
+---
+
+funcionou! acrescente controle de distanciamento para os divisores
+
+---
+
+o tunnel dev parou de funcionar
+
+---
+
+[Request interrupted by user]
+
+---
+
+[Image #35]
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_wTWG9H/Captura de Tela 2026-05-10 às 18.12.16.png]
+
+---
+
+[Image #36]
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-10 às 18.18.30.png]
+
+---
+
+[Request interrupted by user]
+
+---
+
+Continue from where you left off.
+
+---
+
+[Image #3] crie uma opção para editar no elementor a posição no mapa (eixo x/y)
+  para a div dos controles (+/-/home). Pode ser junto com os demais estilos.  Aplique inicialmente somente em dev local
+
+---
+
+aplique no totem wsl
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/sync-cpt-totem
+
+# Sync CPT Totem-Concertação (genérico)
+
+Sincroniza qualquer Custom Post Type (e dependências) do ambiente local em `~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/` para o totem WSL acessível via SSH `totem-concertacao`.
+
+Substitui o `sync-artistas.sh` antigo (específico para artistas). O `sync-cpt.sh` é parametrizado por arquivos de config JSON em `sync-configs/<nome>.json` — cada CPT tem suas regras (post types, escopo expandido, taxonomies, filtros).
+
+## CPTs configurados
+
+Listar disponíveis:
+```bash
+~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/sync-cpt.sh --list
+```
+
+Atualmente configurados:
+- **artistas** — CPT artistas (Atlas Cultural das Amazônias) — 657 posts; eixos taxonomy; filtros tema/estado/cidade; escopo expandido inclui pages Atlas PT/EN, templates Elementor de mapa, logo TEDx
+- **galeria** — CPTs galeria-1 + galeria-2 — 42 posts; sem taxonomies; escopo expandido inclui page Galeria + 34 elementor_library
+
+## Quando usar
+
+- Usuário pediu para sincronizar/atualizar/migrar qualquer CPT do local para o totem
+- Usuário adicionou novos itens (artistas, galerias, etc.) e quer ver no totem
+- Foi adicionado novo tema/filtro/categoria
+- Usuário escreveu `/sync-cpt-totem` ou `/sync-artistas-totem` (compatibilidade)
+- Usuário mencionou "atualizar [cpt]" no totem
+
+## Quando NÃO usar
+
+- Usuário quer mudar layout/template (não é dado, é estrutura)
+- Usuário quer migrar tabelas que não são `wp_posts`/`wp_postmeta`/`wp_term_*`/`wp_icl_translations`
+- Usuário quer migrar OUTROS post types não configurados — antes precisa criar `sync-configs/<novo>.json`
+
+## Como invocar
+
+A skill **não executa o script automaticamente** — apenas orienta. Cada execução modifica o totem em produção e precisa de confirmação humana fase-a-fase.
+
+### Comando padrão (interativo)
+```bash
+~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/sync-cpt.sh --cpt <nome>
+```
+
+### Modo dry-run (apenas inspeção)
+```bash
+./sync-cpt.sh --cpt <nome> --dry-run
+```
+
+### Forçar (ignorar idempotência)
+```bash
+./sync-cpt.sh --cpt <nome> --force
+```
+
+### Sem prompts (cuidado)
+```bash
+./sync-cpt.sh --cpt <nome> --no-prompt
+```
+
+## Adicionar novo CPT
+
+Para sincronizar um CPT que ainda não tem config:
+
+1. Identificar o CPT (ex: `podcasts`, `estudos`, `webinarios`).
+2. Mapear escopo expandido (pages Elementor que renderizam, templates, attachments globais como logos).
+3. Criar `~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/sync-configs/<nome>.json`:
+   ```json
+   {
+     "name": "<nome>",
+     "description": "...",
+     "post_types": ["<post_type>"],
+     "expanded_post_ids": [123, 456],
+     "taxonomies_to_sync": ["<taxonomy>"],
+     "filter_meta_keys": [],
+     "elementor_data_post_ids": [123, 456],
+     "extra_attachment_meta_keys": [],
+     "extra_attachment_meta_keys_serialized": [],
+     "validation_expected": {"publish_count": 0}
+   }
+   ```
+4. Rodar `./sync-cpt.sh --cpt <nome> --dry-run` para validar.
+5. Rodar `./sync-cpt.sh --cpt <nome>` para aplicar.
+
+## Como o script funciona (Fluxo de 7 fases)
+
+1. **Fase 0** — Idempotência: hash do estado local vs `.last-sync-<cpt>.json`. Se igual, sai limpo.
+2. **Fase 1** — Backup completo do totem (~108MB) em `~/backups/totem-migracao-<cpt>-YYYY-MM-DD/`.
+3. **Fase 2** — Geração de dumps no Mac: posts + postmeta + term_relationships + WPML, filtrados por IDs.
+4. **Fase 3** — rsync de uploads faltantes via tar+docker cp (preserva www-data ownership).
+5. **Fase 4** — Transferência (scp) dos dumps + scripts auxiliares.
+6. **Fase 5** — Aplicação transacional via `build_apply_generic.py` (DELETE órfãos + INSERT preservando IDs + UPSERT termos + WPML preservando trid + recompute count restrito).
+7. **Fase 6** — Search-replace via `sr_generic.php` (URLs dev/produção → localhost) + cache flush (Redis, WP Rocket, Elementor CSS, rewrite).
+8. **Fase 7** — Validação (counts SQL no totem) + salva `.last-sync-<cpt>.json`.
+
+## Arquivos críticos
+
+- `~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/sync-cpt.sh` (entrada principal)
+- `~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/sync-configs/<nome>.json` (config por CPT)
+- `~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/tools/build_apply_generic.py` (gera apply.sql)
+- `~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/tools/sr_generic.php` (search-replace PHP-aware)
+- `~/scripts/server-tools/v2/docker-dev/sites/totem-concertacao/.last-sync-<cpt>.json` (hash da última sync; gitignored)
+
+## Pré-requisitos
+
+- Container `totem-concertacao-dev-mysql` rodando localmente
+- SSH alias `totem-concertacao` configurado
+- `~/scripts/server-tools/v2/.env.totem-concertacao` com `DB_USER_DEV`, `DB_PASS_DEV`, `DB_NAME_DEV`
+- WP-CLI no container `wp-dev-wordpress` no totem
+
+## Restrições preservadas
+
+- **Blast radius zero fora do CPT**: outros post types e taxonomias permanecem intactos
+- **Termos pré-existentes**: nomes/slugs preservados via UPSERT no-op (term_relationships com lookup por slug+name)
+- **Recompute count**: restrito aos ttids tocados pela migração
+- **WPML trids**: preservados quando já existem no remoto
+
+## Como agir
+
+1. **Sempre** explicar o que o sync vai fazer antes de propor execução.
+2. Sugerir `--dry-run` primeiro se incerto sobre estado.
+3. Se o CPT pedido não tiver config, **criar primeiro** o JSON em `sync-configs/`.
+4. **Lembrar o usuário** de validar visualmente após sync abrindo `https://totem-01-concertacao.bureau-it.com/<path>` ou `https://localhost/<path>`.
+5. Se script falhar em alguma fase, **não tentar reaplicar cego** — investigar erro e usar backup em `~/backups/totem-migracao-<cpt>-YYYY-MM-DD/`.
+
+## Rollback
+
+```bash
+ssh totem-concertacao "
+  zcat ~/backups/totem-migracao-<cpt>-YYYY-MM-DD/wp_concertacao_dev_full_*.sql.gz \
+  | docker exec -i wp-dev-mysql sh -c '
+      mysql -uroot -p\$MYSQL_ROOT_PASSWORD -e \"DROP DATABASE wp_concertacao_dev; CREATE DATABASE wp_concertacao_dev CHARACTER SET utf8mb4;\"
+      mysql -uroot -p\$MYSQL_ROOT_PASSWORD wp_concertacao_dev
+    '
+"
+```
+
+Uploads sincronizados via rsync **NÃO são revertidos** (apenas adicionaram, nunca substituíram). Mu-plugins, wp_options e outros post types: intactos por construção.
+
+## Compatibilidade com sync-artistas-totem (skill antiga)
+
+A skill `sync-artistas-totem` está deprecada — usar esta (`sync-cpt-totem`). Quando usuário pedir "sync artistas", invocar `sync-cpt.sh --cpt artistas`.
