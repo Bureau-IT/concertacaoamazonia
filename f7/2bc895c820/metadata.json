@@ -3,7 +3,7 @@
   "checkpoint_id": "f72bc895c820",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 12,
+  "checkpoints_count": 13,
   "files_touched": [
     "wordpress/wp-content/mu-plugins/bit-jet-map-controls-color.php",
     "wordpress/wp-content/mu-plugins/bit-jet-map-reset.php"
@@ -15,13 +15,20 @@
       "context": "/f7/2bc895c820/0/context.md",
       "content_hash": "/f7/2bc895c820/0/content_hash.txt",
       "prompt": "/f7/2bc895c820/0/prompt.txt"
+    },
+    {
+      "metadata": "/f7/2bc895c820/1/metadata.json",
+      "transcript": "/f7/2bc895c820/1/full.jsonl",
+      "context": "/f7/2bc895c820/1/context.md",
+      "content_hash": "/f7/2bc895c820/1/content_hash.txt",
+      "prompt": "/f7/2bc895c820/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 457,
-    "cache_creation_tokens": 1718991,
-    "cache_read_tokens": 36440559,
-    "output_tokens": 121896,
-    "api_call_count": 203
+    "input_tokens": 2262,
+    "cache_creation_tokens": 12363987,
+    "cache_read_tokens": 596206566,
+    "output_tokens": 935523,
+    "api_call_count": 1354
   }
 }
