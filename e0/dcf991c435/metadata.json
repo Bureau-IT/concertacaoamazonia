@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "e0dcf991c435",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md",
+    "wordpress/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e0/dcf991c435/0/metadata.json",
+      "transcript": "/e0/dcf991c435/0/full.jsonl",
+      "context": "/e0/dcf991c435/0/context.md",
+      "content_hash": "/e0/dcf991c435/0/content_hash.txt",
+      "prompt": "/e0/dcf991c435/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 613,
+    "cache_creation_tokens": 1555134,
+    "cache_read_tokens": 91746768,
+    "output_tokens": 185049,
+    "api_call_count": 388
+  }
+}
