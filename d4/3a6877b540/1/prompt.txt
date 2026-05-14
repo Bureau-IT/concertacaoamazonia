@@ -1,0 +1,357 @@
+preciso de um smoke test para o formulario do rodapé do site
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec self-review\n(fix inline)" [shape=box];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec self-review\n(fix inline)";
+    "Spec self-review\n(fix inline)" -> "User reviews spec?";
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Self-Review:**
+After writing the spec document, look at it with fresh eyes:
+
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
+3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
+4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+
+Fix any issues inline. No need to re-review — just fix and move on.
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+siga manual
+
+---
+
+ignore green, pois está desligada mesmo. faça o submit em prod, isso é essencial para o teste completo
+
+---
+
+pq o 1 não é adequado?
+
+---
+
+ok, prossiga opção 2
+
+---
+
+audite o codigo e o plano com 5 agentes
+
+---
+
+<task-notification>
+<task-id>ac26038d0ceca7dcc</task-id>
+<tool-use-id>toolu_016sTJcFryoqTDwVV84nwJkh</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/b898dd16-ad28-4f9f-a33a-9629b88a44a7/tasks/ac26038d0ceca7dcc.output</output-file>
+<status>completed</status>
+<summary>Agent "Ops, rollout &amp; repo conventions" completed</summary>
+<result>Confirmed: site copy is untracked (needs `git add`). Server-tools `common/mu-plugins/` copy is also untracked. Both must be staged separately in their respective repos.
+
+---
+
+# Auditoria do rollout — bit-smoke-recaptcha-bypass
+
+## 1. Convenção de mu-plugins — **GAP**
+Ambos arquivos existem fisicamente (3974 bytes idênticos, mtime `14 mai 17:59`). Mas em **git status** os dois aparecem como **untracked (`??`)**: no concertacao em `wordpress/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php`, no server-tools em `docker-dev/common/mu-plugins/bit-smoke-recaptcha-bypass.php`. **Nenhum dos dois foi `git add`ado** — o fluxo do `sites/CLAUDE.md` exige commit em ambos os repos. Cabeçalho (`Plugin Name`, `Description`, `Version: 1.0.0`, `Author`) está alinhado com `bit-kiosk-mode.php`. Namespace `BIT\SmokeRecaptchaBypass` é um padrão novo (kiosk-mode usa procedural) — NIT, não é problema.
+
+## 2. wp-config.php e vazamento de token — **OK**
+`wp-config.php` está **gitignored** (`.gitignore:25`). Token DEV `8315ac7c…` está em texto plano no arquivo mas **não vai pro repo**. NIT: o spec menciona "ler do `.env` raiz via `LINKED_ENV`" como alternativa, mas a implementação atual usa `define()` direto — aceitável porque cada ambiente tem token próprio e `wp-config.php` é per-ambiente. Mantenha disciplina de não logar/printar o token em saídas que possam ir pra commit ou screenshot.
+
+## 3. Rollback — **GAP**
+Spec só descreve rollout. Procedimento de reversão ausente. **Ordem correta** (deveria entrar no spec):
+1. Remover/comentar `BIT_SMOKE_BYPASS_TOKEN` no `wp-config.php` (no-op imediato — comportamento seguro by-design)
+2. `rsync --delete` do mu-plugin OU `rm` no servidor
+3. `systemctl reload php8.3-fpm` (purga OPcache do pool)
+4. Limpar `/var/cache/php-opcache/*.bin` se existir file_cache
+
+## 4. Deploy PROD — **GAP**
+Spec menciona `rsync` + reload FPM. **Falta** o que está no CLAUDE.md de concertacao: deletar `.bin` em `/var/cache/php-opcache` **antes** do reload (file_cache persiste bytecode). Também não menciona invalidar WP Rocket — mu-plugin não gera HTML cacheável, então cirurgicamente OK pular, mas declare. CF-OAC não aplica (mu-plugin é PHP, não asset).
+
+## 5. Rotação de token — **GAP**
+Spec diz "rotação manual" sem playbook. Faltam: (a) quem aprova (Daniel), (b) onde registrar última rotação, (c) como invalidar — basta sobrescrever `define()` + reload FPM (atômico, sem janela de duplo-aceite porque PHP só lê uma constante por request). NIT: considerar tabela de tokens ativos em `~/.config/bit-bpo/servertools/` se evoluir para multi-token.
+
+## 6. HML/green — **GAP**
+Green está desligado. Spec lista green como alvo mas não define gate. Sugestão: deploy do mu-plugin em PROD agora; deploy em green fica como **task pendente** vinculado ao próximo `phase7-cutover` (registrar em memory ou no spec).
+
+## 7. Multisite (blog 2 /cultura/) — **GAP**
+`wp-config.php` é único → constante serve os dois blogs. Mas `smoke.md` só cita home (blog 1). Se o blog 2 (`/cultura/`) tem form de footer (provável — usa mesmo footer Elementor via Network Media Library), **falta cobertura** no snippet de submit. Validar URL `/cultura/` no smoke.
+
+## 8. Versionamento — **OK**
+`Version: 1.0.0` adequado para release inicial.
+
+## 9. Cache pós-deploy — **GAP parcial**
+Spec cobre `reload php8.3-fpm` mas omite: (a) deletar `.bin` file_cache, (b) confirmar via `wp eval "var_dump(defined('BIT_SMOKE_BYPASS_TOKEN'));"` que constante carregou. Sem isso, smoke pós-deploy pode falhar e ser confundido com bug no mu-plugin.
+
+## 10. Backup pré-deploy — **NIT**
+Mu-plugin novo, sem efeito até constante existir. Rollback é remover arquivo. Backup de banco não aplicável. NIT: snapshot do `wp-config.php` antes de editar (`cp wp-config.php wp-config.php.bak-$(date +%s)`) é prudente.
+
+---
+
+## 3 ações operacionais que faltam no checklist do rollout
+
+1. **`git add` + commit dos dois arquivos**: `docker-dev/common/mu-plugins/bit-smoke-recaptcha-bypass.php` no repo server-tools E `wordpress/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php` no repo concertacao. Hoje ambos estão untracked — risco de perder a cópia canônica.
+2. **Adicionar bloco de rollback explícito no spec** (ordem: remover constante → rm mu-plugin → limpar `.bin` OPcache file_cache → reload FPM) e bloco de **cache pós-deploy** (deletar `/var/cache/php-opcache/*bit-smoke*.bin` antes do reload, validar com `wp eval` pós-reload).
+3. **Estender smoke.md para blog 2 (`/cultura/`)** e registrar **task de deploy em green** pendente ao próximo cutover (memory entry ou checklist no spec) — sem isso, deploy em green vai ser esquecido quando voltar.
+
+Arquivos relevantes:
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md`
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/bit-smoke-recaptcha-bypass.php` (untracked)
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php` (untracked)
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/wp-config.php` (gitignored, contém token DEV em linha 101)
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/.claude/commands/smoke.md` (modificado, não commitado)</result>
+<usage><total_tokens>65166</total_tokens><tool_uses>18</tool_uses><duration_ms>85475</duration_ms></usage>
+</task-notification>
+
+---
+
+aplique
+
+---
+
+comite. depois, rode mais um ciclo de auditoria
+
+---
+
+<task-notification>
+<task-id>af8669abfd7d2c15b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/b898dd16-ad28-4f9f-a33a-9629b88a44a7/tasks/af8669abfd7d2c15b.output</output-file>
+<status>completed</status>
+<summary>Agent "E2E test: PROD com token errado" completed</summary>
+<result>All tests passed. Here is the report.
+
+## Resultados dos Testes de Integração
+
+### Tabela de Testes
+
+| # | Teste | Status | Evidência |
+|---|-------|--------|-----------|
+| 1 | DEV: GET com token válido | PASSED | `x-bit-smoke-bypass: OK` (HTTP/2 200) |
+| 2 | DEV: GET sem header | PASSED | `x-bit-smoke-bypass: NOOP` |
+| 3 | DEV: GET com 64 chars de 'x' (token errado) | PASSED | `x-bit-smoke-bypass: NOOP` |
+| 4 | DEV: GET com 31 chars (&lt; MIN_TOKEN_LEN) | PASSED | `x-bit-smoke-bypass: NOOP` |
+| 5 | DEV: Filter injeta `__bit_smoke_test` quando autorizado | PASSED | `Has __bit_smoke_test? YES`, `Value: 1`, campos originais preservados |
+| 6 | DEV: Filter NÃO injeta sem token (resistência a forja) | PASSED | `Has __bit_smoke_test? NO (PASS)` |
+| 7 | PROD: header `X-BIT-Smoke-Bypass` ausente | PASSED | Apenas `HTTP/2 200` retornado, sem header (mu-plugin não deployado) |
+| 8 | PROD: reCAPTCHA ativo | PASSED | 5+ matches de `recaptcha` no HTML da home |
+| 9 | `php -l` no container | PASSED | `No syntax errors detected` |
+| 10 | `diff` entre cópias concertacao + common | PASSED | IDENTICAL |
+| 11 | Git log nos dois repos | PASSED | concertacao: `e817985f3 feat(smoke): bit-smoke-recaptcha-bypass v1.1.0`; server-tools v2: `e6d76f6bd feat(mu-plugins): bit-smoke-recaptcha-bypass v1.1.0` |
+
+### Comportamentos Anômalos
+
+Nenhum. Observações:
+
+- O header `X-BIT-Smoke-Bypass` é emitido em `send_headers` (priority 1), portanto chega ao operador tanto em GET diagnóstico quanto em AJAX POST. Os 4 testes HTTP confirmam o pipeline completo de autorização (header presente + len válido + `hash_equals`).
+- Test 5 valida a parte crítica: `apply_filters('elementor_pro/forms/record/actions_before', $record, null)` com token válido injeta `__bit_smoke_test` no array `fields` preservando campos originais. Como o filter usa `$record-&gt;set('fields', ...)` direto (não payload `$_POST`), a blindagem contra forja é estrutural — confirmada no Test 6.
+- A função `disable_recaptcha_validation()` roda em `elementor_pro/init` priority 100 — não testável fora de AJAX real, mas a lógica de varredura de `$wp_filter` é straightforward e está coberta por `set_state('FAILED')` em caminhos defensivos.
+
+### Confidence Rating: **9/10**
+
+Justificativa:
+- (+) Autorização (token check + hash_equals + min len) validada em 4 cenários
+- (+) Filter injection + resistência a forja validadas com mock
+- (+) Sintaxe limpa, namespacing correto, copies idênticas em ambos os repos, commits consistentes
+- (+) Plugin é no-op por design quando token ausente — risco em PROD muito baixo
+- (–) 1 ponto reservado: `disable_recaptcha_validation()` no fluxo real do Elementor Pro AJAX só pode ser validado pós-deploy com submit de form real em prod (ou setup mais complexo do AJAX handler em dev). A lógica é defensiva (state FAILED se drift), mas o caminho OK específico de remoção de callbacks só será exercitado em prod.
+
+### Arquivos Relevantes
+
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/sites/concertacao/wordpress/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php`
+- `/Users/dcambria/scripts/server-tools/v2/docker-dev/common/mu-plugins/bit-smoke-recaptcha-bypass.php`</result>
+<usage><total_tokens>59130</total_tokens><tool_uses>6</tool_uses><duration_ms>87338</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0cff8e4f5397ff1a</task-id>
+<tool-use-id>toolu_01Xa5A2BuNzSkD3ZDcMxkzok</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/b898dd16-ad28-4f9f-a33a-9629b88a44a7/tasks/a0cff8e4f5397ff1a.output</output-file>
+<status>completed</status>
+<summary>Agent "Re-audit docs + smoke.md v1.1.0" completed</summary>
+<result>Tenho material suficiente. Compilando o veredicto.
+
+---
+
+# Auditoria — 2ª rodada
+
+## Fechos da 1ª rodada
+
+1. **Status accepted** — OK. Linha 4 do spec.
+2. **Supersede do spec antigo** — OK. Linha 5: cita `2026-05-01-smoke-form-submit-design.md` decisão #1 + explica risco residual #1. Spec antigo não tem nota recíproca, mas o link é unidirecional aceitável.
+3. **Workflow smoke.md L28-30** — OK. Bifurcamento resolvido: passo 1 (prod com token), 2 (prod negativo), 3 (green com token + X-Test-Green). Sequência clara.
+4. **Gates `bypass_header`** — OK. Linhas 129-133 listam OK/FAILED/NOOP/absent + diagnóstico (L246-250). Escala bem.
+5. **Rollback / rotação / validação negativa** — OK. Rollback duplo (constante vs mu-plugin), rotação com sed atômico + reload FPM, matriz de validação 6 linhas.
+6. **HML / blog 2** — OK. Seção "Cobertura multisite" (L104-109) e "HML/green pendente" (L216-217).
+
+## Novos ângulos
+
+7. **Pré-requisito → deploy → uso (ponto de entrada)** — **GAP**. Não existe README/entry. Quem chega no `/smoke` lê o workflow assumindo o mu-plugin pronto. O spec descreve rollout, mas não há frase em `smoke.md` tipo "se `bypass_header=absent`, vá ao spec seção Rollout". Hoje o bloco L73-83 está perto disso, mas sem fluxograma pré-requisito.
+8. **Triade de cross-links** — **GAP parcial**. smoke.md → spec (L83) OK. mu-plugin → spec (Description) OK. Spec → smoke.md: **ausente** (spec não cita `.claude/commands/smoke.md` por path). Spec antigo → novo spec: **ausente**.
+9. **Markdown / tabelas** — OK. Tabela "Decisões de design" (10 linhas, 3 cols) renderiza no GitHub; coluna 2 longa mas sem wrap quebrado. Consistência: tabela "Validação negativa" L266-272 tem strings curl longas que estouram preview no GitHub mobile — **NIT**.
+10. **Acentuação PT** — **NIT**. PHP source `bit-smoke-recaptcha-bypass.php` é todo ASCII (sem acento — convenção shell-script do repo, OK). Spec e smoke.md com acentuação correta. Apenas pequenez: "avisorio" L118 smoke.md → "avisório" (provavelmente).
+11. **Versão v1.1.0+** — **NIT**. Política de versionamento não está descrita no spec. Se v1.2.0 quebrar API (renomear header `X-BIT-Smoke-Bypass`), spec vira mentira. Sugerir 2 linhas: "MAJOR muda header/constant name; MINOR adiciona telemetria; PATCH bugfix interno".
+12. **Confidencialidade token DEV** — OK. `8315ac7c...` só em `wp-config.php` (gitignored, confirmado via `git check-ignore`). Único uso fora dele é no spec L102 como exemplo de prefixo permitido em chat. `git log -S "8315ac7c"` retornou apenas commits de metadata de transcript de sessão Claude (`.entire/metadata/.../full.jsonl`) — esses commits **vazam o token completo** no JSONL da sessão dentro do repo `bff6cbf6...`. **GAP DE SEGURANÇA REAL**. Rotacionar DEV antes de PROD; auditar `.entire/metadata/` pra ver se também é gitignored ou se já está na história.
+13. **Memory entries** — **GAP**. Nenhuma entry em `~/.claude/projects/.../memory/` sobre o bypass. Próxima sessão Claude começa do zero. Criar `feedback_smoke_recaptcha_bypass.md` com gist (header + constante + cross-link spec).
+14. **Hyperlinks `ajax-handler.php:149`** — **NIT**. Não é clicável (path relativo a Elementor Pro plugin não-versionado). Convenção do repo aceita; trocar por nota "(referência: Elementor Pro `modules/forms/classes/ajax-handler.php` ~L149 em v3.x)" seria mais robusto.
+15. **Próximos passos pós-PROD / ownership** — **GAP**. Spec não define owner nem cadência de revisão. Sugerir seção "Manutenção" com: owner=Daniel; revisar a cada update major do Elementor Pro; cadência rotação 90d já está em "Rotação de token" — explicitar como dono dessa cadência também.
+
+## 3 melhorias finais antes de PROD
+
+1. **Rotacionar token DEV** (`8315ac7c...`) **agora** — vazou em `.entire/metadata/*/full.jsonl` commitado; gerar novo `openssl rand -hex 32`, atualizar `wp-config.php` DEV. Verificar se `.entire/metadata/` deve ir pro `.gitignore`.
+2. **Adicionar seção "Manutenção &amp; Ownership"** no spec (owner, gatilhos de revisão, política versionamento MAJOR/MINOR/PATCH) + nota recíproca no spec antigo `2026-05-01-...` apontando para o novo.
+3. **Criar memory entry** `feedback_smoke_recaptcha_bypass.md` com 5 linhas (header, constante, mu-plugin path, spec path, gate `bypass_header=OK` obrigatório).
+
+## Nota de qualidade geral
+
+**8.5/10**. Documentação técnica madura, bifurcamento resolvido, rollback duplo e telemetria estrutural acima da média. Penalização principal: token DEV vazado em commits de metadata do harness (problema operacional, não da doc em si, mas o spec poderia ter alertado) + ausência de memory entry e ownership.</result>
+<usage><total_tokens>86546</total_tokens><tool_uses>15</tool_uses><duration_ms>183833</duration_ms></usage>
+</task-notification>

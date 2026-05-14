@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "d43a6877b540",
+  "session_id": "b898dd16-ad28-4f9f-a33a-9629b88a44a7",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-14T22:49:42.325229Z",
+  "branch": "main",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md",
+    "wordpress/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "dd072e53243a",
+  "token_usage": {
+    "input_tokens": 195,
+    "cache_creation_tokens": 400731,
+    "cache_read_tokens": 16404751,
+    "output_tokens": 90796,
+    "api_call_count": 111
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-14T22:49:41.546585Z",
+    "agent_lines": 403,
+    "human_added": 534,
+    "human_modified": 43,
+    "human_removed": 0,
+    "total_committed": 980,
+    "agent_percentage": 41.12244897959184
+  }
+}
