@@ -1,0 +1,245 @@
+identifique o plugin criado para manipular os botões do mapa do atlas cultural
+
+---
+
+coloque o bit-jet-map-reset.php no totem local (https://cambrasmax.local:8498/atlas-cultural-das-amazonias/)
+
+---
+
+estilize o controle de zoom/home [Image #37] conforme os controle em https://concertacao.bureau-it.com/cultura/atlas-cultural-das-amazonias/
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_JvKUrz/Captura de Tela 2026-05-12 às 23.34.20.png]
+
+---
+
+aplique tambem no totem wsl (ssh totem-concertacao)
+
+---
+
+[Request interrupted by user]
+
+---
+
+aplique tambem no totem wsl (ssh totem-concertacao). Teste visual pode ser feito através do tunnel https://totem-01-concertacao.bureau-it.com/
+
+---
+
+[Request interrupted by user]
+
+---
+
+continue
+
+---
+
+[Request interrupted by user]
+
+---
+
+exatamente, neste totem, a home ja vai direto para o mapa , é o comportamente esperado mesmo :)
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+cuidado com o css, seja cirurgico, ok?
+
+---
+
+quando clicamos no botão da home e há um popup aberto, o mapa não consegue centralizar corretamente [Image #38] veja a imagem. 
+Minha sugestão é que ao clicar sobre a home, o popup seja fechado antes da centralização do mapa.
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_6TSZAl/Captura de Tela 2026-05-13 às 00.50.44.png]
+
+---
+
+[Image #41] porque nos EUA e outros paises os pontos estao sobrepostos quando o zoom está grande?
+[Image #42] o primeiro ponto dos EUA está com erro [object Object]
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_PB4TNr/Captura de Tela 2026-05-13 às 00.59.53.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_FbP32e/Captura de Tela 2026-05-13 às 01.00.56.png]
+
+---
+
+Base directory for this skill: /Users/dcambria/.claude/skills/geopoint-resolver
+
+# GeoPoint Resolver
+
+Resolve localidades para coordenadas geográficas e distribui múltiplos pontos usando a espiral de Fermat — o mesmo algoritmo usado pelo sistema `geopoint` (`supergeomarker.py`).
+
+## Quando usar
+
+- Usuário tem um CSV com localidades (cidade, estado, país) e precisa de coordenadas
+- Precisa preencher/corrigir uma coluna `GEOLOCALIZAÇÃO` em um CSV existente
+- Quer gerar pontos distribuídos dentro de uma região (espiral de Fermat)
+- Mencionou "geopoint", "geolocalizar", "coordenadas", "lat/lon"
+- Precisa resolver pendências de geocodificação que APIs externas falharam
+
+## Fluxo de trabalho
+
+### 1. Ler o CSV e identificar pendências
+
+Leia o CSV com a ferramenta Read. Identifique:
+- Quais colunas contêm cidade, estado, país (busque padrões: "Cidade", "Municipio", "Estado", "UF", "País")
+- Se já existe coluna `GEOLOCALIZAÇÃO` — se sim, identifique linhas vazias
+- Quantas linhas precisam de coordenadas, agrupadas por localidade
+
+### 2. Resolver coordenadas
+
+Use seu conhecimento geográfico para determinar as coordenadas centrais de cada localidade. Você conhece as coordenadas de praticamente qualquer lugar do mundo — cidades, aldeias, terras indígenas, ilhas, distritos, países.
+
+Regras para geocodificação:
+- **Cidades/municípios**: use o centroide da área urbana
+- **Países (quando o CSV lista artistas de outros países)**: use a capital como ponto de referência
+- **Terras indígenas / aldeias**: use a coordenada mais conhecida ou o centroide aproximado
+- **Ilhas**: use o centroide geográfico da ilha
+- **Localidades ambíguas**: priorize o contexto do CSV (se as outras linhas são do Brasil, "Colômbia" pode ser um município brasileiro — mas se a coluna Estado diz "Colômbia (País)", é o país)
+- **`nan` ou vazio**: ignore, não tente geocodificar
+
+Para cada localidade, defina:
+- `lat`: latitude do centro
+- `lon`: longitude do centro  
+- `radius_km`: raio aproximado para distribuição dos pontos (default: 15km para cidades, 50km para estados/regiões grandes, 5km para aldeias/distritos pequenos)
+
+### 3. Gerar pontos com espiral de Fermat
+
+O script `scripts/fermat_geocode.py` implementa o algoritmo. O fluxo:
+
+1. Crie um arquivo JSON temporário com as coordenadas resolvidas:
+```json
+{
+  "Manaus - Amazonas": {"lat": -3.1190, "lon": -60.0217, "radius_km": 20},
+  "Belém - Pará": {"lat": -1.4558, "lon": -48.5024, "radius_km": 18},
+  "Estados Unidos": {"lat": 38.8951, "lon": -77.0364, "radius_km": 50}
+}
+```
+
+2. Execute o script:
+```bash
+python3 ~/.claude/skills/geopoint-resolver/scripts/fermat_geocode.py \
+  "<csv_entrada>" "<csv_saida>" "<json_coordenadas>"
+```
+
+3. O script:
+   - Lê o CSV de entrada
+   - Identifica linhas sem `GEOLOCALIZAÇÃO`
+   - Agrupa por localidade (cidade + estado)
+   - Filtra linhas com `nan`
+   - Para cada grupo, gera N pontos em espiral de Fermat usando as coordenadas do JSON
+   - Salva o CSV de saída com a coluna preenchida
+   - Retorna JSON com estatísticas
+
+### 4. Validar resultado
+
+Após executar o script, leia o CSV de saída e confirme:
+- Quantas linhas foram preenchidas
+- Se ainda restam linhas vazias (e por quê — geralmente linhas sem cidade/estado)
+- Mostre um resumo ao usuário
+
+## Algoritmo da espiral de Fermat
+
+O algoritmo distribui N pontos de forma uniforme e visualmente agradável dentro de um raio circular ao redor do centroide:
+
+- **Ângulo dourado**: `pi * (3 - sqrt(5))` — garante distribuição uniforme sem clusters
+- **Raio crescente**: `r_max * sqrt(i / n)` — pontos mais densos no centro, espalhando para fora
+- **Correção de longitude**: divide o deslocamento X por `cos(latitude)` para compensar a projeção equiretangular (sem isso, pontos ficam esticados perto dos polos)
+- **Precisão**: 7 casas decimais (~ 1cm de precisão)
+
+Quando há apenas 1 ponto, retorna exatamente o centroide. Quando há muitos pontos (>50), considere aumentar o `radius_km`.
+
+## Formato de saída
+
+A coluna `GEOLOCALIZAÇÃO` usa o formato `latitude,longitude` (sem espaço):
+```
+-3.1190275,-60.0217314
+```
+
+## Exemplo de uso completo
+
+Usuário: "Preencha as coordenadas que faltam nesse CSV"
+
+1. Leia o CSV, identifique 15 localidades pendentes
+2. Resolva as coordenadas de cada uma usando seu conhecimento
+3. Crie o JSON temporário em `/tmp/coords.json`
+4. Execute `fermat_geocode.py input.csv output.csv /tmp/coords.json`
+5. Confirme que 15 localidades foram resolvidas
+6. Mostre resumo ao usuário
+
+---
+
+sim, continue
+
+---
+
+excelente, aprovado. aplique no totem
+
+---
+
+[Image #43] porque as cores do tunnel do totem [Image #44] estao diferentes do totem acessado por anydesk? cache local?
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_f5llMp/Captura de Tela 2026-05-13 às 01.35.27.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_e6vXCX/Captura de Tela 2026-05-13 às 01.35.54.png]
+
+---
+
+limpar o cache antigo resolve?
+
+---
+
+fiz o ctrl shift f5 e nao funcionou
+
+---
+
+fiz tudo, nao adiantou
+
+---
+
+Por que tunnel-url-rewrite.php é "recomendado". e se ha esse arquivo no totem
+
+---
+
+o totem está offline agora, mas veja se é necessário atualizar o mu-plugin no diretorio de canonicos
+
+---
+
+pode preparar localmente. lembre-de de quando o totem wsl voltar, faremos o patch
+
+---
+
+essa atualização deve funcionar para os demais projetos?
+
+---
+
+teremos mais kiosks sim. acredito que o ideal seja uma constante no wp-config.php KIOSK_MODE para ativar o fluxo do modo kiosk, o que acha?
+
+---
+
+acho que estamos usando https:// para o totem, tem isso na sua memoria?
+
+---
+
+comite e push
+
+---
+
+remova do .gitignore o docker-dev/sites/CLAUDE.md e versione-o no server-tools
+
+---
+
+revise o codigo com 5 agentes em 2 ciclos
+
+---
+
+sim
