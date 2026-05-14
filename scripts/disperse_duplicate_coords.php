@@ -51,14 +51,11 @@ $post_info = $wpdb->get_results(
     OBJECT_K
 );
 
-// 3. Backup CSV antes de qualquer mudança
-$ts = date( 'Ymd_His' );
-$backup = "/tmp/coord_backup_{$ts}.csv";
-$fh = fopen( $backup, 'w' );
-fputcsv( $fh, [ 'post_id', 'post_title', 'cidade', 'estado', 'coord_original' ] );
-
-// 4. Para cada grupo, calcula offsets Fermat
-$total_affected = 0;
+// 3. Configuração dos raios de dispersão (km por contexto)
+//
+// Origem dos valores: ajuste empírico para visualização. Países cobrem área
+// continental (80km ~ DC-Baltimore), cidades grandes ficam dentro do contorno
+// urbano. Ajustar conforme densidade dos clusters do mapa.
 $radius_by_label = [
     'Estados Unidos (Pais)' => 80,
     'Estados Unidos (País)' => 80,
@@ -67,6 +64,11 @@ $radius_by_label = [
     'default_country'       => 50,
     'default_city'          => 15,
 ];
+
+// 4. PASS 1: calcula TODOS os offsets + grava CSV completo ANTES de qualquer UPDATE.
+//    Garante rollback consistente — se script morrer mid-UPDATE, o CSV completo
+//    permite reverter todos os posts modificados via coord_original.
+$plan = []; // [ ['pid' => int, 'new_coord' => str, 'orig' => str, 'i' => int], ... ]
 
 foreach ( $dups as $g ) {
     $ids = array_map( 'intval', explode( ',', $g->ids ) );
@@ -96,8 +98,7 @@ foreach ( $dups as $g ) {
     $rad_lon = $radius_km / ( 111.0 * $cos_lat );
 
     foreach ( $ids as $i => $pid ) {
-        // pula i=0? No — todos ganham offset pequeno; senão um fica visualmente "central" e os outros parecem afastados.
-        // Mas o ponto mais interno fica praticamente no centro de qualquer forma (i=0 -> r=0).
+        // i=0: r=0 → fica no centro original (sem mudar). Reversibilidade trivial.
         $r = sqrt( $i / max( 1, $count - 1 ) );
         $theta = $i * $golden;
         $dlat = $r * $rad_lat * sin( $theta );
@@ -106,27 +107,55 @@ foreach ( $dups as $g ) {
         $new_lon = round( $clon + $dlon, 7 );
         $new_coord = "$new_lat,$new_lon";
 
-        $info = $post_info[ $pid ] ?? null;
+        $info  = $post_info[ $pid ] ?? null;
         $title = $info ? $info->post_title : "(post $pid)";
         echo sprintf( "  #%d %-30s  -> %s\n", $pid, mb_substr( $title, 0, 30 ), $new_coord );
 
-        fputcsv( $fh, [ $pid, $title, $info->cidade ?? '', $info->estado ?? '', $g->coord ] );
-
-        if ( $apply && $i > 0 ) { // i=0 fica no centro original (sem mudar)
-            $ok = $wpdb->update(
-                $table_pm,
-                [ 'meta_value' => $new_coord ],
-                [ 'post_id'    => $pid, 'meta_key' => 'coordenada' ],
-                [ '%s' ],
-                [ '%d', '%s' ]
-            );
-            $total_affected += ( $ok === false ) ? 0 : (int) $ok;
-        }
+        $plan[] = [
+            'pid'       => $pid,
+            'i'         => $i,
+            'orig'      => $g->coord,
+            'new_coord' => $new_coord,
+            'title'     => $title,
+            'cidade'    => $info->cidade ?? '',
+            'estado'    => $info->estado ?? '',
+        ];
     }
 }
 
+// PASS 1.5: grava CSV completo + fsync ANTES de mexer no banco
+$ts     = date( 'Ymd_His' );
+$backup = "/tmp/coord_backup_{$ts}.csv";
+$fh     = fopen( $backup, 'w' );
+if ( ! $fh ) {
+    echo "ERROR: nao foi possivel criar backup CSV em $backup — abortando para preservar dados.\n";
+    exit( 1 );
+}
+fputcsv( $fh, [ 'post_id', 'post_title', 'cidade', 'estado', 'coord_original', 'new_coord' ] );
+foreach ( $plan as $row ) {
+    fputcsv( $fh, [ $row['pid'], $row['title'], $row['cidade'], $row['estado'], $row['orig'], $row['new_coord'] ] );
+}
+fflush( $fh );
 fclose( $fh );
-echo "\nBackup CSV salvo: $backup\n";
+echo "\nBackup CSV completo salvo (com " . count( $plan ) . " linhas): $backup\n";
+
+// PASS 2: aplica UPDATEs (somente quando $apply === true)
+$total_affected = 0;
+if ( $apply ) {
+    foreach ( $plan as $row ) {
+        if ( $row['i'] === 0 ) {
+            continue; // centro original — sem update
+        }
+        $ok = $wpdb->update(
+            $table_pm,
+            [ 'meta_value' => $row['new_coord'] ],
+            [ 'post_id'    => $row['pid'], 'meta_key' => 'coordenada' ],
+            [ '%s' ],
+            [ '%d', '%s' ]
+        );
+        $total_affected += ( $ok === false ) ? 0 : (int) $ok;
+    }
+}
 
 if ( $apply ) {
     echo "Linhas atualizadas: $total_affected\n";
