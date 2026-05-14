@@ -25,9 +25,14 @@ Para cada página, faça:
 3. `browser_close`
 4. `browser_run_code` com **green** (X-Test-Green:true via context)
 
-**Páginas 6 e 7 (formulários):**
-- Estado **prod**: usar snippet "validação de formulário — PROD" (apenas presença, sem submit)
-- Estado **green**: usar snippet "submit real — GREEN" (preenche com marcador, submete, valida resposta visual, retry 1x)
+**Páginas 6 e 7 (formulários) — fluxo atual (a partir de 2026-05-14):**
+1. **prod**: snippet "submit real — PROD" com header `X-BIT-Smoke-Token` válido (mu-plugin `bit-smoke-recaptcha-bypass.php` v1.1.0+). Espera response header `X-BIT-Smoke-Bypass: OK` e success message visível. Marker injetado: `__bit_smoke_test=1`.
+2. **prod (teste negativo)**: snippet "submit real — PROD" com token INVÁLIDO. Espera `X-BIT-Smoke-Bypass: NOOP` ou erro reCAPTCHA — garante que bypass não está aberto pra qualquer um.
+3. **green**: snippet "submit real — GREEN" com `X-Test-Green: true` + `X-BIT-Smoke-Token` válido (quando green estiver vivo). Mesmas asserções.
+
+**Fallback (token não disponível no ambiente):** snippet deprecado "validação de formulário — PROD" valida só presença/renderização — não exercita pipeline POST.
+
+**Cobertura multisite:** rodar para blog 1 (`https://concertacaoamazonia.com.br/`) E blog 2 (`https://concertacaoamazonia.com.br/cultura/`). O footer Elementor é compartilhado mas configs WPML/destinos podem diferir.
 
 ### Snippet base por estado (páginas 1-5)
 
@@ -65,9 +70,21 @@ async (page) => {
 }
 ```
 
-### Snippet validação de formulário — PROD (páginas 6 e 7, sem header)
+### Bypass de reCAPTCHA para submit em PROD/GREEN
 
-Detecta presença e renderização correta. **NÃO submete** o form em prod.
+Para submeter formulários reais em ambientes com reCAPTCHA v3 invisible (Elementor Pro Forms), o mu-plugin `bit-smoke-recaptcha-bypass.php` aceita header `X-BIT-Smoke-Token` autenticado contra a constante `BIT_SMOKE_BYPASS_TOKEN` no `wp-config.php`. Quando válido, remove os callbacks `Recaptcha_Handler::validation` e `Recaptcha_V3_Handler::validation`, mantém Honeypot + validações de campo ativos, e injeta `is_smoke_test=1` no record.
+
+**Token por ambiente** (não comitar, ler do `wp-config.php` do ambiente):
+- DEV: `cat wordpress/wp-config.php | grep BIT_SMOKE_BYPASS_TOKEN`
+- PROD: SSH `concertacaoamazonia.com.br-prod-sa` e `grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php`
+
+Quando rodar o snippet "submit real — PROD" ou "submit real — GREEN", substitua `BIT_SMOKE_TOKEN_AQUI` pelo token do ambiente alvo.
+
+Spec: `docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md`
+
+### Snippet validação de formulário — PROD (páginas 6 e 7, sem header) — DEPRECADO em favor do "submit real — PROD" abaixo
+
+Detecta presença e renderização correta. **NÃO submete** o form em prod. Use quando o bypass token não estiver configurado no ambiente alvo.
 
 ```js
 async (page) => {
@@ -104,6 +121,135 @@ async (page) => {
   });
 }
 ```
+
+### Snippet submit real — PROD (páginas 6 e 7, com `X-BIT-Smoke-Token`)
+
+Submete o form em prod via header de bypass reCAPTCHA. O mu-plugin `bit-smoke-recaptcha-bypass.php` v1.1.0+ valida o token via `hash_equals` contra `BIT_SMOKE_BYPASS_TOKEN` do `wp-config.php`, injeta `__bit_smoke_test=1` no record via filter `actions_before` (chega aos destinos email/webhook), e emite header `X-BIT-Smoke-Bypass: OK|FAILED|NOOP`. Marcador rastreável `smoke+<ts>@bureau-it.com`. Retry 1x backoff 2s.
+
+**Gates do snippet:**
+- `bypass_header === 'OK'` no GET inicial (confirma mu-plugin ativo e token válido)
+- `submit_ok === true` após click + retry
+- Se `bypass_header === 'FAILED'`: drift do Elementor Pro (priority mudou). Bloquear deploy e investigar.
+- Se `bypass_header === 'NOOP'`: token errado ou constante ausente.
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders({ 'X-BIT-Smoke-Token': 'BIT_SMOKE_TOKEN_AQUI' });
+  await ctx.clearCookies();
+
+  // Listener para capturar header X-BIT-Smoke-Bypass da response inicial
+  let bypass_header = null;
+  page.on('response', (resp) => {
+    if (resp.url().startsWith('URL_AQUI') && bypass_header === null) {
+      bypass_header = resp.headers()['x-bit-smoke-bypass'] || 'absent';
+    }
+  });
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(1500);
+
+  // Gate 1: header tem que vir OK. NOOP/FAILED/absent = bloqueia submit.
+  if (bypass_header !== 'OK') {
+    return {
+      submit_ok: false,
+      submit_reason: 'bypass_header_not_ok',
+      submit_message: `X-BIT-Smoke-Bypass=${bypass_header} (esperado OK). Mu-plugin nao deployado, token errado ou drift do Elementor Pro.`,
+      bypass_header,
+    };
+  }
+
+  const ts = Date.now();
+  const marker = {
+    email: `smoke+${ts}@bureau-it.com`,
+    nome: `SMOKE TEST ${ts}`,
+    msg: 'Automated smoke test from /smoke command — safe to delete.',
+  };
+
+  const submit = async (m) => {
+    return await page.evaluate(async (m) => {
+      const forms = Array.from(document.querySelectorAll('form'));
+      const footerForm = forms.find(f =>
+        !!f.closest('footer, .elementor-location-footer, [data-elementor-type="footer"]') &&
+        (f.getAttribute('name') === 'Footer do Site' || f.querySelector('input[name*="form_email_desk"], input[name*="form_email"]'))
+      );
+      // Para página Contato (não-footer), fallback ao primeiro form não-footer
+      const form = footerForm || forms.find(f => !f.closest('footer, .elementor-location-footer'));
+      if (!form) return { ok: false, reason: 'form_not_found' };
+
+      const fill = (selector, value) => {
+        const el = form.querySelector(selector);
+        if (el) {
+          el.value = value;
+          el.dispatchEvent(new Event('input',  { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        }
+        return false;
+      };
+      fill('input[type=email], input[name*=email i], input[placeholder*=email i]', m.email);
+      fill('input[name*=nome i], input[placeholder*=nome i], input[name*=name i]', m.nome);
+      fill('textarea, input[name*=mensagem i], input[name*=message i]', m.msg);
+
+      const sel = form.querySelector('select');
+      if (sel && sel.options.length > 1) {
+        sel.selectedIndex = 1;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      const btn = form.querySelector('button[type=submit], input[type=submit], .elementor-button[type=submit], button.elementor-button');
+      if (!btn) return { ok: false, reason: 'submit_btn_not_found' };
+
+      const formContainer = form.closest('.elementor-widget-form, .elementor-element') || form.parentElement;
+      btn.click();
+
+      const deadline = Date.now() + 25000;
+      while (Date.now() < deadline) {
+        const success =
+          formContainer?.querySelector('.elementor-message-success, .elementor-message.elementor-message-success') ||
+          document.querySelector('.elementor-message-success, .jet-form-builder-message--success');
+        const error =
+          formContainer?.querySelector('.elementor-message-danger, .elementor-message.elementor-message-danger') ||
+          document.querySelector('.elementor-message-danger, .jet-form-builder-message--error');
+        if (success) return { ok: true,  message: success.innerText.trim().slice(0, 200) };
+        if (error)   return { ok: false, reason: 'error_message', message: error.innerText.trim().slice(0, 200) };
+        await new Promise(r => setTimeout(r, 250));
+      }
+      return { ok: false, reason: 'timeout_25s' };
+    }, m);
+  };
+
+  let result = await submit(marker);
+  if (!result.ok && result.reason !== 'error_message') {
+    await page.waitForTimeout(2000);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(1500);
+    result = await submit(marker);
+    result.retry = true;
+  }
+
+  return {
+    submit_ok: result.ok,
+    submit_reason: result.reason || null,
+    submit_message: result.message || null,
+    submit_retry_used: !!result.retry,
+    bypass_header,
+    marker,
+  };
+}
+```
+
+**Diagnóstico por `bypass_header`:**
+- `OK` — mu-plugin ativo, token bate, callbacks reCAPTCHA removidos. Submit deveria funcionar.
+- `FAILED` — token bate mas mu-plugin não encontrou callbacks reCAPTCHA pra remover. Drift do Elementor Pro (priority/classe mudou após update). Bloquear deploy, atualizar mu-plugin.
+- `NOOP` — token errado, constante ausente, ou header não chegou ao PHP. Conferir constante via SSH: `grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php`.
+- `absent` — mu-plugin não está instalado/ativo. Conferir: `ls -la /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php`.
+
+**Teste negativo obrigatório:** rodar o snippet trocando `BIT_SMOKE_TOKEN_AQUI` por um token claramente inválido (`'invalid'.repeat(10)`). Esperado: `bypass_header=NOOP` E `submit_ok=false` com erro reCAPTCHA. Se passar, o bypass está aberto pra qualquer um — incidente de segurança.
 
 ### Snippet submit real — GREEN (páginas 6 e 7, com `X-Test-Green:true`)
 
