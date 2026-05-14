@@ -3,7 +3,7 @@
   "checkpoint_id": "a615e76a15d0",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 5,
   "files_touched": [
     "scripts/disperse_duplicate_coords.php"
   ],
@@ -14,13 +14,20 @@
       "context": "/a6/15e76a15d0/0/context.md",
       "content_hash": "/a6/15e76a15d0/0/content_hash.txt",
       "prompt": "/a6/15e76a15d0/0/prompt.txt"
+    },
+    {
+      "metadata": "/a6/15e76a15d0/1/metadata.json",
+      "transcript": "/a6/15e76a15d0/1/full.jsonl",
+      "context": "/a6/15e76a15d0/1/context.md",
+      "content_hash": "/a6/15e76a15d0/1/content_hash.txt",
+      "prompt": "/a6/15e76a15d0/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 605,
-    "cache_creation_tokens": 1550289,
-    "cache_read_tokens": 88427509,
-    "output_tokens": 181463,
-    "api_call_count": 380
+    "input_tokens": 673,
+    "cache_creation_tokens": 1720527,
+    "cache_read_tokens": 90985891,
+    "output_tokens": 195765,
+    "api_call_count": 409
   }
 }
