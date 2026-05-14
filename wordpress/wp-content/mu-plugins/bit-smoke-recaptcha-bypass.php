@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: BIT Smoke reCAPTCHA Bypass
- * Description: Bypassa validacao reCAPTCHA do Elementor Pro Forms quando request traz header X-BIT-Smoke-Token que confere com a constante BIT_SMOKE_BYPASS_TOKEN do wp-config.php. Adiciona campo virtual __bit_smoke_test=1 no record via filter actions_before (chega aos destinos email/webhook). Emite header X-BIT-Smoke-Bypass=OK|FAILED|NOOP para telemetria. No-op se constante ausente ou vazia. Spec: docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md
- * Version: 1.1.0
+ * Description: Bypassa validacao reCAPTCHA do Elementor Pro Forms quando request traz header X-BIT-Smoke-Token que confere com a constante BIT_SMOKE_BYPASS_TOKEN do wp-config.php. Adiciona campo virtual __bit_smoke_test=1 no record via filter actions_before (chega aos destinos email/webhook). Emite header de resposta X-BIT-Smoke-Bypass=OK|FAILED|NOOP SOMENTE quando o request carrega o header X-BIT-Smoke-Token (qualquer valor) — sem header de entrada, sem header de saida, evitando cache-poisoning e leak de metadado. Audit log incondicional via error_log quando autorizado. No-op se constante ausente ou vazia. Spec: docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md
+ * Version: 1.1.1
  * Author: Daniel Cambria (Bureau de Tecnologia)
  */
 
@@ -24,12 +24,23 @@ const RECAPTCHA_CLASSES = [
 // Estado interno usado pelo header de telemetria.
 // OK    = bypass autorizado E removeu pelo menos 1 callback recaptcha
 // FAILED= bypass autorizado mas NAO encontrou callbacks (drift do Elementor Pro)
-// NOOP  = bypass nao autorizado (sem header, token errado, etc.)
+// NOOP  = bypass nao autorizado (token errado, etc.) mas request CARREGA header
 $GLOBALS['bit_smoke_bypass_state'] = 'NOOP';
+
+/**
+ * Retorna true se o request HTTP carrega o header X-BIT-Smoke-Token (qualquer
+ * valor, mesmo invalido). Usado para condicionar a emissao do header de
+ * resposta de telemetria — sem isso, anonimos veriam X-BIT-Smoke-Bypass=NOOP
+ * em toda response cacheavel (poluindo cache do CloudFront/WP Rocket e
+ * revelando existencia do mecanismo).
+ */
+function request_carries_smoke_header(): bool {
+	return isset( $_SERVER[ HEADER_KEY ] ) && $_SERVER[ HEADER_KEY ] !== '';
+}
 
 function set_state( string $state ): void {
 	$GLOBALS['bit_smoke_bypass_state'] = $state;
-	if ( ! headers_sent() ) {
+	if ( ! headers_sent() && request_carries_smoke_header() ) {
 		header( RESPONSE_HEADER . ': ' . $state );
 	}
 }
@@ -49,13 +60,27 @@ function is_authorized_smoke_request(): bool {
 	return hash_equals( $expected, $received );
 }
 
-function maybe_log( string $msg ): void {
+/**
+ * Audit log de uso autorizado: dispara INCONDICIONAL (independe de WP_DEBUG)
+ * sempre que is_authorized_smoke_request() retorna true. Sem PII; entrada
+ * minima (timestamp via error_log, IP, prefixo do token, contexto).
+ *
+ * Log de diagnostico (drift, falhas) continua condicional a WP_DEBUG.
+ */
+function audit_log( string $msg ): void {
+	$prefix = isset( $_SERVER[ HEADER_KEY ] ) ? substr( (string) $_SERVER[ HEADER_KEY ], 0, 8 ) . '...' : '(none)';
+	$ip     = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+	$uri    = $_SERVER['REQUEST_URI'] ?? '?';
+	error_log( sprintf( '[bit-smoke-recaptcha-bypass AUDIT] %s | token=%s | ip=%s | uri=%s', $msg, $prefix, $ip, substr( $uri, 0, 200 ) ) );
+}
+
+function debug_log( string $msg ): void {
 	if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
 		return;
 	}
 	$prefix = isset( $_SERVER[ HEADER_KEY ] ) ? substr( (string) $_SERVER[ HEADER_KEY ], 0, 8 ) . '...' : '(none)';
 	$ip     = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-	error_log( sprintf( '[bit-smoke-recaptcha-bypass] %s | token=%s | ip=%s', $msg, $prefix, $ip ) );
+	error_log( sprintf( '[bit-smoke-recaptcha-bypass DEBUG] %s | token=%s | ip=%s', $msg, $prefix, $ip ) );
 }
 
 /**
@@ -69,13 +94,16 @@ function maybe_log( string $msg ): void {
  */
 function disable_recaptcha_validation(): void {
 	if ( ! is_authorized_smoke_request() ) {
-		// Mantem state NOOP; nao emite header agora pois pode mudar so quando AJAX rodar.
+		// Mantem state NOOP. Nao emite header aqui — emit_diagnostic_header
+		// faz isso (e so se o request carregar o header).
 		return;
 	}
 
+	audit_log( 'authorized request received' );
+
 	global $wp_filter;
 	if ( empty( $wp_filter['elementor_pro/forms/validation'] ) ) {
-		maybe_log( 'no validation hook registered yet — bypass deferred to later request' );
+		debug_log( 'no validation hook registered yet — bypass deferred to later request' );
 		set_state( 'FAILED' );
 		return;
 	}
@@ -84,7 +112,7 @@ function disable_recaptcha_validation(): void {
 	$removed = [];
 
 	if ( ! isset( $hook->callbacks[10] ) ) {
-		maybe_log( 'no priority-10 callbacks on validation hook' );
+		debug_log( 'no priority-10 callbacks on validation hook' );
 		set_state( 'FAILED' );
 		return;
 	}
@@ -110,10 +138,10 @@ function disable_recaptcha_validation(): void {
 	}
 
 	if ( ! empty( $removed ) ) {
-		maybe_log( sprintf( 'recaptcha bypass ENABLED — removed: %s', implode( ',', $removed ) ) );
+		debug_log( sprintf( 'recaptcha bypass ENABLED — removed: %s', implode( ',', $removed ) ) );
 		set_state( 'OK' );
 	} else {
-		maybe_log( 'no recaptcha callbacks found at priority 10 (Elementor Pro drift?)' );
+		debug_log( 'no recaptcha callbacks found at priority 10 (Elementor Pro drift?)' );
 		set_state( 'FAILED' );
 	}
 }
@@ -122,7 +150,8 @@ function disable_recaptcha_validation(): void {
  * Injeta campo virtual __bit_smoke_test=1 no record ANTES dos actions (email,
  * webhook, RD Station) — destinos passam a ver o marker. Sobrescreve sempre,
  * ignorando qualquer payload do cliente (blindagem contra forja: atacante sem
- * token nunca consegue setar este field).
+ * token nunca consegue setar este field porque Form_Record::set_fields()
+ * itera form_settings['form_fields'] e ignora payload livre).
  *
  * Filter (nao action): precisa retornar $record. Disparado em
  * ajax-handler.php:149 via apply_filters('elementor_pro/forms/record/actions_before').
@@ -143,27 +172,36 @@ function mark_record_as_smoke_test( $record, $ajax_handler ) {
 		'required'  => '',
 	];
 	$record->set( 'fields', $fields );
-	maybe_log( 'record marked ' . MARKER_FIELD_ID . '=1' );
+	audit_log( 'record marked ' . MARKER_FIELD_ID . '=1' );
 	return $record;
 }
 
 /**
- * Em requests GET (operador diagnosticando), emitir o header de telemetria
- * tambem mesmo sem AJAX. Em requests AJAX (POST do form), o header eh setado
- * por disable_recaptcha_validation() / set_state(). Aqui rodamos cedo, no
- * send_headers, para garantir que GET tambem tenha o sinal.
+ * Emite o header X-BIT-Smoke-Bypass na response de requests GET/frontend.
+ *
+ * Importante: send_headers eh disparado em WP::send_headers() durante o
+ * wp() main flow — NAO em admin-ajax.php (que pula esse path). No fluxo AJAX
+ * do submit do form, o header eh emitido por set_state() chamado dentro de
+ * disable_recaptcha_validation() (priority 100 em elementor_pro/init, que
+ * roda mesmo em admin-ajax). Esta funcao cobre GET inicial / diagnostico.
+ *
+ * Emissao condicional ao header de request: sem X-BIT-Smoke-Token no
+ * request, nao ha X-BIT-Smoke-Bypass na response. Isso evita poluir cache do
+ * CloudFront/WP Rocket com metadado revelando o mecanismo.
  */
 function emit_diagnostic_header(): void {
 	if ( headers_sent() ) {
+		return;
+	}
+	if ( ! request_carries_smoke_header() ) {
 		return;
 	}
 	if ( ! is_authorized_smoke_request() ) {
 		header( RESPONSE_HEADER . ': NOOP' );
 		return;
 	}
-	// Token bate, mas pode ainda nao ter rodado elementor_pro/init (depende
-	// se Elementor Pro carrega antes do send_headers). Default OK; se depois
-	// disable_recaptcha_validation falhar, ele reemite FAILED.
+	// Token bate. disable_recaptcha_validation ja rodou (elementor_pro/init
+	// dispara em plugins_loaded, antes do send_headers). Usa o estado atual.
 	header( RESPONSE_HEADER . ': ' . $GLOBALS['bit_smoke_bypass_state'] );
 }
 

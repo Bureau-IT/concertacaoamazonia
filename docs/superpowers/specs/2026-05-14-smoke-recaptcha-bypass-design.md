@@ -1,8 +1,15 @@
 # Smoke reCAPTCHA bypass — mu-plugin `bit-smoke-recaptcha-bypass.php`
 
 **Data:** 2026-05-14
+**Versão atual:** v1.1.1 (header de resposta condicional + audit log incondicional)
 **Status:** accepted (implementado em DEV; pendente deploy PROD/HML)
 **Supersede parcial:** `2026-05-01-smoke-form-submit-design.md` decisão #1 (submit apenas no green). Após o bypass, submit em PROD passa a ser autorizado mediante token. O risco residual #1 do spec antigo ("reCAPTCHA visível") perde relevância porque o bypass remove a validação reCAPTCHA inteiramente — o smoke deixa de exercitar o caminho reCAPTCHA real; verificação dessa camada migra para Google reCAPTCHA admin console (scores, taxa de rejeição).
+
+## Changelog
+
+- **v1.1.1 (2026-05-14)** — Header `X-BIT-Smoke-Bypass` emitido **somente** quando request carrega `X-BIT-Smoke-Token` (qualquer valor). Sem header de entrada = sem header de saída. Evita cache-poisoning no CloudFront/WP Rocket e elimina leak de metadado revelando o mecanismo. Audit log via `error_log` agora é incondicional (não depende de `WP_DEBUG=true`) quando `is_authorized=true` — trail mínimo de uso em PROD. Docblock de `emit_diagnostic_header()` corrigido (admin-ajax não dispara `send_headers`).
+- **v1.1.0 (2026-05-14)** — Filter `actions_before` em vez de action `new_record`; rename do marker para `__bit_smoke_test`; header de telemetria `X-BIT-Smoke-Bypass: OK|FAILED|NOOP`.
+- **v1.0.0 (2026-05-14)** — Implementação inicial: bypass via header + constante, varredura `$wp_filter`, marker via action.
 
 **Contexto:** smoke do formulário do rodapé não conclui submit real em PROD porque o reCAPTCHA v3 invisible (Elementor Pro) atribui score baixo a navegadores headless — backend rejeita com "Formulário Inválido - Falha na Validação do reCAPTCHA". Sem submit real, o smoke não valida o pipeline POST→handler→destino.
 
@@ -193,7 +200,8 @@ rsync -avz docker-dev/common/mu-plugins/bit-smoke-recaptcha-bypass.php \
 
 # 3e. Limpar OPcache file_cache (regra CLAUDE.md concertacao):
 ssh concertacaoamazonia.com.br-prod-sa \
-  "sudo rm -f /var/cache/php-opcache/*bit-smoke* && sudo systemctl reload php8.3-fpm"
+  "sudo find /var/cache/php-opcache -name '*bit-smoke-recaptcha-bypass*' -delete 2>/dev/null; \
+   sudo systemctl reload php8.3-fpm"
 
 # 3f. Validar constante carregou
 ssh concertacaoamazonia.com.br-prod-sa \
@@ -222,20 +230,29 @@ Se o bypass for explorado (token vazou) ou se a versão do Elementor Pro causar 
 
 ```bash
 # Rollback 1 — mais rápido (constante = source of truth):
-ssh concertacaoamazonia.com.br-prod-sa \
-  "sudo sed -i \"s/^define('BIT_SMOKE_BYPASS_TOKEN'.*//\" /var/www/concertacaoamazonia.com.br/wp-config.php && \
-   sudo rm -f /var/cache/php-opcache/*wp-config* && \
-   sudo systemctl reload php8.3-fpm"
+ssh concertacaoamazonia.com.br-prod-sa "sudo sh -c '
+  cd /var/www/concertacaoamazonia.com.br && \
+  cp wp-config.php wp-config.php.bak-rollback-$(date +%s) && \
+  sed -i \"/BIT_SMOKE_BYPASS_TOKEN/d\" wp-config.php && \
+  find /var/cache/php-opcache -name \"*bit-smoke-recaptcha-bypass*\" -delete 2>/dev/null; \
+  systemctl reload php8.3-fpm
+'"
+# Backup pré-edit: cp wp-config.php.bak-rollback-<ts> (auditável, reversível com diff)
+# sed pattern: /BIT_SMOKE_BYPASS_TOKEN/d — deleta linha inteira, agnóstico ao formato do token
 # Mu-plugin permanece instalado mas vira no-op. Imediato. Rotacionar token depois e re-deployar.
 
 # Rollback 2 — remover mu-plugin (cinto + suspensório):
-ssh concertacaoamazonia.com.br-prod-sa \
-  "sudo rm /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php && \
-   sudo rm -f /var/cache/php-opcache/*bit-smoke* && \
-   sudo systemctl reload php8.3-fpm"
+ssh concertacaoamazonia.com.br-prod-sa "sudo sh -c '
+  rm /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php && \
+  find /var/cache/php-opcache -name \"*bit-smoke-recaptcha-bypass*\" -delete 2>/dev/null; \
+  systemctl reload php8.3-fpm
+'"
 ```
 
-**Ordem é importante:** remover constante PRIMEIRO se o problema é vazamento de token (corta o vetor antes de mexer no arquivo). Remover mu-plugin primeiro se o problema é bug no plugin causando 500 (corta o código antes de qualquer outra coisa).
+**Notas importantes:**
+- **Ordem:** remover constante PRIMEIRO se o problema é vazamento de token (corta o vetor antes de mexer no arquivo). Remover mu-plugin primeiro se o problema é bug no plugin causando 500.
+- **Em ROTAÇÃO de token** (não rollback): preferir `systemctl restart php8.3-fpm` em vez de `reload`. O `reload` faz graceful (workers idle terminam, workers ativos completam request com constante antiga) — janela 1-30s onde token antigo ainda funciona. `restart` mata workers imediatamente; janela zero, mas pequena descontinuidade.
+- **Token format:** spec recomenda `openssl rand -hex 32` (hex lowercase 64 chars). O `sed /BIT_SMOKE_BYPASS_TOKEN/d` é agnóstico ao formato.
 
 ## Rotação de token
 
@@ -246,29 +263,45 @@ Cadência sugerida: **a cada 90 dias** ou **imediatamente** em qualquer suspeita
 NEW_TOKEN=$(openssl rand -hex 32)
 
 # 2. Sobrescrever constante (atômico — PHP só lê uma vez por request)
-ssh concertacaoamazonia.com.br-prod-sa \
-  "sudo sed -i \"s/define('BIT_SMOKE_BYPASS_TOKEN', '[a-f0-9]*')/define('BIT_SMOKE_BYPASS_TOKEN', '$NEW_TOKEN')/\" \
-     /var/www/concertacaoamazonia.com.br/wp-config.php && \
-   sudo rm -f /var/cache/php-opcache/*wp-config* && \
-   sudo systemctl reload php8.3-fpm"
+ssh concertacaoamazonia.com.br-prod-sa "sudo sh -c '
+  cd /var/www/concertacaoamazonia.com.br && \
+  cp wp-config.php wp-config.php.bak-rotate-$(date +%s) && \
+  sed -i \"s|define( *.BIT_SMOKE_BYPASS_TOKEN.*|define(\\\"BIT_SMOKE_BYPASS_TOKEN\\\", \\\"'"$NEW_TOKEN"'\\\");|\" wp-config.php && \
+  find /var/cache/php-opcache -name \"*wp-config*\" -delete 2>/dev/null; \
+  systemctl restart php8.3-fpm
+'"
 
 # 3. Atualizar 1Password / cofre pessoal com novo token
-# 4. Re-rodar /smoke pra confirmar que novo token funciona
+# 4. Re-rodar scripts/validate-smoke-bypass.sh pra confirmar que novo token funciona
+./scripts/validate-smoke-bypass.sh https://concertacaoamazonia.com.br "$NEW_TOKEN"
 ```
 
-Sem janela de duplo-aceite (PHP lê uma constante por request, FPM reload é atômico). Token antigo invalidado imediatamente.
+**Importante:** usar `restart` (não `reload`) em rotação — `reload` faz graceful e mantém workers velhos com token antigo na janela 1-30s. `restart` mata workers imediatamente, janela zero. Pequena descontinuidade aceitável pra eliminar duplo-aceite. PHP lê uma constante por request, FPM restart é atômico → token antigo invalidado.
 
 ## Validação negativa pós-deploy (gate obrigatório)
 
-Antes de declarar deploy concluído, executar:
+Antes de declarar deploy concluído, executar o script empacotado:
 
+```bash
+./scripts/validate-smoke-bypass.sh https://concertacaoamazonia.com.br "$TOKEN_PROD"
+```
+
+O script roda 6 testes idempotentes e retorna exit code = número de falhas:
+
+| # | Teste | Esperado (v1.1.1+) |
+|---|-------|--------------------|
+| 1 | Token válido + header | `X-BIT-Smoke-Bypass: OK` + HTTP 200 |
+| 2 | Token errado (64 chars) | `X-BIT-Smoke-Bypass: NOOP` |
+| 3 | **Sem header de request** | Header `X-BIT-Smoke-Bypass` AUSENTE (v1.1.1+) |
+| 4 | Token curto (<32 chars) | `X-BIT-Smoke-Bypass: NOOP` |
+| 5 | Header vazio | Header AUSENTE |
+| 6 | Sanidade HTTP | site responde 200/301/302 |
+
+**Testes adicionais manuais (Playwright):**
 | Teste | Comando | Esperado |
 |-------|---------|----------|
-| Header presente | `curl -sIk -H "X-BIT-Smoke-Token: $TOKEN_PROD" https://concertacaoamazonia.com.br/` | `X-BIT-Smoke-Bypass: OK` |
-| Token errado bloqueia | `curl -sIk -H "X-BIT-Smoke-Token: 0000000000000000000000000000000000000000000000000000000000000000" https://concertacaoamazonia.com.br/` | `X-BIT-Smoke-Bypass: NOOP` |
-| Sem header bloqueia | `curl -sIk https://concertacaoamazonia.com.br/` | `X-BIT-Smoke-Bypass: NOOP` |
 | Submit form footer com token | snippet smoke "submit real — PROD" | `bypass_header=OK`, `submit_ok=true`, success message |
-| Submit form footer com token errado | snippet com `BIT_SMOKE_TOKEN_AQUI` = `'x'.repeat(64)` | `bypass_header=NOOP`, `submit_ok=false`, erro reCAPTCHA |
-| Marker chegou ao destino | Verificar em Elementor entries / RD Station se field `__bit_smoke_test=1` aparece no payload do submit positivo | Field presente |
+| Submit form footer com token errado | snippet com `BIT_SMOKE_TOKEN_AQUI` = `'x'.repeat(64)` | `bypass_header=NOOP` (lido da response), `submit_ok=false`, erro reCAPTCHA |
+| Marker chegou ao destino | Conferir em Elementor entries / RD Station / email recebido se `__bit_smoke_test=1` aparece no payload do submit positivo | Field presente |
 
 Se qualquer teste falhar: **rollback imediato** e investigar.
