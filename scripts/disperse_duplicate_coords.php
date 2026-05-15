@@ -2,12 +2,48 @@
 /**
  * Dispersa coordenadas duplicadas em wp_2_postmeta usando espiral de Fermat.
  *
- * Modo dry-run por padrão: mostra o que faria sem alterar nada.
- * Use --apply para gravar.
+ * == COMO EXECUTAR ==
  *
- * Backup CSV: gera /tmp/coord_backup_<timestamp>.csv com (post_id, post_title, coord_original) ANTES de qualquer UPDATE.
+ * Em DEV (concertacao local, blog 2 cultura):
+ *   docker exec -u www-data concertacao-dev-wordpress \
+ *     wp --url="https://cambrasmax.local:8484/cultura/" eval-file /tmp/disperse_duplicate_coords.php
  *
- * Raio padrão: 15km (cidade). Pode ser override por país via $RADIUS_BY_LABEL.
+ * Em PROD (concertacao prod via SSH):
+ *   scp scripts/disperse_duplicate_coords.php concertacaoamazonia.com.br-prod-sa:/tmp/
+ *   ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
+ *     wp --path=/var/www/concertacaoamazonia.com.br \
+ *        --url='https://concertacaoamazonia.com.br/cultura/' \
+ *        eval-file /tmp/disperse_duplicate_coords.php"
+ *
+ * == APLICAR (destrutivo) ==
+ *
+ * O script é DRY-RUN por padrão. Para gravar UPDATEs no banco, escolha um dos modos:
+ *   - Editar este arquivo: trocar `$apply = false;` por `$apply = true;`
+ *   - OU passar --apply no argv: `wp eval-file ... -- --apply` (alguns wrappers descartam)
+ *   - OU export env var no docker exec: `docker exec -e DISPERSE_APPLY=1 ... wp eval-file ...`
+ *
+ * == BACKUP CSV ==
+ *
+ * Antes de qualquer UPDATE, grava CSV completo em wp-content/uploads/coord-backups/
+ * com colunas (post_id, post_title, cidade, estado, coord_original, new_coord).
+ * Localização persistente (sobrevive a docker restart). Reverter = reimportar coord_original.
+ *
+ * == TABELAS ==
+ *
+ * Hardcoded para blog 2 (cultura) — wp_2_postmeta / wp_2_posts. Para usar em outro
+ * blog, editar as linhas `$table_pm` / `$table_p` no topo do script.
+ *
+ * == FILTROS APLICADOS ==
+ *
+ * - post_status IN ('publish','private') — drafts/trash/revisions são ignorados
+ * - meta_key='coordenada' não-vazio
+ * - HAVING qty > 1 — só grupos com duplicatas
+ *
+ * == RAIOS DE DISPERSÃO ==
+ *
+ * 80km para Estados Unidos, 60km Reino Unido, 50km demais países, 15km cidades.
+ * Configurável em $radius_by_label. Primeiro post de cada grupo permanece no
+ * centro original (reversibilidade trivial).
  */
 
 global $wpdb;
