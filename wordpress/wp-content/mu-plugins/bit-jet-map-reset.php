@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: BIT JetEngine Map Reset Button
- * Description: Adiciona botao "Resetar posicao" dentro da barra de zoom (+/-) do widget JetEngine Maps Listing e substitui os icones +/- do Leaflet por SVGs Lucide. Fecha popup aberto antes de centralizar.
- * Version: 1.2.1
+ * Description: Adiciona botão "Resetar posição" dentro da barra de zoom (+/-) do widget JetEngine Maps Listing e substitui os ícones +/- do Leaflet por SVGs Lucide. Fecha popup aberto antes de centralizar.
+ * Version: 1.2.2
  * Author: Bureau de Tecnologia
  */
 
@@ -53,6 +53,12 @@ add_action( 'wp_footer', function () {
 		if (!window.jQuery || !window.elementorFrontend) return;
 		var SVG_NS = 'http://www.w3.org/2000/svg';
 		var LABEL = <?php echo wp_json_encode( $label ); ?>;
+
+		// Polling constants — Leaflet/JetEngine podem demorar a inicializar
+		// dependendo de Elementor Pro Delay JS + condições de rede.
+		var POLL_INTERVAL_MS  = 100;   // intervalo entre tentativas
+		var MAX_POLL_ATTEMPTS = 40;    // 40 × 100ms = 4s timeout total
+		var FLY_DURATION_S    = 0.6;   // duração da animação flyTo (Leaflet default ~0.25s)
 
 		function buildSvg(viewBox, strokeWidth) {
 			var svg = document.createElementNS(SVG_NS, 'svg');
@@ -124,7 +130,12 @@ add_action( 'wp_footer', function () {
 				var zoomCtrl = container ? container.querySelector('.leaflet-control-zoom') : null;
 
 				if (!map || !zoomCtrl) {
-					if (++attempts > 40) clearInterval(poll);
+					if (++attempts > MAX_POLL_ATTEMPTS) {
+						clearInterval(poll);
+						if (window.console && console.warn) {
+							console.warn('[BIT Map Reset] polling esgotado após ' + (MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) + 'ms — Leaflet/JetEngine não inicializou. Botão home não foi anexado.');
+						}
+					}
 					return;
 				}
 				clearInterval(poll);
@@ -141,7 +152,7 @@ add_action( 'wp_footer', function () {
 				var btn = document.createElement('a');
 				btn.className = 'leaflet-control-zoom-reset bit-leaflet-reset';
 				btn.href = '#';
-				btn.role = 'button';
+				btn.setAttribute('role', 'button');   // setAttribute garante atributo HTML real (não só propriedade JS expando)
 				btn.setAttribute('aria-label', LABEL);
 				btn.title = LABEL;
 				btn.appendChild(buildHomeIcon());
@@ -150,13 +161,13 @@ add_action( 'wp_footer', function () {
 				L.DomEvent.on(btn, 'click', function (e) {
 					L.DomEvent.preventDefault(e);
 					if (map.closePopup) map.closePopup();
-					map.flyTo(initialCenter, initialZoom, { duration: 0.6 });
+					map.flyTo(initialCenter, initialZoom, { duration: FLY_DURATION_S });
 					btn.blur();
 				});
 
 				// Anexa apos o ultimo botao da barra (.leaflet-control-zoom-out)
 				zoomCtrl.appendChild(btn);
-			}, 100);
+			}, POLL_INTERVAL_MS);
 		}
 
 		$(window).on('elementor/frontend/init', function () {

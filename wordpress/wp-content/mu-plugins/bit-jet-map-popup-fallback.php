@@ -1,21 +1,36 @@
 <?php
 /**
  * Plugin Name: BIT JetEngine Map Popup Error Fallback
- * Description: Renderiza mensagem amigavel no popup do mapa (Atlas Cultural) quando a chamada REST falha OU quando o cliente JS passa objeto bruto ao setContent. v1.3.0 patcha L.Popup.prototype.setContent (camada Leaflet) — robusto a JetEngine 3.7.x (popup interno const, nao acessivel via window) e v3.8.x (envelope {success, html}).
- * Version: 1.3.0
+ * Description: Renderiza mensagem amigável (i18n PT/EN) no popup do mapa (Atlas Cultural) quando a chamada REST falha OU quando o cliente JS passa objeto bruto ao setContent. v1.4.0 adiciona i18n via WPML/get_locale + ativação condicional (só carrega quando jet-maps-listings está enfileirado).
+ * Version: 1.4.0
  * Author: Daniel Cambria
  *
- * Estrategia em 3 camadas de defesa:
+ * Estratégia em 2 camadas de defesa:
  *
  * 1. Patch L.Popup.prototype.setContent (camada mais baixa). Detecta:
- *    - jqXHR-like (readyState/status/statusText) -> mensagem amigavel + console.warn
+ *    - jqXHR-like (readyState/status/statusText) -> mensagem amigável + console.warn
  *    - envelope REST {success, html} (JetEngine v3+) -> extrai .html
  *    - objeto outro -> "[object Object]" friendly fallback
  *
  * 2. Patch window.JetLeafletPopup se exposto (JetEngine antigo).
  *
- * 3. Interceptacao $.ajaxSetup global: se response do endpoint /get-map-marker-info
- *    eh objeto bruto, transforma em HTML antes do .done callback chamar.
+ * == AVISO: PATCH GLOBAL ==
+ *
+ * O patch L.Popup.prototype afeta TODOS os popups Leaflet no escopo do
+ * documento — não só os do JetEngine Maps Listing. Em sites que rodam
+ * outros plugins de mapa (Leaflet.markercluster, Leaflet.heatmap, plugins
+ * de TEC venue map), os popups deles também passam pelo normalizeContent().
+ *
+ * Risco real BAIXO porque:
+ * - guard wp_script_is('jet-maps-listings') impede carregar fora do mapa
+ *   do Atlas (linha do action wp_footer)
+ * - normalizeContent retorna o conteúdo intacto quando é string ou
+ *   Element DOM (caminhos legítimos do Leaflet)
+ * - só transforma quando vê objeto bruto não-DOM (sintoma do bug original)
+ *
+ * Se um futuro plugin passar objeto não-DOM legítimo (raro), pode-se
+ * adicionar opt-out via data-attribute no container do mapa, mas hoje
+ * o blast radius é controlado pela guard.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -26,13 +41,35 @@ add_action( 'wp_footer', function () {
 	if ( ! wp_script_is( 'jet-maps-listings', 'enqueued' ) ) {
 		return;
 	}
+
+	// Detecção de idioma — replicada de bit-jet-map-reset.php para consistência.
+	// Em sites com WPML, usa o idioma corrente; senão, fallback para get_locale().
+	$lang = '';
+	if ( has_filter( 'wpml_current_language' ) ) {
+		$lang = (string) apply_filters( 'wpml_current_language', null );
+	}
+	if ( '' === $lang ) {
+		$locale = get_locale();
+		$lang   = ( 0 === strpos( $locale, 'en' ) ) ? 'en' : 'pt';
+	}
+
+	$labels = ( 'en' === $lang )
+		? [
+			'title' => 'Could not load.',
+			'hint'  => 'Reload the page to try again.',
+		]
+		: [
+			'title' => 'Não foi possível carregar.',
+			'hint'  => 'Recarregue a página para tentar de novo.',
+		];
 	?>
 	<script>
 	(function () {
+		var LABELS = <?php echo wp_json_encode( $labels ); ?>;
 		var FRIENDLY_ERROR_HTML =
 			'<div class="bit-popup-error" role="status" aria-live="polite" style="padding:16px;font-family:inherit;max-width:240px;">'
-			+ '<p style="margin:0 0 8px;font-weight:600;">Nao foi possivel carregar.</p>'
-			+ '<p style="margin:0;font-size:.9em;opacity:.75;">Recarregue a pagina para tentar de novo.</p>'
+			+ '<p style="margin:0 0 8px;font-weight:600;">' + LABELS.title + '</p>'
+			+ '<p style="margin:0;font-size:.9em;opacity:.75;">' + LABELS.hint + '</p>'
 			+ '</div>';
 
 		function looksLikeError( c ) {
