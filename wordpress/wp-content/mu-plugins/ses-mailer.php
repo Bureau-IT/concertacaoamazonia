@@ -21,7 +21,7 @@ add_action('phpmailer_init', function ($phpmailer) {
 
     // Força remetente verificado no SES, sobrescrevendo qualquer From definido por plugins (ex: Gravity Forms)
     $from_email = defined('SMTP_FROM_EMAIL') ? SMTP_FROM_EMAIL : 'noreply@concertacaoamazonia.com.br';
-    $from_name  = defined('SMTP_FROM_NAME')  ? SMTP_FROM_NAME  : 'Concertação pela Amazônia';
+    $from_name  = defined('SMTP_FROM_NAME')  ? SMTP_FROM_NAME  : 'Uma Concertação pela Amazônia';
     $phpmailer->setFrom($from_email, $from_name, false);
 }, 99);
 
@@ -30,5 +30,5 @@ add_filter('wp_mail_from', function () {
 });
 
 add_filter('wp_mail_from_name', function () {
-    return defined('SMTP_FROM_NAME') ? SMTP_FROM_NAME : 'Concertação pela Amazônia';
+    return defined('SMTP_FROM_NAME') ? SMTP_FROM_NAME : 'Uma Concertação pela Amazônia';
 });

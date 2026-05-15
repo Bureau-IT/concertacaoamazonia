@@ -1,4 +1,4 @@
-# Spec: Blue-Green Deploy — Concertação Amazônica
+# Spec: Blue-Green Deploy — Uma Concertação pela Amazônia
 
 **Data:** 2026-04-02  
 **Autor:** Daniel Cambría / Bureau de Tecnologia  
