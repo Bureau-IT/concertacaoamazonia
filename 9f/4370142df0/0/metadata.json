@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "9f4370142df0",
+  "session_id": "7f90a5a1-be37-4d41-9f3b-b03f27d3b50f",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-15T04:26:20.057064Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "scripts/disperse_duplicate_coords.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "899a49ee59d3",
+  "token_usage": {
+    "input_tokens": 3614,
+    "cache_creation_tokens": 2228847,
+    "cache_read_tokens": 134961971,
+    "output_tokens": 258620,
+    "api_call_count": 477
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-15T04:26:19.227999Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 48,
+    "total_committed": 29,
+    "agent_percentage": 0
+  }
+}
