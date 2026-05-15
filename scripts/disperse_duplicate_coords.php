@@ -12,6 +12,12 @@
 
 global $wpdb;
 
+// N6: força LC_NUMERIC=C para evitar locale pt_BR converter float para
+// "38,8951100" (vírgula decimal) ao concatenar — quebraria parse no JS do
+// JetEngine maps. round() retorna float; concatenação respeita LC_NUMERIC
+// em algumas configs PHP < 8.0 ou quando setlocale foi mexido antes.
+setlocale( LC_NUMERIC, 'C' );
+
 $apply = ! empty( getenv( 'DISPERSE_APPLY' ) ) || in_array( '--apply', $argv ?? [], true );
 echo $apply ? "MODO: APPLY (gravara)\n" : "MODO: DRY-RUN (nada sera gravado)\n";
 
@@ -21,11 +27,19 @@ $table_p  = $wpdb->base_prefix . '2_posts';
 echo "Usando tabelas: $table_pm, $table_p\n";
 
 // 1. Encontra coordenadas duplicadas
+// N2: só considera posts publish/private. Drafts, revisions, trash e auto-draft
+// não devem ser dispersos (inflam linhas afetadas + bagunçam revision history
+// + UPDATE em trash é wasted work). JOIN com posts pra filtrar post_status.
 $dups = $wpdb->get_results(
-    "SELECT meta_value AS coord, GROUP_CONCAT(post_id ORDER BY post_id) AS ids, COUNT(*) AS qty
-       FROM $table_pm
-      WHERE meta_key = 'coordenada' AND meta_value != ''
-      GROUP BY meta_value
+    "SELECT pm.meta_value AS coord,
+            GROUP_CONCAT(pm.post_id ORDER BY pm.post_id) AS ids,
+            COUNT(*) AS qty
+       FROM $table_pm pm
+       INNER JOIN $table_p p ON p.ID = pm.post_id
+      WHERE pm.meta_key = 'coordenada'
+        AND pm.meta_value != ''
+        AND p.post_status IN ('publish','private')
+      GROUP BY pm.meta_value
      HAVING qty > 1
       ORDER BY qty DESC"
 );
@@ -124,8 +138,17 @@ foreach ( $dups as $g ) {
 }
 
 // PASS 1.5: grava CSV completo + fsync ANTES de mexer no banco
-$ts     = date( 'Ymd_His' );
-$backup = "/tmp/coord_backup_{$ts}.csv";
+// N3: salva em wp-content/uploads/coord-backups/ (persistente em volume Docker)
+// em vez de /tmp do container (volátil — perde em restart). Fallback para /tmp
+// se diretório de uploads não existe (ex: rodando em ambiente non-WP).
+$ts          = date( 'Ymd_His' );
+$backup_dir  = ( defined( 'WP_CONTENT_DIR' ) && is_dir( WP_CONTENT_DIR . '/uploads' ) )
+    ? WP_CONTENT_DIR . '/uploads/coord-backups'
+    : sys_get_temp_dir();
+if ( ! is_dir( $backup_dir ) ) {
+    @mkdir( $backup_dir, 0755, true );
+}
+$backup = "$backup_dir/coord_backup_{$ts}.csv";
 $fh     = fopen( $backup, 'w' );
 if ( ! $fh ) {
     echo "ERROR: nao foi possivel criar backup CSV em $backup — abortando para preservar dados.\n";
