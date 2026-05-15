@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "6718121efbb1",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bit-jet-map-popup-fallback.php",
+    "wordpress/wp-content/mu-plugins/bit-jet-map-reset.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/67/18121efbb1/0/metadata.json",
+      "transcript": "/67/18121efbb1/0/full.jsonl",
+      "context": "/67/18121efbb1/0/context.md",
+      "content_hash": "/67/18121efbb1/0/content_hash.txt",
+      "prompt": "/67/18121efbb1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 620968,
+    "cache_read_tokens": 24782925,
+    "output_tokens": 29465,
+    "api_call_count": 43
+  }
+}
