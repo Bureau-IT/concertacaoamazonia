@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "fc4825ff5c11",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "testes/generate-report.js",
+    "testes/package.json",
+    "testes/playwright.config.js",
+    "testes/tests/01-pages-smoke.spec.js",
+    "testes/tests/02-console-errors.spec.js",
+    "testes/tests/03-gtm.spec.js",
+    "testes/tests/04-downloads.spec.js",
+    "testes/tests/05-contact-form.spec.js",
+    "testes/tests/06-wpml-en.spec.js",
+    "testes/tests/07-local-links.spec.js",
+    "testes/tests/99-green-visual.spec.js",
+    "testes/tests/helpers.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fc/4825ff5c11/0/metadata.json",
+      "transcript": "/fc/4825ff5c11/0/full.jsonl",
+      "context": "/fc/4825ff5c11/0/context.md",
+      "content_hash": "/fc/4825ff5c11/0/content_hash.txt",
+      "prompt": "/fc/4825ff5c11/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4889,
+    "cache_creation_tokens": 2445944,
+    "cache_read_tokens": 202921544,
+    "output_tokens": 332521,
+    "api_call_count": 538
+  }
+}

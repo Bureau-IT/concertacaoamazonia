@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "fc4825ff5c11",
+  "session_id": "9f495f11-36bf-4354-83db-c672a5cdf90f",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-17T21:49:06.131862Z",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "testes/generate-report.js",
+    "testes/package.json",
+    "testes/playwright.config.js",
+    "testes/tests/01-pages-smoke.spec.js",
+    "testes/tests/02-console-errors.spec.js",
+    "testes/tests/03-gtm.spec.js",
+    "testes/tests/04-downloads.spec.js",
+    "testes/tests/05-contact-form.spec.js",
+    "testes/tests/06-wpml-en.spec.js",
+    "testes/tests/07-local-links.spec.js",
+    "testes/tests/99-green-visual.spec.js",
+    "testes/tests/helpers.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "9482230d5cbb",
+  "token_usage": {
+    "input_tokens": 4889,
+    "cache_creation_tokens": 2445944,
+    "cache_read_tokens": 202921544,
+    "output_tokens": 332521,
+    "api_call_count": 538
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-17T21:49:04.333082Z",
+    "agent_lines": 1200,
+    "human_added": 4,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1204,
+    "agent_percentage": 99.66777408637874
+  }
+}
