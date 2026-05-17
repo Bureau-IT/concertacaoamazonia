@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.1.5
+ * Version:      2.1.6
  * Author:       Bureau IT
  * Network:      true
  */
@@ -1683,8 +1683,13 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         );
                       };
                       // Mesma proteção para outros métodos comuns
-                      ['endsWith', 'includes', 'indexOf', 'slice', 'split',
-                       'replace', 'toLowerCase', 'toUpperCase', 'trim'].forEach(function(m){
+                      ['endsWith', 'includes', 'indexOf', 'lastIndexOf',
+                       'slice', 'substring', 'substr', 'split', 'match',
+                       'matchAll', 'search', 'replace', 'replaceAll',
+                       'toLowerCase', 'toUpperCase', 'trim', 'trimStart',
+                       'trimEnd', 'padStart', 'padEnd', 'repeat', 'concat',
+                       'charAt', 'charCodeAt', 'codePointAt', 'normalize',
+                       'localeCompare', 'toString', 'valueOf'].forEach(function(m){
                         if (typeof SVGAnimatedString.prototype[m] !== 'function') {
                           SVGAnimatedString.prototype[m] = function(){
                             var s = String(this.baseVal || '');
