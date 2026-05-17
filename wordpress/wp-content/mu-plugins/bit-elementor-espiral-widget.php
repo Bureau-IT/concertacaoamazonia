@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      1.7.0
+ * Version:      2.0.5
  * Author:       Bureau IT
  * Network:      true
  */
@@ -452,7 +452,11 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 ],
                 'default'    => [ 'unit' => '%', 'size' => 100 ],
                 'selectors'  => [
-                    '{{WRAPPER}} .SVGSpiral2026' => 'width: {{SIZE}}{{UNIT}}; height: auto;',
+                    // !important para vencer eventual segunda declaração CSS
+                    // do Elementor com mesma specificity (root cause confirmada:
+                    // Safari aplicava a 2ª regra width:100% sobre a 1ª width:700px,
+                    // expandindo a SVG para largura total do container).
+                    '{{WRAPPER}} .SVGSpiral2026' => 'width: {{SIZE}}{{UNIT}} !important; height: auto !important;',
                 ],
             ] );
 
@@ -927,6 +931,94 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             ] );
 
             $this->end_controls_section();
+
+            // ─── SEÇÃO: Efeito de Clique nos Eixos ────────────────────
+            $this->start_controls_section( 'click_fx_section', [
+                'label' => 'Clique nos eixos',
+                'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+            ] );
+
+            $this->add_control( 'click_fx_enabled', [
+                'label'        => 'Ativar efeito de clique',
+                'type'         => \Elementor\Controls_Manager::SWITCHER,
+                'description'  => 'Glow rosa no eixo clicado + opcional estado de carregamento até a próxima página renderizar.',
+                'label_on'     => 'Sim',
+                'label_off'    => 'Não',
+                'return_value' => '1',
+                'default'      => '1',
+            ] );
+
+            $this->add_control( 'click_fx_glow_color', [
+                'label'       => 'Cor do glow',
+                'type'        => \Elementor\Controls_Manager::COLOR,
+                'description' => 'Cor do drop-shadow ao clicar num eixo.',
+                'default'     => '#ec4899',
+                'condition'   => [ 'click_fx_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'click_fx_glow_duration', [
+                'label'       => 'Duração do glow (ms)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'description' => 'Duração do flash inicial ao clicar.',
+                'size_units'  => [ 'ms' ],
+                'range'       => [ 'ms' => [ 'min' => 150, 'max' => 1200, 'step' => 50 ] ],
+                'default'     => [ 'unit' => 'ms', 'size' => 400 ],
+                'condition'   => [ 'click_fx_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'click_fx_glow_dim', [
+                'label'       => 'Opacidade dos outros eixos (glow)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'description' => 'Quanto os demais eixos esmaecem durante o flash inicial. 1 = sem dim.',
+                'range'       => [ 'px' => [ 'min' => 0.3, 'max' => 1, 'step' => 0.05 ] ],
+                'default'     => [ 'unit' => 'px', 'size' => 0.75 ],
+                'condition'   => [ 'click_fx_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'click_fx_loading_heading', [
+                'type'      => \Elementor\Controls_Manager::HEADING,
+                'label'     => 'Estado de carregamento',
+                'separator' => 'before',
+                'condition' => [ 'click_fx_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'click_fx_loading_enabled', [
+                'label'        => 'Ativar pulso de loading',
+                'type'         => \Elementor\Controls_Manager::SWITCHER,
+                'description'  => 'Após o glow, o eixo pulsa em loop até a próxima página carregar. Útil quando a navegação demora alguns segundos.',
+                'label_on'     => 'Sim',
+                'label_off'    => 'Não',
+                'return_value' => '1',
+                'default'      => '1',
+                'condition'    => [ 'click_fx_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'click_fx_loading_speed', [
+                'label'       => 'Velocidade do pulso (ms por ciclo)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'description' => 'Quanto menor, mais rápido o pulso. 600ms = ritmo natural; 1200ms = contemplativo.',
+                'size_units'  => [ 'ms' ],
+                'range'       => [ 'ms' => [ 'min' => 300, 'max' => 1500, 'step' => 50 ] ],
+                'default'     => [ 'unit' => 'ms', 'size' => 600 ],
+                'condition'   => [
+                    'click_fx_enabled'         => '1',
+                    'click_fx_loading_enabled' => '1',
+                ],
+            ] );
+
+            $this->add_control( 'click_fx_loading_dim', [
+                'label'       => 'Opacidade dos outros eixos (loading)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'description' => 'Quanto os demais eixos esmaecem enquanto o carregamento acontece.',
+                'range'       => [ 'px' => [ 'min' => 0.2, 'max' => 1, 'step' => 0.05 ] ],
+                'default'     => [ 'unit' => 'px', 'size' => 0.5 ],
+                'condition'   => [
+                    'click_fx_enabled'         => '1',
+                    'click_fx_loading_enabled' => '1',
+                ],
+            ] );
+
+            $this->end_controls_section();
         }
 
         protected function render() {
@@ -947,18 +1039,56 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             // Remover declaração XML (inválida em HTML5 inline)
             $svg = preg_replace( '/<\?xml[^?]*\?>\s*/i', '', $svg );
 
-            // Envelopar conteúdo de cada <foreignObject> em <div class="bit-espiral-text-inner">
+            // ── Safari/WebKit fix: adicionar preserveAspectRatio explícito.
+            //
+            // Sem preserveAspectRatio, Safari/WebKit aplica o default implícito
+            // "xMidYMid meet" mas trata foreignObject filhos com cálculos
+            // sub-pixel divergentes do Chromium/Blink (validado via Playwright
+            // 2026-05-17 com MutationObserver: zero JS modifica DOM, mas
+            // <g>/foreignObject internos renderizam em posições diferentes).
+            //
+            // Forçar preserveAspectRatio explícito reduz ambiguidade entre engines.
+            $svg = preg_replace_callback(
+                '#(<svg\b)([^>]*)>#i',
+                static function ( $m ) {
+                    $attrs = $m[2];
+                    // Se já tem preserveAspectRatio, não duplica
+                    if ( preg_match( '#\bpreserveAspectRatio\s*=#i', $attrs ) ) {
+                        return $m[0];
+                    }
+                    return $m[1] . $attrs . ' preserveAspectRatio="xMidYMid meet">';
+                },
+                $svg,
+                1 // só o <svg> root, não svgs filhos
+            );
+
+            // Envelopar conteúdo de cada <foreignObject> em
+            // <div xmlns="http://www.w3.org/1999/xhtml" class="bit-espiral-text-inner">
             // para permitir aplicar `position: relative; top:` (Y offset).
-            // foreignObject não respeita margin/transform de forma confiável,
-            // mas elementos HTML dentro dele respeitam `position`.
+            //
+            // O xmlns XHTML é OBRIGATÓRIO: sem ele, Safari iOS (strict SVG/XHTML
+            // parser) não renderiza o conteúdo HTML dentro do foreignObject —
+            // o texto desaparece no iPhone (Chrome/Firefox são tolerantes).
             $svg = preg_replace_callback(
                 '#(<foreignObject\b[^>]*>)(.*?)(</foreignObject>)#s',
                 static function ( $m ) {
                     $inner = trim( $m[2] );
                     if ( strpos( $inner, 'bit-espiral-text-inner' ) !== false ) {
-                        return $m[0]; // já envelopado
+                        // Já envelopado em versões anteriores (sem xmlns) — re-aplica
+                        // o xmlns no wrapper existente para corrigir páginas cacheadas
+                        // de outras versões do mu-plugin.
+                        return preg_replace(
+                            '#<div(\s+(?!xmlns=)[^>]*)?class="bit-espiral-text-inner"#',
+                            '<div xmlns="http://www.w3.org/1999/xhtml"$1 class="bit-espiral-text-inner"',
+                            $m[0],
+                            1
+                        );
                     }
-                    return $m[1] . '<div class="bit-espiral-text-inner">' . $inner . '</div>' . $m[3];
+                    return $m[1]
+                        . '<div xmlns="http://www.w3.org/1999/xhtml" class="bit-espiral-text-inner">'
+                        . $inner
+                        . '</div>'
+                        . $m[3];
                 },
                 $svg
             );
@@ -1038,12 +1168,16 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                             }
 
                             // 3) <foreignObject data-language="pt">…texto…</foreignObject>
-                            // Preserva o wrapper .bit-espiral-text-inner se já existir
-                            // (foi envelopado no preprocessamento do render).
+                            // xmlns="http://www.w3.org/1999/xhtml" OBRIGATÓRIO no <div>
+                            // para Safari iOS renderizar o conteúdo do foreignObject.
                             $inner = preg_replace_callback(
                                 '#(<foreignObject\b[^>]*\bdata-language="pt"[^>]*>)(.*?)(</foreignObject>)#s',
                                 static function ( $fm ) use ( $label_text ) {
-                                    return $fm[1] . '<div class="bit-espiral-text-inner">' . $label_text . '</div>' . $fm[3];
+                                    return $fm[1]
+                                        . '<div xmlns="http://www.w3.org/1999/xhtml" class="bit-espiral-text-inner">'
+                                        . $label_text
+                                        . '</div>'
+                                        . $fm[3];
                                 },
                                 $inner,
                                 1
@@ -1062,6 +1196,148 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             if ( ! empty( $stored_config ) ) {
                 $svg = $this->apply_config_to_svg( $svg, $stored_config );
             }
+
+            // ── 1.1. Cross-browser fix: converter <foreignObject> em <text> SVG
+            //
+            // <foreignObject> + HTML interno tem múltiplos bugs em Safari/WebKit
+            // (clip-rect quebrado com position:relative, scaling diferente do
+            // Blink, cálculo de viewBox + foreignObject divergente). <text> SVG
+            // nativo renderiza identicamente cross-browser.
+            //
+            // Para cada <foreignObject data-language="pt"> com .bit-espiral-text-inner:
+            //  - extrair x, y, w, h, texto
+            //  - calcular fontSize por eixo (typo_repeater overrides ou default 15px)
+            //  - aplicar word-wrap manual em N linhas baseado em width
+            //  - emitir <text x=centro y=baseline> com <tspan> por linha
+            //  - esconder os 2 foreignObjects (PT + EN) com display:none
+            //
+            // Per-axis font-size: lê typo_repeater (controles Elementor) para
+            // gerar mapa eixo→fontSize. Default = $s['spiral_font_size']['size']
+            // (controle global).
+            $axis_font_size = [];
+            $axis_y_offset  = [];
+            $typo_items_pre = $s['typo_repeater'] ?? [];
+            if ( is_array( $typo_items_pre ) ) {
+                foreach ( $typo_items_pre as $i => $row ) {
+                    $n = $i + 1;
+                    if ( $n > 21 ) break;
+                    if ( isset( $row['seg_font_size']['size'] ) && '' !== $row['seg_font_size']['size'] && null !== $row['seg_font_size']['size'] ) {
+                        $axis_font_size[ $n ] = (float) $row['seg_font_size']['size'];
+                    }
+                    if ( isset( $row['seg_y_offset']['size'] ) && '' !== $row['seg_y_offset']['size'] && null !== $row['seg_y_offset']['size'] ) {
+                        $axis_y_offset[ $n ] = (int) $row['seg_y_offset']['size'];
+                    }
+                }
+            }
+            $default_font_size = isset( $s['spiral_font_size']['size'] ) ? (float) $s['spiral_font_size']['size'] : 15.0;
+            $default_y_offset  = isset( $s['spiral_text_y_offset']['size'] ) ? (int) $s['spiral_text_y_offset']['size'] : 0;
+
+            // Word-wrap helper: quebra texto em linhas com até maxChars chars,
+            // sem quebrar palavras. maxChars derivado de (width_px / fontSize / 0.55).
+            $wrap_text = static function( $text, $max_chars ) {
+                $text  = trim( preg_replace( '/\s+/u', ' ', $text ) );
+                if ( $text === '' ) return [];
+                $words = explode( ' ', $text );
+                $lines = [];
+                $cur   = '';
+                foreach ( $words as $w ) {
+                    $test = $cur === '' ? $w : ( $cur . ' ' . $w );
+                    if ( mb_strlen( $test ) > $max_chars && $cur !== '' ) {
+                        $lines[] = $cur;
+                        $cur     = $w;
+                    } else {
+                        $cur = $test;
+                    }
+                }
+                if ( $cur !== '' ) $lines[] = $cur;
+                return $lines;
+            };
+
+            // Substitui foreignObject PT por <text>; remove foreignObject EN
+            $axis_counter = 0;
+            $svg = preg_replace_callback(
+                '#<foreignObject\b([^>]*)>(.*?)</foreignObject>#s',
+                function ( $m ) use ( &$axis_counter, $axis_font_size, $axis_y_offset, $default_font_size, $default_y_offset, $wrap_text ) {
+                    $attrs = $m[1];
+                    $inner = $m[2];
+
+                    // Pula EN — remove (esconde com display:none preservando layout)
+                    if ( preg_match( '#data-language=["\']en["\']#i', $attrs ) ) {
+                        return '';
+                    }
+
+                    // PT: aumenta contador (1..21)
+                    $axis_counter++;
+                    $n = $axis_counter;
+
+                    // Extrai x, y, w, h
+                    preg_match( '#\bx\s*=\s*["\']([^"\']+)["\']#i', $attrs, $mx );
+                    preg_match( '#\by\s*=\s*["\']([^"\']+)["\']#i', $attrs, $my );
+                    preg_match( '#\bwidth\s*=\s*["\']([^"\']+)["\']#i', $attrs, $mw );
+                    preg_match( '#\bheight\s*=\s*["\']([^"\']+)["\']#i', $attrs, $mh );
+                    $x = isset( $mx[1] ) ? (float) $mx[1] : 0;
+                    $y = isset( $my[1] ) ? (float) $my[1] : 0;
+                    $w = isset( $mw[1] ) ? (float) $mw[1] : 130;
+                    $h = isset( $mh[1] ) ? (float) $mh[1] : 88;
+
+                    // Extrai texto (entre <div>...</div> ou direto)
+                    $text = '';
+                    if ( preg_match( '#<div[^>]*class=["\'][^"\']*bit-espiral-text-inner[^"\']*["\'][^>]*>(.*?)</div>#s', $inner, $md ) ) {
+                        $text = $md[1];
+                    } else {
+                        $text = $inner;
+                    }
+                    // Strip de qualquer tag interna; decodifica entities
+                    $text = trim( html_entity_decode( strip_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+                    if ( $text === '' ) {
+                        return '';
+                    }
+
+                    // Font-size por eixo ou default
+                    $fs = $axis_font_size[ $n ] ?? $default_font_size;
+                    $yo = $axis_y_offset[ $n ] ?? $default_y_offset;
+
+                    // Word-wrap: aprox 0.5 = razão char/fontSize média (font Roboto/Just Sans)
+                    $max_chars  = max( 8, (int) floor( $w / ( $fs * 0.5 ) ) );
+                    $lines      = $wrap_text( $text, $max_chars );
+                    $line_count = count( $lines );
+                    $line_h     = $fs * 1.2;
+                    $cx         = $x + $w / 2;
+                    // Posicionamento: replica comportamento do foreignObject original
+                    // que usava text-align:center + HTML flow (texto começa no TOPO do
+                    // bbox, não centralizado verticalmente). As coordenadas y do
+                    // foreignObject no SVG fonte foram calibradas para esse comportamento.
+                    //
+                    // Primeira linha: baseline = y_topo + fontSize*0.85 (cap-height média)
+                    //                          + y_offset opcional do typo_repeater
+                    // Linhas seguintes: dy = line_h (1.2em)
+                    $first_y    = $y + $fs * 0.85 + $yo;
+
+                    $tspans = '';
+                    foreach ( $lines as $i => $line ) {
+                        $dy_attr = $i === 0 ? '' : ' dy="' . $line_h . '"';
+                        $tspans .= sprintf(
+                            '<tspan x="%s"%s>%s</tspan>',
+                            $cx,
+                            $dy_attr,
+                            htmlspecialchars( $line, ENT_QUOTES, 'UTF-8' )
+                        );
+                    }
+
+                    // text-anchor=middle centraliza horizontalmente.
+                    // Sem dominant-baseline (que diverge entre engines):
+                    // baseline natural (alphabetic) + offset calculado explicitamente.
+                    return sprintf(
+                        '<text class="bit-espiral-text-svg" x="%s" y="%s" text-anchor="middle" font-size="%s" data-axis="%d">%s</text>',
+                        $cx,
+                        $first_y,
+                        $fs,
+                        $n,
+                        $tspans
+                    );
+                },
+                $svg
+            );
 
             // ── 2. Injetar CSS vars globais via <style> (esp. 0,1,0) ───────
             //
@@ -1120,14 +1396,16 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                             implode( ';', $rules )
                         );
                     }
-                    // Posição Y: aplicada como `top` no wrapper interno
-                    // .bit-espiral-text-inner (HTML dentro do foreignObject).
-                    // foreignObject não respeita `transform` nem `margin` de
-                    // forma confiável; HTML interno com `position:relative; top:`
-                    // funciona em todos os browsers.
+                    // Posição Y: aplicada via `transform: translateY()` no
+                    // wrapper .bit-espiral-text-inner.
+                    // ATENÇÃO: usar `position:relative; top:` causa bug em
+                    // Safari/WebKit — conteúdo HTML vaza fora do clip-rect do
+                    // foreignObject pai (validado com SVG minimal em maio/2026).
+                    // `transform: translateY()` mantém o elemento no flow e
+                    // funciona consistentemente em Chrome/Firefox/Safari.
                     if ( isset( $row['seg_y_offset']['size'] ) && '' !== $row['seg_y_offset']['size'] && null !== $row['seg_y_offset']['size'] && 0 != $row['seg_y_offset']['size'] ) {
                         $typo_y_rules[] = sprintf(
-                            '.SVGSpiral2026 #Spiral26Text-%d foreignObject .bit-espiral-text-inner{top:%dpx}',
+                            '.SVGSpiral2026 #Spiral26Text-%d foreignObject .bit-espiral-text-inner{transform:translateY(%dpx)}',
                             $n,
                             (int) $row['seg_y_offset']['size']
                         );
@@ -1156,22 +1434,160 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                 );
             }
 
-            // ── 3. Fix fill nos <use> shadow clones ───────────────────────
+            // ── 3. Fix fill nos <use> shadow clones + CSS de clique/loading
+            // Lê settings do widget (com defaults) e sanitiza para evitar
+            // injeção via valores arbitrários no <style> inline.
+            $fx_enabled  = ! isset( $s['click_fx_enabled'] ) || '1' === $s['click_fx_enabled'];
+            $glow_color  = isset( $s['click_fx_glow_color'] ) && '' !== $s['click_fx_glow_color']
+                ? $s['click_fx_glow_color']
+                : '#ec4899';
+            // Sanitiza cor: aceita #RRGGBB, #RGB, rgb(a)(...) — fallback se inválido.
+            if ( ! preg_match( '/^(#[0-9a-fA-F]{3,8}|rgba?\([^()]+\))$/', trim( $glow_color ) ) ) {
+                $glow_color = '#ec4899';
+            }
+            $glow_duration = isset( $s['click_fx_glow_duration']['size'] )
+                ? max( 150, min( 1200, (int) $s['click_fx_glow_duration']['size'] ) )
+                : 400;
+            $glow_dim = isset( $s['click_fx_glow_dim']['size'] )
+                ? max( 0.3, min( 1.0, (float) $s['click_fx_glow_dim']['size'] ) )
+                : 0.75;
+            $loading_enabled = $fx_enabled && ( ! isset( $s['click_fx_loading_enabled'] ) || '1' === $s['click_fx_loading_enabled'] );
+            $loading_speed   = isset( $s['click_fx_loading_speed']['size'] )
+                ? max( 300, min( 1500, (int) $s['click_fx_loading_speed']['size'] ) )
+                : 600;
+            $loading_dim = isset( $s['click_fx_loading_dim']['size'] )
+                ? max( 0.2, min( 1.0, (float) $s['click_fx_loading_dim']['size'] ) )
+                : 0.5;
+
+            // Atributo data-* no <svg root> para o JS detectar se loading está ativo
+            // (evita disparar o estado loading se o usuário desligar via Elementor).
+            $svg = preg_replace_callback(
+                '/(<svg\b)([^>]*)(>)/s',
+                static function ( $m ) use ( $fx_enabled, $loading_enabled ) {
+                    $attrs = ' data-bit-fx-click="' . ( $fx_enabled ? '1' : '0' ) . '"'
+                           . ' data-bit-fx-loading="' . ( $loading_enabled ? '1' : '0' ) . '"';
+                    return $m[1] . $m[2] . $attrs . $m[3];
+                },
+                $svg,
+                1
+            );
+
             $svg = preg_replace_callback(
                 '/(<svg\b[^>]*>)/s',
-                static function ( $m ) use ( $api_style, $typo_style, $anchor_style ) {
-                    return $m[1]
+                static function ( $m ) use (
+                    $api_style, $typo_style, $anchor_style,
+                    $fx_enabled, $glow_color, $glow_duration, $glow_dim,
+                    $loading_enabled, $loading_speed, $loading_dim
+                ) {
+                    $base = $m[1]
                         . $api_style
                         . $typo_style
                         . $anchor_style
+                        // ── iOS Safari fix: regras CSS dentro de <defs> (no SVG
+                        // fonte) NÃO se aplicam ao conteúdo de <foreignObject>
+                        // em Safari iOS strict. Replicamos as regras críticas
+                        // (color/font/width/position) AQUI, fora de <defs>, no
+                        // <style> injetado dentro de <svg> root. Sem isso, os
+                        // labels somem ou ficam invisíveis em iPhone.
+                        . '<style data-bit-espiral-ios-fix>'
+                        // CSS custom properties replicadas (fora de <defs>) para
+                        // que Safari iOS resolva os var(...) corretamente.
+                        // Defaults baixa specificity: Elementor post-{ID}.css
+                        // sobrescreve via controles do widget (fonte da verdade).
+                        . '.SVGSpiral2026{'
+                        . '--spiral2026-foreignobject-color:#ffffff;'
+                        . '--spiral2026-foreignobject-fontfamily:"Just Sans",Sans-serif;'
+                        . '--spiral2026-foreignobject-fontsize:15px;'
+                        . '--spiral2026-foreignobject-fontweight:500;'
+                        . '--spiral2026-foreignobject-lineheight:1.2;'
+                        . '--spiral2026-foreignobject-letterspacing:0;'
+                        . '--spiral2026-foreignobject-width:130px;'
+                        . '--spiral2026-foreignobject-height:88px;'
+                        . '--spiral2026-backgroundcolor:rgba(10,38,102,0.6);'
+                        . '--spiral2026-backgroundcolor-hover:#0E4A5C;}'
+                        // Labels da espiral convertidos de <foreignObject> em
+                        // <text> SVG nativo (cross-browser idêntico). Herdam
+                        // font-family/color das CSS vars do mu-plugin.
+                        . '.SVGSpiral2026 text.bit-espiral-text-svg{'
+                        . 'fill:var(--spiral2026-foreignobject-color,#ffffff);'
+                        . 'font-family:var(--spiral2026-foreignobject-fontfamily,"Just Sans",Sans-serif);'
+                        . 'font-weight:var(--spiral2026-foreignobject-fontweight,500);'
+                        . 'pointer-events:none;'
+                        . 'paint-order:stroke;'
+                        . 'stroke:rgba(0,0,0,0.35);'
+                        . 'stroke-width:0.6;}'
+                        . '.SVGSpiral2026 foreignObject{'
+                        . 'font-family:var(--spiral2026-foreignobject-fontfamily,"Just Sans",Sans-serif);'
+                        . 'font-size:var(--spiral2026-foreignobject-fontsize,15px);'
+                        . 'font-weight:var(--spiral2026-foreignobject-fontweight,500);'
+                        . 'line-height:var(--spiral2026-foreignobject-lineheight,1.2);'
+                        . 'color:var(--spiral2026-foreignobject-color,#ffffff);'
+                        . 'text-align:center;'
+                        . 'width:var(--spiral2026-foreignobject-width,130px);'
+                        . 'height:var(--spiral2026-foreignobject-height,88px);'
+                        . 'letter-spacing:var(--spiral2026-foreignobject-letterspacing,0);'
+                        . 'overflow:visible;pointer-events:none;}'
+                        . '.SVGSpiral2026 foreignObject .bit-espiral-text-inner{'
+                        // transform: translateY() em vez de position:relative+top
+                        // — evita bug WebKit/Safari onde conteúdo HTML vaza
+                        // fora do clip-rect do foreignObject pai.
+                        // !important sobrescreve a regra com position:relative
+                        // que existe dentro de <defs> no SVG fonte (legado).
+                        . 'position:static!important;top:auto!important;'
+                        . 'transform:translateY(var(--spiral2026-foreignobject-y-offset,0px));'
+                        . 'color:inherit;font-family:inherit;font-size:inherit;'
+                        . 'font-weight:inherit;line-height:inherit;text-align:inherit;'
+                        . 'letter-spacing:inherit;display:block;width:100%;}'
+                        . '</style>'
                         . '<style data-bit-espiral-use-fix>'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a{'
-                        . 'fill:var(--spiral2026-backgroundcolor);}'
+                        . 'fill:var(--spiral2026-backgroundcolor);'
+                        . 'outline:none;-webkit-tap-highlight-color:transparent;}'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a:hover,'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a:focus,'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a:active{'
                         . 'fill:var(--spiral2026-backgroundcolor-hover);}'
-                        . '</style>';
+                        . '.SVGSpiral2026 .spiral26AxisLinksGroup a:focus-visible{'
+                        . 'outline:2px dashed var(--spiral2026-backgroundcolor-hover);'
+                        . 'outline-offset:2px;}';
+
+                    if ( ! $fx_enabled ) {
+                        return $base . '</style>';
+                    }
+
+                    $glow_dim_str    = rtrim( rtrim( number_format( $glow_dim, 2, '.', '' ), '0' ), '.' );
+                    $loading_dim_str = rtrim( rtrim( number_format( $loading_dim, 2, '.', '' ), '0' ), '.' );
+
+                    $base .= '@keyframes bit-axis-glow{'
+                          . '0%,100%{filter:drop-shadow(0 0 0 transparent);}'
+                          . '50%{filter:drop-shadow(0 0 10px ' . $glow_color . ') brightness(1.3);}}'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-clicked{'
+                          . 'animation:bit-axis-glow ' . $glow_duration . 'ms ease-out;}'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-has-clicked a:not(.bit-clicked){'
+                          . 'opacity:' . $glow_dim_str . ';transition:opacity 160ms ease-out;}';
+
+                    if ( $loading_enabled ) {
+                        // rgba leve do glow_color para o vale do pulso — usa o hex com alpha 0.4
+                        // (mantém branding); se for rgba ou cor não-hex, usa um fallback rosa neutro.
+                        $low_glow = preg_match( '/^#[0-9a-fA-F]{6}$/', $glow_color )
+                            ? 'rgba(' . hexdec( substr( $glow_color, 1, 2 ) ) . ',' . hexdec( substr( $glow_color, 3, 2 ) ) . ',' . hexdec( substr( $glow_color, 5, 2 ) ) . ',0.4)'
+                            : 'rgba(236,72,153,0.4)';
+                        $base .= '@keyframes bit-axis-pulse-loop{'
+                              . '0%,100%{filter:drop-shadow(0 0 4px ' . $low_glow . ') brightness(1.05);}'
+                              . '50%{filter:drop-shadow(0 0 14px ' . $glow_color . ') brightness(1.25);}}'
+                              . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-loading{'
+                              . 'animation:bit-axis-pulse-loop ' . $loading_speed . 'ms ease-in-out infinite;}'
+                              . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-loading a:not(.bit-clicked){'
+                              . 'opacity:' . $loading_dim_str . ';transition:opacity 200ms ease-out;}';
+                    }
+
+                    $base .= '@media (prefers-reduced-motion:reduce){'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-clicked,'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-loading{animation:none;}'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-has-clicked a:not(.bit-clicked),'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-loading a:not(.bit-clicked){opacity:1;}}';
+
+                    return $base . '</style>';
                 },
                 $svg,
                 1
@@ -1231,6 +1647,117 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                   } else {
                     start();
                   }
+                })();
+                </script>
+                <script id="bit-espiral-click-glow">
+                (function(){
+                  if (window.__bitEspiralClickGlow) return;
+                  window.__bitEspiralClickGlow = true;
+
+                  var FX_DURATION       = 400;
+                  var NAV_DELAY         = 50;
+                  var LOADING_SAFETY_MS = 8000; // safety net se navegação for cancelada
+                  var prefersReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                  document.addEventListener('click', function(ev){
+                    var link = ev.target && ev.target.closest
+                      ? ev.target.closest('.SVGSpiral2026 .spiral26AxisLinksGroup a')
+                      : null;
+                    if (!link) return;
+
+                    var svgRoot = link.closest('svg.SVGSpiral2026');
+                    if (svgRoot && svgRoot.getAttribute('data-bit-fx-click') === '0') {
+                      return; // Efeito desligado neste widget via Elementor
+                    }
+                    var loadingEnabled = !svgRoot || svgRoot.getAttribute('data-bit-fx-loading') !== '0';
+
+                    var group = link.parentNode;
+                    if (!group) return;
+
+                    // Reset estado anterior (cliques rápidos não acumulam)
+                    var prev = group.querySelectorAll('a.bit-clicked, a.bit-loading');
+                    for (var i = 0; i < prev.length; i++) {
+                      prev[i].classList.remove('bit-clicked', 'bit-loading');
+                    }
+                    group.classList.remove('bit-loading');
+
+                    link.classList.add('bit-clicked');
+                    group.classList.add('bit-has-clicked');
+
+                    // Reflow para reiniciar a animação caso mesmo eixo seja clicado de novo
+                    void link.getBoundingClientRect();
+
+                    // Se reduced-motion, apenas navega imediatamente
+                    if (prefersReduce) return;
+
+                    // Adia navegação para o usuário enxergar o glow
+                    var href = link.getAttribute('href');
+                    var target = link.getAttribute('target');
+                    if (!href || target === '_blank' || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) {
+                      // deixa o browser tratar (nova aba, modificadores, etc.)
+                      cleanup();
+                      return;
+                    }
+
+                    ev.preventDefault();
+
+                    // Após o glow one-shot terminar, entra em estado loading (pulso contínuo + dim outros)
+                    if (loadingEnabled) {
+                      setTimeout(function(){
+                        link.classList.add('bit-loading');
+                        group.classList.add('bit-loading');
+                      }, FX_DURATION);
+                    }
+
+                    setTimeout(function(){
+                      try {
+                        if (href.charAt(0) === '#') {
+                          var el = document.querySelector(href);
+                          if (el && el.scrollIntoView) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            if (window.history && window.history.replaceState) {
+                              window.history.replaceState(null, '', href);
+                            }
+                          } else {
+                            window.location.href = href;
+                          }
+                        } else {
+                          window.location.href = href;
+                        }
+                      } catch (e) {
+                        window.location.href = href;
+                      }
+                    }, NAV_DELAY);
+
+                    // Cleanup do glow one-shot (não toca em .bit-loading)
+                    setTimeout(function(){
+                      link.classList.remove('bit-clicked');
+                      group.classList.remove('bit-has-clicked');
+                    }, FX_DURATION + 50);
+
+                    // Safety net: se navegação for cancelada (back, mesma página, etc.),
+                    // remove o estado loading depois de N segundos
+                    setTimeout(cleanup, LOADING_SAFETY_MS);
+
+                    function cleanup(){
+                      link.classList.remove('bit-clicked', 'bit-loading');
+                      group.classList.remove('bit-has-clicked', 'bit-loading');
+                    }
+                  }, true);
+
+                  // Limpa estado loading ao restaurar via bfcache (back/forward cache)
+                  window.addEventListener('pageshow', function(ev){
+                    if (ev.persisted) {
+                      var groups = document.querySelectorAll('.SVGSpiral2026 .spiral26AxisLinksGroup');
+                      for (var i = 0; i < groups.length; i++) {
+                        groups[i].classList.remove('bit-loading', 'bit-has-clicked');
+                        var links = groups[i].querySelectorAll('a.bit-clicked, a.bit-loading');
+                        for (var j = 0; j < links.length; j++) {
+                          links[j].classList.remove('bit-clicked', 'bit-loading');
+                        }
+                      }
+                    }
+                  });
                 })();
                 </script>
                 <?php
