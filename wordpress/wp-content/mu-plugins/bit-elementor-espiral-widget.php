@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.1.4
+ * Version:      2.1.5
  * Author:       Bureau IT
  * Network:      true
  */
@@ -1659,6 +1659,41 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                   } else {
                     start();
                   }
+                })();
+                </script>
+                <script id="bit-espiral-svg-href-shim">
+                (function(){
+                  if (window.__bitEspiralSvgHrefShim) return;
+                  window.__bitEspiralSvgHrefShim = true;
+                  // Bug Elementor Pro Page Transitions:
+                  //   page-transitions.min.js chama e.href.startsWith(...) em
+                  //   cada link, sem checar se href é string. Em <a> SVG,
+                  //   .href é SVGAnimatedString (não string), e startsWith
+                  //   não existe → "TypeError: e.href.startsWith is not a
+                  //   function" a cada mouseenter num eixo da espiral.
+                  // Fix: adicionar startsWith no protótipo de SVGAnimatedString
+                  //   que delega para .baseVal (URL real). Cross-browser, sem
+                  //   modificar Elementor.
+                  try {
+                    if (typeof SVGAnimatedString !== 'undefined'
+                        && typeof SVGAnimatedString.prototype.startsWith !== 'function') {
+                      SVGAnimatedString.prototype.startsWith = function(){
+                        return String(this.baseVal || '').startsWith.apply(
+                          String(this.baseVal || ''), arguments
+                        );
+                      };
+                      // Mesma proteção para outros métodos comuns
+                      ['endsWith', 'includes', 'indexOf', 'slice', 'split',
+                       'replace', 'toLowerCase', 'toUpperCase', 'trim'].forEach(function(m){
+                        if (typeof SVGAnimatedString.prototype[m] !== 'function') {
+                          SVGAnimatedString.prototype[m] = function(){
+                            var s = String(this.baseVal || '');
+                            return s[m].apply(s, arguments);
+                          };
+                        }
+                      });
+                    }
+                  } catch(e) { /* ignore */ }
                 })();
                 </script>
                 <script id="bit-espiral-click-glow">
