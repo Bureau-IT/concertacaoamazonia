@@ -23,6 +23,7 @@
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
+const { execFileSync } = require('child_process');
 
 const today = new Date().toISOString().slice(0, 10);
 const screenshotsDir = path.join(__dirname, '..', 'screenshots', `green-${today}`);
@@ -32,22 +33,67 @@ const screenshotsDir = path.join(__dirname, '..', 'screenshots', `green-${today}
 // failure. Em vez disso, usar route() para injetar header SÓ em requests para
 // o BASE_URL do site (mesma origem).
 
+// Pré-computado em beforeAll: arquivos que vivem em /green/uploads/ mas não
+// em /assets/uploads/ no S3. Para esses, reescrevemos a URL em vôo para usar
+// o path /wp-content/uploads/_oac-canary/<rest>, que o CF behavior canary
+// roteia para o origin S3-uploads-green com a CF Function fazendo strip extra
+// do segmento _oac-canary/ (após mudança publicada em uploads-oac-router.js).
+const greenOnlyUploads = new Set();
+const STAGE_BUCKET = process.env.STAGE_BUCKET || 'concertacaoamazonia-com-br-wp-static-prd-sa';
+const AWS_PROFILE_NAME = process.env.AWS_PROFILE || 'Concertação';
+
+function listS3Keys(prefix) {
+  try {
+    const out = execFileSync(
+      'aws',
+      ['s3', 'ls', `s3://${STAGE_BUCKET}/${prefix}/`, '--recursive', '--profile', AWS_PROFILE_NAME],
+      { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 }
+    );
+    return out
+      .split('\n')
+      .map((l) => l.trim().split(/\s+/).slice(3).join(' '))
+      .filter(Boolean)
+      .map((k) => k.replace(new RegExp(`^${prefix}/`), ''));
+  } catch (e) {
+    console.warn(`[stage-rewrite] aws s3 ls failed for ${prefix}: ${e.message}`);
+    return [];
+  }
+}
+
 test.beforeAll(() => {
   fs.mkdirSync(screenshotsDir, { recursive: true });
+
+  const greenKeys = listS3Keys('green/uploads');
+  const assetsKeys = new Set(listS3Keys('assets/uploads'));
+  for (const k of greenKeys) {
+    if (!assetsKeys.has(k)) greenOnlyUploads.add(k);
+  }
+  console.log(`[stage-rewrite] ${greenOnlyUploads.size} uploads only in /green/ (will be rewritten to _oac-canary path)`);
 });
 
 test.beforeEach(async ({ page }) => {
   const baseUrl = new URL(process.env.BASE_URL || 'https://concertacaoamazonia.com.br');
   await page.route('**/*', async (route) => {
-    const reqUrl = new URL(route.request().url());
-    if (reqUrl.hostname === baseUrl.hostname) {
-      // Mesma origem: injetar X-Test-Green
-      const headers = { ...route.request().headers(), 'x-test-green': 'true' };
-      await route.continue({ headers });
-    } else {
+    const req = route.request();
+    const reqUrl = new URL(req.url());
+
+    if (reqUrl.hostname !== baseUrl.hostname) {
       // Cross-origin (Google, fonts, etc): passar sem modificar
-      await route.continue();
+      return route.continue();
     }
+
+    const headers = { ...req.headers(), 'x-test-green': 'true' };
+
+    // Reescreve uploads que só existem em /green/ → /_oac-canary/<path>
+    // CF Function uploads-oac-router faz strip do _oac-canary/ antes de bater
+    // no origin S3-uploads-green (OriginPath=/green/uploads).
+    const uploadsMatch = reqUrl.pathname.match(/^\/wp-content\/uploads\/(.+)$/);
+    if (uploadsMatch && greenOnlyUploads.has(uploadsMatch[1])) {
+      const rewritten = `${reqUrl.origin}/wp-content/uploads/_oac-canary/${uploadsMatch[1]}${reqUrl.search}`;
+      return route.continue({ url: rewritten, headers });
+    }
+
+    await route.continue({ headers });
   });
 });
 

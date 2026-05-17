@@ -1,0 +1,17 @@
+{
+    "ETag": "E3UN6WX5RRO2AG",
+    "FunctionSummary": {
+        "Name": "uploads-oac-router",
+        "Status": "DEPLOYED",
+        "FunctionConfig": {
+            "Comment": "URI rewrite for OAC uploads with host whitelist",
+            "Runtime": "cloudfront-js-2.0"
+        },
+        "FunctionMetadata": {
+            "FunctionARN": "arn:aws:cloudfront::379590274801:function/uploads-oac-router",
+            "Stage": "LIVE",
+            "CreatedTime": "2026-04-30T14:35:21.383000+00:00",
+            "LastModifiedTime": "2026-04-30T19:49:17.054000+00:00"
+        }
+    }
+}
