@@ -17,8 +17,8 @@
                 --spiral2026-middle-center-color: #d6f395e6;
                 --spiral2026-middle-edge-color: #64d4e96e;
                 --spiral2026-flood-color: #060f0a;
-                --spiral2026-animation-delay: 160ms;
-                --spiral2026-animation-duration: 2s;
+                --spiral2026-animation-delay: 90ms;
+                --spiral2026-animation-duration: 1.2s;
                 --spiral2026-eightrays-color: #bdf83966;
                 --spiral2026-eightrays-strokewidth: 0.6px;
 
