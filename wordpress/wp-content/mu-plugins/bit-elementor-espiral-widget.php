@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.0.5
+ * Version:      2.1.0
  * Author:       Bureau IT
  * Network:      true
  */
@@ -1558,32 +1558,44 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     $glow_dim_str    = rtrim( rtrim( number_format( $glow_dim, 2, '.', '' ), '0' ), '.' );
                     $loading_dim_str = rtrim( rtrim( number_format( $loading_dim, 2, '.', '' ), '0' ), '.' );
 
-                    $base .= '@keyframes bit-axis-glow{'
-                          . '0%,100%{filter:drop-shadow(0 0 0 transparent);}'
-                          . '50%{filter:drop-shadow(0 0 10px ' . $glow_color . ') brightness(1.3);}}'
-                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-clicked{'
-                          . 'animation:bit-axis-glow ' . $glow_duration . 'ms ease-out;}'
+                    // Glow via FILL color cross-browser:
+                    // <a> tem 2 camadas que pintam o setor:
+                    //   1. <use href="#eixo-N"> dentro de <a> (.spiral26AxisLinksGroup)
+                    //   2. <path id="eixo-N"> em .spiral26AxisBackground (camada base)
+                    //
+                    // Para a animação ser visível em TODOS engines (especialmente
+                    // Safari/WebKit que pode descartar fill no <use> shadow), JS
+                    // adiciona classe `bit-clicked-N` no <svg> que dispara CSS
+                    // mudando AMBAS camadas via path[id="eixo-N"] + use[href="#eixo-N"].
+                    // (lógica JS — ver #bit-espiral-click-glow script abaixo)
+                    $base .= '@keyframes bit-axis-glow-fill{'
+                          . '0%,100%{fill:var(--spiral2026-backgroundcolor);}'
+                          . '50%{fill:' . $glow_color . ';}}'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-clicked use,'
+                          . '.SVGSpiral2026.bit-clicked-svg .spiral26AxisBackground path.bit-glow-target{'
+                          . 'animation:bit-axis-glow-fill ' . $glow_duration . 'ms ease-out !important;}'
                           . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-has-clicked a:not(.bit-clicked){'
                           . 'opacity:' . $glow_dim_str . ';transition:opacity 160ms ease-out;}';
 
                     if ( $loading_enabled ) {
-                        // rgba leve do glow_color para o vale do pulso — usa o hex com alpha 0.4
-                        // (mantém branding); se for rgba ou cor não-hex, usa um fallback rosa neutro.
                         $low_glow = preg_match( '/^#[0-9a-fA-F]{6}$/', $glow_color )
-                            ? 'rgba(' . hexdec( substr( $glow_color, 1, 2 ) ) . ',' . hexdec( substr( $glow_color, 3, 2 ) ) . ',' . hexdec( substr( $glow_color, 5, 2 ) ) . ',0.4)'
-                            : 'rgba(236,72,153,0.4)';
-                        $base .= '@keyframes bit-axis-pulse-loop{'
-                              . '0%,100%{filter:drop-shadow(0 0 4px ' . $low_glow . ') brightness(1.05);}'
-                              . '50%{filter:drop-shadow(0 0 14px ' . $glow_color . ') brightness(1.25);}}'
-                              . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-loading{'
-                              . 'animation:bit-axis-pulse-loop ' . $loading_speed . 'ms ease-in-out infinite;}'
+                            ? 'rgba(' . hexdec( substr( $glow_color, 1, 2 ) ) . ',' . hexdec( substr( $glow_color, 3, 2 ) ) . ',' . hexdec( substr( $glow_color, 5, 2 ) ) . ',0.6)'
+                            : 'rgba(236,72,153,0.6)';
+                        $base .= '@keyframes bit-axis-pulse-fill{'
+                              . '0%,100%{fill:var(--spiral2026-backgroundcolor);}'
+                              . '50%{fill:' . $low_glow . ';}}'
+                              . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-loading use,'
+                              . '.SVGSpiral2026.bit-loading-svg .spiral26AxisBackground path.bit-loading-target{'
+                              . 'animation:bit-axis-pulse-fill ' . $loading_speed . 'ms ease-in-out infinite !important;}'
                               . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-loading a:not(.bit-clicked){'
                               . 'opacity:' . $loading_dim_str . ';transition:opacity 200ms ease-out;}';
                     }
 
                     $base .= '@media (prefers-reduced-motion:reduce){'
-                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-clicked,'
-                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-loading{animation:none;}'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-clicked use,'
+                          . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-loading use,'
+                          . '.SVGSpiral2026 .spiral26AxisBackground path.bit-glow-target,'
+                          . '.SVGSpiral2026 .spiral26AxisBackground path.bit-loading-target{animation:none !important;}'
                           . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-has-clicked a:not(.bit-clicked),'
                           . '.SVGSpiral2026 .spiral26AxisLinksGroup.bit-loading a:not(.bit-clicked){opacity:1;}}';
 
@@ -1681,8 +1693,61 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     }
                     group.classList.remove('bit-loading');
 
+                    // Limpa marcadores dos paths originais (.spiral26AxisBackground)
+                    var svgRoot = link.closest('svg.SVGSpiral2026');
+                    if (svgRoot) {
+                      svgRoot.classList.remove('bit-clicked-svg', 'bit-loading-svg');
+                      var oldTargets = svgRoot.querySelectorAll('.bit-glow-target, .bit-loading-target');
+                      for (var k = 0; k < oldTargets.length; k++) {
+                        oldTargets[k].classList.remove('bit-glow-target', 'bit-loading-target');
+                      }
+                    }
+
                     link.classList.add('bit-clicked');
                     group.classList.add('bit-has-clicked');
+
+                    // Identifica o path original (.spiral26AxisBackground) correspondente
+                    // ao eixo clicado via <use href="#eixo-N">.
+                    //
+                    // Estratégia GLOW cross-browser: SMIL <animate> nativo +
+                    // overlay <path> clone no TOPO da DOM (não sobreposto por <use>).
+                    //
+                    // Por que: o <a><use> dentro de .spiral26AxisLinksGroup cobre
+                    // visualmente o path original .spiral26AxisBackground. Animar
+                    // o path original (que está embaixo) não tem efeito visual.
+                    // Animar o <use> tem problema em WebKit (shadow DOM).
+                    // Solução: clonar o path com mesmo `d` para uma camada acima.
+                    var useEl = link.querySelector('use');
+                    var pathId = useEl && (useEl.getAttribute('href') || useEl.getAttribute('xlink:href'));
+                    var overlayPath = null;
+                    if (pathId && pathId.charAt(0) === '#' && svgRoot) {
+                      var origPath = svgRoot.querySelector('path' + pathId);
+                      if (origPath) {
+                        // Remove overlay anterior se houver
+                        var oldOverlays = svgRoot.querySelectorAll('path.bit-fx-overlay');
+                        for (var o = 0; o < oldOverlays.length; o++) oldOverlays[o].remove();
+                        // Clona o path para overlay (mesmo d, mesma transformação)
+                        overlayPath = origPath.cloneNode(false);
+                        overlayPath.removeAttribute('id');
+                        overlayPath.setAttribute('class', 'bit-fx-overlay');
+                        overlayPath.setAttribute('pointer-events', 'none');
+                        overlayPath.setAttribute('fill', 'transparent');
+                        // Injeta SMIL <animate> para fill
+                        var anim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+                        anim.setAttribute('class', 'bit-fx-anim');
+                        anim.setAttribute('attributeName', 'fill');
+                        anim.setAttribute('values', 'transparent;#ec4899;transparent');
+                        anim.setAttribute('dur', '400ms');
+                        anim.setAttribute('repeatCount', '1');
+                        anim.setAttribute('fill', 'remove');
+                        overlayPath.appendChild(anim);
+                        // Adiciona como ÚLTIMO filho do SVG (renderiza por cima)
+                        svgRoot.appendChild(overlayPath);
+                        if (typeof anim.beginElement === 'function') {
+                          try { anim.beginElement(); } catch(e) {}
+                        }
+                      }
+                    }
 
                     // Reflow para reiniciar a animação caso mesmo eixo seja clicado de novo
                     void link.getBoundingClientRect();
@@ -1706,6 +1771,21 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                       setTimeout(function(){
                         link.classList.add('bit-loading');
                         group.classList.add('bit-loading');
+                        if (overlayPath) {
+                          // Remove animação anterior; injeta pulse contínuo
+                          var glowAnims = overlayPath.querySelectorAll('animate.bit-fx-anim');
+                          for (var a = 0; a < glowAnims.length; a++) glowAnims[a].remove();
+                          var pulseAnim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+                          pulseAnim.setAttribute('class', 'bit-fx-anim');
+                          pulseAnim.setAttribute('attributeName', 'fill');
+                          pulseAnim.setAttribute('values', 'transparent;rgba(236,72,153,0.5);transparent');
+                          pulseAnim.setAttribute('dur', '600ms');
+                          pulseAnim.setAttribute('repeatCount', 'indefinite');
+                          overlayPath.appendChild(pulseAnim);
+                          if (typeof pulseAnim.beginElement === 'function') {
+                            try { pulseAnim.beginElement(); } catch(e) {}
+                          }
+                        }
                       }, FX_DURATION);
                     }
 
@@ -1733,6 +1813,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     setTimeout(function(){
                       link.classList.remove('bit-clicked');
                       group.classList.remove('bit-has-clicked');
+                      if (svgRoot) svgRoot.classList.remove('bit-clicked-svg');
                     }, FX_DURATION + 50);
 
                     // Safety net: se navegação for cancelada (back, mesma página, etc.),
@@ -1742,6 +1823,16 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     function cleanup(){
                       link.classList.remove('bit-clicked', 'bit-loading');
                       group.classList.remove('bit-has-clicked', 'bit-loading');
+                      if (svgRoot) {
+                        svgRoot.classList.remove('bit-clicked-svg', 'bit-loading-svg');
+                        var t = svgRoot.querySelectorAll('.bit-glow-target, .bit-loading-target');
+                        for (var j = 0; j < t.length; j++) t[j].classList.remove('bit-glow-target', 'bit-loading-target');
+                        // Remove overlay paths + SMIL <animate> nodes
+                        var overlays = svgRoot.querySelectorAll('path.bit-fx-overlay');
+                        for (var oi = 0; oi < overlays.length; oi++) overlays[oi].remove();
+                        var anims = svgRoot.querySelectorAll('animate.bit-fx-anim');
+                        for (var k = 0; k < anims.length; k++) anims[k].remove();
+                      }
                     }
                   }, true);
 
