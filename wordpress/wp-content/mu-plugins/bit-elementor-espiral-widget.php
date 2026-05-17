@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.1.0
+ * Version:      2.1.4
  * Author:       Bureau IT
  * Network:      true
  */
@@ -201,8 +201,8 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 '--spiral2026-middle-center-color'         => 'rgba(214,243,149,0.902)',
                 '--spiral2026-middle-edge-color'           => 'rgba(100,212,233,0.431)',
                 '--spiral2026-flood-color'                 => '#060f0a',
-                '--spiral2026-animation-delay'             => '160ms',
-                '--spiral2026-animation-duration'          => '2s',
+                '--spiral2026-animation-delay'             => '90ms',
+                '--spiral2026-animation-duration'          => '1.2s',
                 '--spiral2026-eightrays-color'             => 'rgba(189,248,57,0.4)',
                 '--spiral2026-eightrays-strokewidth'       => '0.6px',
                 '--spiral2026-foreignobject-color'         => '#ffffff',
@@ -1667,7 +1667,16 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                   window.__bitEspiralClickGlow = true;
 
                   var FX_DURATION       = 400;
-                  var NAV_DELAY         = 50;
+                  // Sequência temporal:
+                  //   0ms          — click; glow one-shot inicia (overlay path animate)
+                  //   FX_DURATION  (400ms) — glow termina, pulse loading inicia (600ms loop)
+                  //   NAV_DELAY    (800ms) — navegação inicia; pulse já completou 1+ ciclo
+                  //   Pulse continua até o browser começar a pintar a próxima página
+                  //   (na prática 1-2s a mais conforme servidor responde)
+                  //
+                  // NAV_DELAY > FX_DURATION + 1 ciclo de pulse (400 + 400 = 800ms)
+                  // garante feedback visual sólido antes do browser começar request.
+                  var NAV_DELAY         = 800;
                   var LOADING_SAFETY_MS = 8000; // safety net se navegação for cancelada
                   var prefersReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -1731,12 +1740,16 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         overlayPath.removeAttribute('id');
                         overlayPath.setAttribute('class', 'bit-fx-overlay');
                         overlayPath.setAttribute('pointer-events', 'none');
-                        overlayPath.setAttribute('fill', 'transparent');
-                        // Injeta SMIL <animate> para fill
+                        overlayPath.setAttribute('fill', '#ec4899');
+                        // Blend mode "screen" cria efeito de BRILHO (não pinta sólido).
+                        // Combinado com opacity animado, dá o glow suave esperado.
+                        overlayPath.setAttribute('style', 'mix-blend-mode:screen;');
+                        overlayPath.setAttribute('opacity', '0');
+                        // Injeta SMIL <animate> para opacity (não fill)
                         var anim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
                         anim.setAttribute('class', 'bit-fx-anim');
-                        anim.setAttribute('attributeName', 'fill');
-                        anim.setAttribute('values', 'transparent;#ec4899;transparent');
+                        anim.setAttribute('attributeName', 'opacity');
+                        anim.setAttribute('values', '0;0.65;0');
                         anim.setAttribute('dur', '400ms');
                         anim.setAttribute('repeatCount', '1');
                         anim.setAttribute('fill', 'remove');
@@ -1777,8 +1790,8 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                           for (var a = 0; a < glowAnims.length; a++) glowAnims[a].remove();
                           var pulseAnim = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
                           pulseAnim.setAttribute('class', 'bit-fx-anim');
-                          pulseAnim.setAttribute('attributeName', 'fill');
-                          pulseAnim.setAttribute('values', 'transparent;rgba(236,72,153,0.5);transparent');
+                          pulseAnim.setAttribute('attributeName', 'opacity');
+                          pulseAnim.setAttribute('values', '0;0.45;0');
                           pulseAnim.setAttribute('dur', '600ms');
                           pulseAnim.setAttribute('repeatCount', 'indefinite');
                           overlayPath.appendChild(pulseAnim);
