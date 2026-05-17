@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "db9d0e120771",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "aws/cf-function-uploads-oac-router-pre-canary-strip-code.js",
+    "aws/cf-function-uploads-oac-router-pre-canary-strip.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/db/9d0e120771/0/metadata.json",
+      "transcript": "/db/9d0e120771/0/full.jsonl",
+      "context": "/db/9d0e120771/0/context.md",
+      "content_hash": "/db/9d0e120771/0/content_hash.txt",
+      "prompt": "/db/9d0e120771/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4933,
+    "cache_creation_tokens": 2463161,
+    "cache_read_tokens": 223221827,
+    "output_tokens": 344250,
+    "api_call_count": 567
+  }
+}

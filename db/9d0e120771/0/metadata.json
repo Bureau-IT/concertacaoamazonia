@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "db9d0e120771",
+  "session_id": "9f495f11-36bf-4354-83db-c672a5cdf90f",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-17T22:31:09.179915Z",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "aws/cf-function-uploads-oac-router-pre-canary-strip-code.js",
+    "aws/cf-function-uploads-oac-router-pre-canary-strip.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "9482230d5cbb",
+  "token_usage": {
+    "input_tokens": 4933,
+    "cache_creation_tokens": 2463161,
+    "cache_read_tokens": 223221827,
+    "output_tokens": 344250,
+    "api_call_count": 567
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-17T22:31:07.341697Z",
+    "agent_lines": 192,
+    "human_added": 76,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 268,
+    "agent_percentage": 71.64179104477611
+  }
+}
