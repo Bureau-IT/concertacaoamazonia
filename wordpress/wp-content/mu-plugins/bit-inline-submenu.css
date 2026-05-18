@@ -28,15 +28,25 @@
   }
 }
 
-/* ── 2. Posicionamento dos containers ─────────────────────────────────────── */
-.menu-submenu-inline,
-.menu-submenu-inline .elementor-nav-menu--main {
-  overflow: visible !important;
-  position: static !important;
-}
+/* ── 2. Posicionamento dos containers (DESKTOP-ONLY) ──────────────────────────
+ * Estas regras existem para a barra .bit-subnav-bar / .bit-hover-bar ancorar
+ * corretamente abaixo do header no desktop. NÃO devem ser aplicadas no mobile
+ * (≤1024px) porque o `position: static` quebra o cálculo `--stretch` do widget
+ * Nav Menu do Elementor (que precisa `position: absolute` para calcular o
+ * `margin-left` negativo que estica o nav dropdown até as bordas do viewport).
+ * Sintoma do bug fora do @media: gap lateral direito no dropdown mobile,
+ * variável por viewport (5px @375, 7px @414, 10px @480). Escopado em 2026-05-18.
+ */
+@media (min-width: 1025px) {
+  .menu-submenu-inline,
+  .menu-submenu-inline .elementor-nav-menu--main {
+    overflow: visible !important;
+    position: static !important;
+  }
 
-.menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children {
-  position: static;
+  .menu-submenu-inline .elementor-nav-menu > li.menu-item-has-children {
+    position: static;
+  }
 }
 
 /* ── 3. Variáveis de cores (pareadas com Global Colors do Elementor) ───────── */
