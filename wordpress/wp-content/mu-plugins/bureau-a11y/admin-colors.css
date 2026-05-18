@@ -1,0 +1,206 @@
+/**
+ * Bureau A11y — Estilos da tela de admin de cores.
+ * Carregado só em appearance_page_bureau-a11y-colors.
+ */
+
+.bureau-a11y-admin h1 {
+    margin-bottom: 0.5em;
+}
+
+.bureau-a11y-admin .description {
+    max-width: 760px;
+}
+
+.bureau-a11y-admin-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 32px;
+    margin-top: 20px;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .bureau-a11y-admin-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.bureau-a11y-admin-col {
+    min-width: 0;
+}
+
+/* --- Slot card --- */
+
+.bureau-a11y-slot {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+}
+
+.bureau-a11y-slot__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.bureau-a11y-slot__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.bureau-a11y-slot__var {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: #646970;
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.bureau-a11y-slot__hint {
+    font-size: 12px;
+    color: #646970;
+    margin: 0 0 12px 0;
+}
+
+.bureau-a11y-slot__mode {
+    display: block;
+    font-size: 13px;
+    color: #2c3338;
+    margin: 8px 0 4px 0;
+    cursor: pointer;
+}
+
+.bureau-a11y-slot__mode input[type="radio"] {
+    margin-right: 6px;
+}
+
+.bureau-a11y-slot__select {
+    width: 100%;
+    max-width: 380px;
+    margin-bottom: 4px;
+}
+
+.bureau-a11y-slot__picker {
+    margin-left: 24px;
+}
+
+/* Estado: modo "global" → escurece input custom; modo "custom" → escurece select */
+.bureau-a11y-slot[data-mode="global"] .bureau-a11y-slot__picker,
+.bureau-a11y-slot[data-mode="global"] .wp-picker-container {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.bureau-a11y-slot[data-mode="custom"] .bureau-a11y-slot__select {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* --- Preview column --- */
+
+.bureau-a11y-admin-preview-col {
+    position: sticky;
+    top: 50px;
+}
+
+.bureau-a11y-admin-preview-col h2 {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.bureau-a11y-admin-preview {
+    margin-top: 16px;
+    background:
+        repeating-linear-gradient(45deg, #f6f7f7 0, #f6f7f7 10px, #fff 10px, #fff 20px);
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+    min-height: 380px;
+}
+
+/* Painel preview escopado — clone das vars --ba-* */
+.bureau-a11y-admin-preview__panel {
+    /* defaults da "opção 2" (fallback se PHP não emitir overrides) */
+    --ba-forest:        var(--ba-override-forest, #003A26);
+    --ba-surface:       var(--ba-override-surface, rgba(255,255,255,0.06));
+    --ba-electric:      var(--ba-override-electric, #B12B79);
+    --ba-electric-glow: var(--ba-override-electric-glow, rgba(177,43,121,0.20));
+    --ba-text:          var(--ba-override-text, #F6EFEA);
+    --ba-muted:         var(--ba-override-muted, rgba(246,239,234,0.65));
+    --ba-border:        var(--ba-override-border, rgba(246,239,234,0.12));
+    --ba-trigger-bg:    var(--ba-override-trigger-bg, #005A42);
+
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 270px;
+    height: auto;
+    background: var(--ba-forest);
+    color: var(--ba-text);
+    border-radius: 14px;
+    border: 1px solid var(--ba-border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+.bureau-a11y-admin-preview__panel .ba-panel__header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--ba-border);
+    display: flex;
+    align-items: center;
+}
+
+.bureau-a11y-admin-preview__panel .ba-panel__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bureau-a11y-admin-preview__panel .ba-panel__title svg {
+    fill: var(--ba-text);
+}
+
+.bureau-a11y-admin-preview__panel .ba-panel__footer {
+    padding: 8px 14px;
+    border-top: 1px solid var(--ba-border);
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Trigger flutuante do preview, posicionado dentro do preview-box */
+.bureau-a11y-admin-preview__trigger {
+    --ba-trigger-bg: var(--ba-override-trigger-bg, #005A42);
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--ba-trigger-bg);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px;
+    cursor: default;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+
+.bureau-a11y-admin-preview__trigger svg {
+    width: 100%;
+    height: 100%;
+    fill: #F0EDE1;
+}
+
+/* Feedback de reset */
+.bureau-a11y-admin .notice.bureau-a11y-reset-notice {
+    margin: 15px 0;
+}

@@ -69,8 +69,7 @@
         panelX:         null,
         panelY:         null,
         largerCursor:   false,
-        lineHeight:     0,
-        widgetLarge:    false
+        lineHeight:     0
     };
 
     var Store = {
@@ -257,7 +256,6 @@
             var self = this;
 
             // Posicionamento inicial: ancorado à direita (borda direita alinhada ao trigger).
-            // O painel cresce para a ESQUERDA ao expandir (ba-widget-large), sem salto visual.
             // Só aplica se não houver posição manual salva (drag anterior).
             var hasDragPos = panel.style.left && panel.style.left !== 'unset';
             if (!hasDragPos && self.trigger && window.innerWidth > 768) {
@@ -1355,39 +1353,6 @@
         }
     };
 
-    // ---- WIDGET SUPERDIMENSIONADO ----
-    Features.WidgetLarge = {
-        init: function () {
-            var btn = document.getElementById('ba-widget-size-btn');
-            if (!btn) return;
-            var panel = document.getElementById('bureau-a11y-panel');
-            var active = Store.get('widgetLarge') || false;
-
-            if (panel && active) panel.classList.add('ba-widget-large');
-            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-
-            _addInteraction(btn, function () {
-                active = !active;
-                Store.set('widgetLarge', active);
-                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-                if (panel) {
-                    // Se painel foi arrastado (usa 'left'), manter borda direita fixa ao expandir/encolher.
-                    // Se usa 'right' (padrão), CSS transition cuida naturalmente — sem setTimeout.
-                    var usesLeft = panel.style.left && panel.style.left !== 'unset';
-                    var rightEdge = usesLeft ? parseFloat(panel.style.left) + panel.offsetWidth : null;
-                    panel.classList.toggle('ba-widget-large', active);
-                    if (usesLeft && rightEdge !== null) {
-                        // Aguarda a transição CSS de width (0.22s) completar antes de reposicionar.
-                        setTimeout(function () {
-                            panel.style.left = (rightEdge - panel.offsetWidth) + 'px';
-                            Panel._clampToViewport();
-                        }, 260);
-                    }
-                }
-            });
-        }
-    };
-
     // Keep Speech and Libras accessible via alias
     var Speech = Features.Speech;
     var Libras = Features.Libras;
@@ -1548,7 +1513,6 @@
         Features.Libras.init();
         Features.LargerCursor.init();
         Features.LineHeight.init();
-        Features.WidgetLarge.init();
 
         // Reset button — reset direto, sem confirmação
         var resetBtn = document.getElementById('ba-reset-btn');
@@ -1556,6 +1520,9 @@
             _addInteraction(resetBtn, function () {
                 // 1. Limpa store e localStorage
                 Store.reset();
+                // 1b. Limpa também a preferência de ocultação (chave separada do Store)
+                try { localStorage.removeItem('bureauA11y.hidden'); } catch (e) {}
+                document.documentElement.classList.remove('ba-buttons-hidden');
                 // 2. Remove todas as classes a11y do <html> imediatamente
                 var html = document.documentElement;
                 ['a11y', 'ba-high-contrast', 'ba-dark-mode', 'ba-grayscale', 'ba-invert',
@@ -1570,6 +1537,52 @@
                 setTimeout(function () { location.reload(); }, 0);
             });
         }
+
+        // Ocultar/mostrar botões flutuantes (a11y + back-to-top + VLibras)
+        // Estado persiste em localStorage['bureauA11y.hidden'] = '1'
+        // Anti-flash inline no <head> aplica .ba-buttons-hidden cedo
+        (function () {
+            var HIDE_KEY = 'bureauA11y.hidden';
+            var html      = document.documentElement;
+            var hideBtn   = document.getElementById('ba-hide-btn');
+            var restoreEl = document.getElementById('bureau-a11y-restore-pill');
+
+            function setHidden(hidden) {
+                try {
+                    if (hidden) {
+                        localStorage.setItem(HIDE_KEY, '1');
+                    } else {
+                        localStorage.removeItem(HIDE_KEY);
+                    }
+                } catch (e) {}
+                html.classList.toggle('ba-buttons-hidden', hidden);
+            }
+
+            if (hideBtn) {
+                _addInteraction(hideBtn, function () {
+                    // Fecha o painel antes de esconder pra evitar painel "órfão" pairando
+                    if (typeof Panel !== 'undefined' && Panel.close) {
+                        Panel.close();
+                    }
+                    setHidden(true);
+                    // Move foco pra mini-pill (próximo elemento focável visível)
+                    setTimeout(function () {
+                        if (restoreEl) restoreEl.focus();
+                    }, 50);
+                });
+            }
+
+            if (restoreEl) {
+                _addInteraction(restoreEl, function () {
+                    setHidden(false);
+                    // Devolve foco pro trigger principal
+                    setTimeout(function () {
+                        var trigger = document.getElementById('bureau-a11y-trigger');
+                        if (trigger) trigger.focus();
+                    }, 50);
+                });
+            }
+        })();
 
         // Hints + Tooltip unificados com first-open hint
         (function () {

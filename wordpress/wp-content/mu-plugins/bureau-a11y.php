@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.6.1
+ * Version: 2.8.0
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -12,12 +12,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.6.1' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.5.22' );
-define( 'BUREAU_A11Y_JS_VERSION', '2.5.25' );
+define( 'BUREAU_A11Y_VERSION', '2.8.0' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.7.0' );
+define( 'BUREAU_A11Y_JS_VERSION', '2.7.0' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
 define( 'BUREAU_A11Y_URL', plugin_dir_url( __FILE__ ) . 'bureau-a11y/' );
+
+// Tela de admin de cores (Aparência → Acessibilidade)
+require_once BUREAU_A11Y_DIR . 'admin-colors.php';
 
 /**
  * Enqueue CSS e JS assets
@@ -59,6 +62,179 @@ function bureau_a11y_enqueue_assets() {
 }
 
 /**
+ * Anti-flash do estado "ocultado".
+ *
+ * Inserido bem cedo no <head> (priority 1) pra ler localStorage e
+ * marcar o <html> ANTES do CSS pintar — evita flash do trigger antes da
+ * mini-pill aparecer no estado oculto.
+ */
+add_action( 'wp_head', 'bureau_a11y_hide_state_inline', 1 );
+function bureau_a11y_hide_state_inline() {
+	if ( is_admin() ) {
+		return;
+	}
+	?>
+<script>(function(){try{if(localStorage.getItem('bureauA11y.hidden')==='1'){document.documentElement.classList.add('ba-buttons-hidden');}}catch(e){}})();</script>
+	<?php
+}
+
+/**
+ * Cores do painel A11y — Global Colors + override custom.
+ *
+ * 8 slots semânticos, cada um pode ser:
+ *   - mode=global  → referencia uma Global Color do Elementor pelo _id
+ *   - mode=custom  → cor hex/rgba customizada salva no admin
+ *
+ * Cascata final em CSS:
+ *   var(--ba-override-X, var(--e-global-color-Y, #fallback))
+ *
+ * Spec: docs/superpowers/specs/2026-05-17-a11y-global-colors-admin-design.md
+ */
+
+// Defaults baseados na "opção 2" do playground (Dark profundo + accent).
+// IDs referenciam o kit Elementor ativo do Concertação.
+const BUREAU_A11Y_DEFAULT_COLORS = [
+	'forest'         => [ 'mode' => 'global', 'global_id' => '96a86ed' ],   // Color Extra 1 (verde quase-preto)
+	'surface'        => [ 'mode' => 'custom', 'custom'    => 'rgba(255,255,255,0.06)' ],
+	'electric'       => [ 'mode' => 'global', 'global_id' => 'accent' ],    // magenta
+	'electric_glow'  => [ 'mode' => 'custom', 'custom'    => 'rgba(177,43,121,0.20)' ],
+	'text'           => [ 'mode' => 'global', 'global_id' => 'secondary' ], // offwhite
+	'muted'          => [ 'mode' => 'custom', 'custom'    => 'rgba(246,239,234,0.65)' ],
+	'border'         => [ 'mode' => 'custom', 'custom'    => 'rgba(246,239,234,0.12)' ],
+	'trigger_bg'     => [ 'mode' => 'global', 'global_id' => 'primary' ],   // verde-bandeira
+];
+
+// Fallback final hardcoded (se Elementor off OU Global Color deletada).
+const BUREAU_A11Y_FALLBACK_COLORS = [
+	'forest'         => '#003A26',
+	'surface'        => 'rgba(255,255,255,0.06)',
+	'electric'       => '#B12B79',
+	'electric_glow'  => 'rgba(177,43,121,0.20)',
+	'text'           => '#F6EFEA',
+	'muted'          => 'rgba(246,239,234,0.65)',
+	'border'         => 'rgba(246,239,234,0.12)',
+	'trigger_bg'     => '#005A42',
+];
+
+// Mapa slot → nome da CSS var (--ba-*). Underscore vira hífen.
+function bureau_a11y_slot_to_var( $slot ) {
+	return '--ba-' . str_replace( '_', '-', $slot );
+}
+
+/**
+ * Lê as Global Colors do kit Elementor ativo, com cache transient 1h.
+ *
+ * Retorna [ 'id' => [ 'title' => string, 'value' => '#hex' ], ... ].
+ * Array vazio se Elementor não está disponível.
+ */
+function bureau_a11y_get_global_colors() {
+	$cached = get_transient( 'bureau_a11y_elementor_globals' );
+	if ( false !== $cached ) {
+		return $cached;
+	}
+
+	if ( ! class_exists( '\Elementor\Plugin' ) ) {
+		return [];
+	}
+
+	$kit = \Elementor\Plugin::$instance->kits_manager->get_active_kit();
+	if ( ! $kit ) {
+		return [];
+	}
+
+	$settings = $kit->get_settings_for_display();
+	$system   = isset( $settings['system_colors'] ) && is_array( $settings['system_colors'] ) ? $settings['system_colors'] : [];
+	$custom   = isset( $settings['custom_colors'] ) && is_array( $settings['custom_colors'] ) ? $settings['custom_colors'] : [];
+
+	$result = [];
+	foreach ( array_merge( $system, $custom ) as $c ) {
+		if ( empty( $c['_id'] ) ) {
+			continue;
+		}
+		$result[ $c['_id'] ] = [
+			'title' => isset( $c['title'] ) ? $c['title'] : $c['_id'],
+			'value' => isset( $c['color'] ) ? $c['color'] : '',
+		];
+	}
+
+	set_transient( 'bureau_a11y_elementor_globals', $result, HOUR_IN_SECONDS );
+	return $result;
+}
+
+// Invalida o cache de globals quando o Elementor limpa cache (kit editado, etc.)
+add_action( 'elementor/core/files/clear_cache', function () {
+	delete_transient( 'bureau_a11y_elementor_globals' );
+} );
+
+/**
+ * Resolve config salva no admin (com defaults aplicados).
+ */
+function bureau_a11y_get_colors_config() {
+	$saved = get_option( 'bureau_a11y_colors', [] );
+	if ( ! is_array( $saved ) ) {
+		$saved = [];
+	}
+	$out = [];
+	foreach ( BUREAU_A11Y_DEFAULT_COLORS as $slot => $default ) {
+		$out[ $slot ] = isset( $saved[ $slot ] ) && is_array( $saved[ $slot ] )
+			? array_merge( $default, $saved[ $slot ] )
+			: $default;
+	}
+	return $out;
+}
+
+/**
+ * Emite as overrides de cor inline no <head> (priority 20 — depois do enqueue,
+ * antes de qualquer widget Elementor).
+ *
+ * A cascata definida em bureau-a11y.css espera 2 níveis:
+ *   1. --ba-override-X (esta função emite só se mode=custom)
+ *   2. var(--e-global-color-Y) (mapeamento — atualizado dinamicamente se
+ *      admin trocou o global_id default)
+ */
+add_action( 'wp_head', 'bureau_a11y_emit_color_overrides', 20 );
+function bureau_a11y_emit_color_overrides() {
+	if ( is_admin() ) {
+		return;
+	}
+
+	$config = bureau_a11y_get_colors_config();
+	$lines  = [];
+
+	foreach ( $config as $slot => $cfg ) {
+		$var_main     = bureau_a11y_slot_to_var( $slot );             // ex: --ba-forest
+		$var_override = '--ba-override-' . str_replace( '_', '-', $slot );
+
+		if ( 'custom' === $cfg['mode'] ) {
+			// Emit override que vence a cascata
+			$value = trim( $cfg['custom'] );
+			if ( $value !== '' ) {
+				$lines[] = sprintf( '%s:%s;', $var_override, esc_attr( $value ) );
+			}
+			continue;
+		}
+
+		// mode=global — sobrescreve toda a cascata pra apontar pro global_id
+		// escolhido pelo admin (pode ser diferente do default hardcoded no CSS).
+		$gid      = isset( $cfg['global_id'] ) ? $cfg['global_id'] : '';
+		$fallback = isset( BUREAU_A11Y_FALLBACK_COLORS[ $slot ] ) ? BUREAU_A11Y_FALLBACK_COLORS[ $slot ] : 'inherit';
+		if ( $gid !== '' ) {
+			$lines[] = sprintf(
+				'%s:var(--e-global-color-%s, %s);',
+				$var_main,
+				esc_attr( $gid ),
+				esc_attr( $fallback )
+			);
+		}
+	}
+
+	if ( ! $lines ) {
+		return;
+	}
+	echo "<style id='bureau-a11y-color-overrides'>:root{" . implode( '', $lines ) . "}</style>\n";
+}
+
+/**
  * Render the a11y panel HTML no footer
  */
 add_action( 'wp_footer', 'bureau_a11y_render_buttons', 50 );
@@ -87,8 +263,8 @@ function bureau_a11y_render_buttons() {
 		aria-label="<?php esc_attr_e( 'Voltar ao topo', 'bureau-a11y' ); ?>"
 		data-id="a11yBackToTopButton"
 	>
-		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 115.4 122.88" aria-hidden="true" focusable="false">
-			<path d="M24.94 67.88A14.66 14.66 0 0 1 4.38 47L47.83 4.21a14.66 14.66 0 0 1 20.56 0L111 46.15a14.66 14.66 0 0 1-20.54 20.91l-18-17.69-.29 59.17c-.1 19.28-29.42 19-29.33-.25l.3-58.29-18.2 17.88Z"/>
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+			<path d="M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z"/>
 		</svg>
 	</button>
 
@@ -120,21 +296,22 @@ function bureau_a11y_render_buttons() {
 						<line x1="12" y1="17" x2="12.01" y2="17"/>
 					</svg>
 				</button>
+				<button class="ba-hide-btn ba-hide-btn--header" id="ba-hide-btn"
+					aria-label="<?php esc_attr_e( 'Ocultar botões de acessibilidade da página', 'bureau-a11y' ); ?>"
+					title="<?php esc_attr_e( 'Ocultar botões de acessibilidade da página', 'bureau-a11y' ); ?>">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+						<path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+						<path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+						<line x1="2" y1="2" x2="22" y2="22"/>
+					</svg>
+				</button>
 				<button class="ba-panel__close" id="bureau-a11y-close" aria-label="<?php esc_attr_e( 'Fechar painel', 'bureau-a11y' ); ?>">
 					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
 						<path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
 					</svg>
 				</button>
 			</div>
-		</div>
-
-		<!-- Widget superdimensionado -->
-		<div class="ba-widget-size-row">
-			<span class="ba-widget-size-label"><?php esc_html_e( 'Painel ampliado', 'bureau-a11y' ); ?></span>
-			<button id="ba-widget-size-btn" class="ba-switch" role="switch" aria-pressed="false"
-				aria-label="<?php esc_attr_e( 'Ampliar o painel de acessibilidade', 'bureau-a11y' ); ?>">
-				<span class="ba-switch__thumb"></span>
-			</button>
 		</div>
 
 		<!-- Tab Bar -->
@@ -467,17 +644,30 @@ function bureau_a11y_render_buttons() {
 				</svg>
 				<span class="ba-footer-version">BIT A11y v<?php echo esc_html( BUREAU_A11Y_VERSION ); ?></span>
 			</a>
-			<button id="ba-reset-btn" class="ba-reset-btn"
-				aria-label="<?php esc_attr_e( 'Restaurar padrões de acessibilidade', 'bureau-a11y' ); ?>">
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-					<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 7M21 3v6h-6M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 17M3 21v-6h6"
-						stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-				</svg>
-				<span class="ba-reset-label"><?php esc_html_e( 'Redefinir', 'bureau-a11y' ); ?></span>
-			</button>
+			<div class="ba-footer-actions">
+				<button id="ba-reset-btn" class="ba-reset-btn"
+					aria-label="<?php esc_attr_e( 'Restaurar padrões de acessibilidade', 'bureau-a11y' ); ?>">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+						<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 7M21 3v6h-6M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 17M3 21v-6h6"
+							stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+					</svg>
+					<span class="ba-reset-label"><?php esc_html_e( 'Redefinir', 'bureau-a11y' ); ?></span>
+				</button>
+			</div>
 		</div>
 
 	</aside>
+
+	<!-- Mini-pill de restauração (visível só quando botões estão ocultos) -->
+	<button
+		id="bureau-a11y-restore-pill"
+		type="button"
+		aria-label="<?php esc_attr_e( 'Mostrar botões de acessibilidade', 'bureau-a11y' ); ?>"
+		title="<?php esc_attr_e( 'Mostrar botões de acessibilidade', 'bureau-a11y' ); ?>">
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="currentColor">
+			<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+		</svg>
+	</button>
 
 	<!-- VLibras container -->
 	<div vw class="enabled" id="bureau-vlibras-container">

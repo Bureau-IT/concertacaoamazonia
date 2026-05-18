@@ -7,19 +7,29 @@
  */
 
 /* ==========================================================================
-   CSS VARS — scoped to panel, trigger, back-to-top
+   CSS VARS — cascata override → Global Elementor → fallback hardcoded
+   --------------------------------------------------------------------------
+   Spec: docs/superpowers/specs/2026-05-17-a11y-global-colors-admin-design.md
+
+   - --ba-override-*  : emitido só se admin marcou modo "custom" pra esse slot
+                       (vide bureau_a11y_emit_color_overrides em bureau-a11y.php)
+   - var(--e-global-color-*) : Global Color do Elementor (default mapping da
+                       opção 2 — "Dark profundo + accent"). PHP atualiza
+                       essa parte dinamicamente conforme o que o admin escolher
+                       como global_id pra cada slot
+   - hex/rgba final   : fallback hardcoded — usado se Elementor está off OU
+                       se a global selecionada foi deletada
    ========================================================================== */
 
-#bureau-a11y-panel,
-#bureau-a11y-trigger,
-#bureau-a11y-back-to-top {
-    --ba-forest:        #091c10;
-    --ba-surface:       rgba(255,255,255,0.05);
-    --ba-electric:      #BDF839;
-    --ba-electric-glow: rgba(189,248,57,0.12);
-    --ba-text:          #F0EDE1;
-    --ba-muted:         rgba(240,237,225,0.65);
-    --ba-border:        rgba(255,255,255,0.08);
+:root {
+    --ba-forest:        var(--ba-override-forest, var(--e-global-color-96a86ed, #003A26));
+    --ba-surface:       var(--ba-override-surface, rgba(255,255,255,0.06));
+    --ba-electric:      var(--ba-override-electric, var(--e-global-color-accent, #B12B79));
+    --ba-electric-glow: var(--ba-override-electric-glow, rgba(177,43,121,0.20));
+    --ba-text:          var(--ba-override-text, var(--e-global-color-secondary, #F6EFEA));
+    --ba-muted:         var(--ba-override-muted, rgba(246,239,234,0.65));
+    --ba-border:        var(--ba-override-border, rgba(246,239,234,0.12));
+    --ba-trigger-bg:    var(--ba-override-trigger-bg, var(--e-global-color-primary, #005A42));
     --ba-radius-card:   12px;
     --ba-radius-panel:  16px;
 }
@@ -70,8 +80,19 @@ html.ba-dark-mode--dim body { filter: brightness(1.2) contrast(1.1); }
 
 html.ba-high-contrast body { background: #000 !important; color: #fff !important; }
 html.ba-high-contrast a { color: #ffff00 !important; text-decoration: underline !important; }
-html.ba-high-contrast :is(button,input,select,textarea) {
+html.ba-high-contrast :is(button,input,select,textarea),
+html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) {
     background: #000 !important; color: #fff !important; border: 2px solid #fff !important;
+}
+
+/* Forçar inversão nos descendentes de botões — Elementor/TEC envolvem o
+   texto em <span> filhos (elementor-button-text, tribe-common-c-btn--*) com
+   color próprio !important que sobrescreve o color do pai. */
+html.ba-high-contrast :is(button,input,select,textarea) *,
+html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) * {
+    background: transparent !important;
+    color: #fff !important;
+    fill: #fff !important;
 }
 
 /* Apenas no body — painel/trigger em <html> ficam sem filtro */
@@ -108,7 +129,7 @@ html.ba-focus-guide :focus-visible {
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: var(--ba-forest);
+    background: var(--ba-trigger-bg);
     border: 1px solid rgba(189,248,57,0.25);
     color: #F0EDE1;
     cursor: pointer;
@@ -171,7 +192,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background: var(--ba-forest);
+    background: var(--ba-trigger-bg);
     border: 1px solid rgba(189,248,57,0.2);
     color: #F0EDE1;
     cursor: pointer;
@@ -301,7 +322,8 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 }
 
 #bureau-a11y-panel .ba-panel__close,
-#bureau-a11y-panel .ba-hints-btn {
+#bureau-a11y-panel .ba-hints-btn,
+#bureau-a11y-panel .ba-hide-btn--header {
     background: transparent;
     border: 0;
     color: var(--ba-muted);
@@ -323,10 +345,31 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 }
 
 .ba-panel__close:hover,
-.ba-hints-btn:hover {
+.ba-hints-btn:hover,
+.ba-hide-btn--header:hover {
     color: var(--ba-text);
     background: rgba(255,255,255,0.08);
 }
+
+/* Variante header do Ocultar: sem label, só ícone */
+.ba-hide-btn--header .ba-hide-label { display: none; }
+
+/* Variante footer do Hints: discreto como Redefinir, sem badge ativo */
+.ba-hints-btn--footer {
+    min-width: auto;
+    min-height: auto;
+    padding: 0.25rem 0.5rem;
+    background: transparent !important;
+    color: rgba(240,237,225,0.28);
+    border-radius: 4px;
+}
+.ba-hints-btn--footer:hover { color: #BDF839 !important; background: transparent !important; }
+.ba-hints-btn--footer[aria-pressed="true"]::after { display: none; }
+.ba-hints-btn--footer[aria-pressed="true"] {
+    background: transparent !important;
+    color: #BDF839;
+}
+.ba-hints-btn--footer[aria-pressed="false"] { opacity: 1; }
 
 /* Ativo: fundo verde suave + ponto indicador no canto */
 .ba-hints-btn[aria-pressed="true"] {
@@ -871,6 +914,92 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     color: inherit;
 }
 
+/* Agrupador dos botões do rodapé (Ocultar + Redefinir) */
+.ba-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Botão Ocultar — mesmo visual do Redefinir, hover laranja */
+.ba-hide-btn {
+    background: transparent;
+    border: 0;
+    color: rgba(240,237,225,0.28);
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1;
+}
+
+.ba-hide-btn:hover { color: #BDF839; }
+
+.ba-hide-btn:focus-visible {
+    outline: 2px solid #BDF839;
+    outline-offset: 2px;
+}
+
+.ba-hide-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: inherit;
+}
+
+/* ==========================================================================
+   ESTADO "OCULTO" — escondendo os 3 botões flutuantes
+   ========================================================================== */
+
+/* Mini-pill restore: invisível por padrão (só aparece no estado oculto) */
+#bureau-a11y-restore-pill {
+    display: none;
+    position: fixed;
+    bottom: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(0, 90, 66, 0.25);
+    border: 1px solid rgba(0, 90, 66, 0.4);
+    color: #005A42;
+    cursor: pointer;
+    z-index: 2147483646;
+    opacity: 0.55;
+    transition: opacity 0.22s ease, transform 0.22s ease, background 0.22s ease, color 0.22s ease;
+    align-items: center;
+    justify-content: center;
+}
+
+#bureau-a11y-restore-pill:hover,
+#bureau-a11y-restore-pill:focus-visible {
+    opacity: 1;
+    transform: scale(1.15);
+    background: rgba(0, 90, 66, 0.85);
+    color: #FFFFFF;
+    outline: none;
+}
+
+#bureau-a11y-restore-pill:focus-visible {
+    box-shadow: 0 0 0 3px rgba(189, 248, 57, 0.4);
+}
+
+/* Estado oculto — ativado pelo <html class="ba-buttons-hidden"> */
+html.ba-buttons-hidden #bureau-a11y-trigger,
+html.ba-buttons-hidden #bureau-a11y-back-to-top,
+html.ba-buttons-hidden #bureau-vlibras-container,
+html.ba-buttons-hidden div[vw].enabled {
+    display: none !important;
+}
+
+html.ba-buttons-hidden #bureau-a11y-restore-pill {
+    display: flex;
+}
+
 /* ==========================================================================
    RESET CONFIRMATION MODAL
    ========================================================================== */
@@ -1331,117 +1460,6 @@ html.ba-lh-3 :is(p,li,h1,h2,h3,h4,h5,h6,span,a,td,th,label) { line-height: 2.2 !
 }
 #ba-toggle-lineHeight[aria-pressed="true"] .ba-lh-bar:nth-child(3) {
     background: color-mix(in srgb, var(--ba-electric) 48%, var(--ba-muted));
-}
-
-/* ==========================================================================
-   WIDGET SUPERDIMENSIONADO
-   ========================================================================== */
-
-/* Row de toggle no topo do painel */
-.ba-widget-size-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    flex-shrink: 0;
-    gap: 0.5rem;
-}
-
-.ba-widget-size-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--ba-muted);
-    letter-spacing: 0.04em;
-}
-
-/* Switch on/off — Apple style */
-.ba-switch {
-    position: relative;
-    flex: none; /* impede que o flex container estique o botão */
-    width: 48px !important;
-    min-width: 48px !important;
-    max-width: 48px !important;
-    height: 28px !important;
-    border-radius: 14px !important;
-    background: rgba(255,255,255,0.08) !important;
-    border: 1.5px solid rgba(255,255,255,0.14) !important;
-    cursor: pointer;
-    padding: 0 !important;
-    box-sizing: border-box !important;
-    flex-shrink: 0;
-    transition: background 0.22s, border-color 0.22s, box-shadow 0.22s;
-}
-
-.ba-switch__thumb {
-    position: absolute;
-    top: 50%;
-    left: 4px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: rgba(240,237,225,0.4);
-    transform: translateY(-50%);
-    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), background 0.22s;
-    pointer-events: none;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-}
-
-.ba-switch[aria-pressed="true"] {
-    background: rgba(189,248,57,0.22);
-    border-color: rgba(189,248,57,0.55);
-    box-shadow: 0 0 0 3px rgba(189,248,57,0.10);
-}
-
-/* 48px - 1.5px*2(border) - 18px(thumb) - 4px(margin-direita) = 22px */
-.ba-switch[aria-pressed="true"] .ba-switch__thumb {
-    transform: translateY(-50%) translateX(22px);
-    background: #BDF839;
-    box-shadow: 0 1px 6px rgba(189,248,57,0.5);
-}
-
-.ba-switch:hover {
-    border-color: rgba(255,255,255,0.28);
-}
-
-.ba-switch:focus-visible {
-    outline: 2px solid #BDF839;
-    outline-offset: 3px;
-}
-
-/* Painel superdimensionado */
-#bureau-a11y-panel.ba-widget-large {
-    width: 380px;
-}
-
-#bureau-a11y-panel.ba-widget-large .ba-toggle {
-    min-height: 96px;
-    font-size: 13px;
-}
-
-#bureau-a11y-panel.ba-widget-large .ba-toggle__icon {
-    width: 30px;
-    height: 30px;
-    font-size: 1.75rem;
-}
-
-#bureau-a11y-panel.ba-widget-large .ba-toggle__label {
-    font-size: 12px;
-}
-
-#bureau-a11y-panel.ba-widget-large .ba-tab-btn {
-    font-size: 10px;
-    padding: 0.75rem 0.25rem;
-}
-
-#bureau-a11y-panel.ba-widget-large .ba-panel__footer {
-    padding: 0.75rem 1rem;
-}
-
-@media (max-width: 768px) {
-    #bureau-a11y-panel.ba-widget-large {
-        width: 100vw;
-    }
 }
 
 /* ==========================================================================
