@@ -1,0 +1,14 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+[Image #9] [Image #10] esse botão deve ser quadrado e seta centralizada. Atualize em PT e EN
+
+### Prompt 2
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-18 às 01.20.48.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_zNOYgi/Captura de Tela 2026-05-18 às 01.21.21.png]
+
