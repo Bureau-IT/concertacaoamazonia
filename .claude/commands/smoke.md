@@ -1,7 +1,7 @@
 ---
 description: Bateria smoke completa Concertação em prod vs green — home, atlas PT+EN, espiral, eventos, formularios. Use "/smoke" pós-deploy ou "valida tudo no concertacao".
 allowed-tools: mcp__MCP_DOCKER__browser_close mcp__MCP_DOCKER__browser_run_code
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 Bateria smoke pós-deploy. Testa 5 páginas críticas + 2 formulários em prod e green + 1 paridade prod/dev:
