@@ -1539,8 +1539,13 @@
         }
 
         // Ocultar/mostrar botões flutuantes (a11y + back-to-top + VLibras)
-        // Estado persiste em localStorage['bureauA11y.hidden'] = '1'
-        // Anti-flash inline no <head> aplica .ba-buttons-hidden cedo
+        // Estado persiste em localStorage['bureauA11y.hidden']:
+        //   '1' = explicitamente oculto
+        //   '0' = explicitamente visível (sobrescreve default oculto de páginas
+        //         como /cultura/atlas-cultural-das-amazonias)
+        //   null = sem escolha → respeita default da página
+        // Anti-flash inline no <head> (bureau_a11y_hide_state_inline) aplica
+        // .ba-buttons-hidden cedo, antes do CSS pintar.
         (function () {
             var HIDE_KEY = 'bureauA11y.hidden';
             var html      = document.documentElement;
@@ -1549,11 +1554,10 @@
 
             function setHidden(hidden) {
                 try {
-                    if (hidden) {
-                        localStorage.setItem(HIDE_KEY, '1');
-                    } else {
-                        localStorage.removeItem(HIDE_KEY);
-                    }
+                    // Sempre grava escolha explícita (1 ou 0) — assim páginas
+                    // com default oculto respeitam o "mostrar" do usuário nas
+                    // próximas visitas.
+                    localStorage.setItem(HIDE_KEY, hidden ? '1' : '0');
                 } catch (e) {}
                 html.classList.toggle('ba-buttons-hidden', hidden);
             }

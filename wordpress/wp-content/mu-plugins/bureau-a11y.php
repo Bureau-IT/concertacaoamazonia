@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.8.0
+ * Version: 2.9.0
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -12,9 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.8.0' );
+define( 'BUREAU_A11Y_VERSION', '2.9.0' );
 define( 'BUREAU_A11Y_CSS_VERSION', '2.7.0' );
-define( 'BUREAU_A11Y_JS_VERSION', '2.7.0' );
+define( 'BUREAU_A11Y_JS_VERSION', '2.8.0' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
 define( 'BUREAU_A11Y_URL', plugin_dir_url( __FILE__ ) . 'bureau-a11y/' );
@@ -67,15 +67,50 @@ function bureau_a11y_enqueue_assets() {
  * Inserido bem cedo no <head> (priority 1) pra ler localStorage e
  * marcar o <html> ANTES do CSS pintar — evita flash do trigger antes da
  * mini-pill aparecer no estado oculto.
+ *
+ * Lógica:
+ *   1. Se usuário já escolheu (localStorage definido) → respeita escolha
+ *   2. Se NUNCA escolheu (localStorage null) E é página com default oculto
+ *      → começa oculto (só mini-pill visível)
+ *   3. Caso contrário → padrão visível
+ *
+ * Páginas com default oculto são definidas em
+ * `bureau_a11y_paths_hidden_by_default()` (filtrável via hook).
  */
 add_action( 'wp_head', 'bureau_a11y_hide_state_inline', 1 );
 function bureau_a11y_hide_state_inline() {
 	if ( is_admin() ) {
 		return;
 	}
+
+	$paths_hidden = bureau_a11y_paths_hidden_by_default();
+	$paths_json   = wp_json_encode( array_values( $paths_hidden ) );
 	?>
-<script>(function(){try{if(localStorage.getItem('bureauA11y.hidden')==='1'){document.documentElement.classList.add('ba-buttons-hidden');}}catch(e){}})();</script>
+<script>(function(){try{
+var saved = localStorage.getItem('bureauA11y.hidden');
+if (saved === '1') { document.documentElement.classList.add('ba-buttons-hidden'); return; }
+if (saved === '0') { return; }
+var paths = <?php echo $paths_json; ?>;
+var p = location.pathname.replace(/\/+$/, '');
+for (var i = 0; i < paths.length; i++) {
+  var t = paths[i].replace(/\/+$/, '');
+  if (p === t) { document.documentElement.classList.add('ba-buttons-hidden'); return; }
+}
+}catch(e){}})();</script>
 	<?php
+}
+
+/**
+ * Paths (sem trailing slash) que devem inicializar com o painel a11y oculto.
+ * Apenas se o usuário não escolheu manualmente antes.
+ *
+ * Outros mu-plugins/temas podem estender via filtro `bureau_a11y_paths_hidden_by_default`.
+ */
+function bureau_a11y_paths_hidden_by_default() {
+	$paths = [
+		'/cultura/atlas-cultural-das-amazonias',
+	];
+	return apply_filters( 'bureau_a11y_paths_hidden_by_default', $paths );
 }
 
 /**
