@@ -954,7 +954,9 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
    ESTADO "OCULTO" — escondendo os 3 botões flutuantes
    ========================================================================== */
 
-/* Mini-pill restore: invisível por padrão (só aparece no estado oculto) */
+/* Mini-pill restore: invisível por padrão (só aparece no estado oculto).
+   Visibilidade garantida em QUALQUER fundo via combo borda-branca + halo-verde
+   (opção 4 do playground a11y-pill-contrast — 2026-05-17). */
 #bureau-a11y-restore-pill {
     display: none;
     position: fixed;
@@ -964,13 +966,14 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     height: 24px;
     padding: 0;
     border-radius: 50%;
-    background: rgba(0, 90, 66, 0.25);
-    border: 1px solid rgba(0, 90, 66, 0.4);
-    color: #005A42;
+    background: rgba(0, 90, 66, 0.40);
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 0 0 1px rgba(0, 90, 66, 0.6);
+    color: #ffffff;
     cursor: pointer;
     z-index: 2147483646;
-    opacity: 0.55;
-    transition: opacity 0.22s ease, transform 0.22s ease, background 0.22s ease, color 0.22s ease;
+    opacity: 0.6;
+    transition: opacity 0.22s ease, transform 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
     align-items: center;
     justify-content: center;
 }
@@ -979,13 +982,13 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 #bureau-a11y-restore-pill:focus-visible {
     opacity: 1;
     transform: scale(1.15);
-    background: rgba(0, 90, 66, 0.85);
-    color: #FFFFFF;
+    background: #005A42;
+    box-shadow: 0 0 0 1px rgba(0, 90, 66, 1);
     outline: none;
 }
 
 #bureau-a11y-restore-pill:focus-visible {
-    box-shadow: 0 0 0 3px rgba(189, 248, 57, 0.4);
+    box-shadow: 0 0 0 1px rgba(0, 90, 66, 1), 0 0 0 4px rgba(189, 248, 57, 0.4);
 }
 
 /* Estado oculto — ativado pelo <html class="ba-buttons-hidden"> */
