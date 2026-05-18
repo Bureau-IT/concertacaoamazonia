@@ -281,3 +281,189 @@ a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
 .tribe-events .tribe-events-calendar-list-month-separator__text {
     color: var(--tec-color-text-primary);
 }
+
+
+/* ==========================================================================
+   8. Design System Mapping (TEC v2 → Global Colors)
+   Remapeia as design tokens nativas do TEC para as Global Colors do
+   Elementor. Cobre nav arrows, today button, datepicker label, month
+   separator e date tags — tudo herda de var(--e-global-color-text).
+   Forma canônica do TEC v2 (sem !important, pega telas futuras).
+   ========================================================================== */
+
+.tribe-common,
+.tribe-common.tribe-events {
+    --tec-color-text-primary  : var(--e-global-color-text);
+    --tec-color-text-secondary: var(--e-global-color-text);
+    --tec-color-icon-primary  : var(--e-global-color-text);
+    --tec-color-icon-active   : var(--e-global-color-text);
+    --tec-color-event-icon    : var(--e-global-color-text);
+    --tec-color-link-primary  : var(--e-global-color-text);
+}
+
+/* Datepicker "Próximos" — remover borda que vem do estilo default de botões
+   TEC (border: 2px solid no .tribe-common-c-btn herdado). */
+.tribe-events .tribe-events-c-top-bar__datepicker-button,
+.tribe-events button.tribe-events-c-top-bar__datepicker-button {
+    border: 0 !important;
+}
+
+/* Datepicker (bootstrap-datepicker do TEC) — fixes do glitch visual.
+   A causa raiz do glitch era o universal `* { outline-color }` herdado
+   + outline 2px com offset 2px aplicado nas células no hover (que
+   sobrepunha vizinhas e dava impressão de borda "viva"). Zera
+   outline/transition/border em todas as células e fixa altura para
+   impedir qualquer reflow no hover. Mantém zebra-stripe (vem do
+   reset.css do Hello Elementor) — preferência visual do projeto. */
+
+/* Botão "Adicionar agenda" (subscribe dropdown) — no estado aberto/active
+   o TEC pinta o wrapper de verde (--tec-color-accent-primary) e o texto
+   de branco (--tec-color-background). Em alguns kits o child <button>
+   herda cor diferente e o texto fica invisível sobre o fundo. Força
+   texto + caret brancos visíveis no estado expanded, sem text-shadow
+   (que esmaecia o texto criando halo) e sem opacity parcial. */
+.tribe-events .tribe-events-c-subscribe-dropdown__button--active,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus-within,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:hover,
+.tribe-events .tribe-events-c-subscribe-dropdown__button--active .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus-within .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:hover .tribe-events-c-subscribe-dropdown__button-text {
+    color           : #fff !important;
+    text-shadow     : none !important;
+    -webkit-text-stroke: 0 !important;
+    opacity         : 1 !important;
+}
+
+/* Força fundo VERDE + borda VERDE no wrapper em hover/focus/active. O
+   widget Elementor na home sobrescreve --tec-color-accent-primary para
+   bege no :hover, fazendo o botão "sumir" sobre o fundo da página. A
+   borda fica verde (cor do bg) para combinar com os outros botões do
+   site (ex: "Ver todos os eventos"). */
+.tribe-events .tribe-events-c-subscribe-dropdown__button--active,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus-within,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:hover {
+    background-color: var(--e-global-color-text) !important;
+    border-color    : var(--e-global-color-text) !important;
+}
+
+/* Mata outline do navegador no <button> interno em qualquer estado —
+   eliminava um "glitch" de borda branca ao passar o mouse sobre o texto
+   "Adicionar agenda" no estado aberto. */
+.tribe-events .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events button.tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button-text:hover,
+.tribe-events .tribe-events-c-subscribe-dropdown__button-text:focus,
+.tribe-events .tribe-events-c-subscribe-dropdown__button-text:active,
+.tribe-events button.tribe-events-c-subscribe-dropdown__button-text:focus {
+    outline       : 0 !important;
+    outline-offset: 0 !important;
+    box-shadow    : none !important;
+}
+
+/* O Elementor widget Events View injeta background-color tanto no <div>
+   wrapper quanto no <button> interno via .elementor-XXXX. No estado
+   active, isso pinta um retângulo bege ATRÁS do texto sobre o wrap
+   verde. Força o <button> interno a ficar transparente, deixando só o
+   bg do wrap visível. */
+.tribe-events .tribe-events-c-subscribe-dropdown__button--active .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus-within .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:hover .tribe-events-c-subscribe-dropdown__button-text {
+    background-color: transparent !important;
+    background      : transparent !important;
+}
+
+.tribe-events .tribe-events-c-subscribe-dropdown__button--active .tribe-events-c-subscribe-dropdown__button-icon-svg path,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus .tribe-events-c-subscribe-dropdown__button-icon-svg path,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus-within .tribe-events-c-subscribe-dropdown__button-icon-svg path,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:hover .tribe-events-c-subscribe-dropdown__button-icon-svg path {
+    fill: #fff !important;
+}
+
+/* Remove outline auto do navegador no <button> interno (sublinhado
+   tracejado branco que aparece em :focus). Mantém :focus-visible do
+   wrapper para acessibilidade por teclado. */
+.tribe-events .tribe-events-c-subscribe-dropdown__button-text:focus,
+.tribe-events button.tribe-events-c-subscribe-dropdown__button-text:focus {
+    outline: 0 !important;
+}
+
+/* 1. Geometria estável + sem transitions/outline/box-shadow em todas as
+   células e estados. Fixa altura da row e da célula para impedir
+   reflow no hover (que dá impressão de "linha crescendo"). */
+.tribe-events .datepicker tbody tr {
+    height: 48px !important;
+}
+.tribe-events .datepicker td,
+.tribe-events .datepicker td > button,
+.tribe-events .datepicker .day,
+.tribe-events .datepicker .month,
+.tribe-events .datepicker .year,
+.tribe-events .datepicker .day:hover,
+.tribe-events .datepicker .day:focus,
+.tribe-events .datepicker .day.focused,
+.tribe-events .datepicker .day.current,
+.tribe-events .datepicker .day.current:hover,
+.tribe-events .datepicker .day.current:focus,
+.tribe-events .datepicker .day.current.focused,
+.tribe-events .datepicker .day.active,
+.tribe-events .datepicker .day.active:hover,
+.tribe-events .datepicker .day.active:focus,
+.tribe-events .datepicker .day.active.focused,
+.tribe-events .datepicker .month:hover,
+.tribe-events .datepicker .month:focus,
+.tribe-events .datepicker .month.focused,
+.tribe-events .datepicker .year:hover,
+.tribe-events .datepicker .year:focus,
+.tribe-events .datepicker .year.focused,
+.tribe-events .datepicker td > button:hover,
+.tribe-events .datepicker td > button:focus {
+    height        : 48px !important;
+    outline       : 0 !important;
+    outline-offset: 0 !important;
+    box-shadow    : none !important;
+    border        : 0 !important;
+    transition    : none !important;
+}
+
+/* 2. Anula o ::before que desenha borda interna 1px na célula current. */
+.tribe-events .datepicker .day.current::before,
+.tribe-events .datepicker .day.current:focus::before,
+.tribe-events .datepicker .day.current.focused::before,
+.tribe-events .datepicker .month.current::before,
+.tribe-events .datepicker .year.current::before {
+    border    : 0 !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
+
+/* 3. Garantir contraste do dia "hoje" (.current) quando outro dia é
+   selecionado/hover (perde .active). Se o fundo permanecer verde
+   sólido, o número some por ficar verde sobre verde. Forçar texto
+   branco no .current quando combina com .active. */
+.tribe-events .datepicker .day.current,
+.tribe-events .datepicker .day.current.active,
+.tribe-events .datepicker .day.current:not(:hover):not(.focused) {
+    color: #fff !important;
+}
+
+/* 4. Remove o border do título do mês (.datepicker-switch) e dos botões
+   de navegação (.prev/.next) no hover — TEC desenha um retângulo ao
+   redor que destoa do design do site. */
+.tribe-events .datepicker .datepicker-switch,
+.tribe-events .datepicker .datepicker-switch:hover,
+.tribe-events .datepicker .datepicker-switch:focus,
+.tribe-events .datepicker .prev,
+.tribe-events .datepicker .prev:hover,
+.tribe-events .datepicker .prev:focus,
+.tribe-events .datepicker .next,
+.tribe-events .datepicker .next:hover,
+.tribe-events .datepicker .next:focus {
+    border        : 0 !important;
+    outline       : 0 !important;
+    outline-offset: 0 !important;
+    box-shadow    : none !important;
+}
