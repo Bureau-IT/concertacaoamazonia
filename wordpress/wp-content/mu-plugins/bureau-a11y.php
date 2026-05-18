@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.9.0
+ * Version: 2.9.1
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -12,9 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.9.0' );
+define( 'BUREAU_A11Y_VERSION', '2.9.1' );
 define( 'BUREAU_A11Y_CSS_VERSION', '2.7.0' );
-define( 'BUREAU_A11Y_JS_VERSION', '2.8.0' );
+define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
 define( 'BUREAU_A11Y_URL', plugin_dir_url( __FILE__ ) . 'bureau-a11y/' );
@@ -68,14 +68,18 @@ function bureau_a11y_enqueue_assets() {
  * marcar o <html> ANTES do CSS pintar — evita flash do trigger antes da
  * mini-pill aparecer no estado oculto.
  *
- * Lógica:
- *   1. Se usuário já escolheu (localStorage definido) → respeita escolha
- *   2. Se NUNCA escolheu (localStorage null) E é página com default oculto
- *      → começa oculto (só mini-pill visível)
- *   3. Caso contrário → padrão visível
+ * Hierarquia de decisão:
+ *   1. Path está em "always hidden" → SEMPRE oculto (ignora localStorage).
+ *      O `<html>` ganha ba-buttons-hidden + ba-buttons-force-hidden — a 2ª
+ *      classe é lida pelo JS pra não persistir click na mini-pill.
+ *   2. localStorage 'bureauA11y.hidden' === '1' → oculto
+ *   3. localStorage 'bureauA11y.hidden' === '0' → visível
+ *   4. Path está em "default hidden" → oculto (sem força)
+ *   5. Caso contrário → visível (padrão)
  *
- * Páginas com default oculto são definidas em
- * `bureau_a11y_paths_hidden_by_default()` (filtrável via hook).
+ * Listas de paths são filtráveis:
+ *   - `bureau_a11y_paths_always_hidden`  (vence localStorage)
+ *   - `bureau_a11y_paths_hidden_by_default` (só se não há escolha do usuário)
  */
 add_action( 'wp_head', 'bureau_a11y_hide_state_inline', 1 );
 function bureau_a11y_hide_state_inline() {
@@ -83,34 +87,53 @@ function bureau_a11y_hide_state_inline() {
 		return;
 	}
 
-	$paths_hidden = bureau_a11y_paths_hidden_by_default();
-	$paths_json   = wp_json_encode( array_values( $paths_hidden ) );
+	$paths_always  = wp_json_encode( array_values( bureau_a11y_paths_always_hidden() ) );
+	$paths_default = wp_json_encode( array_values( bureau_a11y_paths_hidden_by_default() ) );
 	?>
 <script>(function(){try{
-var saved = localStorage.getItem('bureauA11y.hidden');
-if (saved === '1') { document.documentElement.classList.add('ba-buttons-hidden'); return; }
-if (saved === '0') { return; }
-var paths = <?php echo $paths_json; ?>;
+var html = document.documentElement;
 var p = location.pathname.replace(/\/+$/, '');
-for (var i = 0; i < paths.length; i++) {
-  var t = paths[i].replace(/\/+$/, '');
-  if (p === t) { document.documentElement.classList.add('ba-buttons-hidden'); return; }
+function matchPath(list){
+  for (var i = 0; i < list.length; i++) {
+    if (p === list[i].replace(/\/+$/, '')) return true;
+  }
+  return false;
+}
+// 1. Force-hidden: ignora localStorage e marca pro JS não persistir
+if (matchPath(<?php echo $paths_always; ?>)) {
+  html.classList.add('ba-buttons-hidden', 'ba-buttons-force-hidden');
+  return;
+}
+// 2-3. Escolha explícita do usuário
+var saved = localStorage.getItem('bureauA11y.hidden');
+if (saved === '1') { html.classList.add('ba-buttons-hidden'); return; }
+if (saved === '0') { return; }
+// 4. Default oculto da página
+if (matchPath(<?php echo $paths_default; ?>)) {
+  html.classList.add('ba-buttons-hidden');
 }
 }catch(e){}})();</script>
 	<?php
 }
 
 /**
- * Paths (sem trailing slash) que devem inicializar com o painel a11y oculto.
- * Apenas se o usuário não escolheu manualmente antes.
- *
- * Outros mu-plugins/temas podem estender via filtro `bureau_a11y_paths_hidden_by_default`.
+ * Paths que SEMPRE iniciam ocultos, mesmo com preferência do usuário.
+ * Click na mini-pill mostra apenas durante a sessão da página (sem persistir).
+ * Atlas Cultural exige isso por requisito de design.
  */
-function bureau_a11y_paths_hidden_by_default() {
+function bureau_a11y_paths_always_hidden() {
 	$paths = [
 		'/cultura/atlas-cultural-das-amazonias',
 	];
-	return apply_filters( 'bureau_a11y_paths_hidden_by_default', $paths );
+	return apply_filters( 'bureau_a11y_paths_always_hidden', $paths );
+}
+
+/**
+ * Paths que iniciam ocultos por default — preferência do usuário tem prioridade.
+ * Atualmente vazio; mantido como ponto de extensão futuro.
+ */
+function bureau_a11y_paths_hidden_by_default() {
+	return apply_filters( 'bureau_a11y_paths_hidden_by_default', [] );
 }
 
 /**

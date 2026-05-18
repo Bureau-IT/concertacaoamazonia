@@ -1553,12 +1553,15 @@
             var restoreEl = document.getElementById('bureau-a11y-restore-pill');
 
             function setHidden(hidden) {
-                try {
-                    // Sempre grava escolha explícita (1 ou 0) — assim páginas
-                    // com default oculto respeitam o "mostrar" do usuário nas
-                    // próximas visitas.
-                    localStorage.setItem(HIDE_KEY, hidden ? '1' : '0');
-                } catch (e) {}
+                // Páginas marcadas como "force hidden" (ex: Atlas Cultural)
+                // não persistem a escolha — click na mini-pill mostra só na
+                // sessão da página, ao recarregar volta ao oculto.
+                var isForceHidden = html.classList.contains('ba-buttons-force-hidden');
+                if (!isForceHidden) {
+                    try {
+                        localStorage.setItem(HIDE_KEY, hidden ? '1' : '0');
+                    } catch (e) {}
+                }
                 html.classList.toggle('ba-buttons-hidden', hidden);
             }
 
