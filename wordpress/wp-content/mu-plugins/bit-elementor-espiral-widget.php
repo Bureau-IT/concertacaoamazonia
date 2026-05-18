@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.1.6
+ * Version:      2.1.7
  * Author:       Bureau IT
  * Network:      true
  */
@@ -1718,7 +1718,15 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                   // garante feedback visual sólido antes do browser começar request.
                   var NAV_DELAY         = 800;
                   var LOADING_SAFETY_MS = 8000; // safety net se navegação for cancelada
-                  var prefersReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                  // Respeita: preferência do SO (prefers-reduced-motion) +
+                  // toggle "Sem animações" do BIT A11y (.ba-stop-animations no <html>).
+                  // SMIL <animate> não responde a animation-duration:0 do CSS,
+                  // então precisa de gate JS explícito.
+                  function shouldReduceMotion(){
+                    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
+                    if (document.documentElement.classList.contains('ba-stop-animations')) return true;
+                    return false;
+                  }
 
                   document.addEventListener('click', function(ev){
                     var link = ev.target && ev.target.closest
@@ -1751,6 +1759,13 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         oldTargets[k].classList.remove('bit-glow-target', 'bit-loading-target');
                       }
                     }
+
+                    // Gate de reduced-motion: respeitar a preferência do usuário
+                    // significa NÃO injetar SMIL <animate> nem agendar o setTimeout
+                    // de navegação. Sai cedo, deixa o <a href> nativo navegar.
+                    // Cobre: prefers-reduced-motion do SO E toggle "Sem animações"
+                    // do BIT A11y (.ba-stop-animations no <html>).
+                    if (shouldReduceMotion()) return;
 
                     link.classList.add('bit-clicked');
                     group.classList.add('bit-has-clicked');
@@ -1804,9 +1819,6 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
 
                     // Reflow para reiniciar a animação caso mesmo eixo seja clicado de novo
                     void link.getBoundingClientRect();
-
-                    // Se reduced-motion, apenas navega imediatamente
-                    if (prefersReduce) return;
 
                     // Adia navegação para o usuário enxergar o glow
                     var href = link.getAttribute('href');
