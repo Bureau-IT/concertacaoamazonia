@@ -1,0 +1,34 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+[Image #9] [Image #10] esse botão deve ser quadrado e seta centralizada. Atualize em PT e EN
+
+### Prompt 2
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-18 às 01.20.48.png]
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_zNOYgi/Captura de Tela 2026-05-18 às 01.21.21.png]
+
+### Prompt 3
+
+Continue from where you left off.
+
+### Prompt 4
+
+na versao em ingles do atlas, https://concertacao.bureau-it.com/cultura/en/cultural-atlas-of-the-amazon/, o a11y nao esta no modo oculto
+
+### Prompt 5
+
+[Image #11] testou com playwright??
+
+### Prompt 6
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_Rz7Y2h/Captura de Tela 2026-05-18 às 03.10.10.png]
+
+### Prompt 7
+
+autorizo
+
