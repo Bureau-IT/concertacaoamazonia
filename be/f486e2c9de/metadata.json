@@ -1,0 +1,19 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "bef486e2c9de",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "aws/cf-function-uploads-oac-router-pre-canary-strip-code.bin"
+  ],
+  "sessions": [
+    {
+      "metadata": "/be/f486e2c9de/0/metadata.json",
+      "transcript": "/be/f486e2c9de/0/full.jsonl",
+      "context": "",
+      "content_hash": "/be/f486e2c9de/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
