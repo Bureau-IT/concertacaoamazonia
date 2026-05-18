@@ -149,42 +149,32 @@
     .sub-arrow {
         display: none !important;
     }
+
+    /* --- 9.5 Fix bug stuck-pink no menu desktop ---
+     * SmartMenus (lib que Elementor Pro usa internamente) injeta classes
+     * .highlighted + aria-expanded="true" quando o mouse passa rápido entre
+     * items adjacentes, mas NÃO remove no mouseleave quando o submenu não
+     * chegou a abrir. CSS gerado pelo Elementor trata .highlighted como
+     * sinônimo de :hover e mantém items coloridos como hover indefinidamente.
+     *
+     * Fix: forçar cor herdada quando .highlighted está presente mas o item
+     * NÃO está sendo hovered no momento — :hover é o estado real, .highlighted
+     * é resíduo de race condition. O :hover real continua aplicando a cor accent
+     * (vence por especificidade do .elementor-item-active no seletor original).
+     * Validar visualmente com Playwright headed após qualquer mudança.
+     */
+    .elementor-location-header .elementor-nav-menu--main a.elementor-item.highlighted:not(:hover):not(:focus):not(.elementor-item-active) {
+        color: var(--e-global-color-secondary);
+        fill : var(--e-global-color-secondary);
+    }
 }
 
-/* --- 9.4 Mobile / Tablet --- */
-.elementor-location-header nav.elementor-nav-menu--dropdown {
-    top             : 19px !important;
-    background-color: var(--menu-mobile-background) !important;
-}
-
-.elementor-location-header nav.elementor-nav-menu--dropdown > ul.elementor-nav-menu > li.menu-item > a + ul.sub-menu {
-    background-color: var(--menu-mobile-background) !important;
-    margin          : 0 0.5rem !important;
-    border-radius   : 0.5rem;
-}
-
-.elementor-location-header .elementor-nav-menu--dropdown ul li a {
-    color          : var(--header-txt, #FFFFFF) !important;
-    text-decoration: none !important;
-}
-
-.elementor-location-header .elementor-nav-menu--dropdown > ul > li > a {
-    font-weight: 700 !important;
-}
-
-.elementor-location-header .elementor-nav-menu--dropdown ul li a:hover,
-.elementor-location-header .elementor-nav-menu--dropdown ul li a:focus,
-.elementor-location-header .elementor-nav-menu--dropdown ul li a.highlighted {
-    background: var(--menu-mobile-background-hover) !important;
-    color     : var(--e-global-color-accent, #47DEA8) !important;
-    outline   : none !important;
-    border    : 0 !important;
-}
-
-.elementor-location-header .elementor-nav-menu--dropdown ul li.elementor-active > a {
-    background: var(--menu-mobile-background-hover) !important;
-    color     : var(--e-global-color-accent, #47DEA8) !important;
-}
+/* --- 9.4 Mobile / Tablet ---
+ * Bloco removido em 2026-05-18: as cores/tipografia do menu mobile (dropdown)
+ * agora são controladas exclusivamente via painel "Lista suspensa" do widget
+ * Nav Menu no Elementor (Estilo → Lista suspensa → Normal/Hover/Ativo).
+ * O `!important` deste bloco bloqueava os controles do painel.
+ */
 
 
 /* ==========================================================================

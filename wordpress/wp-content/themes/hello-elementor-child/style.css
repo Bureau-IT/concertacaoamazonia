@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.2.23
+Version: 2.2.28
 Template: hello-elementor
 */
 
@@ -217,7 +217,12 @@ Template: hello-elementor
        ========================================= */
     --ucpa-transition-timing-function: cubic-bezier(1.000, -0.125, 0.310, 1.460);
     --ucpa-transition-duration       : 200ms;
-    --ucpa-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' style='width:100px;height:auto;fill:%237c6451' viewBox='0 0 12.7 12.93'%3E%3Cpath d='M5.5 11.01c-3.03 0-5.5-2.47-5.5-5.5C0 2.47 2.47 0 5.51 0c3.04 0 5.51 2.47 5.51 5.51 0 3.04-2.47 5.5-5.51 5.5ZM5.5.58C2.79.58.58 2.79.58 5.51c0 2.71 2.21 4.92 4.92 4.92s4.93-2.21 4.93-4.92C10.43 2.79 8.22.59 5.5.59Z' class='cls-1'/%3E%3Cpath d='M12.41 12.93c-.07 0-.15-.03-.21-.09L8.96 9.6c-.11-.11-.11-.3 0-.41.11-.11.3-.11.41 0l3.24 3.24c.11.11.11.3 0 .41-.06.06-.13.09-.21.09Z' /%3E%3C/svg%3E");
+
+    /* Lupa BIT — cor única definida aqui (preto 85% = #262626).
+       Para mudar a cor de TODAS as lupas do site, edite apenas --bit-icon-search-fill.
+       O fill é URL-encoded (%23 = #). Mantenha o # original e o %-encoded em sincronia. */
+    --bit-icon-search-fill: %23262626;
+    --ucpa-lupa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' style='width:100px;height:auto;fill:%23262626' viewBox='0 0 12.7 12.93'%3E%3Cpath d='M5.5 11.01c-3.03 0-5.5-2.47-5.5-5.5C0 2.47 2.47 0 5.51 0c3.04 0 5.51 2.47 5.51 5.51 0 3.04-2.47 5.5-5.51 5.5ZM5.5.58C2.79.58.58 2.79.58 5.51c0 2.71 2.21 4.92 4.92 4.92s4.93-2.21 4.93-4.92C10.43 2.79 8.22.59 5.5.59Z' class='cls-1'/%3E%3Cpath d='M12.41 12.93c-.07 0-.15-.03-.21-.09L8.96 9.6c-.11-.11-.11-.3 0-.41.11-.11.3-.11.41 0l3.24 3.24c.11.11.11.3 0 .41-.06.06-.13.09-.21.09Z' /%3E%3C/svg%3E");
 
     /* =========================================
        VARIÁVEIS DO MENU
