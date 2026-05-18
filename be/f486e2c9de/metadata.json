@@ -3,7 +3,7 @@
   "checkpoint_id": "bef486e2c9de",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 8,
+  "checkpoints_count": 12,
   "files_touched": [
     "aws/cf-function-uploads-oac-router-pre-canary-strip-code.bin"
   ],
@@ -28,13 +28,20 @@
       "context": "",
       "content_hash": "/be/f486e2c9de/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/be/f486e2c9de/3/metadata.json",
+      "transcript": "/be/f486e2c9de/3/full.jsonl",
+      "context": "/be/f486e2c9de/3/context.md",
+      "content_hash": "/be/f486e2c9de/3/content_hash.txt",
+      "prompt": "/be/f486e2c9de/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 621,
-    "cache_creation_tokens": 261298,
-    "cache_read_tokens": 14343410,
-    "output_tokens": 54909,
-    "api_call_count": 95
+    "input_tokens": 913,
+    "cache_creation_tokens": 519430,
+    "cache_read_tokens": 42688844,
+    "output_tokens": 108816,
+    "api_call_count": 279
   }
 }
