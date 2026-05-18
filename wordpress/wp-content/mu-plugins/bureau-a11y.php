@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.9.1
+ * Version: 2.9.6
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -12,8 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.9.1' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.7.0' );
+define( 'BUREAU_A11Y_VERSION', '2.9.6' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.7.4' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
@@ -124,6 +124,7 @@ if (matchPath(<?php echo $paths_default; ?>)) {
 function bureau_a11y_paths_always_hidden() {
 	$paths = [
 		'/cultura/atlas-cultural-das-amazonias',
+		'/cultura/en/cultural-atlas-of-the-amazon',
 	];
 	return apply_filters( 'bureau_a11y_paths_always_hidden', $paths );
 }
