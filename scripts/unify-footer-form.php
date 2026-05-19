@@ -84,6 +84,7 @@ if ( function_exists( 'switch_to_blog' ) ) {
 $raw = get_post_meta( $template_id, '_elementor_data', true );
 if ( empty( $raw ) ) {
     fwrite( STDERR, "ERRO: _elementor_data vazio para template $template_id\n" );
+    if ( function_exists( 'restore_current_blog' ) ) { restore_current_blog(); }
     exit( 1 );
 }
 
@@ -92,6 +93,7 @@ $bytes_before = strlen( is_string( $raw ) ? $raw : wp_json_encode( $raw ) );
 $data = is_array( $raw ) ? $raw : json_decode( wp_unslash( $raw ), true );
 if ( ! is_array( $data ) ) {
     fwrite( STDERR, "ERRO: _elementor_data nao e JSON valido (json_last_error=" . json_last_error_msg() . ")\n" );
+    if ( function_exists( 'restore_current_blog' ) ) { restore_current_blog(); }
     exit( 1 );
 }
 
@@ -151,6 +153,7 @@ $mobile_form  = &bit_find_by_id( $data, $widget_id_mobile );
 
 if ( $desktop_form === null ) {
     fwrite( STDERR, "ERRO: widget desktop $widget_id_desktop nao encontrado no _elementor_data\n" );
+    if ( function_exists( 'restore_current_blog' ) ) { restore_current_blog(); }
     exit( 1 );
 }
 
@@ -165,6 +168,13 @@ if ( $mobile_form === null ) {
 
 echo "OK: widget desktop $widget_id_desktop encontrado\n";
 echo "OK: widget mobile $widget_id_mobile encontrado\n";
+
+// Guard: form_fields precisa estar presente e ser array
+if ( empty( $desktop_form['settings']['form_fields'] ) || ! is_array( $desktop_form['settings']['form_fields'] ) ) {
+    fwrite( STDERR, "ERRO: widget desktop nao tem form_fields — template corrompido?\n" );
+    if ( function_exists( 'restore_current_blog' ) ) { restore_current_blog(); }
+    exit( 1 );
+}
 
 // ---------------------------------------------------------------------------
 // 1. Copiar form_name do mobile para form_name_mobile no desktop
@@ -233,7 +243,7 @@ if ( ! empty( $desktop_settings['form_fields'] ) && is_array( $desktop_settings[
                 $d_field['field_options']       = implode( "\n", $lines );
                 $d_field['field_options_empty']  = 'Região';
                 echo "+ field[$cid].field_options: removida primeira linha '$first' (era placeholder invalido)\n";
-                echo "+ field[$cid].field_options_empty = \"Regiao\" (placeholder via campo dedicado — corrige bug de valor enviado)\n";
+                echo "+ field[$cid].field_options_empty = \"Região\" (placeholder via campo dedicado — corrige bug de valor enviado)\n";
             } else {
                 echo "  INFO: field[$cid] primeira opcao e '$first' — nao e placeholder Regiao, ignorando\n";
             }
@@ -324,7 +334,9 @@ if ( function_exists( 'restore_current_blog' ) ) {
     restore_current_blog();
 }
 
-echo "\nDone. Validar:\n";
+echo "\nDone. Post-deploy checklist:\n";
+echo "  - FPM reload: docker exec concertacao-dev-wordpress sh -c 'kill -USR2 \$(pgrep -of \"php-fpm: master\" | head -1)'\n";
+echo "\nValidar:\n";
 echo "  - Desktop (>=1025px): https://cambrasmax.local:8484/ — heading 'Cadastre-se...', inputs retangulo\n";
 echo "  - Mobile (<=767px): heading 'Inscreva-se...', inputs pill branco\n";
 echo "  - Select Regiao: primeira <option> e placeholder disabled, nao opcao valida\n";
