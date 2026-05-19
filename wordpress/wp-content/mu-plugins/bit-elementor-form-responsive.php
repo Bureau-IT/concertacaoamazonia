@@ -273,6 +273,7 @@ function _make_repeater_fields_responsive( $element, $args ) {
  *   Via elementor/frontend/widget/before_render (action):
  *     - Classe CSS `bit-form-responsive` na div raiz do widget Form (_wrapper).
  *     - data-bit-form-name-tablet/mobile na div raiz (_wrapper).
+ *     - Enqueue de `bit-form-responsive` CSS (quando widget Form presente).
  *
  *   Via elementor/widget/render_content (filter):
  *     - data-bit-placeholder-tablet/mobile em cada input/textarea/select.
@@ -283,10 +284,28 @@ function _make_repeater_fields_responsive( $element, $args ) {
  * `elementor-widget-form` é emitida em before_render() via _wrapper attributes.
  *
  * Todos os injects são condicionais: atributos vazios NÃO são emitidos.
+ * O CSS é registrado globalmente mas enqueued apenas quando um widget Form aparece
+ * na página — custo de ~600 bytes gzipped por página com qualquer form widget.
  */
 function _register_render_filter() {
     // -----------------------------------------------------------------------
+    // 0. Registrar CSS globalmente (enqueue adiado para when the widget renders)
+    //    content_url() é necessário porque plugins_url() resolve para /plugins/,
+    //    não para /mu-plugins/ onde este arquivo realmente vive.
+    // -----------------------------------------------------------------------
+    add_action( 'wp_enqueue_scripts', function () {
+        wp_register_style(
+            'bit-form-responsive',
+            content_url( 'mu-plugins/bit-elementor-form-responsive.css' ),
+            [],
+            \BIT\ElementorFormResponsive\VERSION
+        );
+    } );
+
+    // -----------------------------------------------------------------------
     // 1. Classe escopo + data-bit-form-name-* no wrapper externo do widget
+    //    + enqueue CSS quando o widget Form efetivamente renderiza na página.
+    //    O early-return garante que wp_enqueue_style() só é chamado para forms.
     // -----------------------------------------------------------------------
     add_action(
         'elementor/frontend/widget/before_render',
@@ -294,6 +313,12 @@ function _register_render_filter() {
             if ( $widget->get_name() !== 'form' ) {
                 return;
             }
+
+            // Enqueue CSS — registrado no hook wp_enqueue_scripts acima;
+            // enqueue aqui garante que o style tag aparece no <head> antes
+            // do conteúdo do widget ser emitido. Safe de chamar N vezes
+            // (WordPress deduplica internamente via $wp_styles->done).
+            wp_enqueue_style( 'bit-form-responsive' );
 
             $widget_class = \BIT\ElementorFormResponsive\WIDGET_CLASS;
             $settings     = $widget->get_settings_for_display();

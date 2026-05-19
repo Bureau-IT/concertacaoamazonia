@@ -1,0 +1,127 @@
+/**
+ * BIT Elementor Form Responsive — CSS escopado
+ *
+ * Escopo exclusivo: .elementor-widget-form.bit-form-responsive
+ * Deltas cobertos:
+ *   #3 Layout dos fields:     row (desktop) → column (mobile)
+ *   #4 Border-radius:         4px (desktop) → 24px pill (mobile)
+ *   #5 Background input:      transparent (desktop) → #fff (mobile)
+ *   #6 Cor do placeholder:    branco 65% (desktop) → verde-menta 85% (mobile)
+ *   #7 Posição do botão:      inline-right (desktop) → centered-below (mobile)
+ *   #8 Largura do botão:      flex (desktop) → min 30% compact centered (mobile)
+ *
+ * Deltas #1 (heading text) e #2 (placeholder text) são tratados pelo JS (matchMedia).
+ *
+ * Cores extraídas do design existente do footer:
+ *   Fundo do footer:  #0d3a2c (verde escuro — Elementor Global Color)
+ *   Bordas/texto:     #ffffff (branco)
+ *   Placeholder desk: rgba(255,255,255,0.65)
+ *   Input mobile bg:  #ffffff
+ *   Texto mobile:     #0d3a2c
+ *   Placeholder mob:  rgba(127,176,136,0.85) (~#7fb088 mint-green)
+ *
+ * Breakpoints Elementor padrão:
+ *   Tablet: max-width 1024px
+ *   Mobile: max-width 767px
+ *
+ * Spec: docs/superpowers/specs/2026-05-19-formulario-rodape-rdstation-design.md
+ * Author: Daniel Cambría / Bureau de Tecnologia Ltda.
+ * Version: 1.0.0
+ */
+
+/* ==========================================================================
+   DESKTOP — inputs retangulares borda branca sobre fundo verde escuro
+   ========================================================================== */
+
+/* Delta #4 desktop — border-radius 4px (retangular) */
+.elementor-widget-form.bit-form-responsive .elementor-field-textual,
+.elementor-widget-form.bit-form-responsive select.elementor-field {
+    background: transparent;
+    border: 2px solid #fff;
+    color: #fff;
+    border-radius: 4px;
+}
+
+/* Delta #6 desktop — placeholder branco 65% */
+.elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+/* Delta #6 desktop — opção vazia do select (texto do placeholder via option disabled) */
+.elementor-widget-form.bit-form-responsive select.elementor-field option[disabled] {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+/* Delta #7 + #8 desktop — botão inline à direita, largura flex */
+.elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
+    display: flex;
+    align-items: center;
+}
+
+.elementor-widget-form.bit-form-responsive button[type="submit"] {
+    background: transparent;
+    border: 2px solid #fff;
+    color: #fff;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   TABLET (768px – 1024px) — herda desktop; sem alteração específica
+   ========================================================================== */
+
+/* Tablet herda as regras desktop acima sem necessidade de bloco separado. */
+
+/* ==========================================================================
+   MOBILE (≤767px) — pill branco, layout vertical, botão centralizado
+   ========================================================================== */
+
+@media (max-width: 767px) {
+
+    /* Delta #3 — layout vertical (column) com espaçamento entre campos */
+    .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper {
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    /* Delta #3 — cada field group ocupa a largura total */
+    .elementor-widget-form.bit-form-responsive .elementor-field-group {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Delta #4 + #5 — pill branco, fundo branco, texto verde escuro, sem borda */
+    .elementor-widget-form.bit-form-responsive .elementor-field-textual,
+    .elementor-widget-form.bit-form-responsive select.elementor-field {
+        background: #fff;
+        color: #0d3a2c;
+        border: none;
+        border-radius: 24px;
+        padding: 12px 20px;
+    }
+
+    /* Delta #6 — placeholder verde-menta (mint) em mobile */
+    .elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
+        color: rgba(127, 176, 136, 0.85);
+    }
+
+    /* Delta #6 — opção vazia do select em mobile */
+    .elementor-widget-form.bit-form-responsive select.elementor-field option[disabled] {
+        color: rgba(127, 176, 136, 0.85);
+    }
+
+    /* Delta #7 — botão centralizado abaixo dos campos */
+    .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
+        display: flex;
+        justify-content: center;
+    }
+
+    /* Delta #8 — botão compacto centralizado, mínimo 30% da largura do form */
+    .elementor-widget-form.bit-form-responsive button[type="submit"] {
+        width: auto;
+        min-width: 30%;
+        padding: 10px 32px;
+    }
+
+}
