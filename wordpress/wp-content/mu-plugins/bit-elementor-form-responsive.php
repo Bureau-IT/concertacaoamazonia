@@ -30,6 +30,7 @@ add_action( 'plugins_loaded', function () {
     }
 
     _register_form_control_hooks();
+    _register_render_filter();
 }, 20 );
 
 /**
@@ -263,5 +264,133 @@ function _make_repeater_fields_responsive( $element, $args ) {
         'form_fields',
         [ 'fields' => $fields ],
         [ 'recursive' => false ]
+    );
+}
+
+/**
+ * Registra os hooks de render que injetam:
+ *
+ *   Via elementor/frontend/widget/before_render (action):
+ *     - Classe CSS `bit-form-responsive` na div raiz do widget Form (_wrapper).
+ *     - data-bit-form-name-tablet/mobile na div raiz (_wrapper).
+ *
+ *   Via elementor/widget/render_content (filter):
+ *     - data-bit-placeholder-tablet/mobile em cada input/textarea/select.
+ *     - data-bit-field-options-empty-tablet/mobile em cada select.
+ *
+ * A divisão existe porque `render_content` recebe apenas o conteúdo INTERNO
+ * do widget (dentro do elementor-widget-container), enquanto a div raiz com
+ * `elementor-widget-form` é emitida em before_render() via _wrapper attributes.
+ *
+ * Todos os injects são condicionais: atributos vazios NÃO são emitidos.
+ */
+function _register_render_filter() {
+    // -----------------------------------------------------------------------
+    // 1. Classe escopo + data-bit-form-name-* no wrapper externo do widget
+    // -----------------------------------------------------------------------
+    add_action(
+        'elementor/frontend/widget/before_render',
+        function ( $widget ) {
+            if ( $widget->get_name() !== 'form' ) {
+                return;
+            }
+
+            $widget_class = \BIT\ElementorFormResponsive\WIDGET_CLASS;
+            $settings     = $widget->get_settings_for_display();
+
+            // Classe escopo — add_render_attribute é idempotente internamente
+            $widget->add_render_attribute( '_wrapper', 'class', $widget_class );
+
+            // data-bit-form-name-tablet/mobile
+            $name_tablet = trim( $settings['form_name_tablet'] ?? '' );
+            $name_mobile = trim( $settings['form_name_mobile'] ?? '' );
+
+            if ( $name_tablet !== '' ) {
+                $widget->add_render_attribute( '_wrapper', 'data-bit-form-name-tablet', $name_tablet );
+            }
+            if ( $name_mobile !== '' ) {
+                $widget->add_render_attribute( '_wrapper', 'data-bit-form-name-mobile', $name_mobile );
+            }
+        }
+    );
+
+    // -----------------------------------------------------------------------
+    // 2. data-attrs nos inputs/textareas/selects (conteúdo interno do widget)
+    // -----------------------------------------------------------------------
+    add_filter(
+        'elementor/widget/render_content',
+        function ( $content, $widget ) {
+            if ( $widget->get_name() !== 'form' ) {
+                return $content;
+            }
+
+            $settings = $widget->get_settings_for_display();
+
+            if ( empty( $settings['form_fields'] ) || ! is_array( $settings['form_fields'] ) ) {
+                return $content;
+            }
+
+            foreach ( $settings['form_fields'] as $field ) {
+                $field_id = $field['custom_id'] ?? $field['_id'] ?? '';
+                if ( ! $field_id ) {
+                    continue;
+                }
+
+                $escaped_id = preg_quote( $field_id, '/' );
+
+                // --- placeholder_tablet / placeholder_mobile ---
+                $ph_tablet = trim( $field['placeholder_tablet'] ?? '' );
+                $ph_mobile = trim( $field['placeholder_mobile'] ?? '' );
+
+                $ph_attrs = '';
+                if ( $ph_tablet !== '' ) {
+                    $ph_attrs .= ' data-bit-placeholder-tablet="' . esc_attr( $ph_tablet ) . '"';
+                }
+                if ( $ph_mobile !== '' ) {
+                    $ph_attrs .= ' data-bit-placeholder-mobile="' . esc_attr( $ph_mobile ) . '"';
+                }
+
+                // --- field_options_empty_tablet / _mobile (select only) ---
+                $foe_tablet = trim( $field['field_options_empty_tablet'] ?? '' );
+                $foe_mobile = trim( $field['field_options_empty_mobile'] ?? '' );
+
+                $foe_attrs = '';
+                if ( $foe_tablet !== '' ) {
+                    $foe_attrs .= ' data-bit-field-options-empty-tablet="' . esc_attr( $foe_tablet ) . '"';
+                }
+                if ( $foe_mobile !== '' ) {
+                    $foe_attrs .= ' data-bit-field-options-empty-mobile="' . esc_attr( $foe_mobile ) . '"';
+                }
+
+                if ( $ph_attrs === '' && $foe_attrs === '' ) {
+                    continue;
+                }
+
+                // Match <input> or <textarea> (not select) — inject placeholder data-attrs
+                if ( $ph_attrs !== '' ) {
+                    $content = preg_replace(
+                        '/(<(?:input|textarea)[^>]*\bid="form-field-' . $escaped_id . '"[^>]*?)(\/?>)/s',
+                        '$1' . $ph_attrs . '$2',
+                        $content,
+                        1
+                    );
+                }
+
+                // Match <select> — inject placeholder data-attrs + foe data-attrs
+                $select_extra = $ph_attrs . $foe_attrs;
+                if ( $select_extra !== '' ) {
+                    $content = preg_replace(
+                        '/(<select[^>]*?\bid="form-field-' . $escaped_id . '"[^>]*?)(>)/s',
+                        '$1' . $select_extra . '$2',
+                        $content,
+                        1
+                    );
+                }
+            }
+
+            return $content;
+        },
+        10,
+        2
     );
 }
