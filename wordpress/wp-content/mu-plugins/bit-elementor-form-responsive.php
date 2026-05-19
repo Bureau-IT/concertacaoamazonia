@@ -298,12 +298,38 @@ function _register_render_filter() {
             $widget_class = \BIT\ElementorFormResponsive\WIDGET_CLASS;
             $settings     = $widget->get_settings_for_display();
 
-            // Classe escopo — add_render_attribute é idempotente internamente
-            $widget->add_render_attribute( '_wrapper', 'class', $widget_class );
-
             // data-bit-form-name-tablet/mobile
             $name_tablet = trim( $settings['form_name_tablet'] ?? '' );
             $name_mobile = trim( $settings['form_name_mobile'] ?? '' );
+
+            // Verifica se este widget tem ao menos um valor responsivo definido.
+            // A classe APENAS é injetada em forms que optaram pela feature;
+            // forms sem valores responsivos passam sem toque algum.
+            $has_responsive = ( $name_tablet !== '' || $name_mobile !== '' );
+
+            if ( ! $has_responsive && ! empty( $settings['form_fields'] ) && is_array( $settings['form_fields'] ) ) {
+                foreach ( $settings['form_fields'] as $f ) {
+                    $candidates = [
+                        'placeholder_tablet',
+                        'placeholder_mobile',
+                        'field_options_empty_tablet',
+                        'field_options_empty_mobile',
+                    ];
+                    foreach ( $candidates as $k ) {
+                        if ( trim( $f[ $k ] ?? '' ) !== '' ) {
+                            $has_responsive = true;
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            if ( ! $has_responsive ) {
+                return; // no-op: form sem responsive settings — não injeta classe nem data-attrs
+            }
+
+            // Classe escopo — add_render_attribute é idempotente internamente
+            $widget->add_render_attribute( '_wrapper', 'class', $widget_class );
 
             if ( $name_tablet !== '' ) {
                 $widget->add_render_attribute( '_wrapper', 'data-bit-form-name-tablet', $name_tablet );
@@ -331,7 +357,7 @@ function _register_render_filter() {
             }
 
             foreach ( $settings['form_fields'] as $field ) {
-                $field_id = $field['custom_id'] ?? $field['_id'] ?? '';
+                $field_id = ( $field['custom_id'] ?? '' ) ?: ( $field['_id'] ?? '' );
                 if ( ! $field_id ) {
                     continue;
                 }
