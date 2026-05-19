@@ -76,7 +76,12 @@ Para submeter formulários reais em ambientes com reCAPTCHA v3 invisible (Elemen
 
 **Token por ambiente** (não comitar, ler do `wp-config.php` do ambiente):
 - DEV: `cat wordpress/wp-config.php | grep BIT_SMOKE_BYPASS_TOKEN`
-- PROD: SSH `concertacaoamazonia.com.br-prod-sa` e `grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php`
+- PROD: SSH `concertacaoamazonia.com.br-prod-sa` — **OBRIGATÓRIO usar `sudo`** (wp-config.php é restrito ao `www-data`; sem `sudo` o grep retorna vazio em vez de "permission denied", causando falso negativo "constante ausente" e bloqueando os submits reais):
+  ```bash
+  ssh concertacaoamazonia.com.br-prod-sa "sudo grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php"
+  # Alternativa equivalente (mesma autorização):
+  ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br config get BIT_SMOKE_BYPASS_TOKEN"
+  ```
 
 Quando rodar o snippet "submit real — PROD" ou "submit real — GREEN", substitua `BIT_SMOKE_TOKEN_AQUI` pelo token do ambiente alvo.
 
@@ -246,7 +251,7 @@ async (page) => {
 **Diagnóstico por `bypass_header`:**
 - `OK` — mu-plugin ativo, token bate, callbacks reCAPTCHA removidos. Submit deveria funcionar.
 - `FAILED` — token bate mas mu-plugin não encontrou callbacks reCAPTCHA pra remover. Drift do Elementor Pro (priority/classe mudou após update). Bloquear deploy, atualizar mu-plugin.
-- `NOOP` — token errado, constante ausente, ou header não chegou ao PHP. Conferir constante via SSH: `grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php`.
+- `NOOP` — token errado, constante ausente, ou header não chegou ao PHP. Conferir constante via SSH **com `sudo`** (wp-config.php é restrito ao `www-data`): `sudo grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php` — sem `sudo` o grep retorna vazio em vez de "permission denied" e o operador conclui (falsamente) que a constante está ausente.
 - `absent` — mu-plugin não está instalado/ativo. Conferir: `ls -la /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php`.
 
 **Teste negativo obrigatório:** rodar o snippet trocando `BIT_SMOKE_TOKEN_AQUI` por um token claramente inválido (`'invalid'.repeat(10)`). Esperado: `bypass_header=NOOP` E `submit_ok=false` com erro reCAPTCHA. Se passar, o bypass está aberto pra qualquer um — incidente de segurança.
@@ -1345,7 +1350,7 @@ Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_c
 
 ## Fase 9 — Detecção de leaks e regressões silenciosas (PROD)
 
-7 gates que cobrem incidentes recorrentes: URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`, CSP regression do Spotify embed em `/cultura/porosidades/` (2026-05-18), e WPML orphan attachment leak em páginas EN do blog 2 (CU 86ahhtk2d, 2026-05-18).
+9 gates que cobrem incidentes recorrentes: URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`, CSP regression do Spotify embed em `/cultura/porosidades/` (2026-05-18), WPML orphan attachment leak em páginas EN do blog 2 (CU 86ahhtk2d, 2026-05-18), CSS WP Rocket min retornando 404+HTML (incidente 2026-05-18 21:30 BRT — home perdeu `post-2461.css` e `post-74762.css` por dessincronia entre HTML cached do CF e `cache/min/1/` regenerado parcialmente), e stale s3-uploads path em _elementor_data quebrando ícones SVG inline (CU 86ahj85qk, 2026-05-18 — 567 ocorrências detectadas em prod após cleanup do uploads/s3/).
 
 ### Snippet — Leak detection composto (rodar 1x em PROD após Fase 7.5)
 
@@ -1607,6 +1612,65 @@ async (page) => {
 }
 ```
 
+### Snippet — Gate 28: stale s3-uploads path em _elementor_data (incidente 2026-05-18)
+
+Detecta paths legados do plugin s3-uploads ATIVO no `_elementor_data`. Após
+migrar para `s3-uploads OFF` + CF-OAC, esses paths ficam STALE e quebram
+ícones SVG inline do Elementor (jet-button "+", arrow icons, etc).
+
+Padrão a detectar (URL ou path):
+```
+/wp-content/uploads/s3/concertacaoamazonia-com-br-wp-static-prd-sa/assets/
+```
+
+Sintoma direto observado: ícones "+" dos botões SAIBA MAIS sumiram em todo
+o site prod após cleanup do diretório `uploads/s3/`. Causa: Elementor lê
+SVG via `file_get_contents()` do path local resolvido a partir da URL
+armazenada. Path stale → arquivo não existe → SVG vazio.
+
+Cobertura: navega na homepage (`/`) e checa o HTML completo + sub-gate
+diagnóstico de jet-button widgets que têm classe `--icon-right` mas SEM
+svg child (sintoma direto do bug).
+
+```js
+async (page) => {
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(),
+    { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  const result = await page.evaluate(() => {
+    const html = document.documentElement.outerHTML;
+    // O padrão `wp-content/uploads/s3/` é específico do prefix s3-uploads
+    // legado. Outras strings com `/s3/` NÃO devem casar.
+    const stale_refs = (html.match(/wp-content\/uploads\/s3\/[^"')]+/g) || []);
+    // Sub-gate diagnóstico: jet-buttons que TEM class --icon-right mas SEM
+    // svg child → ícone quebrado (sintoma direto do bug)
+    const jetButtons = Array.from(document.querySelectorAll('[data-widget_type="jet-button.default"]'));
+    const btnsWithIconExpected = jetButtons.filter(w => {
+      const a = w.querySelector('a.jet-button__instance');
+      return a && a.classList.contains('jet-button__instance--icon-right');
+    });
+    const btnsWithSvg = btnsWithIconExpected.filter(w => !!w.querySelector('svg'));
+    return {
+      stale_refs_count: stale_refs.length,
+      stale_refs_sample: stale_refs.slice(0, 5),
+      jet_buttons_with_icon_class: btnsWithIconExpected.length,
+      jet_buttons_with_svg: btnsWithSvg.length,
+    };
+  });
+
+  return {
+    gate_28_legacy_s3_path: {
+      stale_refs_count: result.stale_refs_count,
+      stale_refs_sample: result.stale_refs_sample,
+      jet_buttons_icon_class: result.jet_buttons_with_icon_class,
+      jet_buttons_svg_rendered: result.jet_buttons_with_svg,
+      jet_buttons_missing_svg: result.jet_buttons_with_icon_class - result.jet_buttons_with_svg,
+    },
+  };
+}
+```
+
 ### Snippet — Gate 20: Complianz banner em /en/ multisite (extensão da Fase 7.6)
 
 Estende a matriz multisite da Fase 7.6 para incluir blogs em inglês. Banner no blog EN deve mostrar texto em inglês.
@@ -1721,6 +1785,104 @@ print(f'violations: {violations}')
 EOF
 ```
 
+### Snippet — Gate 27: CSS stylesheets retornando MIME `text/html` (incidente 2026-05-18 21:30 BRT)
+
+Detecta o padrão em que WP Rocket `/cache/min/1/wp-content/...post-N.css` referenciado no HTML do CloudFront aponta para arquivo que sumiu do FS. Nginx faz fallback ao WordPress e retorna **HTML 404** com `content-type: text/html`. Browser com strict MIME checking **bloqueia** o CSS e o layout da página quebra inteiro mesmo com origin sano.
+
+**Sintoma observável:** header verde + menus carregam (CSS de plugin/tema vem direto de `/wp-content/themes/...`), mas hero e secções da página explodem em tamanho natural sem layout.
+
+**Causa raiz típica:** save no Elementor editor de OUTRA página dispara `rocket_clean_minify('css')` ou regenera `Files\CSS\Post->update()` parcial — apaga o `post-N.css` minificado mas não invalida o HTML cached do CloudFront que ainda referencia o `?ver=` antigo apontando para o arquivo que sumiu.
+
+**Cobertura:** rodar em home + /cultura/ (subsite). Qualquer outra página pode ser adicionada à lista. Snippet faz `fetch` no client checando o `Content-Type` real de cada `<link rel=stylesheet>` — bypassa preview do navegador.
+
+```js
+async (page) => {
+  const paths = [
+    'https://concertacaoamazonia.com.br/',
+    'https://concertacaoamazonia.com.br/cultura/',
+  ];
+
+  const perPath = [];
+
+  for (const url of paths) {
+    try {
+      await page.context().clearCookies();
+      await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForTimeout(800);
+
+      const result = await page.evaluate(async () => {
+        const links = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'));
+        const bad = [];
+        // Checa em paralelo, mas com cap para não saturar (até 30 stylesheets concorrentes)
+        const checks = links.map(async (l) => {
+          try {
+            const r = await fetch(l.href, {
+              method: 'GET', // HEAD pode não pegar 404→200 do WP; GET é seguro
+              cache: 'no-store',
+              signal: AbortSignal.timeout(8000),
+            });
+            const ct = (r.headers.get('content-type') || '').toLowerCase();
+            // CSS válido tem que ter `text/css` no Content-Type. Variações `text/css; charset=utf-8` passam.
+            if (!ct.includes('text/css')) {
+              bad.push({
+                href: l.href.slice(-100),
+                status: r.status,
+                content_type: ct.slice(0, 80),
+              });
+            }
+          } catch (e) {
+            // Network error (ERR_ABORTED, timeout) também conta — chrome cancela CSS rejeitado
+            bad.push({
+              href: l.href.slice(-100),
+              status: 0,
+              content_type: 'fetch_error: ' + (e.message || '?').slice(0, 60),
+            });
+          }
+        });
+        await Promise.all(checks);
+        return { total: links.length, bad_count: bad.length, bad_samples: bad.slice(0, 5) };
+      });
+
+      perPath.push({ url, ...result });
+    } catch (e) {
+      perPath.push({ url, error: (e.message || '?').slice(0, 120) });
+    }
+  }
+
+  const totalBad = perPath.reduce((s, r) => s + (r.bad_count || 0), 0);
+
+  return {
+    gate_27_css_mime_check: {
+      total_pages: paths.length,
+      total_bad_stylesheets: totalBad,
+      per_path: perPath,
+    },
+  };
+}
+```
+
+**Fix se gate 27 falhar (conservador, sem flush global):**
+
+```bash
+# 1. Identificar post_id afetado pelo path do CSS bloqueado
+#    (ex: /cache/min/1/.../post-2461.css → POST_ID=2461)
+
+WP='sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br'
+
+# 2. Limpar HTML cached do post e regenerar minify CSS
+$WP eval 'rocket_clean_post(<POST_ID>);'
+$WP eval 'rocket_clean_minify("css");'
+
+# 3. (Opcional) regenerar Elementor CSS file
+$WP eval '(new \Elementor\Core\Files\CSS\Post(<POST_ID>))->update();'
+
+# 4. CF invalidate cirúrgico (NUNCA usar /*)
+aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB \
+    --paths '/' --profile Concertação
+
+# 5. Aguardar invalidation (1-3min) e validar com playwright re-rodando gate 27
+```
+
 ### Apresentar matriz Fase 9
 
 ```
@@ -1741,6 +1903,9 @@ EOF
 | 26a  | 0 refs /sites/2/uploads/ em páginas EN blog 2          | 0            | 0            | ✅     |
 | 26b  | 0 páginas EN com bug WPML orphan (4 verificadas)       | 0            | 0            | ✅     |
 | 26c  | 0 <img> quebrados (naturalWidth=0) em páginas EN       | 0            | 0            | ✅     |
+| 27   | 0 <link rel=stylesheet> com Content-Type != text/css   | 0            | 0            | ✅     |
+| 28a  | 0 refs /wp-content/uploads/s3/ em HTML rendered        | 0            | 0            | ✅     |
+| 28b  | jet-buttons com --icon-right rendering com svg child   | all          | all          | ✅     |
 ```
 
 **Notas:**
@@ -1940,6 +2105,62 @@ EOF
     Severidade: **BLOCKER** — bug é silencioso (`/smoke` sem este gate passa) e direto
     customer-facing (Fabricio reportou). Mu-plugin é estrutural; deployer deve verificar antes
     de cutover green.
+
+27. **CSS MIME `text/html` (Fase 9) — BLOCKER**: incidente 2026-05-18 21:30 BRT (home concertação).
+    Daniel reportou home sem CSS via screenshot — header verde OK mas hero e secções explodiram
+    sem layout. Root cause: HTML cached no CloudFront referenciava
+    `/wp-content/cache/min/1/wp-content/elementor-cache/elementor/css/post-2461.css?ver=1779102530`
+    e `post-74762.css` (mesmo `?ver=`); os arquivos `.css` minificados não existiam no FS
+    (regeneração parcial via Elementor save de outras páginas apagou os min files mas não
+    invalidou o HTML). Nginx fallback ao WP retornou 404 com `content-type: text/html` →
+    strict MIME do browser rejeitou o CSS → layout quebrado mesmo com origin sano.
+
+    Sub-gate (BLOCKER):
+    - `gate_27_css_mime_check.total_bad_stylesheets > 0` — pelo menos 1 `<link rel=stylesheet>`
+      com `Content-Type != text/css` em qualquer página do snippet (home + /cultura/ por default).
+      Reportar `per_path[N].bad_samples[0..4]` com `href`, `status` (geralmente 404), e
+      `content_type` real (geralmente `text/html; charset=utf-8`).
+
+    Fix conservador (sem flush global, sequência testada no incidente):
+    1. Identificar `post_id` afetado pelo path do CSS (ex: `/cache/min/1/.../post-2461.css` → `2461`)
+    2. `wp eval 'rocket_clean_post(<POST_ID>);'`
+    3. `wp eval 'rocket_clean_minify("css");'` (regenera no próximo hit)
+    4. `wp eval '(new \Elementor\Core\Files\CSS\Post(<POST_ID>))->update();'` (opcional, se Elementor CSS file também estiver fora)
+    5. CF invalidate cirúrgico em `/` (NUNCA usar `/*`): `aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --paths '/' --profile Concertação`
+    6. Aguardar invalidation (1-3min) e re-rodar gate 27 — esperado: 0 bad stylesheets
+
+    Severidade: **BLOCKER** — visual catastrófico, browser detecta mas WP-CLI/curl direto não
+    (testar com `curl -sI .../post-N.css` revela o 404). Vetor sistêmico: `cache_*` invalidação
+    não-coordenada entre WP Rocket / Elementor / CloudFront. Memos: `feedback_wprocket_min_stale_404_breaks_layout.md`,
+    `feedback_filesystem_cache_post_deploy.md`, `feedback_elementor_flush_css_warmup.md`.
+
+28. **Stale s3-uploads path em _elementor_data (Fase 9) — BLOCKER**: incidente 2026-05-18 (CU 86ahj85qk).
+    URL legada do plugin s3-uploads ATIVO (`/wp-content/uploads/s3/<bucket>/assets/<path>`) sobrevive em
+    `_elementor_data` após migrar para `s3-uploads OFF` + CF-OAC. Quando Elementor renderiza SVG inline
+    (jet-button icons, Elementor button icon, dynamic tag image), faz `file_get_contents` no path local
+    derivado da URL — path stale resolve para arquivo que NÃO existe no FS → SVG vazio. Sintoma direto:
+    todos os ícones "+" verdes dos botões SAIBA MAIS sumiram em prod (567 ocorrências encontradas).
+
+    Sub-gates:
+    - `gate_28_legacy_s3_path.stale_refs_count > 0` (BLOCKER) — qualquer ocorrência do padrão
+      `/wp-content/uploads/s3/` no HTML rendered. Reportar primeiros 5 samples.
+    - `gate_28_legacy_s3_path.jet_buttons_missing_svg > 0` (HIGH) — jet-button widgets com classe
+      `--icon-right` (que indicam ícone configurado) mas SEM `<svg>` child no DOM. Sintoma direto
+      do bug mesmo quando o gate principal não pega o padrão (caso URL stale tenha sido reescrita
+      mas FS local ainda não tem o arquivo).
+
+    Fix em 2 frentes:
+    - **Dados**: `wp search-replace 'wp-content\/uploads\/s3\/<bucket>\/assets\/' 'wp-content\/uploads\/' --network --skip-columns=guid`
+      (atenção ao escape JSON `\/` — `_elementor_data` armazena com barras escapadas).
+    - **Filesystem**: sync via `aws s3 cp` dos SVGs ausentes do bucket para `wp-content/uploads/`.
+
+    Fix automatizado em `ec2-deploy/post-deploy/09-importdatabase.sh` v2.6.0+ via função
+    `search_replace_legacy_s3_paths` que roda após `search_replace_tunnel_fqdn`. Dependência:
+    env var `S3_UPLOADS_BUCKET` definida no `.env` raiz. Memos relacionados:
+    `feedback_s3_uploads_off_sync_required.md`, `feedback_preloader_filesystem_local.md`.
+
+    Severidade: **BLOCKER** — bug sistêmico (567 ocorrências detectadas) afetando todos os botões
+    de call-to-action em prod. Visualmente catastrófico mas silencioso para HTTP probes.
 
 ## Relatório Final Pragmático
 
