@@ -26,8 +26,18 @@
  *
  * Spec: docs/superpowers/specs/2026-05-19-formulario-rodape-rdstation-design.md
  * Author: Daniel Cambría / Bureau de Tecnologia Ltda.
- * Version: 1.0.0
+ * Version: 1.0.1
  */
+
+/* ───────────────────────────────────────────────────────────────────────
+   Custom properties — pending registration as Elementor Global Colors
+   (Kit 2553). Once registered, replace these with var(--e-global-color-*).
+   ─────────────────────────────────────────────────────────────────────── */
+:root {
+    --bit-footer-bg-verde:          #0d3a2c;     /* Fundo verde escuro do rodapé */
+    --bit-footer-mint:              #7fb088;     /* Verde menta — placeholder mobile */
+    --bit-footer-mint-placeholder:  rgba(127, 176, 136, 0.85); /* mint c/ alpha 85% */
+}
 
 /* ==========================================================================
    DESKTOP — inputs retangulares borda branca sobre fundo verde escuro
@@ -37,7 +47,7 @@
 .elementor-widget-form.bit-form-responsive .elementor-field-textual,
 .elementor-widget-form.bit-form-responsive select.elementor-field {
     background: transparent;
-    border: 2px solid #fff;
+    border: 2px solid #fff; /* #fff and rgba(255,255,255,*) kept as literals — universal & mu-plugin must be theme-independent */
     color: #fff;
     border-radius: 4px;
 }
@@ -47,10 +57,8 @@
     color: rgba(255, 255, 255, 0.65);
 }
 
-/* Delta #6 desktop — opção vazia do select (texto do placeholder via option disabled) */
-.elementor-widget-form.bit-form-responsive select.elementor-field option[disabled] {
-    color: rgba(255, 255, 255, 0.65);
-}
+/* Note: option[disabled] color rules removed — natively styled by OS, ignored by Chromium/Firefox.
+   The select's empty-option text color comes from `color` on the select element itself (above). */
 
 /* Delta #7 + #8 desktop — botão inline à direita, largura flex */
 .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
@@ -95,7 +103,7 @@
     .elementor-widget-form.bit-form-responsive .elementor-field-textual,
     .elementor-widget-form.bit-form-responsive select.elementor-field {
         background: #fff;
-        color: #0d3a2c;
+        color: var(--bit-footer-bg-verde);
         border: none;
         border-radius: 24px;
         padding: 12px 20px;
@@ -103,12 +111,7 @@
 
     /* Delta #6 — placeholder verde-menta (mint) em mobile */
     .elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
-        color: rgba(127, 176, 136, 0.85);
-    }
-
-    /* Delta #6 — opção vazia do select em mobile */
-    .elementor-widget-form.bit-form-responsive select.elementor-field option[disabled] {
-        color: rgba(127, 176, 136, 0.85);
+        color: var(--bit-footer-mint-placeholder);
     }
 
     /* Delta #7 — botão centralizado abaixo dos campos */
