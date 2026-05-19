@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "17972ab576fb",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "scripts/add-form-id-to-email-content.php",
+    "scripts/regularize-form-emails.php",
+    "scripts/remove-mailerlite-action.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/17/972ab576fb/0/metadata.json",
+      "transcript": "/17/972ab576fb/0/full.jsonl",
+      "context": "/17/972ab576fb/0/context.md",
+      "content_hash": "/17/972ab576fb/0/content_hash.txt",
+      "prompt": "/17/972ab576fb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 63,
+    "cache_creation_tokens": 150861,
+    "cache_read_tokens": 1592373,
+    "output_tokens": 17237,
+    "api_call_count": 19
+  }
+}

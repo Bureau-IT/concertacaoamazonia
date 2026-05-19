@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "17972ab576fb",
+  "session_id": "1c68b488-0ada-4eb7-b53e-822c1e6871e7",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-19T04:43:54.819795Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "scripts/add-form-id-to-email-content.php",
+    "scripts/regularize-form-emails.php",
+    "scripts/remove-mailerlite-action.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1a5408599a6d",
+  "token_usage": {
+    "input_tokens": 63,
+    "cache_creation_tokens": 150861,
+    "cache_read_tokens": 1592373,
+    "output_tokens": 17237,
+    "api_call_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-19T04:43:54.455679Z",
+    "agent_lines": 503,
+    "human_added": 189,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 692,
+    "agent_percentage": 72.6878612716763
+  }
+}
