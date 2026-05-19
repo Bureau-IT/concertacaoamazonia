@@ -300,6 +300,13 @@ function _register_render_filter() {
             [],
             \BIT\ElementorFormResponsive\VERSION
         );
+        wp_register_script(
+            'bit-form-responsive',
+            content_url( 'mu-plugins/bit-elementor-form-responsive.js' ),
+            [],
+            \BIT\ElementorFormResponsive\VERSION,
+            true // load in footer
+        );
     } );
 
     // -----------------------------------------------------------------------
@@ -314,11 +321,13 @@ function _register_render_filter() {
                 return;
             }
 
-            // Enqueue CSS — registrado no hook wp_enqueue_scripts acima;
-            // enqueue aqui garante que o style tag aparece no <head> antes
-            // do conteúdo do widget ser emitido. Safe de chamar N vezes
-            // (WordPress deduplica internamente via $wp_styles->done).
+            // Enqueue CSS + JS — registrados no hook wp_enqueue_scripts acima;
+            // enqueue aqui garante que os assets são incluídos apenas quando
+            // um widget Form efetivamente renderiza na página. Safe de chamar
+            // N vezes (WordPress deduplica internamente via $wp_styles->done /
+            // $wp_scripts->done).
             wp_enqueue_style( 'bit-form-responsive' );
+            wp_enqueue_script( 'bit-form-responsive' );
 
             $widget_class = \BIT\ElementorFormResponsive\WIDGET_CLASS;
             $settings     = $widget->get_settings_for_display();
