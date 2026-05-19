@@ -447,6 +447,12 @@ async (page) => {
       if (path.startsWith('/wp-')) return;
       set.add(path);
     }));
+    // Páginas críticas fora do menu (incidentes históricos). Sempre incluir.
+    // Cada entrada deve referenciar o incidente que motivou a inclusão.
+    const REQUIRED_PATHS = [
+      '/cultura/porosidades/', // embed Spotify — CSP regression test (incidente 2026-05-18)
+    ];
+    REQUIRED_PATHS.forEach(p => set.add(p));
     return [...set].sort();
   });
 
@@ -1339,11 +1345,11 @@ Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_c
 
 ## Fase 9 — Detecção de leaks e regressões silenciosas (PROD)
 
-5 gates novos que cobrem incidentes recorrentes desta sessão (2026-05-02): URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`.
+7 gates que cobrem incidentes recorrentes: URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`, CSP regression do Spotify embed em `/cultura/porosidades/` (2026-05-18), e WPML orphan attachment leak em páginas EN do blog 2 (CU 86ahhtk2d, 2026-05-18).
 
 ### Snippet — Leak detection composto (rodar 1x em PROD após Fase 7.5)
 
-Combina gates 20–24 numa única passada para reduzir custo (5 checks numa só navegação por página).
+Combina gates 20–24 numa única passada para reduzir custo (5 checks numa só navegação por página). Gate 25 roda em página dedicada (`/cultura/porosidades/`) ao final do snippet. Gate 26 roda em snippet separado (4 páginas EN do blog 2).
 
 ```js
 async (page) => {
@@ -1420,6 +1426,71 @@ async (page) => {
     return leaks;
   });
 
+  // Gate 25 — Spotify embed em /cultura/porosidades/ (CSP regression, incidente 2026-05-18)
+  // Valida 3 diretivas CSP + presença do iframe + ausência de console error de CSP block.
+  // Navega em página separada porque o iframe Spotify só existe nessa rota.
+  const spotifyCspErrors = [];
+  const spotifyConsoleHandler = (msg) => {
+    if (msg.type() === 'error' && /violates the following Content Security Policy directive/i.test(msg.text())
+        && /open\.spotify\.com|spotify\.com|scdn\.co/i.test(msg.text())) {
+      spotifyCspErrors.push(msg.text().slice(0, 240));
+    }
+  };
+  page.on('console', spotifyConsoleHandler);
+  let cspHeader = '';
+  const responseHandler = (resp) => {
+    const u = resp.url();
+    if (u.startsWith('https://concertacaoamazonia.com.br/cultura/porosidades/') && !cspHeader) {
+      cspHeader = resp.headers()['content-security-policy'] || '';
+    }
+  };
+  page.on('response', responseHandler);
+
+  let spotifyResult;
+  try {
+    await page.goto('https://concertacaoamazonia.com.br/cultura/porosidades/?cb=' + Date.now(),
+      { waitUntil: 'networkidle', timeout: 45000 });
+    await page.waitForTimeout(2500); // tempo para iframe Spotify tentar carregar + emitir CSP error
+
+    const iframeInfo = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[src*="open.spotify.com/embed"]');
+      if (!iframe) return { present: false };
+      // chrome-error://chromewebdata/ é a assinatura de bloqueio CSP do browser.
+      // Não dá pra ler contentDocument cross-origin, mas dá pra checar dimensões e src.
+      const rect = iframe.getBoundingClientRect();
+      return {
+        present: true,
+        src_snippet: (iframe.getAttribute('src') || '').slice(0, 80),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      };
+    });
+
+    // Parse das 3 diretivas no header CSP capturado.
+    const frameSrcMatch   = cspHeader.match(/frame-src([^;]+);/i);
+    const connectSrcMatch = cspHeader.match(/connect-src([^;]+);/i);
+    const mediaSrcMatch   = cspHeader.match(/media-src([^;]+);/i);
+    const frameSrc   = frameSrcMatch   ? frameSrcMatch[1]   : '';
+    const connectSrc = connectSrcMatch ? connectSrcMatch[1] : '';
+    const mediaSrc   = mediaSrcMatch   ? mediaSrcMatch[1]   : '';
+
+    spotifyResult = {
+      csp_header_captured: cspHeader.length > 0,
+      frame_src_has_spotify:   /open\.spotify\.com/.test(frameSrc),
+      connect_src_has_spotify: /\*\.spotify\.com|open\.spotify\.com/.test(connectSrc),
+      media_src_has_scdn:      /\*\.scdn\.co|scdn\.co/.test(mediaSrc),
+      iframe_present: iframeInfo.present,
+      iframe_dimensions: iframeInfo.present ? `${iframeInfo.width}x${iframeInfo.height}` : null,
+      csp_console_errors: spotifyCspErrors,
+      csp_error_count: spotifyCspErrors.length,
+    };
+  } catch (e) {
+    spotifyResult = { error: (e.message || '?').slice(0, 120) };
+  } finally {
+    page.off('console', spotifyConsoleHandler);
+    page.off('response', responseHandler);
+  }
+
   return {
     gate_23_google_fonts_external: {
       // HIGH severity (real font/css download)
@@ -1445,6 +1516,92 @@ async (page) => {
     gate_22_elementor_css_dev_leak: {
       count: cssLeaks.length,
       leaks: cssLeaks,
+    },
+    gate_25_spotify_embed: spotifyResult,
+  };
+}
+```
+
+### Snippet — Gate 26: WPML orphan attachment leak em páginas EN do blog 2 (incidente 2026-05-18)
+
+Detecta a assinatura do bug CU 86ahhtk2d: attachments EN duplicados pelo WPML
+em `wp_2_posts` sem espelho em `wp_posts` blog 1. Quando `wp_get_attachment_image_src`
+falha para esses IDs órfãos, o widget Slides do Elementor renderiza sem
+background-image e `<img>` quebra com `naturalWidth=0`.
+
+Cobertura: 4 páginas EN identificadas como afetadas no diagnóstico inicial
+(porosidades, nós e os nós, colors of future, timeline). Snippet roda 1x e
+loop por página — qualquer leak dispara FAIL com `path` específico.
+
+Pré-requisitos para passar:
+- mu-plugin `bit-crossblog-attachment-fix.php` v1.5.2+ ativo (Hooks 9-13)
+- `elementor_css_print_method=external` em blog 2 (option)
+- WPML media duplication OFF (`\WPML\Media\Option::setNewContentSettings`)
+
+```js
+async (page) => {
+  const paths = [
+    '/cultura/en/porosidades/',                  // widget Slides com 26 backgrounds
+    '/cultura/en/porosidades/nos-e-os-nos/',     // gallery widget
+    '/cultura/en/colors-of-the-future-exhibition/',
+    '/cultura/en/timeline/',
+  ];
+
+  const base = 'https://concertacaoamazonia.com.br';
+  const perPath = [];
+
+  for (const p of paths) {
+    try {
+      await page.goto(base + p + '?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+      await page.waitForTimeout(1200); // tempo para lazy-load decoding
+
+      const result = await page.evaluate(() => {
+        // Refs a /sites/2/uploads/ no HTML — assinatura direta do bug
+        // (CSS path /sites/2/elementor/css/ é legítimo, não conta)
+        const html = document.documentElement.outerHTML;
+        const orphan_refs = (html.match(/\/sites\/2\/uploads\/[^"')]+/g) || []).length;
+
+        // Widget Slides do Elementor com backgrounds vazios
+        const slideBgs = Array.from(document.querySelectorAll('.swiper-slide-bg'));
+        const slideBgsWithImage = slideBgs.filter(s => getComputedStyle(s).backgroundImage !== 'none').length;
+
+        // <img> quebrados (naturalWidth=0 + src populada + complete)
+        const allImgs = Array.from(document.querySelectorAll('img'));
+        const brokenImgs = allImgs.filter(i => i.complete && i.naturalWidth === 0 && i.src);
+
+        return {
+          orphan_refs_count: orphan_refs,
+          slide_bgs_total: slideBgs.length,
+          slide_bgs_with_image: slideBgsWithImage,
+          broken_imgs_count: brokenImgs.length,
+          broken_imgs_samples: brokenImgs.slice(0, 3).map(i => i.src.slice(-80)),
+          total_imgs: allImgs.length,
+        };
+      });
+
+      // Bug acionado se: (a) qualquer ref /sites/2/uploads/, OU (b) widget Slides
+      // existe mas tem 0 backgrounds (caso porosidades), OU (c) >2 imgs quebradas.
+      const pageHasBug =
+        result.orphan_refs_count > 0 ||
+        (result.slide_bgs_total > 0 && result.slide_bgs_with_image === 0) ||
+        result.broken_imgs_count > 2;
+
+      perPath.push({ path: p, ...result, has_bug: pageHasBug });
+    } catch (e) {
+      perPath.push({ path: p, error: (e.message || '?').slice(0, 120) });
+    }
+  }
+
+  const totalLeaks = perPath.reduce((sum, r) => sum + (r.orphan_refs_count || 0), 0);
+  const totalBrokenImgs = perPath.reduce((sum, r) => sum + (r.broken_imgs_count || 0), 0);
+  const pagesWithBug = perPath.filter(r => r.has_bug).length;
+
+  return {
+    gate_26_wpml_orphan_leak: {
+      total_orphan_refs: totalLeaks,
+      total_broken_imgs: totalBrokenImgs,
+      pages_with_bug: pagesWithBug,
+      per_path: perPath,
     },
   };
 }
@@ -1576,6 +1733,14 @@ EOF
 | 21   | <e-page-transition> tem <svg> populado                 | true, ≥100b  | true, 12.2KB | ✅     |
 | 22   | Elementor CSS contém URL de dev (BLOCKER)              | 0 leaks      | 0 leaks      | ✅     |
 | 20   | Complianz banner /en/ em inglês                        | true         | false        | 🚨     |
+| 25a  | CSP frame-src contém open.spotify.com (porosidades)    | true         | true         | ✅     |
+| 25b  | CSP connect-src contém *.spotify.com (porosidades)     | true         | true         | ✅     |
+| 25c  | CSP media-src contém *.scdn.co (porosidades)           | true         | true         | ✅     |
+| 25d  | iframe Spotify presente em /cultura/porosidades/       | true         | true         | ✅     |
+| 25e  | 0 console errors de CSP block do Spotify               | 0            | 0            | ✅     |
+| 26a  | 0 refs /sites/2/uploads/ em páginas EN blog 2          | 0            | 0            | ✅     |
+| 26b  | 0 páginas EN com bug WPML orphan (4 verificadas)       | 0            | 0            | ✅     |
+| 26c  | 0 <img> quebrados (naturalWidth=0) em páginas EN       | 0            | 0            | ✅     |
 ```
 
 **Notas:**
@@ -1721,6 +1886,61 @@ EOF
     Ref: memo `feedback_cf_oac_green_to_assets_swap.md`. Severidade: **BLOCKER** — incidente
     silencioso recorrente que causou perda de preloader Elementor por 24h em 2026-05-02.
 
+25. **Spotify embed em /cultura/porosidades/ (Fase 9) — HIGH**: incidente 2026-05-18.
+    Página de exposição com widget HTML embedando playlist Spotify (`open.spotify.com/embed/...`).
+    Sub-gates (todos devem passar):
+    - `gate_25_spotify_embed.csp_header_captured === false` — não capturou CSP da response.
+      Falha de instrumentação; revalidar manualmente via `curl -sI`.
+    - `gate_25_spotify_embed.frame_src_has_spotify === false` — CSP `frame-src` sem
+      `open.spotify.com`. **Browser bloqueia iframe inteiro** (renderiza `chrome-error://chromewebdata/`
+      visível como "Este conteúdo está bloqueado").
+    - `gate_25_spotify_embed.connect_src_has_spotify === false` — CSP `connect-src` sem
+      `*.spotify.com`. Iframe carrega mas player não consegue chamar `api.spotify.com`/`spclient`
+      → player aparece vazio ou trava em loading.
+    - `gate_25_spotify_embed.media_src_has_scdn === false` — CSP `media-src` sem `*.scdn.co`.
+      Player visível mas preview de 30s não toca (áudio servido pelo CDN scdn.co bloqueado).
+    - `gate_25_spotify_embed.iframe_present === false` — iframe sumiu do DOM. Pode ser remoção
+      acidental no Elementor ou bug de render do widget HTML.
+    - `gate_25_spotify_embed.csp_error_count > 0` — console emitiu erro
+      `Refused to frame 'https://open.spotify.com/' because it violates the following Content
+      Security Policy directive` durante o carregamento. Confirmação direta de bloqueio (mesmo
+      que header pareça ter os domínios — pode haver typo/encoding bug).
+
+    Fix: editar `03-nginx-sites.sh` (template) + hotfix em
+    `/etc/nginx/snippets/security-headers.conf` adicionando os 3 domínios; `sudo systemctl reload nginx`;
+    invalidar CloudFront em `/cultura/porosidades/`. Ref: memo `feedback_csp_spotify_embeds.md`.
+    Severidade: **HIGH** — quebra UX da exposição mas não derruba produto. Mesmo padrão que
+    [[feedback_csp_youtube_embeds]] — cada novo provedor de embed exige domínios específicos.
+
+26. **WPML orphan attachment leak (Fase 9) — BLOCKER**: incidente 2026-05-18 (CU 86ahhtk2d).
+    WPML duplicate-on-translate criou 109 attachments EN em `wp_2_posts` sem espelho em `wp_posts`
+    blog 1. Páginas EN do blog 2 renderizam widget Slides sem background-image e gallery thumbs
+    quebradas. Sub-gates (qualquer um falha):
+    - `gate_26_wpml_orphan_leak.total_orphan_refs > 0` — pelo menos 1 ref `/sites/2/uploads/` no
+      HTML de alguma página EN. Indica que `wp_get_attachment_url` está retornando path do subsite
+      em vez de resolver via sibling pt-br. **Causa provável**: mu-plugin
+      `bit-crossblog-attachment-fix.php` ausente, desativado, ou versão < 1.5.2.
+    - `gate_26_wpml_orphan_leak.pages_with_bug > 0` — qualquer página teve um dos 3 sintomas:
+      orphan_refs > 0, widget Slides com 0 backgrounds quando total > 0, ou >2 imgs quebrados.
+      Reportar `per_path[N].path` específico no relatório.
+    - `gate_26_wpml_orphan_leak.total_broken_imgs > 8` — toleramos ≤2 por página (placeholder/loaded
+      after timing). Acima disso indica regressão sistêmica.
+
+    Fix: validar 3 frentes — (a) mu-plugin v1.5.2+ presente e ativo no servidor
+    (`grep '* Version' /var/www/.../wp-content/mu-plugins/bit-crossblog-attachment-fix.php`),
+    (b) `elementor_css_print_method=external` no blog 2
+    (`wp --url=https://concertacaoamazonia.com.br/cultura/ option get elementor_css_print_method`),
+    (c) WPML media duplication OFF nos 2 blogs
+    (`wp eval 'print_r(\WPML\Media\Option::getNewContentSettings());'` deve retornar `[false, false, false]`).
+    Se mu-plugin OK e settings OK, regenerar Elementor CSS das 4 páginas EN
+    (`(new \Elementor\Core\Files\CSS\Post($id))->update_file()`) + invalidar CF cirúrgico em
+    `/cultura/en/*`. Ref: memos `feedback_wpml_orphan_attachments_blog2.md` +
+    `project_wpml_orphan_fix_deployed_prod.md`.
+
+    Severidade: **BLOCKER** — bug é silencioso (`/smoke` sem este gate passa) e direto
+    customer-facing (Fabricio reportou). Mu-plugin é estrutural; deployer deve verificar antes
+    de cutover green.
+
 ## Relatório Final Pragmático
 
 Após executar todas as fases, gerar **bloco único** com formato decisível:
@@ -1754,7 +1974,7 @@ Fase  Cobertura                    Gates testados   Pass   Fail
 7.7   GTM injection                    (sem gate #)     —      —
 7.8   Cache health (4 camadas)         14-19            X      Y
 8     Menu warm-up                     11-12            X      Y
-9     Leak detection                   20-24            X      Y
+9     Leak detection                   20-25            X      Y
 
 ───────────────────────────────────────────────────────────────────
 GATES FALHARAM (ordenados por severidade)
