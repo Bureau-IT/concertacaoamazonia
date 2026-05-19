@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "f83ba5219bb4",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "scripts/remove-orphan-fonts.php",
+    "scripts/replace-barlow-with-roboto.php",
+    "wordpress/wp-content/mu-plugins/bureau-a11y/fonts/PlusJakartaSans-latin-w400-700.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-latin-w100-900.woff2",
+    "wordpress/wp-content/themes/hello-elementor-child/fonts/woff2/Roboto-latin-w400-700.woff2"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f8/3ba5219bb4/0/metadata.json",
+      "transcript": "/f8/3ba5219bb4/0/full.jsonl",
+      "context": "/f8/3ba5219bb4/0/context.md",
+      "content_hash": "/f8/3ba5219bb4/0/content_hash.txt",
+      "prompt": "/f8/3ba5219bb4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 306,
+    "cache_creation_tokens": 468982,
+    "cache_read_tokens": 41107654,
+    "output_tokens": 109551,
+    "api_call_count": 217
+  }
+}
