@@ -53,6 +53,7 @@ add_action( 'plugins_loaded', function () {
  * Controles criados após hook disparam no editor com switcher Desktop/Tablet/Mobile.
  */
 function _register_form_control_hooks() {
+    // Prioridade 10 — roda após o registro nativo dos controles do Elementor Pro (que usa prioridade padrão=10, mas dispara antes pois registrado antes).
     add_action(
         'elementor/element/form/section_form_fields/before_section_end',
         __NAMESPACE__ . '\\_make_form_name_responsive',
@@ -60,6 +61,7 @@ function _register_form_control_hooks() {
         2
     );
 
+    // Prioridade 11 — roda após _make_form_name_responsive; callbacks separados para manter cada um atômico e removível independentemente.
     add_action(
         'elementor/element/form/section_form_fields/before_section_end',
         __NAMESPACE__ . '\\_make_repeater_fields_responsive',
@@ -123,6 +125,8 @@ function _make_repeater_fields_responsive( $element, $args ) {
         return;
     }
 
+    $changed = false;
+
     // --- placeholder ---
     if ( ! isset( $fields['placeholder_tablet'] ) && isset( $fields['placeholder'] ) ) {
         $ph_base = $fields['placeholder'];
@@ -166,6 +170,8 @@ function _make_repeater_fields_responsive( $element, $args ) {
             'responsive'   => [ 'max' => 'mobile' ],
             'parent'       => 'placeholder_tablet',
         ];
+
+        $changed = true;
     }
 
     // --- field_options_empty (controle custom — não existe nativamente no Elementor Pro) ---
@@ -183,7 +189,7 @@ function _make_repeater_fields_responsive( $element, $args ) {
         $foe_tab_wrapper = $fields['field_options']['tabs_wrapper'] ?? '';
         $foe_inner_tab   = $fields['field_options']['inner_tab'] ?? '';
 
-        $fields['field_options_empty'] = [
+        $new_field_options_empty = [
             'type'         => \Elementor\Controls_Manager::TEXT,
             'tab'          => 'content',
             'label'        => esc_html__( 'Empty Option', 'elementor-pro' ),
@@ -198,7 +204,7 @@ function _make_repeater_fields_responsive( $element, $args ) {
             'inheritors'   => [ 'field_options_empty_tablet' ],
         ];
 
-        $fields['field_options_empty_tablet'] = [
+        $new_field_options_empty_tablet = [
             'type'         => \Elementor\Controls_Manager::TEXT,
             'tab'          => 'content',
             'label'        => esc_html__( 'Empty Option', 'elementor-pro' ),
@@ -213,7 +219,7 @@ function _make_repeater_fields_responsive( $element, $args ) {
             'inheritors'   => [ 'field_options_empty_mobile' ],
         ];
 
-        $fields['field_options_empty_mobile'] = [
+        $new_field_options_empty_mobile = [
             'type'         => \Elementor\Controls_Manager::TEXT,
             'tab'          => 'content',
             'label'        => esc_html__( 'Empty Option', 'elementor-pro' ),
@@ -226,9 +232,33 @@ function _make_repeater_fields_responsive( $element, $args ) {
             'responsive'   => [ 'max' => 'mobile' ],
             'parent'       => 'field_options_empty_tablet',
         ];
+
+        // Inserir field_options_empty imediatamente após field_options no panel (ordem de renderização)
+        $rebuilt = [];
+        foreach ( $fields as $key => $value ) {
+            $rebuilt[ $key ] = $value;
+            if ( $key === 'field_options' ) {
+                $rebuilt['field_options_empty']        = $new_field_options_empty;
+                $rebuilt['field_options_empty_tablet'] = $new_field_options_empty_tablet;
+                $rebuilt['field_options_empty_mobile'] = $new_field_options_empty_mobile;
+            }
+        }
+        // Fallback: field_options ausente no schema — anexa ao final para não perder o controle
+        if ( ! isset( $rebuilt['field_options_empty'] ) ) {
+            $rebuilt['field_options_empty']        = $new_field_options_empty;
+            $rebuilt['field_options_empty_tablet'] = $new_field_options_empty_tablet;
+            $rebuilt['field_options_empty_mobile'] = $new_field_options_empty_mobile;
+        }
+        $fields = $rebuilt;
+
+        $changed = true;
     }
 
-    // Salva os fields atualizados no controle form_fields
+    // Salva os fields apenas se houve mutação real (evita write desnecessário)
+    if ( ! $changed ) {
+        return;
+    }
+
     $element->update_control(
         'form_fields',
         [ 'fields' => $fields ],
