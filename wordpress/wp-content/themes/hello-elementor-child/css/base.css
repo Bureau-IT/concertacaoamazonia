@@ -8,12 +8,24 @@
    2. ESTILOS GLOBAIS
    ========================================================================== */
 
+/* --- 2.0 Proibir síntese de pesos/itálicos (fake-bold / fake-italic) ---
+ * Just Sans só tem fonts reais para 400 e 800. Franie só para 400/700.
+ * Sem essa regra, o browser sintetiza algoritmicamente pesos como 300, 500,
+ * 600, 700 (Just Sans) ou 900 (Just Sans) — degrada legibilidade e quebra a
+ * identidade tipográfica oficial (Manual de Marca §3.9). Com font-synthesis:none,
+ * o browser cai no peso real mais próximo. Widgets Elementor que solicitam
+ * pesos inexistentes precisam ser ajustados para valores reais (400/700/800).
+ */
+* {
+    font-synthesis: none;
+}
+
 /* --- 2.1 HTML & Body --- */
 html {
     font-size         : 16px;
     scrollbar-gutter  : stable;
     scroll-behavior   : smooth;
-    scrollbar-color   : var(--e-global-color-accent, #47DEA8) var(--background-offwhite, #DEDDD1);
+    scrollbar-color   : var(--e-global-color-bbe749d, #C02975) var(--e-global-color-e03d05f, #DEDDD1);
     scrollbar-width   : thin;
 }
 
@@ -93,16 +105,16 @@ html body a[href*="mailto"]:hover {
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--background-offwhite, #DEDDD1);
+    background: var(--e-global-color-e03d05f, #DEDDD1);
 }
 
 ::-webkit-scrollbar-thumb {
-    background   : var(--e-global-color-accent, #47DEA8);
+    background   : var(--e-global-color-bbe749d, #C02975);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in lab, var(--e-global-color-accent, #47DEA8) 75%, black 25%);
+    background: color-mix(in lab, var(--e-global-color-bbe749d, #C02975) 75%, black 25%);
 }
 
 

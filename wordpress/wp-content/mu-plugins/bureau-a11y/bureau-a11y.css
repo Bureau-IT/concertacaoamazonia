@@ -1,5 +1,5 @@
 /* Bureau A11y - Accessibility Styles
- * Version: 2.5.21
+ * Version: 2.5.22
  * Author: Bureau de Tecnologia Ltda.
  *
  * Dark Forest Luxury — mini-app design system
@@ -43,6 +43,22 @@
     font-family: 'OpenDyslexic';
     src: url('https://fonts.cdnfonts.com/s/19808/OpenDyslexic-Regular.woff') format('woff');
     font-display: swap;
+}
+
+/* Plus Jakarta Sans — fonte de UI do painel a11y.
+ * NÃO é fonte oficial do site (Manual de Marca §3.9 define Franie/Just Sans/Roboto).
+ * Movida do tema para este mu-plugin em 2026-05-18 para evitar preload global
+ * de uma fonte usada apenas pelo painel de acessibilidade (auditoria detectou
+ * 180 elementos usando Plus Jakarta, TODOS dentro de aside#bureau-a11y-panel).
+ * Path relativo resolve para `wp-content/mu-plugins/bureau-a11y/fonts/`.
+ */
+@font-face {
+    font-family: 'Plus Jakarta Sans';
+    src: url('./fonts/PlusJakartaSans-latin-w400-700.woff2') format('woff2');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 html.ba-dyslexic :is(body,p,span,li,h1,h2,h3,h4,h5,h6,a,button,input,textarea,label) {
@@ -226,6 +242,18 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     width: 70%;
     height: 70%;
     fill: #F0EDE1;
+}
+
+/* Offset elevado no mobile para back-to-top.
+   Why: <=768px o footer "Cadastre-se" quebra em 2 linhas (~110-130px) e
+   encosta no botão. Posicionada logo acima do header do footer ("Cadastre-se
+   para receber novidades"), com folga pequena para não invadir o trigger
+   de acessibilidade que mantém centro vertical. Restore-pill tem override
+   correspondente apos suas regras base (busque "BIT-MOBILE-OFFSET"). */
+@media (max-width: 768px) {
+    #bureau-a11y-back-to-top {
+        bottom: 110px;
+    }
 }
 
 /* ==========================================================================
@@ -1001,6 +1029,16 @@ html.ba-buttons-hidden div[vw].enabled {
 
 html.ba-buttons-hidden #bureau-a11y-restore-pill {
     display: flex;
+}
+
+/* BIT-MOBILE-OFFSET — restore-pill acima do footer no mobile.
+   Why: <=768px restore-pill em bottom:12px sobrepoe o botao ENVIAR do form
+   "Cadastre-se". Posicionado APOS as regras base do pill (especificidade
+   identica = source order decide). */
+@media (max-width: 768px) {
+    #bureau-a11y-restore-pill {
+        bottom: 124px;
+    }
 }
 
 /* ==========================================================================

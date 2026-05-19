@@ -157,7 +157,7 @@ function bureau_it_print_slick_js() {
 /**
  * ============================================================================
  * CUSTOM FONTS: Franie, Just Sans, Roboto (local, no Google Fonts)
- * Roboto: subset Latin, wght 400-700 (36 KB vs 204 KB Variable Font original)
+ * Roboto: subset Latin, wght 100-900 (42 KB vs 204 KB Variable Font original)
  * ============================================================================
  *
  * @since 1.6.0
@@ -168,14 +168,12 @@ function bureau_it_print_slick_js() {
  */
 add_action('wp_enqueue_scripts', 'bureau_it_custom_fonts_css');
 function bureau_it_custom_fonts_css() {
-    $fonts_url  = get_stylesheet_directory_uri() . '/fonts';
-    $fonts_woff = $fonts_url . '/woff2';
+    $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
 
     $css = "
 @font-face {
     font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-Regular.woff2') format('woff2'),
-         url('{$fonts_url}/Franie-Regular.otf') format('opentype');
+    src: url('{$fonts_woff}/Franie-Regular.woff2') format('woff2');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -183,8 +181,7 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-Italic.woff2') format('woff2'),
-         url('{$fonts_url}/Franie-Italic.otf') format('opentype');
+    src: url('{$fonts_woff}/Franie-Italic.woff2') format('woff2');
     font-weight: 400;
     font-style: italic;
     font-display: swap;
@@ -192,8 +189,7 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-Bold.woff2') format('woff2'),
-         url('{$fonts_url}/Franie-Bold.otf') format('opentype');
+    src: url('{$fonts_woff}/Franie-Bold.woff2') format('woff2');
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -201,8 +197,7 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-BoldItalic.woff2') format('woff2'),
-         url('{$fonts_url}/Franie-BoldItalic.otf') format('opentype');
+    src: url('{$fonts_woff}/Franie-BoldItalic.woff2') format('woff2');
     font-weight: 700;
     font-style: italic;
     font-display: swap;
@@ -210,8 +205,7 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Just Sans';
-    src: url('{$fonts_woff}/JustSans-Regular.woff2') format('woff2'),
-         url('{$fonts_url}/JustSans-Regular.otf') format('opentype');
+    src: url('{$fonts_woff}/JustSans-Regular.woff2') format('woff2');
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -219,8 +213,7 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Just Sans';
-    src: url('{$fonts_woff}/JustSans-ExBold.woff2') format('woff2'),
-         url('{$fonts_url}/JustSans-ExBold.otf') format('opentype');
+    src: url('{$fonts_woff}/JustSans-ExBold.woff2') format('woff2');
     font-weight: 800;
     font-style: normal;
     font-display: swap;
@@ -228,23 +221,17 @@ function bureau_it_custom_fonts_css() {
 
 @font-face {
     font-family: 'Roboto';
-    src: url('{$fonts_woff}/Roboto-latin-w400-700.woff2') format('woff2');
-    font-weight: 400 700;
+    src: url('{$fonts_woff}/Roboto-latin-w100-900.woff2') format('woff2');
+    font-weight: 100 900;
     font-style: normal;
     font-display: swap;
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-@font-face {
-    font-family: 'Plus Jakarta Sans';
-    src: url('{$fonts_woff}/PlusJakartaSans-latin-w400-700.woff2') format('woff2-variations'),
-         url('{$fonts_woff}/PlusJakartaSans-latin-w400-700.woff2') format('woff2');
-    font-weight: 400 700;
-    font-style: normal;
-    font-display: swap;
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 ";
+// Nota: Plus Jakarta Sans (usada apenas pelo painel bureau-a11y, não é fonte
+// oficial do site) foi movida para o mu-plugin bureau-a11y em 2026-05-18 para
+// evitar preload global. Ver mu-plugins/bureau-a11y/bureau-a11y.css.
 
     wp_register_style('bureau-custom-fonts', false);
     wp_enqueue_style('bureau-custom-fonts');
@@ -266,11 +253,12 @@ function bureau_it_preload_critical_fonts() {
     $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Franie-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
     echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/JustSans-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
-    echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/PlusJakartaSans-latin-w400-700.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+    // Plus Jakarta NÃO é preloaded — só carrega quando o painel bureau-a11y é
+    // ativado pelo usuário (regra @font-face vive no mu-plugin bureau-a11y desde 2026-05-18).
 
     // Preload Roboto apenas em páginas que renderizam o widget espiral
     if ( bureau_it_page_has_espiral_widget() ) {
-        echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Roboto-latin-w400-700.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
+        echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Roboto-latin-w100-900.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
     }
 }
 
