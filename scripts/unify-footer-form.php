@@ -426,6 +426,16 @@ foreach ( $cloned_form_settings['form_fields'] as &$c_field ) {
             echo "  INFO: cloned field[$cid] primeira opcao e '$first' — nao e placeholder Regiao, ignorando\n";
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Bug `field_value` pre-setado: alguns widgets herdam field_value='Região'
+    // (ou outro valor pre-definido) que força a primeira option do select.
+    // Isso interfere com field_options_empty. Remover sempre que estiver setado.
+    // -----------------------------------------------------------------------
+    if ( $ftype === 'select' && isset( $c_field['field_value'] ) ) {
+        echo "+ cloned field[$cid]: removido field_value = " . json_encode( $c_field['field_value'] ) . " (forçava primeira option)\n";
+        unset( $c_field['field_value'] );
+    }
 }
 unset( $c_field );
 
