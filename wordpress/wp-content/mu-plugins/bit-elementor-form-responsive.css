@@ -108,9 +108,9 @@ body .elementor-widget-form.bit-form-responsive select.elementor-field {
         border-color: #fff !important;
         color: #fff !important;
         border-radius: 0 !important;
-        padding: 0.55rem 0.85rem !important;
-        font-size: 0.75rem !important;
-        height: 2.4rem !important;
+        padding: 0.625rem 1rem !important;
+        font-size: 0.8rem !important;
+        height: 2.7rem !important;
         line-height: normal !important;
     }
     body .elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
@@ -130,7 +130,7 @@ body .elementor-widget-form.bit-form-responsive select.elementor-field {
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
-        height: 2.4rem !important;
+        height: 2.7rem !important;
         padding: 0 !important;
         background: transparent !important;
         background-color: transparent !important;
@@ -138,7 +138,7 @@ body .elementor-widget-form.bit-form-responsive select.elementor-field {
         border-color: #fff !important;
         color: #fff !important;
         border-radius: 0 !important;
-        font-size: 0.75rem !important;
+        font-size: 0.8rem !important;
         font-weight: 700 !important;
     }
 }
@@ -181,9 +181,9 @@ body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-respon
     border-color: #fff !important;
     color: #fff !important;
     border-radius: 0 !important;
-    padding: 0.55rem 0.85rem !important;
-    font-size: 0.75rem !important;
-    height: 2.4rem !important;
+    padding: 0.625rem 1rem !important;
+    font-size: 0.8rem !important;
+    height: 2.7rem !important;
     line-height: normal !important;
 }
 body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
@@ -203,7 +203,7 @@ body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-respon
     width: 100% !important;
     min-width: 0 !important;
     max-width: 100% !important;
-    height: 2.4rem !important;
+    height: 2.7rem !important;
     padding: 0 !important;
     background: transparent !important;
     background-color: transparent !important;
@@ -211,7 +211,7 @@ body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-respon
     border-color: #fff !important;
     color: #fff !important;
     border-radius: 0 !important;
-    font-size: 0.75rem !important;
+    font-size: 0.8rem !important;
     font-weight: 700 !important;
 }
 
