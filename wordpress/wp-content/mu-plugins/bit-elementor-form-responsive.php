@@ -422,7 +422,12 @@ function _register_render_filter() {
                     $foe_attrs .= ' data-bit-field-options-empty-mobile="' . esc_attr( $foe_mobile ) . '"';
                 }
 
-                if ( $ph_attrs === '' && $foe_attrs === '' ) {
+                $field_type  = $field['field_type'] ?? '';
+                $foe_desktop = trim( $field['field_options_empty'] ?? '' );
+
+                // Skip apenas se NADA há para injetar (placeholder OR field_options_empty OR responsive variants)
+                $needs_select_placeholder = ( $field_type === 'select' && $foe_desktop !== '' );
+                if ( $ph_attrs === '' && $foe_attrs === '' && ! $needs_select_placeholder ) {
                     continue;
                 }
 
@@ -442,6 +447,19 @@ function _register_render_filter() {
                     $content = preg_replace(
                         '/(<select[^>]*?\bid="form-field-' . $escaped_id . '"[^>]*?)(>)/s',
                         '$1' . $select_extra . '$2',
+                        $content,
+                        1
+                    );
+                }
+
+                // Elementor Pro 3.35 não renderiza field_options_empty como <option> placeholder.
+                // Injetar manualmente <option value="" disabled selected>{texto}</option> ANTES
+                // da primeira option real do select. JS (matchMedia) troca o textContent por device.
+                if ( $needs_select_placeholder ) {
+                    $placeholder_option = '<option value="" disabled selected data-bit-empty-option>' . esc_html( $foe_desktop ) . '</option>';
+                    $content = preg_replace(
+                        '/(<select[^>]*?\bid="form-field-' . $escaped_id . '"[^>]*>)/s',
+                        '$1' . $placeholder_option,
                         $content,
                         1
                     );

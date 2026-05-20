@@ -1,130 +1,130 @@
 /**
  * BIT Elementor Form Responsive — CSS escopado
  *
- * Escopo exclusivo: .elementor-widget-form.bit-form-responsive
- * Deltas cobertos:
- *   #3 Layout dos fields:     row (desktop) → column (mobile)
- *   #4 Border-radius:         4px (desktop) → 24px pill (mobile)
- *   #5 Background input:      transparent (desktop) → #fff (mobile)
- *   #6 Cor do placeholder:    branco 65% (desktop) → verde-menta 85% (mobile)
- *   #7 Posição do botão:      inline-right (desktop) → centered-below (mobile)
- *   #8 Largura do botão:      flex (desktop) → min 30% compact centered (mobile)
+ * Escopo: body .elementor-widget-form.bit-form-responsive (boost specificity)
  *
- * Deltas #1 (heading text) e #2 (placeholder text) são tratados pelo JS (matchMedia).
- *
- * Cores extraídas do design existente do footer:
- *   Fundo do footer:  #0d3a2c (verde escuro — Elementor Global Color)
- *   Bordas/texto:     #ffffff (branco)
- *   Placeholder desk: rgba(255,255,255,0.65)
- *   Input mobile bg:  #ffffff
- *   Texto mobile:     #0d3a2c
- *   Placeholder mob:  rgba(127,176,136,0.85) (~#7fb088 mint-green)
- *
- * Breakpoints Elementor padrão:
- *   Tablet: max-width 1024px
- *   Mobile: max-width 767px
+ * INTERPRETAÇÃO FINAL (corrigida 2026-05-20):
+ *   - DESKTOP+TABLET (default): pill branco empilhado vertical (look "Inscreva-se...")
+ *     → vem dos settings nativos do widget (background_color, border_radius, etc.)
+ *   - MOBILE (≤767px): compacto retangular borda branca lado a lado 3 colunas
+ *     → vem deste CSS via @media + !important (vence o CSS Elementor inline)
  *
  * Spec: docs/superpowers/specs/2026-05-19-formulario-rodape-rdstation-design.md
  * Author: Daniel Cambría / Bureau de Tecnologia Ltda.
- * Version: 1.0.1
+ * Version: 1.1.1
  */
 
-/* ───────────────────────────────────────────────────────────────────────
-   Custom properties — pending registration as Elementor Global Colors
-   (Kit 2553). Once registered, replace these with var(--e-global-color-*).
-   ─────────────────────────────────────────────────────────────────────── */
 :root {
-    --bit-footer-bg-verde:          #0d3a2c;     /* Fundo verde escuro do rodapé */
-    --bit-footer-mint:              #7fb088;     /* Verde menta — placeholder mobile */
-    --bit-footer-mint-placeholder:  rgba(127, 176, 136, 0.85); /* mint c/ alpha 85% */
+    --bit-footer-bg-verde:          #0d3a2c;
+    --bit-footer-mint:              #7fb088;
+    --bit-footer-mint-placeholder:  rgba(127, 176, 136, 0.85);
 }
 
 /* ==========================================================================
-   DESKTOP — inputs retangulares borda branca sobre fundo verde escuro
+   DESKTOP+TABLET (default) — polish apenas; settings nativos cuidam do look
    ========================================================================== */
 
-/* Delta #4 desktop — border-radius 4px (retangular) */
-.elementor-widget-form.bit-form-responsive .elementor-field-textual,
-.elementor-widget-form.bit-form-responsive select.elementor-field {
-    background: transparent;
-    border: 2px solid #fff; /* #fff and rgba(255,255,255,*) kept as literals — universal & mu-plugin must be theme-independent */
-    color: #fff;
-    border-radius: 4px;
+body .elementor-widget-form.bit-form-responsive .grecaptcha-badge {
+    display: none !important;
 }
 
-/* Delta #6 desktop — placeholder branco 65% */
-.elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
-    color: rgba(255, 255, 255, 0.65);
+body .elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
+    color: var(--bit-footer-mint-placeholder);
 }
 
-/* Note: option[disabled] color rules removed — natively styled by OS, ignored by Chromium/Firefox.
-   The select's empty-option text color comes from `color` on the select element itself (above). */
-
-/* Delta #7 + #8 desktop — botão inline à direita, largura flex */
-.elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
-    display: flex;
-    align-items: center;
-}
-
-.elementor-widget-form.bit-form-responsive button[type="submit"] {
-    background: transparent;
-    border: 2px solid #fff;
-    color: #fff;
-    font-weight: 700;
-    white-space: nowrap;
+body .elementor-widget-form.bit-form-responsive select.elementor-field {
+    color: var(--bit-footer-bg-verde);
 }
 
 /* ==========================================================================
-   TABLET (768px – 1024px) — herda desktop; sem alteração específica
-   ========================================================================== */
-
-/* Tablet herda as regras desktop acima sem necessidade de bloco separado. */
-
-/* ==========================================================================
-   MOBILE (≤767px) — pill branco, layout vertical, botão centralizado
+   MOBILE (≤767px) — compacto retangular borda branca 3 colunas lado a lado
+   Especificidade aumentada com body + !important para vencer Elementor inline.
    ========================================================================== */
 
 @media (max-width: 767px) {
 
-    /* Delta #3 — layout vertical (column) com espaçamento entre campos */
-    .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper {
-        flex-direction: column;
-        gap: 14px;
+    /* Layout 3 colunas */
+    body .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper {
+        display: grid !important;
+        grid-template-columns: 1.6fr 1.4fr 1fr !important;
+        gap: 0 !important;
+        column-gap: 0 !important;
+        row-gap: 0 !important;
+        margin: 0 !important;
     }
 
-    /* Delta #3 — cada field group ocupa a largura total */
-    .elementor-widget-form.bit-form-responsive .elementor-field-group {
+    body .elementor-widget-form.bit-form-responsive .elementor-field-group {
         width: 100% !important;
         max-width: 100% !important;
-        margin-bottom: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
-    /* Delta #4 + #5 — pill branco, fundo branco, texto verde escuro, sem borda */
-    .elementor-widget-form.bit-form-responsive .elementor-field-textual,
-    .elementor-widget-form.bit-form-responsive select.elementor-field {
-        background: #fff;
-        color: var(--bit-footer-bg-verde);
-        border: none;
-        border-radius: 24px;
-        padding: 12px 20px;
+    /* reCAPTCHA invisível NÃO ocupa coluna do grid — esconder completamente
+       (display:contents deixava o filho .elementor-field visível como caixa fantasma) */
+    body .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3,
+    body .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3 .elementor-field {
+        display: none !important;
     }
 
-    /* Delta #6 — placeholder verde-menta (mint) em mobile */
-    .elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
-        color: var(--bit-footer-mint-placeholder);
+    /* Forçar submit a ficar na 3ª coluna do grid (após email + select) */
+    body .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
+        grid-column: 3 / 4 !important;
+        grid-row: 1 / 2 !important;
     }
 
-    /* Delta #7 — botão centralizado abaixo dos campos */
-    .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
-        display: flex;
-        justify-content: center;
+    /* Inputs e select: retangular borda branca fundo transparente texto branco */
+    body .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+    body .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: 2px solid #fff !important;
+        border-width: 2px !important;
+        border-color: #fff !important;
+        color: #fff !important;
+        border-radius: 0 !important;
+        padding: 0.55rem 0.85rem !important;
+        font-size: 0.75rem !important;
+        height: 2.4rem !important;
+        line-height: normal !important;
     }
 
-    /* Delta #8 — botão compacto centralizado, mínimo 30% da largura do form */
-    .elementor-widget-form.bit-form-responsive button[type="submit"] {
-        width: auto;
-        min-width: 30%;
-        padding: 10px 32px;
+    body .elementor-widget-form.bit-form-responsive .elementor-field-textual::placeholder {
+        color: rgba(255, 255, 255, 0.7) !important;
     }
 
+    body .elementor-widget-form.bit-form-responsive .elementor-select-wrapper::after {
+        color: #fff !important;
+    }
+
+    /* Visual contínuo: tira border-right entre colunas adjacentes */
+    body .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper > .elementor-field-group:nth-child(1) .elementor-field,
+    body .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper > .elementor-field-group:nth-child(1) select {
+        border-right-width: 0 !important;
+    }
+    body .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper > .elementor-field-group:nth-child(2) select {
+        border-right-width: 0 !important;
+    }
+
+    /* Botão: retangular full-width na coluna 3 */
+    body .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
+        display: block !important;
+        padding: 0 !important;
+    }
+
+    body .elementor-widget-form.bit-form-responsive button[type="submit"].elementor-button {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: 2.4rem !important;
+        padding: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        border: 2px solid #fff !important;
+        border-color: #fff !important;
+        color: #fff !important;
+        border-radius: 0 !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+    }
 }
