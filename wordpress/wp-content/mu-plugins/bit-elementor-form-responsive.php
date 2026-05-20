@@ -7,7 +7,7 @@
  *              via switcher nativo. Permite unificar 2 widgets de form com designs
  *              distintos em 1 widget. CSS pill/retângulo + JS placeholder por breakpoint.
  *              Spec: docs/superpowers/specs/2026-05-19-formulario-rodape-rdstation-design.md
- * Version:     1.0.0
+ * Version:     1.2.0
  * Author:      Daniel Cambría / Bureau de Tecnologia Ltda.
  * Network:     true
  */
@@ -16,7 +16,7 @@ namespace BIT\ElementorFormResponsive;
 
 defined( 'ABSPATH' ) || exit;
 
-const VERSION      = '1.0.0';
+const VERSION      = '1.2.0';
 const WIDGET_CLASS = 'bit-form-responsive';
 
 /**
