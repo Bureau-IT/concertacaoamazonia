@@ -36,6 +36,29 @@ body .elementor-widget-form.bit-form-responsive select.elementor-field {
     color: var(--bit-footer-bg-verde);
 }
 
+/* Botão desktop: centralizar dentro do widget inteiro (não na col-33) + cor branca pura */
+@media (min-width: 768px) {
+    body .elementor-widget-form.bit-form-responsive .elementor-field-type-submit.e-form__buttons {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+    }
+    body .elementor-widget-form.bit-form-responsive .elementor-field-type-submit button[type="submit"].elementor-button {
+        width: auto !important;
+        min-width: 200px !important;
+        padding: 0.75rem 2.5rem !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        border: 2px solid #ffffff !important;
+        border-color: #ffffff !important;
+        color: #ffffff !important;
+        border-radius: 0 !important;
+        font-weight: 700 !important;
+    }
+}
+
 /* ==========================================================================
    MOBILE (≤767px) — compacto retangular borda branca 3 colunas lado a lado
    Especificidade aumentada com body + !important para vencer Elementor inline.
