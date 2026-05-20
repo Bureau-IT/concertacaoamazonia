@@ -293,21 +293,28 @@ function _register_render_filter() {
     //    content_url() é necessário porque plugins_url() resolve para /plugins/,
     //    não para /mu-plugins/ onde este arquivo realmente vive.
     // -----------------------------------------------------------------------
-    add_action( 'wp_enqueue_scripts', function () {
-        wp_register_style(
+    // Enqueue INCONDICIONAL (frontend + editor preview iframe).
+    // Custo ~7KB total gzipped; ganho: CSS + JS sempre disponíveis no editor preview
+    // do Elementor (que carrega iframe via ?elementor-preview= e dispara wp_enqueue_scripts
+    // mas NÃO dispara elementor/frontend/widget/before_render do mesmo jeito).
+    $enqueue_assets = function () {
+        wp_enqueue_style(
             'bit-form-responsive',
             content_url( 'mu-plugins/bit-elementor-form-responsive.css' ),
             [],
             \BIT\ElementorFormResponsive\VERSION
         );
-        wp_register_script(
+        wp_enqueue_script(
             'bit-form-responsive',
             content_url( 'mu-plugins/bit-elementor-form-responsive.js' ),
             [],
             \BIT\ElementorFormResponsive\VERSION,
-            true // load in footer
+            true
         );
-    } );
+    };
+    add_action( 'wp_enqueue_scripts', $enqueue_assets );
+    // elementor/preview/enqueue_styles dispara dentro do iframe preview do editor
+    add_action( 'elementor/preview/enqueue_styles', $enqueue_assets );
 
     // -----------------------------------------------------------------------
     // 1. Classe escopo + data-bit-form-name-* no wrapper externo do widget
@@ -321,13 +328,7 @@ function _register_render_filter() {
                 return;
             }
 
-            // Enqueue CSS + JS — registrados no hook wp_enqueue_scripts acima;
-            // enqueue aqui garante que os assets são incluídos apenas quando
-            // um widget Form efetivamente renderiza na página. Safe de chamar
-            // N vezes (WordPress deduplica internamente via $wp_styles->done /
-            // $wp_scripts->done).
-            wp_enqueue_style( 'bit-form-responsive' );
-            wp_enqueue_script( 'bit-form-responsive' );
+            // CSS/JS já enqueued incondicionalmente (acima) — nada a fazer aqui.
 
             $widget_class = \BIT\ElementorFormResponsive\WIDGET_CLASS;
             $settings     = $widget->get_settings_for_display();
