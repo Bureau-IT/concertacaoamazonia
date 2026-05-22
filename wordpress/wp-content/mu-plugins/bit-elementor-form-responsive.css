@@ -49,6 +49,18 @@
     .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
         border-radius: 0 !important;
     }
+
+    /* Altura uniforme dos 3 elementos (input/select/button) no grid mobile.
+       Inputs nativos têm padding interno que varia por tipo (10px input,
+       10px 20px 10px 16px select). Forçamos box-sizing + height para
+       alinhamento visual perfeito. */
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper,
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+    .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+        height: 42px !important;
+        box-sizing: border-box !important;
+    }
 }
 
 /* ==========================================================================
@@ -73,4 +85,11 @@ body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-respon
 body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
 body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
     border-radius: 0 !important;
+}
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper,
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+    height: 42px !important;
+    box-sizing: border-box !important;
 }
