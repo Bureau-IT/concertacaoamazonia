@@ -39,6 +39,16 @@
         grid-column: 3 / 4;
         grid-row: 1 / 2;
     }
+
+    /* Border-radius reto em mobile.
+       NOTA: field_border_radius do Elementor Pro NÃO é responsive nativo
+       (registrado via add_control, não add_responsive_control). Sem este CSS,
+       o border-radius desktop (28px pill) também aplicaria em mobile. */
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+    .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+        border-radius: 0 !important;
+    }
 }
 
 /* ==========================================================================
@@ -58,4 +68,9 @@ body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-respon
 body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
     grid-column: 3 / 4;
     grid-row: 1 / 2;
+}
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+    border-radius: 0 !important;
 }
