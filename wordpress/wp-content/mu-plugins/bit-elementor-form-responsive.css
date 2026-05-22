@@ -25,7 +25,7 @@
     .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper {
         display: grid;
         grid-template-columns: 1.6fr 1.4fr 1fr;
-        gap: 0;
+        gap: 10px;
     }
 
     /* reCAPTCHA invisível não ocupa coluna do grid */
@@ -71,7 +71,7 @@
 body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper {
     display: grid;
     grid-template-columns: 1.6fr 1.4fr 1fr;
-    gap: 0;
+    gap: 10px;
 }
 body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3,
 body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3 .elementor-field {
