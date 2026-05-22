@@ -1,0 +1,95 @@
+/**
+ * BIT Elementor Form Responsive — CSS estrutural mínimo
+ *
+ * Escopo: .elementor-widget-form.bit-form-responsive
+ *
+ * Filosofia: CSS faz APENAS layout estrutural (grid 3 colunas em mobile,
+ * esconder reCAPTCHA). Cores, bordas, backgrounds, paddings, fonts:
+ * tudo controlado pelos settings nativos do widget Elementor (responsivos
+ * por device via switcher do editor).
+ *
+ * Author: Daniel Cambría / Bureau de Tecnologia Ltda.
+ * Version: 1.3.0
+ */
+
+/* Esconder reCAPTCHA badge (não-visual, mantém o widget invisível mas ativo) */
+.elementor-widget-form.bit-form-responsive .grecaptcha-badge {
+    display: none !important;
+}
+
+/* ==========================================================================
+   MOBILE (≤767px) — layout 3 colunas grid (email | região | enviar)
+   ========================================================================== */
+
+@media (max-width: 767px) {
+    .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper {
+        display: grid;
+        grid-template-columns: 1.6fr 1.4fr 1fr;
+        gap: 10px;
+    }
+
+    /* reCAPTCHA invisível não ocupa coluna do grid */
+    .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3,
+    .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3 .elementor-field {
+        display: none;
+    }
+
+    /* Submit fica na 3ª coluna (após email + select) */
+    .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
+        grid-column: 3 / 4;
+        grid-row: 1 / 2;
+    }
+
+    /* Border-radius reto em mobile.
+       NOTA: field_border_radius do Elementor Pro NÃO é responsive nativo
+       (registrado via add_control, não add_responsive_control). Sem este CSS,
+       o border-radius desktop (28px pill) também aplicaria em mobile. */
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+    .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+        border-radius: 0 !important;
+    }
+
+    /* Altura uniforme dos 3 elementos (input/select/button) no grid mobile.
+       Inputs nativos têm padding interno que varia por tipo (10px input,
+       10px 20px 10px 16px select). Forçamos box-sizing + height para
+       alinhamento visual perfeito. */
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper,
+    .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+    .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+        height: 42px !important;
+        box-sizing: border-box !important;
+    }
+}
+
+/* ==========================================================================
+   Editor Elementor — espelha o layout mobile quando user escolhe viewport mobile.
+   (Elementor simula via data-attr, não dispara @media do browser real.)
+   ========================================================================== */
+
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-form-fields-wrapper {
+    display: grid;
+    grid-template-columns: 1.6fr 1.4fr 1fr;
+    gap: 10px;
+}
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3,
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-type-recaptcha_v3 .elementor-field {
+    display: none;
+}
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-type-submit {
+    grid-column: 3 / 4;
+    grid-row: 1 / 2;
+}
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+    border-radius: 0 !important;
+}
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-field:not(.elementor-select-wrapper),
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper,
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-field-group .elementor-select-wrapper select,
+body[data-elementor-device-mode="mobile"] .elementor-widget-form.bit-form-responsive .elementor-button[type="submit"] {
+    height: 42px !important;
+    box-sizing: border-box !important;
+}
