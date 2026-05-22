@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "1089fffc6024",
+  "session_id": "6f0847f9-28b0-4cba-b914-7eabc8f72ca3",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-22T01:26:35.950497Z",
+  "branch": "main",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "docs/runbook-crossblog-403.md",
+    "wordpress/wp-content/mu-plugins/bit-crossblog-attachment-fix.README.md",
+    "wordpress/wp-content/mu-plugins/bit-crossblog-dev-notice.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c7f509d2638c",
+  "token_usage": {
+    "input_tokens": 2783,
+    "cache_creation_tokens": 2569985,
+    "cache_read_tokens": 135659919,
+    "output_tokens": 245205,
+    "api_call_count": 412
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-22T01:26:34.494611Z",
+    "agent_lines": 289,
+    "human_added": 430,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 719,
+    "agent_percentage": 40.19471488178025
+  }
+}
