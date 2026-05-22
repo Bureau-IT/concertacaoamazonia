@@ -297,18 +297,26 @@ function _register_render_filter() {
     // Custo ~7KB total gzipped; ganho: CSS + JS sempre disponíveis no editor preview
     // do Elementor (que carrega iframe via ?elementor-preview= e dispara wp_enqueue_scripts
     // mas NÃO dispara elementor/frontend/widget/before_render do mesmo jeito).
-    $enqueue_assets = function () {
+    // Versão = VERSION + filemtime() para cache bust automático em qualquer edição
+    // (nginx serve esses assets com Cache-Control: max-age=31536000 immutable —
+    // sem mudar a query string ?ver=, browsers cacheiam por 1 ANO sem revalidar).
+    $css_file = WP_CONTENT_DIR . '/mu-plugins/bit-elementor-form-responsive.css';
+    $js_file  = WP_CONTENT_DIR . '/mu-plugins/bit-elementor-form-responsive.js';
+    $css_ver  = \BIT\ElementorFormResponsive\VERSION . '.' . ( file_exists( $css_file ) ? filemtime( $css_file ) : '0' );
+    $js_ver   = \BIT\ElementorFormResponsive\VERSION . '.' . ( file_exists( $js_file ) ? filemtime( $js_file ) : '0' );
+
+    $enqueue_assets = function () use ( $css_ver, $js_ver ) {
         wp_enqueue_style(
             'bit-form-responsive',
             content_url( 'mu-plugins/bit-elementor-form-responsive.css' ),
             [],
-            \BIT\ElementorFormResponsive\VERSION
+            $css_ver
         );
         wp_enqueue_script(
             'bit-form-responsive',
             content_url( 'mu-plugins/bit-elementor-form-responsive.js' ),
             [],
-            \BIT\ElementorFormResponsive\VERSION,
+            $js_ver,
             true
         );
     };
