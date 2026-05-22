@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "f40a1c547d9f",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "wordpress/wp-content/mu-plugins/bit-elementor-espiral-widget.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/0a1c547d9f/0/metadata.json",
+      "transcript": "/f4/0a1c547d9f/0/full.jsonl",
+      "context": "/f4/0a1c547d9f/0/context.md",
+      "content_hash": "/f4/0a1c547d9f/0/content_hash.txt",
+      "prompt": "/f4/0a1c547d9f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 222,
+    "cache_creation_tokens": 692551,
+    "cache_read_tokens": 20845067,
+    "output_tokens": 60289,
+    "api_call_count": 142
+  }
+}
