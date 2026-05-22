@@ -1,0 +1,3335 @@
+o cloudfront parece estar com algum problema. analise as mensagens que nao param de chegar nas ultimas horas do cloudwatch
+
+---
+
+# /diagnose-edge — Diagnóstico empírico de incidente edge
+
+Você é especialista em diagnóstico AWS edge (CloudFront + WAF + ALB) e vai
+executar uma sequência empírica de checks para o site concertação.
+
+**Princípio fundamental** (memory `feedback_incident_diagnostic_discipline.md`):
+read-only queries primeiro, hipótese depois. Hipóteses sem dataset são teatro.
+Agentes ratificam premissa errada — não usar nesta fase.
+
+---
+
+## Argumentos
+
+Parse argumentos de ``:
+
+- `--site=<name>` — site key em `~/.config/bit-bpo/waf-sites.yaml`. Default: `concertacao` (esta skill é project-only)
+- `--window=<min>` — janela em minutos. Default: `60`. Aceita `180` (3h), `1440` (24h)
+- `--ip=<addr>` — filtra WAF + nginx + CW por IP específico
+- `--no-origin` — pula origin health snapshot (útil se SSH lento/indisponível)
+
+Default: site=concertacao, window=60, sem filtro IP, com origin health.
+
+---
+
+## Workflow
+
+### Step 1: Resolver config do site
+
+Leia `~/.config/bit-bpo/waf-sites.yaml`. Se site não existir, abort com:
+```
+[!] Site '<name>' não encontrado em waf-sites.yaml
+```
+
+Variáveis úteis a extrair:
+- `aws_profile`, `region`, `distribution_id`, `web_acl_arn`, `web_acl_name`, `web_acl_id`
+- `log_bucket`, `ssh_alias`, `web_root`, `alb_name`, `alb_region`
+
+Crie `OUTPUT_DIR=/tmp/diagnose-edge-{site}-{unixtime}` e salve o relatório completo lá.
+
+### Step 2: Origin health snapshot (PARALELO via & + wait)
+
+**Antes de qualquer check edge — verificar origin primeiro.** Lição do incidente:
+viés "é WAF" sem checar origin gera 5h de investigação errada.
+
+Execute em paralelo (background com `&`):
+
+```bash
+# 2a. ALB target health (se alb_name e alb_region definidos)
+aws elbv2 describe-target-health --profile "$PROFILE" --region "$ALB_REGION" \
+  --target-group-arn $(aws elbv2 describe-target-groups --profile "$PROFILE" --region "$ALB_REGION" \
+    --load-balancer-arn $(...) --query 'TargetGroups[0].TargetGroupArn' --output text) \
+  --query 'TargetHealthDescriptions[].{Target:Target.Id,State:TargetHealth.State}' --output json &
+
+# 2b. ALB 5xx counts (CloudWatch HTTPCode_Target_5XX_Count last $WINDOW min)
+aws cloudwatch get-metric-statistics --profile "$PROFILE" --region "$ALB_REGION" \
+  --namespace AWS/ApplicationELB --metric-name HTTPCode_Target_5XX_Count \
+  --dimensions Name=LoadBalancer,Value=$(...) \
+  --start-time "..." --end-time "..." --period 60 --statistics Sum &
+
+# 2c. ALB TargetResponseTime p95
+# (similar)
+
+# 2d. PHP-FPM saturação via SSH
+# IMPORTANTE: comando `timeout` nao existe em macOS — usar apenas opcoes do SSH:
+#   - ConnectTimeout=5: max 5s para abrir conexao
+#   - ServerAliveInterval=3 + ServerAliveCountMax=2: mata sessao se SSH inativo 6s
+ssh -o ConnectTimeout=5 -o ServerAliveInterval=3 -o ServerAliveCountMax=2 "$SSH_ALIAS" \
+  "ss -tnp 2>/dev/null | grep ':9000' | wc -l; \
+   systemctl is-active php8.3-fpm 2>/dev/null" &
+
+wait
+```
+
+Se `--no-origin` foi passado, pular este step.
+
+Se algum step falhar (SSH inacessivel, ALB sem permissão), warn e continuar — não abort.
+
+### Step 3: CloudFront métricas (last $WINDOW min)
+
+```bash
+aws cloudwatch get-metric-statistics --profile "$PROFILE" --region us-east-1 \
+  --namespace AWS/CloudFront --metric-name 4xxErrorRate \
+  --dimensions Name=DistributionId,Value="$DIST_ID" Name=Region,Value=Global \
+  --start-time "..." --end-time "..." --period 60 --statistics Average
+
+# Repetir para 5xxErrorRate e Requests
+```
+
+Capturar:
+- 4xxErrorRate avg + peak + timestamp do peak
+- 5xxErrorRate avg + peak
+- Requests sum total + datapoints com queda anômala (Anomaly Detection band 2σ via CloudWatch Insights se disponível)
+
+### Step 4: WAF BlockedRequests por Rule (last $WINDOW min)
+
+```bash
+# Listar todas as rules do WebACL primeiro
+aws wafv2 list-rule-groups ... # ou get-web-acl + parse
+
+# Para cada rule (e ALL):
+aws cloudwatch get-metric-statistics --profile "$PROFILE" --region us-east-1 \
+  --namespace AWS/WAFV2 --metric-name BlockedRequests \
+  --dimensions Name=WebACL,Value="$WEB_ACL_NAME" Name=Rule,Value="$RULE_NAME" \
+  --start-time "..." --end-time "..." --period 300 --statistics Sum
+```
+
+Output: top 5 rules por blocks + total.
+
+### Step 5: WAF SampledRequests (last 3h, max 100)
+
+```bash
+aws wafv2 get-sampled-requests --profile "$PROFILE" --region us-east-1 \
+  --web-acl-arn "$WEB_ACL_ARN" \
+  --rule-metric-name ALL \
+  --scope CLOUDFRONT \
+  --time-window StartTime="...",EndTime="..." \
+  --max-items 100
+```
+
+Se `--ip=<addr>` passado: filtrar `SampledRequests[?Request.ClientIP=='$IP']`.
+
+Output:
+- Top 10 IPs blocked (ASN/geo se possível)
+- Top 10 URIs blocked
+- Distribution por terminatingRule
+
+### Step 6: CloudTrail UpdateWebACL (last 7d)
+
+Detecta regressão de config.
+
+```bash
+aws cloudtrail lookup-events --profile "$PROFILE" --region us-east-1 \
+  --lookup-attributes AttributeKey=EventName,AttributeValue=UpdateWebACL \
+  --start-time "$(date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)" \
+  --max-results 20 \
+  --query 'Events[].{Time:EventTime,User:Username}'
+```
+
+Se houver mudanças, alertar — pode ser causa.
+
+### Step 7: WAF logs S3 aggregation (se logging ativo)
+
+```bash
+aws wafv2 get-logging-configuration --profile "$PROFILE" --region us-east-1 \
+  --resource-arn "$WEB_ACL_ARN" 2>/dev/null
+```
+
+Se ATIVO:
+```bash
+# Download recursivo do hour atual (UTC)
+HOUR_NOW=$(date -u +%Y/%m/%d/%H)
+aws s3 cp --profile "$PROFILE" --recursive --quiet \
+  "s3://$LOG_BUCKET/AWSLogs/$ACCT/WAFLogs/cloudfront/$WEB_ACL_NAME/$HOUR_NOW/" \
+  "$OUTPUT_DIR/waflogs/"
+
+# Descompactar (mantem .gz original)
+find "$OUTPUT_DIR/waflogs" -name "*.log.gz" -exec gunzip -k {} \;
+
+# IMPORTANTE: AWS particiona por minuto (subdiretorios 00/, 05/, 10/...).
+# Concatenar TODOS os .log dos subdirs com find -exec cat (NAO usar
+# `cat *.log` — so pega root-level e perde os subdirs):
+find "$OUTPUT_DIR/waflogs" -name "*.log" -exec cat {} + > "$OUTPUT_DIR/waflogs-all.jsonl"
+
+# Agregar via Python (inline ou heredoc) — top IPs, URIs, rules, UAs
+# Filtro --ip=<addr> aplicado se passado
+```
+
+Se INATIVO: warn explícito "logs WAF não habilitados — `helpers/enable-waf-logs.sh $SITE` para habilitar (~5-10min para primeiros logs)". Não tente habilitar automaticamente.
+
+### Step 8: VEREDICT + output
+
+Com base nos steps anteriores, classificar incidente:
+
+| Veredict | Critério |
+|----------|----------|
+| `edge-anomaly` | CF 4xxErrorRate alto + ALB 5xx baixo + origin saudável + WAF blocks elevados |
+| `origin-degraded` | ALB 5xx alto OR FPM saturado OR ALB TargetHealth UnHealthy |
+| `mixed` | Sintomas em ambos camadas |
+| `inconclusive` | Métricas dentro do baseline ou dados insuficientes |
+
+Output em terminal (≤25 linhas, com cores):
+
+```
+═══════════════════════════════════════════════════════════
+ DIAGNOSE-EDGE  ·  concertacao  ·  2026-05-04 19:45 BRT
+═══════════════════════════════════════════════════════════
+
+VERDICT: edge-anomaly
+
+[+] Origin: HEALTHY (ALB 1/1 healthy, FPM 8/20 workers, Aurora normal)
+
+[!] CloudFront 4xx Error Rate (last 60min):
+    Avg: 18.3%  ·  Peak: 92.8% @ 14:34 BRT
+    Trend: ↗ 3σ band exceeded
+
+[!] WAF Blocks (last 60min, top 3 rules):
+    1. RateLimit-300-Block  →  47 blocks (32 unique IPs, 90% BR residential)
+    2. Block-AggressiveBots →  109 blocks (SemrushBot SG)
+    3. Block-XMLRPC         →    2 blocks
+
+[~] Top blocked IP: 186.220.197.37 (Claro NXT BR)
+    11 blocks all on RateLimit-300-Block
+    URIs: /, /sobre-nos/, /favicon.ico
+
+[i] CloudTrail: 0 UpdateWebACL events last 7d (sem regressão de config)
+
+[+] WAF logs S3: ATIVO (aws-waf-logs-concertacao-prd-use1)
+    Last entry: 2 min ago
+
+──────────────────────────────────────────────────────────
+Full report: /tmp/diagnose-edge-concertacao-1714896000.md
+```
+
+Salvar relatório completo em markdown no `OUTPUT_DIR/report.md` com TODOS os dados brutos coletados.
+
+### Step 9: Comunicação ao usuário
+
+Após gerar relatório, apresentar resumo curto ao Daniel:
+- Veredito
+- 2-3 achados mais relevantes
+- Recomendação de próximo passo (NÃO executar — só sugerir)
+- Caminho do relatório completo
+
+---
+
+## Princípios obrigatórios
+
+1. **READ-ONLY APENAS.** Nunca modificar WAF, CloudFront, ALB neste fluxo.
+2. **Paralelizar com `&` + `wait`** quando possível (CW, ALB, SSH são independentes).
+3. **SSH timeout via opções nativas** (ConnectTimeout=5 + ServerAliveInterval=3) — comando `timeout` NÃO existe em macOS por padrão, não usar.
+4. **Sem emojis decorativos** — usar `[+]`, `[!]`, `[~]`, `[i]` + cores ANSI BIT (FG_GREEN/FG_RED/FG_ORANGE/FG_BLUE).
+5. **VERDICT sempre no topo do output** — Daniel sob estresse precisa em 5s.
+6. **Se logs não habilitados**, sugerir helper `enable-waf-logs.sh` mas NÃO executar automaticamente.
+7. **Salvar relatório completo em arquivo** — terminal mostra resumo, file tem dados brutos para análise posterior.
+8. **`LC_NUMERIC=C` ou `LC_ALL=C` antes de `printf` com decimais** — locale pt_BR usa vírgula em decimal e quebra `printf '%.2f'`. Definir uma vez no topo do script.
+
+## Gotchas conhecidos (descobertos no teste 2026-05-04)
+
+### macOS vs Linux
+
+- Comando `timeout`: **inexistente no macOS por padrão**. Usar opções SSH nativas (ConnectTimeout, ServerAliveInterval) ou `gtimeout` se `coreutils` instalado via brew.
+- `date -u -v-60M`: BSD-style do macOS. Em Linux seria `date -u -d "60 minutes ago"`. Daniel usa macOS — manter BSD-style.
+
+### Locale pt_BR e printf
+
+```bash
+# ❌ ERRADO em locale pt_BR (vírgula vira separador decimal):
+printf '%.2f' "14.899004"  # → erro "número inválido"
+
+# ✅ CERTO — força locale C/POSIX:
+LC_NUMERIC=C printf '%.2f' "14.899004"  # → "14.90"
+
+# ✅ ALTERNATIVA — definir no topo do script:
+export LC_NUMERIC=C
+printf '%.2f' "14.899004"  # → "14.90"
+```
+
+### S3 logs aggregation com subdiretórios por minuto
+
+WAF logs S3 vêm particionados por minuto: `<HH>/00/`, `<HH>/05/`, etc. `cat *.log` no diretório raiz **NÃO pega subdirs**. Sempre usar:
+
+```bash
+find "$OUTPUT_DIR/waflogs" -name "*.log" -exec cat {} + > "$OUTPUT_DIR/waflogs-all.jsonl"
+```
+
+`find ... -exec cat {} +` agrupa argumentos (mais eficiente que `\;`) e atravessa subdirectories.
+
+---
+
+## Quando recomendar próximas ações
+
+Após diagnóstico, sugerir (NÃO executar) com base no veredict:
+
+- **edge-anomaly** com top rule = `RateLimit-*`: revisar threshold + scope-down
+- **edge-anomaly** com Block-AggressiveBots dominante: provavelmente saudável, bot legítimo
+- **origin-degraded**: investigar FPM/Aurora antes de mexer em WAF
+- **mixed**: cross-reference WAF logs S3 com nginx access log
+- **inconclusive**: aguardar mais dados ou habilitar logs S3 se inativos
+
+---
+
+## Não fazer
+
+- Não dispatch agentes para "interpretar" métricas — você é o agente, faça você mesmo
+- Não criar hipóteses antes de coletar todos os steps 1-7
+- Não invalidar CloudFront, mexer em WAF, ou qualquer ação destrutiva
+- Não pular steps por conveniência — paralelizar é OK, pular não
+
+---
+
+confirmo sim, depois rode /smoke test
+
+---
+
+<task-notification>
+<task-id>bybycwn59</task-id>
+<summary>Monitor event: "wait for ssh patch result"</summary>
+<event>[Monitor timed out — re-arm if needed.]</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>blhik0a3w</task-id>
+<summary>Monitor event: "await patch result"</summary>
+<event>[Monitor timed out — re-arm if needed.]</event>
+</task-notification>
+
+---
+
+Bateria smoke pós-deploy. Testa 5 páginas críticas + 2 formulários em prod e green + 1 paridade prod/dev:
+
+| # | Página | URL |
+|---|--------|-----|
+| 1 | Home | `https://concertacaoamazonia.com.br/` |
+| 2 | Atlas PT | `https://concertacaoamazonia.com.br/cultura/atlas-cultural-das-amazonias/` |
+| 3 | Atlas EN | `https://concertacaoamazonia.com.br/cultura/en/cultural-atlas-of-the-amazon/` |
+| 4 | Espiral | `https://concertacaoamazonia.com.br/conhecimento/espiral-de-conhecimento/` |
+| 5 | Eventos | `https://concertacaoamazonia.com.br/eventos-calendario/` |
+| 6 | **Newsletter footer (na home)** | seletor `form[name=Newsletter]` ou `<form>` com `<input placeholder*="email">` no footer |
+| 7 | **Contato** | `https://concertacaoamazonia.com.br/contato/` |
+| 8 | **Agenda Integradora — paridade prod/dev** | `https://concertacaoamazonia.com.br/agenda-integradora/` vs `https://concertacao.bureau-it.com/agenda-integradora/` |
+
+## Workflow
+
+Para cada página, faça:
+1. `browser_close`
+2. `browser_run_code` com **prod** (sem header)
+3. `browser_close`
+4. `browser_run_code` com **green** (X-Test-Green:true via context)
+
+**Páginas 6 e 7 (formulários) — fluxo atual (a partir de 2026-05-14):**
+1. **prod**: snippet "submit real — PROD" com header `X-BIT-Smoke-Token` válido (mu-plugin `bit-smoke-recaptcha-bypass.php` v1.1.0+). Espera response header `X-BIT-Smoke-Bypass: OK` e success message visível. Marker injetado: `__bit_smoke_test=1`.
+2. **prod (teste negativo)**: snippet "submit real — PROD" com token INVÁLIDO. Espera `X-BIT-Smoke-Bypass: NOOP` ou erro reCAPTCHA — garante que bypass não está aberto pra qualquer um.
+3. **green**: snippet "submit real — GREEN" com `X-Test-Green: true` + `X-BIT-Smoke-Token` válido (quando green estiver vivo). Mesmas asserções.
+
+**Fallback (token não disponível no ambiente):** snippet deprecado "validação de formulário — PROD" valida só presença/renderização — não exercita pipeline POST.
+
+**Cobertura multisite:** rodar para blog 1 (`https://concertacaoamazonia.com.br/`) E blog 2 (`https://concertacaoamazonia.com.br/cultura/`). O footer Elementor é compartilhado mas configs WPML/destinos podem diferir.
+
+### Snippet base por estado (páginas 1-5)
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders(HEADER_VAL);
+  await ctx.clearCookies();
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+  return await page.evaluate(async () => {
+    const r = await fetch('/check-ec2.php?cb=' + Date.now(), { cache: 'no-store' });
+    const text = await r.text();
+    const hostname = (text.match(/Hostname:\s*([^\n<]+)/) || [])[1]?.trim() || 'unknown';
+
+    const jsf = window.JetSmartFilterSettings?.props || {};
+    const allFoundPosts = [];
+    for (const provider in jsf) for (const qid in jsf[provider]) {
+      allFoundPosts.push({k: provider + '/' + qid, v: jsf[provider][qid].found_posts});
+    }
+    const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+
+    return {
+      hostname,
+      title: document.title,
+      html_size: document.documentElement.outerHTML.length,
+      stylesheets: cssLinks.length,
+      uploads_elementor_css: cssLinks.filter(l => /\/uploads\/(?:sites\/\d+\/)?elementor\//.test(l.href)).length,
+      elementor_cache_404s: 'set via response listener',
+      jet_max_found_posts: Math.max(0, ...allFoundPosts.map(o => o.v || 0)),
+      listing_items: document.querySelectorAll('.jet-listing-grid__item').length,
+    };
+  });
+}
+```
+
+### Bypass de reCAPTCHA para submit em PROD/GREEN
+
+Para submeter formulários reais em ambientes com reCAPTCHA v3 invisible (Elementor Pro Forms), o mu-plugin `bit-smoke-recaptcha-bypass.php` aceita header `X-BIT-Smoke-Token` autenticado contra a constante `BIT_SMOKE_BYPASS_TOKEN` no `wp-config.php`. Quando válido, remove os callbacks `Recaptcha_Handler::validation` e `Recaptcha_V3_Handler::validation`, mantém Honeypot + validações de campo ativos, e injeta `is_smoke_test=1` no record.
+
+**Token por ambiente** (não comitar, ler do `wp-config.php` do ambiente):
+- DEV: `cat wordpress/wp-config.php | grep BIT_SMOKE_BYPASS_TOKEN`
+- PROD: SSH `concertacaoamazonia.com.br-prod-sa` — **OBRIGATÓRIO usar `sudo`** (wp-config.php é restrito ao `www-data`; sem `sudo` o grep retorna vazio em vez de "permission denied", causando falso negativo "constante ausente" e bloqueando os submits reais):
+  ```bash
+  ssh concertacaoamazonia.com.br-prod-sa "sudo grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php"
+  # Alternativa equivalente (mesma autorização):
+  ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br config get BIT_SMOKE_BYPASS_TOKEN"
+  ```
+
+Quando rodar o snippet "submit real — PROD" ou "submit real — GREEN", substitua `BIT_SMOKE_TOKEN_AQUI` pelo token do ambiente alvo.
+
+Spec: `docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md`
+
+### Snippet validação de formulário — PROD (páginas 6 e 7, sem header) — DEPRECADO em favor do "submit real — PROD" abaixo
+
+Detecta presença e renderização correta. **NÃO submete** o form em prod. Use quando o bypass token não estiver configurado no ambiente alvo.
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders(HEADER_VAL);
+  await ctx.clearCookies();
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  return await page.evaluate(() => {
+    // Detectar formulários Elementor + JetEngine
+    const forms = Array.from(document.querySelectorAll('form.elementor-form, form.jet-form, form[name]'));
+    const out = forms.map(f => {
+      const fields = Array.from(f.querySelectorAll('input, select, textarea')).map(el => ({
+        type: el.type || el.tagName.toLowerCase(),
+        name: el.name || el.id || '?',
+        required: !!el.required,
+        placeholder: el.placeholder || null,
+      }));
+      const submitBtn = f.querySelector('button[type=submit], input[type=submit], .elementor-button[type=submit]');
+      const action = f.action || '';
+      return {
+        form_name: f.getAttribute('name') || f.id || '?',
+        action: action.replace(location.origin, ''),
+        method: (f.method || 'POST').toUpperCase(),
+        fields_count: fields.filter(f => !['hidden','submit'].includes(f.type)).length,
+        fields: fields.filter(f => !['hidden','submit'].includes(f.type)).slice(0, 8),
+        submit_visible: submitBtn ? getComputedStyle(submitBtn).display !== 'none' : false,
+        submit_label: submitBtn?.innerText?.trim() || submitBtn?.value || null,
+      };
+    });
+    return { form_count: forms.length, forms: out };
+  });
+}
+```
+
+### Snippet submit real — PROD (páginas 6 e 7, com `X-BIT-Smoke-Token`)
+
+Submete o form em prod via header de bypass reCAPTCHA. O mu-plugin `bit-smoke-recaptcha-bypass.php` v1.1.0+ valida o token via `hash_equals` contra `BIT_SMOKE_BYPASS_TOKEN` do `wp-config.php`, injeta `__bit_smoke_test=1` no record via filter `actions_before` (chega aos destinos email/webhook), e emite header `X-BIT-Smoke-Bypass: OK|FAILED|NOOP`. Marcador rastreável `smoke+<ts>@bureau-it.com`. Retry 1x backoff 2s.
+
+**Gates do snippet:**
+- `bypass_header === 'OK'` no GET inicial (confirma mu-plugin ativo e token válido)
+- `submit_ok === true` após click + retry
+- Se `bypass_header === 'FAILED'`: drift do Elementor Pro (priority mudou). Bloquear deploy e investigar.
+- Se `bypass_header === 'NOOP'`: token errado ou constante ausente.
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders({ 'X-BIT-Smoke-Token': 'BIT_SMOKE_TOKEN_AQUI' });
+  await ctx.clearCookies();
+
+  // Listener para capturar header X-BIT-Smoke-Bypass da response inicial
+  let bypass_header = null;
+  page.on('response', (resp) => {
+    if (resp.url().startsWith('URL_AQUI') && bypass_header === null) {
+      bypass_header = resp.headers()['x-bit-smoke-bypass'] || 'absent';
+    }
+  });
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(1500);
+
+  // Gate 1: header tem que vir OK. NOOP/FAILED/absent = bloqueia submit.
+  if (bypass_header !== 'OK') {
+    return {
+      submit_ok: false,
+      submit_reason: 'bypass_header_not_ok',
+      submit_message: `X-BIT-Smoke-Bypass=${bypass_header} (esperado OK). Mu-plugin nao deployado, token errado ou drift do Elementor Pro.`,
+      bypass_header,
+    };
+  }
+
+  const ts = Date.now();
+  const marker = {
+    email: `smoke+${ts}@bureau-it.com`,
+    nome: `SMOKE TEST ${ts}`,
+    msg: 'Automated smoke test from /smoke command — safe to delete.',
+  };
+
+  const submit = async (m) => {
+    return await page.evaluate(async (m) => {
+      const forms = Array.from(document.querySelectorAll('form'));
+      const footerForm = forms.find(f =>
+        !!f.closest('footer, .elementor-location-footer, [data-elementor-type="footer"]') &&
+        (f.getAttribute('name') === 'Footer do Site' || f.querySelector('input[name*="form_email_desk"], input[name*="form_email"]'))
+      );
+      // Para página Contato (não-footer), fallback ao primeiro form não-footer
+      const form = footerForm || forms.find(f => !f.closest('footer, .elementor-location-footer'));
+      if (!form) return { ok: false, reason: 'form_not_found' };
+
+      const fill = (selector, value) => {
+        const el = form.querySelector(selector);
+        if (el) {
+          el.value = value;
+          el.dispatchEvent(new Event('input',  { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        }
+        return false;
+      };
+      fill('input[type=email], input[name*=email i], input[placeholder*=email i]', m.email);
+      fill('input[name*=nome i], input[placeholder*=nome i], input[name*=name i]', m.nome);
+      fill('textarea, input[name*=mensagem i], input[name*=message i]', m.msg);
+
+      const sel = form.querySelector('select');
+      if (sel && sel.options.length > 1) {
+        sel.selectedIndex = 1;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      const btn = form.querySelector('button[type=submit], input[type=submit], .elementor-button[type=submit], button.elementor-button');
+      if (!btn) return { ok: false, reason: 'submit_btn_not_found' };
+
+      const formContainer = form.closest('.elementor-widget-form, .elementor-element') || form.parentElement;
+      btn.click();
+
+      const deadline = Date.now() + 25000;
+      while (Date.now() < deadline) {
+        const success =
+          formContainer?.querySelector('.elementor-message-success, .elementor-message.elementor-message-success') ||
+          document.querySelector('.elementor-message-success, .jet-form-builder-message--success');
+        const error =
+          formContainer?.querySelector('.elementor-message-danger, .elementor-message.elementor-message-danger') ||
+          document.querySelector('.elementor-message-danger, .jet-form-builder-message--error');
+        if (success) return { ok: true,  message: success.innerText.trim().slice(0, 200) };
+        if (error)   return { ok: false, reason: 'error_message', message: error.innerText.trim().slice(0, 200) };
+        await new Promise(r => setTimeout(r, 250));
+      }
+      return { ok: false, reason: 'timeout_25s' };
+    }, m);
+  };
+
+  let result = await submit(marker);
+  if (!result.ok && result.reason !== 'error_message') {
+    await page.waitForTimeout(2000);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(1500);
+    result = await submit(marker);
+    result.retry = true;
+  }
+
+  return {
+    submit_ok: result.ok,
+    submit_reason: result.reason || null,
+    submit_message: result.message || null,
+    submit_retry_used: !!result.retry,
+    bypass_header,
+    marker,
+  };
+}
+```
+
+**Diagnóstico por `bypass_header`:**
+- `OK` — mu-plugin ativo, token bate, callbacks reCAPTCHA removidos. Submit deveria funcionar.
+- `FAILED` — token bate mas mu-plugin não encontrou callbacks reCAPTCHA pra remover. Drift do Elementor Pro (priority/classe mudou após update). Bloquear deploy, atualizar mu-plugin.
+- `NOOP` — token errado, constante ausente, ou header não chegou ao PHP. Conferir constante via SSH **com `sudo`** (wp-config.php é restrito ao `www-data`): `sudo grep BIT_SMOKE_BYPASS_TOKEN /var/www/concertacaoamazonia.com.br/wp-config.php` — sem `sudo` o grep retorna vazio em vez de "permission denied" e o operador conclui (falsamente) que a constante está ausente.
+- `absent` — mu-plugin não está instalado/ativo. Conferir: `ls -la /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bit-smoke-recaptcha-bypass.php`.
+
+**Teste negativo obrigatório:** rodar o snippet trocando `BIT_SMOKE_TOKEN_AQUI` por um token claramente inválido (`'invalid'.repeat(10)`). Esperado: `bypass_header=NOOP` E `submit_ok=false` com erro reCAPTCHA. Se passar, o bypass está aberto pra qualquer um — incidente de segurança.
+
+### Snippet submit real — GREEN (páginas 6 e 7, com `X-Test-Green:true`)
+
+Submete o form com marcador rastreável (`smoke+<ts>@bureau-it.com`) e valida resposta visual. Retry 1x com backoff 2s. Falha nas 2 tentativas dispara gate.
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders({ 'X-Test-Green': 'true' });
+  await ctx.clearCookies();
+
+  await page.goto('URL_AQUI?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  const ts = Date.now();
+  const marker = {
+    email: `smoke+${ts}@bureau-it.com`,
+    nome: `SMOKE TEST ${ts}`,
+    msg: 'Automated smoke test from /smoke command — safe to delete.',
+  };
+
+  // GUARD anti-poluição prod (incidente 2026-05-02): se green ALB rule X-Test-Green
+  // não existe (ex: green desligado pós-cutover), CloudFront ignora o header e
+  // roteia para prod-blue. Submeter aqui poluiria CRM/Newsletter de produção com
+  // marcadores `smoke+<ts>@bureau-it.com`. Antes de qualquer fill+click, validar
+  // hostname via /check-ec2.php — só prossegue se contém "hml".
+  const checkGreenLive = async () => {
+    return await page.evaluate(async () => {
+      try {
+        const r = await fetch('/check-ec2.php?cb=' + Date.now(), {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5000),
+        });
+        const text = await r.text();
+        const hostname = (text.match(/Hostname:\s*([^\n<]+)/) || [])[1]?.trim() || 'unknown';
+        return { hostname, is_green: /hml/i.test(hostname) };
+      } catch (e) {
+        return { hostname: 'unknown', is_green: false, error: (e.message || '?').slice(0, 120) };
+      }
+    });
+  };
+
+  const submit = async (m) => {
+    return await page.evaluate(async (m) => {
+      const form = document.querySelector('form.elementor-form, form.jet-form, form[name]');
+      if (!form) return { ok: false, reason: 'form_not_found' };
+
+      const fill = (selector, value) => {
+        const el = form.querySelector(selector);
+        if (el) {
+          el.value = value;
+          el.dispatchEvent(new Event('input',  { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+      fill('input[type=email], input[name*=email i], input[placeholder*=email i]', m.email);
+      fill('input[name*=nome i], input[placeholder*=nome i], input[name*=name i]', m.nome);
+      fill('textarea, input[name*=mensagem i], input[name*=message i]', m.msg);
+
+      const sel = form.querySelector('select');
+      if (sel && sel.options.length > 1) sel.selectedIndex = 1;
+
+      const btn = form.querySelector('button[type=submit], input[type=submit], .elementor-button[type=submit]');
+      if (!btn) return { ok: false, reason: 'submit_btn_not_found' };
+      btn.click();
+
+      const deadline = Date.now() + 15000;
+      while (Date.now() < deadline) {
+        const success = document.querySelector(
+          '.elementor-message-success, .jet-form-builder-message--success, .elementor-message.elementor-message-success'
+        );
+        const error = document.querySelector(
+          '.elementor-message-danger, .jet-form-builder-message--error, .elementor-message.elementor-message-danger'
+        );
+        if (success) return { ok: true,  message: success.innerText.trim().slice(0, 200) };
+        if (error)   return { ok: false, reason: 'error_message', message: error.innerText.trim().slice(0, 200) };
+        await new Promise(r => setTimeout(r, 250));
+      }
+      return { ok: false, reason: 'timeout_15s' };
+    }, m);
+  };
+
+  // 1ª checagem: estamos mesmo no green?
+  let guard = await checkGreenLive();
+  if (!guard.is_green) {
+    // Retry 1x com backoff: green ALB rule pode ter sido recém-aplicada
+    await page.waitForTimeout(2000);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    guard = await checkGreenLive();
+    if (!guard.is_green) {
+      return {
+        submit_ok: false,
+        submit_reason: 'green_offline',
+        submit_message: `hostname "${guard.hostname}" does not contain hml — green is offline, refusing to submit on prod`,
+        submit_retry_used: true,
+        marker: null,
+      };
+    }
+  }
+
+  let result = await submit(marker);
+
+  if (!result.ok) {
+    await page.waitForTimeout(2000);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    // Re-validar guard de hostname antes da 2ª tentativa (green pode ter caído entre tentativas)
+    const guard2 = await checkGreenLive();
+    if (!guard2.is_green) {
+      return {
+        submit_ok: false,
+        submit_reason: 'green_offline',
+        submit_message: `hostname "${guard2.hostname}" does not contain hml on retry — green is offline, refusing to submit on prod`,
+        submit_retry_used: true,
+        marker: null,
+      };
+    }
+    result = await submit(marker);
+    result.retry = true;
+  }
+
+  return {
+    submit_ok: result.ok,
+    submit_reason: result.reason || null,
+    submit_message: result.message || null,
+    submit_retry_used: !!result.retry,
+    marker,
+  };
+}
+```
+
+## Apresentar matriz
+
+### Páginas 1-5 (conteúdo)
+
+```
+| Página      | PROD hostname | PROD items | PROD jet_max | GREEN hostname | GREEN items | GREEN jet_max | Status |
+|-------------|---------------|-----------:|-------------:|----------------|------------:|--------------:|--------|
+| Home        | blue          |        N   |          N   | hml            |         N   |          N    | ✅     |
+| Atlas PT    | blue          |        1   |          1   | hml            |         4   |        656    | ✅     |
+| Atlas EN    | blue          |        1   |          1   | hml            |         4   |        656    | ✅     |
+| Espiral     | blue          |       12   |         12   | hml            |        12   |         12    | ✅     |
+| Eventos     | blue          |        N   |          N   | hml            |         N   |          N    | ✅     |
+```
+
+### Páginas 6-7 (formulários)
+
+```
+| Página              | PROD form | PROD fields | PROD submit | GREEN submit_ok | retry | marker email                    | Status |
+|---------------------|----------:|------------:|-------------|-----------------|-------|---------------------------------|--------|
+| Newsletter (home)   |     1     |     2       | "ENVIAR"    | ✅              | no    | smoke+1730487123@bureau-it.com  | ✅     |
+| Contato             |     1     |     N       | "ENVIAR"    | ✅              | yes   | smoke+1730487145@bureau-it.com  | ✅     |
+```
+
+PROD valida apenas presença/campos/label do submit. GREEN executa submit real com marcador rastreável (`smoke+<ts>@bureau-it.com`) e valida resposta visual de sucesso/erro.
+
+## Fase 7.5 — Paridade prod/dev de páginas do menu (DEV = source-of-truth)
+
+Compara renderização da MESMA página em PROD (`concertacaoamazonia.com.br`) e DEV (`concertacao.bureau-it.com` via tunnel). Detecta divergências de DOM/heading/imagens/altura que indicam regressão de deploy mesmo quando HTML retornado parece idêntico.
+
+**DEV é a fonte da verdade**: a lista de páginas é descoberta varrendo o menu da home DEV. Páginas que existem em DEV mas não em PROD = pendência de deploy. Páginas que renderizam diferente = regressão.
+
+### Snippet 1 — Descobrir páginas do menu em DEV (executar 1x)
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  await page.goto('https://concertacao.bureau-it.com/?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+  const urls = await page.evaluate(() => {
+    const sels = [
+      'header nav a[href]',
+      '.elementor-nav-menu a[href]',
+      '#site-navigation a[href]',
+      '.main-navigation a[href]',
+      'nav.elementor-nav-menu--main a[href]',
+      'footer nav a[href]',          // inclui menu do footer
+      '.elementor-location-footer a[href]',
+    ];
+    const set = new Set();
+    sels.forEach(s => document.querySelectorAll(s).forEach(a => {
+      const href = a.href || '';
+      if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+      // Aceitar apenas URLs do próprio domínio dev (tunnel)
+      if (!href.startsWith('https://concertacao.bureau-it.com/')) return;
+      const url = new URL(href);
+      // Strip de query/hash, normalizar path com trailing slash
+      let path = url.pathname;
+      if (!path.endsWith('/')) path += '/';
+      // Pular: home, feeds, comments, eventos individuais (event/...), wp-*
+      if (path === '/' || path === '/en/') return;
+      if (path.includes('/comments/feed') || path.includes('/feed/')) return;
+      if (path.startsWith('/event/') || path.startsWith('/en/event/')) return;
+      if (path.startsWith('/wp-')) return;
+      set.add(path);
+    }));
+    // Páginas críticas fora do menu (incidentes históricos). Sempre incluir.
+    // Cada entrada deve referenciar o incidente que motivou a inclusão.
+    const REQUIRED_PATHS = [
+      '/cultura/porosidades/', // embed Spotify — CSP regression test (incidente 2026-05-18)
+    ];
+    REQUIRED_PATHS.forEach(p => set.add(p));
+    return [...set].sort();
+  });
+
+  return { discovered_count: urls.length, urls };
+}
+```
+
+Esperado: ~15-25 paths PT/EN únicos (`/atuacao/`, `/conhecimento/`, `/conhecimento/espiral-de-conhecimento/`, `/contato/`, `/en/activities/`, etc).
+
+### Snippet 2 — Comparar PROD vs DEV para CADA path descoberto
+
+Receba o array `urls` do Snippet 1 e itere. **Substitua `PATHS_AQUI` pela lista descoberta.**
+
+```js
+async (page) => {
+  // Lista de paths descoberta pelo Snippet 1 (substituir antes de rodar)
+  const paths = PATHS_AQUI; // ex: ['/atuacao/', '/conhecimento/', ...]
+
+  const measurePage = async (url) => {
+    await page.context().clearCookies();
+    // Fix 4 — Capturar erros de console + 4xx/5xx em recursos.
+    // Detecta JS errors (TypeError, ReferenceError) e assets quebrados que nao
+    // aparecem na altura/headings mas indicam regressao funcional.
+    const consoleErrors = [];
+    const cspErrors = [];
+    const failedResources = [];
+    const consoleHandler = (msg) => {
+      if (msg.type() === 'error') {
+        const t = msg.text();
+        // CSP errors são sempre bugs reais — bucket separado, sem whitelist.
+        // Servidor manda header CSP, browser bloqueia, plugin nenhum reverte.
+        if (/violates the following Content Security Policy directive/i.test(t)) {
+          cspErrors.push(t.slice(0, 240));
+        } else {
+          consoleErrors.push(t.slice(0, 160));
+        }
+      }
+    };
+    const responseHandler = (resp) => {
+      if (resp.status() >= 400 && resp.status() < 600) {
+        const u = resp.url();
+        // Ignorar assets externos (CDN, ads, analytics) — só interessa o proprio site
+        if (u.includes('concertacaoamazonia.com.br') || u.includes('concertacao.bureau-it.com') || u.includes('cambrasmax.local')) {
+          failedResources.push(`${resp.status()} ${u.substring(u.lastIndexOf('/')+1).slice(0, 60)}`);
+        }
+      }
+    };
+    page.on('console', consoleHandler);
+    page.on('response', responseHandler);
+
+    try {
+      const resp = await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+      await page.waitForTimeout(1500);
+
+      // Fix 3 — Aceitar cookie banner Complianz (PT/EN) consistentemente em ambos
+      // Banner aparecendo em um e não em outro causa altura diferente (falso positivo gate 13).
+      await page.evaluate(() => {
+        const btns = Array.from(document.querySelectorAll('button, a'));
+        const acceptBtn = btns.find(b => /aceitar|accept|allow/i.test(b.innerText || '') && b.offsetWidth > 0);
+        if (acceptBtn) acceptBtn.click();
+      });
+      await page.waitForTimeout(500);
+
+      // Fix 2 — Forçar lazy-load: scroll até o final, voltar ao topo, aguardar imagens
+      // Sem isso, imagens fora do viewport reportam naturalWidth=0 → diff espúria entre prod/dev.
+      await page.evaluate(async () => {
+        await new Promise(resolve => {
+          const totalHeight = document.body.scrollHeight;
+          let scrolled = 0;
+          const step = 500;
+          const timer = setInterval(() => {
+            window.scrollBy(0, step);
+            scrolled += step;
+            if (scrolled >= totalHeight) {
+              clearInterval(timer);
+              window.scrollTo(0, 0);
+              resolve();
+            }
+          }, 100);
+        });
+      });
+      await page.waitForTimeout(1000); // tempo extra para lazy-loaded images decodificarem
+
+      const data = await page.evaluate((status) => {
+        // Fix 1 — Normalizar headings: whitespace múltiplo → 1 espaço; NBSP → espaço.
+        // JSON.stringify ficava sensível a \n, espaço duplo, NBSP entre prod/dev.
+        const headings = Array.from(document.querySelectorAll('h1, h2, h3'))
+          .map(h => h.innerText.trim()
+            .replace(/\s+/g, ' ')        // normaliza whitespace múltiplo
+            .replace(/ /g, ' ')     // NBSP → espaço normal
+            .slice(0, 80))
+          .filter(Boolean);
+        const downloadBtns = Array.from(document.querySelectorAll('a, button'))
+          .filter(b => /download/i.test(b.innerText || ''))
+          .map(b => b.innerText.trim()
+            .replace(/\s+/g, ' ')
+            .replace(/ /g, ' ')
+            .slice(0, 40));
+        const imgsRendered = Array.from(document.querySelectorAll('img'))
+          .filter(i => i.naturalWidth >= 100).length;
+        return {
+          status,
+          page_height: document.body.scrollHeight,
+          headings,
+          heading_count: headings.length,
+          download_btns: downloadBtns,
+          download_btn_count: downloadBtns.length,
+          rendered_images: imgsRendered,
+          elementor_sections: document.querySelectorAll('.elementor-section, .e-con').length,
+        };
+      }, resp ? resp.status() : 0);
+
+      return {
+        ...data,
+        console_errors: consoleErrors,
+        console_error_count: consoleErrors.length,
+        csp_errors: cspErrors,
+        csp_error_count: cspErrors.length,
+        failed_resources: failedResources,
+        failed_resource_count: failedResources.length,
+      };
+    } catch (e) {
+      return {
+        error: (e.message || '?').slice(0, 120),
+        status: 0,
+        console_errors: consoleErrors,
+        csp_errors: cspErrors,
+        failed_resources: failedResources,
+      };
+    } finally {
+      page.off('console', consoleHandler);
+      page.off('response', responseHandler);
+    }
+  };
+
+  const results = [];
+  for (const path of paths) {
+    const prod = await measurePage('https://concertacaoamazonia.com.br' + path);
+    const dev  = await measurePage('https://concertacao.bureau-it.com' + path);
+
+    if (prod.error || dev.error || !prod.headings || !dev.headings) {
+      results.push({
+        path,
+        prod_status: prod.status,
+        dev_status: dev.status,
+        prod_error: prod.error || null,
+        dev_error: dev.error || null,
+        verdict: 'ERROR',
+      });
+      continue;
+    }
+
+    const headingsMatch = JSON.stringify(prod.headings) === JSON.stringify(dev.headings);
+    const downloadsMatch = JSON.stringify(prod.download_btns) === JSON.stringify(dev.download_btns);
+    const heightDiffPct = Math.round(Math.abs(prod.page_height - dev.page_height) / Math.max(prod.page_height, dev.page_height) * 100);
+    const imagesDiffPct = Math.round(Math.abs(prod.rendered_images - dev.rendered_images) / Math.max(prod.rendered_images, dev.rendered_images, 1) * 100);
+    const sectionsDiff = prod.elementor_sections - dev.elementor_sections;
+
+    // Verdict por gates da seção 13
+    const fails = [];
+    if (!headingsMatch)              fails.push('headings');
+    if (!downloadsMatch)             fails.push('downloads');
+    if (heightDiffPct > 20)          fails.push(`height-${heightDiffPct}%`);
+    if (imagesDiffPct > 40)          fails.push(`images-${imagesDiffPct}%`);
+    if (Math.abs(sectionsDiff) > 2)  fails.push(`sections-${sectionsDiff}`);
+    // Fix 4 — Console errors e failed_resources sao por-ambiente.
+    // PROD com console_errors > 0 ou failed_resources > 0 = FAIL.
+    // DEV com errors mas PROD sem = WARN (dev pode ter SES lockdown, JQMIGRATE etc).
+    if ((prod.console_error_count || 0) > 0)   fails.push(`console-prod=${prod.console_error_count}`);
+    if ((prod.failed_resource_count || 0) > 0) fails.push(`assets-prod=${prod.failed_resource_count}`);
+    if ((dev.console_error_count || 0) > (prod.console_error_count || 0))
+                                               fails.push(`console-dev=${dev.console_error_count}`);
+    // Gate dedicado CSP: erros de Content Security Policy nunca podem ser whitelistados.
+    // Servidor envia header CSP, browser bloqueia, plugin nenhum reverte → sempre bug real.
+    if ((prod.csp_error_count || 0) > 0) fails.push(`csp-prod=${prod.csp_error_count}`);
+    if ((dev.csp_error_count || 0) > 0)  fails.push(`csp-dev=${dev.csp_error_count}`);
+
+    results.push({
+      path,
+      prod_height: prod.page_height,
+      dev_height: dev.page_height,
+      height_diff_pct: heightDiffPct,
+      prod_h: prod.heading_count,
+      dev_h: dev.heading_count,
+      headings_match: headingsMatch,
+      prod_btns: prod.download_btn_count,
+      dev_btns: dev.download_btn_count,
+      downloads_match: downloadsMatch,
+      prod_imgs: prod.rendered_images,
+      dev_imgs: dev.rendered_images,
+      images_diff_pct: imagesDiffPct,
+      sections_diff: sectionsDiff,
+      prod_console_errors: prod.console_errors || [],
+      dev_console_errors: dev.console_errors || [],
+      prod_csp_errors: prod.csp_errors || [],
+      dev_csp_errors: dev.csp_errors || [],
+      prod_failed_resources: prod.failed_resources || [],
+      dev_failed_resources: dev.failed_resources || [],
+      verdict: fails.length === 0 ? 'PASS' : `FAIL: ${fails.join(', ')}`,
+    });
+  }
+
+  return {
+    total_paths: paths.length,
+    pass_count: results.filter(r => r.verdict === 'PASS').length,
+    fail_count: results.filter(r => r.verdict.startsWith('FAIL')).length,
+    error_count: results.filter(r => r.verdict === 'ERROR').length,
+    results,
+  };
+}
+```
+
+### Apresentar matriz de paridade
+
+Ordenar por verdict (FAIL e ERROR primeiro). Truncar paths longos a 40 chars.
+
+```
+| Path                                     | Status PROD/DEV | H prod/dev | Btns prod/dev | Imgs prod/dev | Δheight% | Δimg% | Δsec | Veredito |
+|------------------------------------------|------------------|------------|---------------|---------------|---------:|------:|------|----------|
+| /agenda-integradora/                     | 200/200          |   7/7      |     7/7       |    12/12      |    1%    |   0%  |   0  | ✅ PASS  |
+| /conhecimento/espiral-de-conhecimento/   | 200/200          |   3/3      |     0/0       |    18/18      |    0%    |   0%  |   0  | ✅ PASS  |
+| /atuacao/grupos-de-trabalho/             | 200/200          |   5/8      |     2/3       |     6/9       |   12%    |  33%  |  -2  | 🚨 FAIL: headings, images-33% |
+| /en/activities/projetos-estruturantes/   | 404/200          |    -       |      -        |      -        |     -    |   -   |   -  | 🚨 ERROR: prod 404, dev OK (pendência de deploy) |
+```
+
+### Cobertura típica esperada
+
+Após varredura no DEV (Snippet 1), espera-se ~15-25 paths:
+
+**PT (~10):** `/atuacao/`, `/atuacao/iniciativas-estruturantes/`, `/atuacao/grupos-de-trabalho/`, `/atuacao/encontros/`, `/atuacao/atuacao-internacional/`, `/atuacao/faq/`, `/conhecimento/`, `/conhecimento/espiral-de-conhecimento/`, `/conhecimento/mapa-das-plataformas/`, `/conhecimento/publicacoes/`, `/conhecimento/entrevistas/`, `/agenda-integradora/`, `/contato/`, `/cultura/`, `/cultura/atlas-cultural-das-amazonias/`, `/aviso-de-privacidade/`
+
+**EN (~10):** equivalentes WPML em `/en/`
+
+## Fase 7.6 — Gestão de cookies (Complianz)
+
+Valida que o plugin Complianz GDPR está renderizando o banner de consent corretamente, que botões respondem, e que após "aceitar tudo" os scripts de tracking carregam (Google Analytics, GTM, YouTube embeds, RDStation).
+
+### Snippet 0 — Multisite check (rodar PRIMEIRO)
+
+Complianz é Network Active. O banner DEVE aparecer em ambos os blogs (raiz `/` e `/cultura/`). Se aparecer só em um, configuração do plugin foi feita por blog em vez de network.
+
+```js
+async (page) => {
+  const audit = async (url) => {
+    await page.context().clearCookies();
+    await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(3500); // Complianz inicializa via JS — não DOMContentLoaded sync
+    return await page.evaluate(() => {
+      const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, [class*="cmplz-banner"]');
+      const html = document.documentElement.outerHTML;
+      const cmplzScripts = Array.from(document.querySelectorAll('script[src]'))
+        .filter(s => /cmplz|complianz/i.test(s.src)).length;
+      return {
+        url: location.href,
+        banner_visible: banner ? getComputedStyle(banner).display !== 'none' : false,
+        has_accept: !!document.querySelector('.cmplz-accept, [data-cmplz-action="accept"]'),
+        has_deny:   !!document.querySelector('.cmplz-deny, [data-cmplz-action="deny"]'),
+        cmplz_html_count: (html.match(/cmplz-banner|cmplz-cookiebanner|cmplz-accept|cmplz-deny/gi) || []).length,
+        cmplz_scripts_loaded: cmplzScripts,
+        window_complianz: typeof window.complianz !== 'undefined',
+      };
+    });
+  };
+  return {
+    blog1_root:    await audit('https://concertacaoamazonia.com.br/'),
+    blog2_cultura: await audit('https://concertacaoamazonia.com.br/cultura/'),
+    blog2_atlas:   await audit('https://concertacaoamazonia.com.br/cultura/atlas-cultural-das-amazonias/'),
+  };
+}
+```
+
+### Apresentar matriz multisite
+
+```
+| Local              | banner | accept | deny | scripts | window.complianz | Status |
+|--------------------|--------|--------|------|--------:|------------------|--------|
+| Blog 1 / (raiz)    | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
+| Blog 2 /cultura/   | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
+| Blog 2 Atlas       | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
+```
+
+🚨 **FAIL multisite** se qualquer dos blogs mostra `banner_visible === false`. Ação: verificar `wp_options.cmplz_options` (blog 1) E `wp_2_options.cmplz_options` (blog 2). Multisite com Complianz Network Active geralmente exige config por subsite.
+
+### Snippet — Complianz cookie flow
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(2000);
+
+  // 1. Banner deve estar visivel inicialmente
+  const initialState = await page.evaluate(() => {
+    const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, .cmplz-show, [class*="cmplz-banner"]');
+    const acceptBtn = document.querySelector('.cmplz-accept, button.cmplz-accept-all, [data-cmplz-action="accept"]');
+    const denyBtn = document.querySelector('.cmplz-deny, button.cmplz-deny-all, [data-cmplz-action="deny"]');
+    const settingsBtn = document.querySelector('.cmplz-settings, button.cmplz-view-preferences, [data-cmplz-action="view-preferences"]');
+    return {
+      banner_visible: banner ? getComputedStyle(banner).display !== 'none' && getComputedStyle(banner).visibility !== 'hidden' : false,
+      banner_text: banner ? banner.innerText.slice(0, 200) : null,
+      has_accept: !!acceptBtn,
+      accept_label: acceptBtn?.innerText?.trim() || null,
+      has_deny: !!denyBtn,
+      deny_label: denyBtn?.innerText?.trim() || null,
+      has_settings: !!settingsBtn,
+      cookies_set_pre_accept: document.cookie.split(';').filter(c => c.trim().startsWith('cmplz_')).length,
+    };
+  });
+
+  // 2. Clicar em "aceitar tudo" e validar cookies + scripts carregam
+  await page.evaluate(() => {
+    const btn = document.querySelector('.cmplz-accept, button.cmplz-accept-all, [data-cmplz-action="accept"]');
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(2500); // tempo para scripts assincronos carregarem
+
+  const afterAccept = await page.evaluate(() => {
+    const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, [class*="cmplz-banner"]');
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const cmplzCookies = cookies.filter(c => c.startsWith('cmplz_'));
+    // Detectar scripts marketing carregados
+    const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+    return {
+      banner_hidden_after_accept: banner ? getComputedStyle(banner).display === 'none' || getComputedStyle(banner).visibility === 'hidden' : true,
+      cmplz_cookies_set: cmplzCookies.length,
+      cmplz_cookies_sample: cmplzCookies.slice(0, 5),
+      gtm_loaded: scripts.some(s => /googletagmanager|gtag/.test(s)),
+      ga_loaded: scripts.some(s => /google-analytics|ga\.js|analytics\.js/.test(s)),
+      youtube_loaded: scripts.some(s => /youtube\.com\/iframe_api/.test(s)),
+      rd_loaded: scripts.some(s => /d335luupugsy2\.cloudfront|rdstation/.test(s)),
+    };
+  });
+
+  // 3. Reset → testar "negar tudo"
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(2000);
+  await page.evaluate(() => {
+    const btn = document.querySelector('.cmplz-deny, button.cmplz-deny-all, [data-cmplz-action="deny"]');
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(2000);
+
+  const afterDeny = await page.evaluate(() => {
+    const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, [class*="cmplz-banner"]');
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const cmplzCookies = cookies.filter(c => c.startsWith('cmplz_'));
+    const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+    return {
+      banner_hidden_after_deny: banner ? getComputedStyle(banner).display === 'none' || getComputedStyle(banner).visibility === 'hidden' : true,
+      cmplz_cookies_set: cmplzCookies.length,
+      gtm_blocked: !scripts.some(s => /googletagmanager|gtag/.test(s)),
+      ga_blocked: !scripts.some(s => /google-analytics|ga\.js|analytics\.js/.test(s)),
+      youtube_blocked: !scripts.some(s => /youtube\.com\/iframe_api/.test(s)),
+    };
+  });
+
+  return { initialState, afterAccept, afterDeny };
+}
+```
+
+### Apresentar matriz Complianz
+
+```
+| Estado            | banner_visible | accept | deny | gtm | ga  | youtube | cookies | Status |
+|-------------------|----------------|--------|------|-----|-----|---------|---------|--------|
+| Pré-consent       | true           | OK     | OK   | -   | -   | -       | 0       | ✅     |
+| Pós-aceitar tudo  | hidden         | -      | -    | ✅  | ✅  | ✅      | 4+      | ✅     |
+| Pós-negar tudo    | hidden         | -      | -    | 🚫  | 🚫  | 🚫      | ?       | ✅     |
+```
+
+### Gates Complianz
+
+🚨 **FAIL** se:
+- `initialState.banner_visible === false` — banner não aparece (privacy compliance broken)
+- `initialState.has_accept === false` ou `has_deny === false` — botões essenciais ausentes (LGPD/GDPR exigem ambos)
+- `afterAccept.banner_hidden_after_accept === false` — banner não some após clicar
+- `afterAccept.gtm_loaded === false` E `afterAccept.ga_loaded === false` — analytics não carrega após consent (perde tracking)
+- `afterDeny.gtm_blocked === false` ou `afterDeny.ga_blocked === false` — tracking dispara mesmo após negar (violação LGPD)
+
+## Fase 7.7 — Google Tag Manager (mu-plugin bit-gtm)
+
+Valida que o mu-plugin `bit-gtm.php` (canonico em `docker-dev/common/mu-plugins/`) injeta o snippet GTM no `<head>` em produção. Plugin lê constante `GTM_CONTAINER_ID` do `wp-config.php` e só ativa quando `WP_ENVIRONMENT_TYPE = 'production'`.
+
+### Snippet — GTM injection check
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
+  await page.waitForTimeout(2000);
+
+  return await page.evaluate(() => {
+    const html = document.documentElement.outerHTML;
+
+    // 1. Snippet inline no <head>: detectar via comentário "Google Tag Manager"
+    const head_snippet = /<!-- Google Tag Manager -->/.test(html);
+    const head_id_match = html.match(/googletagmanager\.com\/gtm\.js\?id=(GTM-[A-Z0-9]+)/);
+
+    // 2. Noscript após <body>: detectar via iframe ns.html
+    const body_noscript = /<iframe[^>]*googletagmanager\.com\/ns\.html\?id=GTM-/i.test(html);
+    const body_id_match = html.match(/googletagmanager\.com\/ns\.html\?id=(GTM-[A-Z0-9]+)/);
+
+    // 3. dataLayer inicializado
+    const datalayer = typeof window.dataLayer !== 'undefined' && Array.isArray(window.dataLayer);
+    const datalayer_events = datalayer ? window.dataLayer.length : 0;
+
+    // 4. Script gtm.js carregado (rede)
+    const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+    const gtm_script_loaded = scripts.some(s => /googletagmanager\.com\/gtm\.js/.test(s));
+
+    // 5. Container ID consistente entre head e body
+    const head_id = head_id_match ? head_id_match[1] : null;
+    const body_id = body_id_match ? body_id_match[1] : null;
+    const ids_match = head_id && body_id && head_id === body_id;
+
+    return {
+      head_snippet_present: head_snippet,
+      head_container_id: head_id,
+      body_noscript_present: body_noscript,
+      body_container_id: body_id,
+      ids_consistent: ids_match,
+      datalayer_initialized: datalayer,
+      datalayer_events_count: datalayer_events,
+      gtm_script_loaded,
+    };
+  });
+}
+```
+
+### Apresentar matriz GTM
+
+```
+| Verificacao                   | Esperado    | Real           | Status |
+|-------------------------------|-------------|----------------|--------|
+| <head> snippet                | true        | true           | ✅     |
+| <head> container_id           | GTM-XXX     | GTM-PPHN5B6    | ✅     |
+| <body> noscript               | true        | true           | ✅     |
+| Container IDs consistentes    | true        | true           | ✅     |
+| dataLayer inicializado        | true        | true           | ✅     |
+| dataLayer events              | >= 1        | 5              | ✅     |
+| gtm.js carregado (rede)       | true        | true           | ✅     |
+```
+
+### Gates GTM
+
+🚨 **FAIL** se:
+- `head_snippet_present === false` — snippet não injetado em prod (verificar `WP_ENVIRONMENT_TYPE='production'` no wp-config + `GTM_CONTAINER_ID` definido)
+- `body_noscript_present === false` — fallback noscript ausente (acessibilidade + crawler tracking)
+- `ids_consistent === false` — IDs do head e body divergem (configuração corrompida)
+- `datalayer_initialized === false` E `gtm_script_loaded === false` — GTM não carrega no browser
+- Após Complianz "Negar": GTM continua carregando — violação LGPD (testar em conjunto com Fase 7.6)
+
+## Fase 7.8 — Saúde dos caches e Redis (prod)
+
+Valida client-side que as 4 camadas de cache estão funcionais. Origem do gate: incidente
+2026-05-02 (espiral 502 BAD GATEWAY) descobriu que **plugin redis-cache estava ativo mas
+inerte** porque o drop-in `wp-content/object-cache.php` não existia, e `WP_REDIS_PREFIX='hml:'`
+estava em produção (drift de HML). Sintoma: DBSIZE=0, listing JetEngine custava 13.7s cold
+(vs 5.6s pós-fix, vs 5ms warm). Esta fase pega DROP-IN AUSENTE, CACHE INERTE e WARMUP VAZIO
+sem precisar de SSH ou endpoint custom no servidor.
+
+As 4 camadas validadas:
+
+1. **Object cache (Redis via drop-in)** — bypass com cookie de logged-in deve ter HTML diferente
+2. **Page cache (WP Rocket)** — 2ª visita consecutiva tem TTFB <100ms e cache header
+3. **Edge cache (CloudFront)** — `x-cache: Hit from cloudfront` em pelo menos 50% dos hits
+4. **Browser cache (assets estáticos)** — CSS/JS com `cache-control: max-age=...`
+
+### Snippet — Cache health (rodar SOMENTE em PROD, sem header X-Test-Green)
+
+```js
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders({});
+  await ctx.clearCookies();
+
+  const targetUrl = 'https://concertacaoamazonia.com.br/conhecimento/espiral-de-conhecimento/';
+
+  // 1) Object cache (drop-in) — request HEAD ao arquivo. 200 = drop-in instalado.
+  // Se o drop-in não existe, nginx retorna 404 (não cai no PHP porque é arquivo inexistente).
+  // Resposta 403 indica que existe mas restringido — também conta como instalado.
+  const dropInProbe = await page.evaluate(async () => {
+    try {
+      const r = await fetch('/wp-content/object-cache.php', { method: 'HEAD', cache: 'no-store' });
+      return { status: r.status, content_length: r.headers.get('content-length') };
+    } catch (e) { return { status: 0, error: (e.message || '?').slice(0, 80) }; }
+  });
+
+  // 2) Page cache (WP Rocket): 1ª request (warm-up) → 2ª request (medição)
+  // 2ª deve ter TTFB <100ms server-side e/ou header de hit visível.
+  const measurePage = async (cacheBust) => {
+    const t0 = Date.now();
+    const url = targetUrl + '?cb=' + cacheBust;
+    const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const ttfb_ms = Date.now() - t0;
+    const headers = resp ? resp.headers() : {};
+    return {
+      status: resp ? resp.status() : 0,
+      ttfb_ms,
+      cf_cache_status: headers['cf-cache-status'] || null,
+      x_cache: headers['x-cache'] || null,
+      wp_rocket_cache: headers['x-wp-rocket-cache'] || null,
+      age: headers['age'] ? parseInt(headers['age'], 10) : null,
+      cache_control: headers['cache-control'] || null,
+    };
+  };
+
+  // Stable cb (mesmo valor 2x) — força CF a servir do cache se chave existir
+  const stableCb = 'cache-health-' + Math.floor(Date.now() / 60000);
+  const firstHit = await measurePage(stableCb);
+  await page.waitForTimeout(800);
+  const secondHit = await measurePage(stableCb);
+
+  // 3) Edge cache (CloudFront): comparar Hit/Miss entre 1ª e 2ª request com mesma chave de cache
+  const cfHitOnSecond = (secondHit.x_cache || '').toLowerCase().includes('hit')
+                     || (secondHit.cf_cache_status || '').toLowerCase().includes('hit');
+
+  // 4) Bypass com cookie de logged-in: WP Rocket DEVE bypassar cache → TTFB maior + sem
+  // header x-cache: Hit. Se TTFB for ~igual entre cookie/no-cookie, drop-in/page cache estão off.
+  const bypassUrl = 'https://concertacaoamazonia.com.br/conhecimento/espiral-de-conhecimento/?_bypass=' + Date.now();
+  await ctx.addCookies([{
+    name: 'wordpress_logged_in_smoke',
+    value: 'fake-' + Date.now(),
+    domain: '.concertacaoamazonia.com.br',
+    path: '/',
+  }]);
+  const bypassMeasure = await page.evaluate(async (u) => {
+    const t0 = performance.now();
+    const r = await fetch(u, { cache: 'no-store', credentials: 'include' });
+    const t1 = performance.now();
+    return {
+      status: r.status,
+      ttfb_ms: Math.round(t1 - t0),
+      x_cache: r.headers.get('x-cache') || null,
+      cache_control: r.headers.get('cache-control') || null,
+    };
+  }, bypassUrl);
+  await ctx.clearCookies();
+
+  // 5) Browser cache (assets estáticos): pegar 1 CSS e 1 JS da listagem; verificar cache-control
+  const assetsHealth = await page.evaluate(async () => {
+    const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map(l => l.href).filter(h => h.includes('concertacaoamazonia.com.br'));
+    const scripts = Array.from(document.querySelectorAll('script[src]'))
+      .map(s => s.src).filter(h => h.includes('concertacaoamazonia.com.br'));
+    const sample = [links[0], scripts[0]].filter(Boolean).slice(0, 2);
+    const out = [];
+    for (const url of sample) {
+      try {
+        const r = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+        out.push({
+          url: url.split('/').slice(-2).join('/').slice(0, 60),
+          status: r.status,
+          cache_control: r.headers.get('cache-control') || null,
+          x_cache: r.headers.get('x-cache') || null,
+          last_modified: !!r.headers.get('last-modified'),
+        });
+      } catch (e) { out.push({ url, status: 0, error: (e.message || '?').slice(0, 80) }); }
+    }
+    return out;
+  });
+
+  return {
+    object_cache_dropin: {
+      status: dropInProbe.status,
+      installed: dropInProbe.status === 200 || dropInProbe.status === 403,
+      reason: dropInProbe.status === 404 ? 'drop_in_missing' : null,
+    },
+    page_cache_wp_rocket: {
+      first_ttfb_ms: firstHit.ttfb_ms,
+      second_ttfb_ms: secondHit.ttfb_ms,
+      improvement_pct: firstHit.ttfb_ms > 0
+        ? Math.round((1 - secondHit.ttfb_ms / firstHit.ttfb_ms) * 100)
+        : 0,
+      first_status: firstHit.status,
+      second_status: secondHit.status,
+      first_x_cache: firstHit.x_cache,
+      second_x_cache: secondHit.x_cache,
+    },
+    edge_cache_cloudfront: {
+      first_hit: firstHit.x_cache,
+      second_hit: secondHit.x_cache,
+      cf_hit_on_second: cfHitOnSecond,
+      age: secondHit.age,
+    },
+    object_cache_bypass_test: {
+      no_cookie_ttfb_ms: secondHit.ttfb_ms,
+      logged_in_cookie_ttfb_ms: bypassMeasure.ttfb_ms,
+      no_cookie_x_cache: secondHit.x_cache,
+      logged_in_x_cache: bypassMeasure.x_cache,
+      bypass_works: bypassMeasure.ttfb_ms > secondHit.ttfb_ms * 2
+                 || (bypassMeasure.x_cache && !bypassMeasure.x_cache.toLowerCase().includes('hit')),
+    },
+    browser_cache_assets: assetsHealth,
+  };
+}
+```
+
+### Apresentar matriz de saúde de cache
+
+```
+| Camada                     | Verificação                              | Esperado            | Real                | Status |
+|----------------------------|------------------------------------------|---------------------|---------------------|--------|
+| Object cache drop-in       | HEAD /wp-content/object-cache.php        | 200 ou 403          | 200                 | ✅     |
+| Page cache (WP Rocket) 1ª  | TTFB request 1                           | (warm-up)           | 850ms               | —      |
+| Page cache (WP Rocket) 2ª  | TTFB request 2                           | <100ms              | 35ms                | ✅     |
+| Page cache improvement     | (1 - 2ª/1ª) × 100                        | >80%                | 96%                 | ✅     |
+| Edge cache (CloudFront)    | x-cache na 2ª request                    | Hit                 | Hit from cloudfront | ✅     |
+| Edge cache age             | header age                               | >0                  | 47s                 | ✅     |
+| Object cache bypass        | logged-in cookie aumenta TTFB ≥2x        | true                | 3.5x mais lento     | ✅     |
+| Browser cache CSS          | cache-control com max-age                | max-age=...         | max-age=31536000    | ✅     |
+| Browser cache JS           | cache-control com max-age                | max-age=...         | max-age=31536000    | ✅     |
+```
+
+### Gates Cache Health
+
+🚨 **FAIL** se:
+- `object_cache_dropin.installed === false` — drop-in `wp-content/object-cache.php` ausente.
+  Plugin redis-cache pode estar ativo mas WP NÃO está usando Redis. **Causa raiz #1 do incidente
+  2026-05-02**. Fix: `cp wp-content/plugins/redis-cache/includes/object-cache.php
+  wp-content/object-cache.php; chown www-data:www-data <arquivo>; systemctl reload php8.3-fpm`.
+- `page_cache_wp_rocket.improvement_pct < 50` — 2ª request não é significativamente mais rápida que
+  a 1ª. Page cache não está funcional. Possíveis causas: cookie de logged-in vazando para anônimos,
+  query string fora de `cache_query_strings`, `$rocket_skip_reason` ativo. Investigar com
+  `curl -sI URL | grep -i x-wp-rocket`.
+- `edge_cache_cloudfront.cf_hit_on_second === false` — CloudFront não cacheou a página entre
+  duas requests com mesma chave. Causa: response sem `Cache-Control` apropriado, cookie de sessão
+  no response, ou path com behavior `Managed-CachingDisabled` aplicado erroneamente.
+- `object_cache_bypass_test.bypass_works === false` — request com cookie de logged-in tem TTFB
+  igual ao anônimo. WP Rocket não está identificando logged-in users → todos navegam servidos do
+  cache (incluindo edição admin) ou nenhum é cacheado. Validar map `$rocket_is_logged_in` em
+  nginx.conf e configuração `rocket_cache_logged_user`.
+- Qualquer asset (CSS/JS) com `cache_control` contendo `no-store`, `no-cache`, ou `max-age=0`
+  → assets estáticos não estão sendo cacheados pelo browser. Causa: header sobrescrevendo
+  default em algum location nginx.
+
+### Snippet — Sondagem Redis via WP REST (opcional, requer endpoint configurado)
+
+Validação opt-in que confirma estado server-side do Redis. **Requer** mu-plugin
+`bit-cache-health.php` exposto em `/wp-json/bit/v1/cache-health` retornando JSON com
+DBSIZE, hit_rate, used_memory_human. Se endpoint não existir, snippet reporta `skipped: true`
+em vez de falhar — não é gate obrigatório.
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  try {
+    const data = await page.evaluate(async () => {
+      const r = await fetch('/wp-json/bit/v1/cache-health', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!r.ok) return { available: false, status: r.status };
+      const json = await r.json();
+      return { available: true, ...json };
+    });
+    return data;
+  } catch (e) {
+    return { available: false, skipped: true, error: (e.message || '?').slice(0, 80) };
+  }
+}
+```
+
+Quando disponível, esperar:
+
+```
+| Métrica Redis           | Esperado         | Real         | Status |
+|-------------------------|------------------|--------------|--------|
+| dbsize                  | >100             | 2.847        | ✅     |
+| keyspace_hit_rate_pct   | >40              | 67%          | ✅     |
+| used_memory_human       | <80% maxmemory   | 16M / 1.91G  | ✅     |
+| connected_clients       | 1-50             | 5            | ✅     |
+| evicted_keys            | 0 ou crescente lento | 0        | ✅     |
+```
+
+Gates Redis (quando endpoint disponível):
+- `dbsize < 10` durante operação normal → cache vazio, drop-in pode estar quebrado
+- `keyspace_hit_rate_pct < 20` sustentado → maioria das queries vai pra DB; investigar TTL agressivo ou prefix drift
+- `evicted_keys > 1000/min` → memória pequena, aumentar `maxmemory` Redis
+
+## Fase 7.9 — Referer block regression test (incidente 2026-05-06)
+
+Valida que o map nginx `$deny_bot_referer` bloqueia o padrão de bot
+SEM gerar falso-positivo em navegação browser real. Origem do gate:
+incidente 2026-05-06 onde regex v1.15.0 incluiu `/?` no final tornando
+o bloqueio inclusivo demais — 292 reqs LEGÍTIMAS (browsers reais
+navegando da home com `Referer: https://host/`) foram bloqueadas com
+444 em 2 dias antes da detecção.
+
+**Premissa fundamental** (não obvia, daí precisa de gate):
+- Bot envia: `Referer: https://host` (sem `/`, sem path)
+- Browser real envia: `Referer: https://host/` (com `/`) OU com path
+- Regex deve casar APENAS o primeiro padrão.
+
+### Snippet — Referer block validation (rodar SOMENTE em PROD)
+
+```js
+async (page) => {
+  const baseUrl = 'https://concertacaoamazonia.com.br';
+  const tests = [
+    // [referer, expected_blocked, description]
+    [`${baseUrl}`,                               true,  'bot literal sem /'],
+    [`http://concertacaoamazonia.com.br`,        true,  'bot http sem /'],
+    [`HTTPS://CONCERTACAOAMAZONIA.COM.BR`,       true,  'bot UPPERCASE'],
+    [`${baseUrl}/`,                              false, 'browser real com /'],
+    [`${baseUrl}/conhecimento/`,                 false, 'browser com path'],
+    [`${baseUrl}/?utm_source=x`,                 false, 'home com query string'],
+    [`https://www.concertacaoamazonia.com.br`,   true,  'bot www sem /'],
+    [`https://www.concertacaoamazonia.com.br/`,  false, 'www com / (legítimo)'],
+    [`https://google.com/`,                      false, 'referer externo'],
+  ];
+
+  const results = [];
+  for (const [referer, expected_blocked, desc] of tests) {
+    const r = await page.evaluate(async (ref) => {
+      try {
+        // fetch com Referer customizado dispara CORS preflight, mas para
+        // validar que NGINX bloqueia/passa, basta cair no lado servidor.
+        // Como CORS bloqueia leitura cross-origin, usamos Image() que envia
+        // Referer e mede via onerror/onload.
+        const resp = await fetch(`${baseUrl}/check-ec2.php?cb=${Date.now()}`, {
+          referrerPolicy: 'unsafe-url',
+          // Nota: browser MAY override Referrer-Policy do servidor; smoke
+          // detecta apenas o caminho END-TO-END.
+        }).catch(e => ({ status: 0, error: e.message }));
+        return { status: resp.status || 0 };
+      } catch (e) { return { status: 0, error: (e.message || '?').slice(0, 80) }; }
+    });
+
+    // Para teste rigoroso de Referer, usar approach via curl ou playwright
+    // setExtraHTTPHeaders. Como playwright limita headers nativos, este snippet
+    // valida APENAS o resultado server-side. Para validar regex completa,
+    // executar no servidor: curl -H "Referer: ..." http://127.0.0.1/
+    results.push({
+      desc, referer, expected_blocked,
+      // Sem capacidade de injetar Referer real do client-side, marcamos como skip:
+      validated_via: 'server-side-curl-required',
+    });
+  }
+
+  return {
+    note: 'Validação completa requer SSH+curl no servidor — playwright não permite injetar Referer arbitrário por padrão.',
+    server_side_command: `ssh prod-sa "for r in 'https://host' 'https://host/' 'https://host/path/'; do curl -s -o /dev/null -w '%{http_code}\\n' -H \\"Referer: \$r\\" -H 'Host: concertacaoamazonia.com.br' http://127.0.0.1/; done"`,
+    expected: 'Linha 1: 000 (bloqueado), Linhas 2-3: 200 (passa)',
+    tests_planned: results,
+  };
+}
+```
+
+**Limitação documentada:** Playwright não permite injetar `Referer` arbitrário
+de forma confiável (browsers ignoram se viola CORS/privacy policy). A validação
+DEFINITIVA exige curl direto no servidor. Como compensação, a Fase 7.9 emite o
+**comando exato a rodar manualmente** + critério de PASS/FAIL.
+
+### Snippet alternativo — via SSH (executar fora do Playwright)
+
+```bash
+# Rodar manualmente após smoke Playwright para validar Referer block:
+ssh concertacaoamazonia.com.br-prod-sa "
+  for r in \\
+    'https://concertacaoamazonia.com.br' \\
+    'http://concertacaoamazonia.com.br' \\
+    'HTTPS://CONCERTACAOAMAZONIA.COM.BR' \\
+    'https://concertacaoamazonia.com.br/' \\
+    'https://concertacaoamazonia.com.br/conhecimento/' \\
+    'https://www.concertacaoamazonia.com.br' \\
+    'https://www.concertacaoamazonia.com.br/'; do
+    code=\$(curl -s -o /dev/null -w '%{http_code}' \\
+      -H \"Referer: \$r\" \\
+      -H 'Host: concertacaoamazonia.com.br' \\
+      --max-time 5 http://127.0.0.1/)
+    echo \"\$code  \$r\"
+  done
+"
+```
+
+**Esperado (PASS):**
+```
+000  https://concertacaoamazonia.com.br        ← bot, bloqueado
+000  http://concertacaoamazonia.com.br         ← bot, bloqueado
+000  HTTPS://CONCERTACAOAMAZONIA.COM.BR        ← bot UPPERCASE, bloqueado
+200  https://concertacaoamazonia.com.br/       ← browser legítimo
+200  https://concertacaoamazonia.com.br/...    ← com path
+000  https://www.concertacaoamazonia.com.br    ← bot www, bloqueado
+200  https://www.concertacaoamazonia.com.br/   ← browser www legítimo
+```
+
+**FAIL crítico** se qualquer linha COM `/` retornar 000 — regex está
+inclusiva demais, replicando o bug do v1.15.0.
+
+### Auditoria de FPs históricos no log (rodar 1x para checar regressão)
+
+```bash
+# Conta hits 444 com Referer COM `/` nas últimas 24h.
+# Se > 5/dia, há FP residual — investigar.
+ssh concertacaoamazonia.com.br-prod-sa "
+  sudo awk '\==444' /var/log/nginx/access.log | \\
+  grep '\\\"https://concertacaoamazonia.com.br/\\\"' | wc -l
+"
+```
+
+**Esperado:** 0 hits após o fix v1.15.1 (2026-05-06). Se > 0, regex
+voltou a bloquear navegação legítima.
+
+## Fase 8 — Warm-up de cache do menu (prod e green)
+
+Descobre as páginas do menu principal scrappeando a home, faz 2 visitas em sequência (1ª aquece, 2ª mede), e valida que cada item está sendo servido rápido a partir do cache.
+
+### Snippet — Warm-up do menu (rodar 1x para PROD, 1x para GREEN)
+
+```js
+async (page) => {
+  const ctx = page.context();
+  const isGreen = HEADER_VAL && HEADER_VAL['X-Test-Green'] === 'true';
+  await ctx.setExtraHTTPHeaders(HEADER_VAL || {});
+  await ctx.clearCookies();
+
+  // 1) Descobrir itens do menu na home
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+  const menuUrls = await page.evaluate(() => {
+    const origin = location.origin;
+    // Cobrir Elementor nav-menu, header padrão WordPress, e <nav> genérico no header
+    const sels = [
+      'header nav a[href]',
+      '.elementor-nav-menu a[href]',
+      '#site-navigation a[href]',
+      '.main-navigation a[href]',
+      'nav.elementor-nav-menu--main a[href]',
+    ];
+    const set = new Set();
+    sels.forEach(s => document.querySelectorAll(s).forEach(a => {
+      const href = a.href || '';
+      if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+      if (!href.startsWith(origin)) return;
+      const clean = href.split('#')[0].split('?')[0];
+      if (clean === origin || clean === origin + '/') return; // pula home
+      set.add(clean);
+    }));
+    return [...set].slice(0, 20); // teto de segurança
+  });
+
+  // 2) Para cada URL: 1ª visita (warm-up) → 2ª visita (medição)
+  const results = [];
+  for (const url of menuUrls) {
+    const measure = async () => {
+      const t0 = Date.now();
+      const resp = await page.goto(url + '?cb=warmup' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+      const ttfb = Date.now() - t0;
+      const headers = resp ? resp.headers() : {};
+      return {
+        ttfb_ms: ttfb,
+        status: resp ? resp.status() : 0,
+        cf_cache_status: headers['cf-cache-status'] || null,
+        wp_rocket_cache: headers['x-wp-rocket-cache'] || null,
+        x_cache: headers['x-cache'] || null,
+      };
+    };
+
+    try {
+      await measure(); // warm-up (descartado)
+      await page.waitForTimeout(500);
+      const second = await measure(); // medição
+      results.push({ url: url.replace('https://concertacaoamazonia.com.br', ''), ...second });
+    } catch (e) {
+      results.push({ url: url.replace('https://concertacaoamazonia.com.br', ''), error: (e.message || '?').slice(0, 120) });
+    }
+  }
+
+  return {
+    env: isGreen ? 'green' : 'prod',
+    menu_count: menuUrls.length,
+    items: results,
+  };
+}
+```
+
+### Apresentar matriz de menu (uma linha por item)
+
+```
+| Item de menu              | PROD ttfb | PROD cache | GREEN ttfb | GREEN cache | Status |
+|---------------------------|----------:|------------|-----------:|-------------|--------|
+| /quem-somos/              |    320ms  | HIT        |    410ms   | HIT         | ✅     |
+| /conhecimento/            |    280ms  | HIT        |    900ms   | MISS        | ⚠️     |
+| /cultura/atlas-cultural/  |    450ms  | HIT        |   2100ms   | MISS        | 🚨     |
+| ...                       |           |            |            |             |        |
+```
+
+Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_cache`. Se nenhum: "—".
+
+## Fase 9 — Detecção de leaks e regressões silenciosas (PROD)
+
+10 gates que cobrem incidentes recorrentes: URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`, CSP regression do Spotify embed em `/cultura/porosidades/` (2026-05-18), WPML orphan attachment leak em páginas EN do blog 2 (CU 86ahhtk2d, 2026-05-18), CSS WP Rocket min retornando 404+HTML (incidente 2026-05-18 21:30 BRT — home perdeu `post-2461.css` e `post-74762.css` por dessincronia entre HTML cached do CF e `cache/min/1/` regenerado parcialmente), stale s3-uploads path em _elementor_data quebrando ícones SVG inline (CU 86ahj85qk, 2026-05-18 — 567 ocorrências detectadas em prod após cleanup do uploads/s3/), e emails com `:porta` órfã em `_elementor_data` quebrando submit do Elementor Pro Forms silenciosamente (incidente 2026-05-18 21:56 BRT — Newsletter footer retornava `success:false` sem mensagem; 106 forms afetados em prod; fix automatizado em `09-importdatabase.sh::fix_form_email_ports`).
+
+### Snippet — Leak detection composto (rodar 1x em PROD após Fase 7.5)
+
+Combina gates 20–24 numa única passada para reduzir custo (5 checks numa só navegação por página). Gate 25 roda em página dedicada (`/cultura/porosidades/`) ao final do snippet. Gate 26 roda em snippet separado (4 páginas EN do blog 2).
+
+```js
+async (page) => {
+  await page.context().clearCookies();
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  // Gate 23 — Google Fonts externos no DOM
+  // Distingue 3 categorias com severidades distintas:
+  //   - stylesheet: <link rel="stylesheet" href="fonts.googleapis.com/css...">
+  //                 → HIGH (baixa CSS + fonte; viola self-host de PJS)
+  //   - font_request: <link rel="preload" as="font" href="fonts.gstatic.com/...">
+  //                   → HIGH (download direto de woff2 externo)
+  //   - preconnect_only: <link rel="preconnect" href="fonts.gstatic.com">
+  //                      → INFO (apenas TCP/TLS handshake; sem request de fonte)
+  //                      Comum como resíduo do WP core wp_resource_hints filter.
+  const externalFonts = await page.evaluate(() => {
+    const links = Array.from(document.querySelectorAll('link[href]'))
+      .filter(l => /fonts\.googleapis\.com|fonts\.gstatic\.com/.test(l.href));
+    const byCategory = { stylesheet: [], font_request: [], preconnect_only: [] };
+    for (const l of links) {
+      const rel = (l.rel || '').toLowerCase();
+      const asAttr = (l.getAttribute('as') || '').toLowerCase();
+      const href = l.href.slice(0, 120);
+      if (rel === 'stylesheet') byCategory.stylesheet.push(href);
+      else if (rel === 'preload' && asAttr === 'font') byCategory.font_request.push(href);
+      else if (rel === 'preconnect' || rel === 'dns-prefetch') byCategory.preconnect_only.push(href);
+      else byCategory.font_request.push(href); // fallback conservador (rel desconhecido)
+    }
+    return byCategory;
+  });
+
+  // Gate 24 — uploads com path /green/ vazando em <img src>
+  const greenLeaks = await page.evaluate(() => {
+    const imgs = Array.from(document.querySelectorAll('img[src]'));
+    return imgs.filter(i => /\/green\//.test(i.src))
+      .map(i => i.src.split('/').slice(-3).join('/').slice(0, 80));
+  });
+
+  // Gate 21 — preloader Elementor: <e-page-transition> deve ter <svg> populado
+  const preloader = await page.evaluate(() => {
+    const el = document.querySelector('e-page-transition');
+    if (!el) return { present: false, has_svg: null, svg_size: 0 };
+    const svg = el.querySelector('svg');
+    return {
+      present: true,
+      has_svg: !!svg,
+      svg_size: svg ? svg.outerHTML.length : 0,
+    };
+  });
+
+  // Gate 22 — Elementor CSS files contém URL de DEV (concertacao.bureau-it.com / cambrasmax.local)
+  // Faz HEAD nos primeiros 5 CSS files referenciados; baixa conteúdo e procura URLs de dev.
+  const cssLeaks = await page.evaluate(async () => {
+    const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .filter(l => /\/uploads\/(?:sites\/\d+\/)?elementor\/|\/elementor-cache\//.test(l.href))
+      .slice(0, 5);
+    const leaks = [];
+    for (const link of cssLinks) {
+      try {
+        const r = await fetch(link.href, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+        if (!r.ok) continue;
+        const txt = await r.text();
+        const devRefs = txt.match(/concertacao\.bureau-it\.com|cambrasmax\.local|localhost:[0-9]+/g);
+        if (devRefs) {
+          leaks.push({
+            css: link.href.split('/').slice(-2).join('/').slice(-60),
+            ref_count: devRefs.length,
+            sample: devRefs.slice(0, 3),
+          });
+        }
+      } catch (e) { /* ignore */ }
+    }
+    return leaks;
+  });
+
+  // Gate 25 — Spotify embed em /cultura/porosidades/ (CSP regression, incidente 2026-05-18)
+  // Valida 3 diretivas CSP + presença do iframe + ausência de console error de CSP block.
+  // Navega em página separada porque o iframe Spotify só existe nessa rota.
+  const spotifyCspErrors = [];
+  const spotifyConsoleHandler = (msg) => {
+    if (msg.type() === 'error' && /violates the following Content Security Policy directive/i.test(msg.text())
+        && /open\.spotify\.com|spotify\.com|scdn\.co/i.test(msg.text())) {
+      spotifyCspErrors.push(msg.text().slice(0, 240));
+    }
+  };
+  page.on('console', spotifyConsoleHandler);
+  let cspHeader = '';
+  const responseHandler = (resp) => {
+    const u = resp.url();
+    if (u.startsWith('https://concertacaoamazonia.com.br/cultura/porosidades/') && !cspHeader) {
+      cspHeader = resp.headers()['content-security-policy'] || '';
+    }
+  };
+  page.on('response', responseHandler);
+
+  let spotifyResult;
+  try {
+    await page.goto('https://concertacaoamazonia.com.br/cultura/porosidades/?cb=' + Date.now(),
+      { waitUntil: 'networkidle', timeout: 45000 });
+    await page.waitForTimeout(2500); // tempo para iframe Spotify tentar carregar + emitir CSP error
+
+    const iframeInfo = await page.evaluate(() => {
+      const iframe = document.querySelector('iframe[src*="open.spotify.com/embed"]');
+      if (!iframe) return { present: false };
+      // chrome-error://chromewebdata/ é a assinatura de bloqueio CSP do browser.
+      // Não dá pra ler contentDocument cross-origin, mas dá pra checar dimensões e src.
+      const rect = iframe.getBoundingClientRect();
+      return {
+        present: true,
+        src_snippet: (iframe.getAttribute('src') || '').slice(0, 80),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      };
+    });
+
+    // Parse das 3 diretivas no header CSP capturado.
+    const frameSrcMatch   = cspHeader.match(/frame-src([^;]+);/i);
+    const connectSrcMatch = cspHeader.match(/connect-src([^;]+);/i);
+    const mediaSrcMatch   = cspHeader.match(/media-src([^;]+);/i);
+    const frameSrc   = frameSrcMatch   ? frameSrcMatch[1]   : '';
+    const connectSrc = connectSrcMatch ? connectSrcMatch[1] : '';
+    const mediaSrc   = mediaSrcMatch   ? mediaSrcMatch[1]   : '';
+
+    spotifyResult = {
+      csp_header_captured: cspHeader.length > 0,
+      frame_src_has_spotify:   /open\.spotify\.com/.test(frameSrc),
+      connect_src_has_spotify: /\*\.spotify\.com|open\.spotify\.com/.test(connectSrc),
+      media_src_has_scdn:      /\*\.scdn\.co|scdn\.co/.test(mediaSrc),
+      iframe_present: iframeInfo.present,
+      iframe_dimensions: iframeInfo.present ? `${iframeInfo.width}x${iframeInfo.height}` : null,
+      csp_console_errors: spotifyCspErrors,
+      csp_error_count: spotifyCspErrors.length,
+    };
+  } catch (e) {
+    spotifyResult = { error: (e.message || '?').slice(0, 120) };
+  } finally {
+    page.off('console', spotifyConsoleHandler);
+    page.off('response', responseHandler);
+  }
+
+  return {
+    gate_23_google_fonts_external: {
+      // HIGH severity (real font/css download)
+      stylesheet_count: externalFonts.stylesheet.length,
+      stylesheet_leaks: externalFonts.stylesheet,
+      font_request_count: externalFonts.font_request.length,
+      font_request_leaks: externalFonts.font_request,
+      // INFO severity (TCP/TLS hint apenas, sem request de fonte)
+      preconnect_count: externalFonts.preconnect_only.length,
+      preconnect_leaks: externalFonts.preconnect_only,
+      // Compatibilidade com versões antigas do gate
+      count: externalFonts.stylesheet.length + externalFonts.font_request.length,
+    },
+    gate_24_uploads_green_leak: {
+      count: greenLeaks.length,
+      leaks: greenLeaks,
+    },
+    gate_21_preloader_empty: {
+      present: preloader.present,
+      has_svg: preloader.has_svg,
+      svg_size: preloader.svg_size,
+    },
+    gate_22_elementor_css_dev_leak: {
+      count: cssLeaks.length,
+      leaks: cssLeaks,
+    },
+    gate_25_spotify_embed: spotifyResult,
+  };
+}
+```
+
+### Snippet — Gate 26: WPML orphan attachment leak em páginas EN do blog 2 (incidente 2026-05-18)
+
+Detecta a assinatura do bug CU 86ahhtk2d: attachments EN duplicados pelo WPML
+em `wp_2_posts` sem espelho em `wp_posts` blog 1. Quando `wp_get_attachment_image_src`
+falha para esses IDs órfãos, o widget Slides do Elementor renderiza sem
+background-image e `<img>` quebra com `naturalWidth=0`.
+
+Cobertura: 4 páginas EN identificadas como afetadas no diagnóstico inicial
+(porosidades, nós e os nós, colors of future, timeline). Snippet roda 1x e
+loop por página — qualquer leak dispara FAIL com `path` específico.
+
+Pré-requisitos para passar:
+- mu-plugin `bit-crossblog-attachment-fix.php` v1.5.2+ ativo (Hooks 9-13)
+- `elementor_css_print_method=external` em blog 2 (option)
+- WPML media duplication OFF (`\WPML\Media\Option::setNewContentSettings`)
+
+```js
+async (page) => {
+  const paths = [
+    '/cultura/en/porosidades/',                  // widget Slides com 26 backgrounds
+    '/cultura/en/porosidades/nos-e-os-nos/',     // gallery widget
+    '/cultura/en/colors-of-the-future-exhibition/',
+    '/cultura/en/timeline/',
+  ];
+
+  const base = 'https://concertacaoamazonia.com.br';
+  const perPath = [];
+
+  for (const p of paths) {
+    try {
+      await page.goto(base + p + '?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 45000 });
+      await page.waitForTimeout(1200); // tempo para lazy-load decoding
+
+      const result = await page.evaluate(() => {
+        // Refs a /sites/2/uploads/ no HTML — assinatura direta do bug
+        // (CSS path /sites/2/elementor/css/ é legítimo, não conta)
+        const html = document.documentElement.outerHTML;
+        const orphan_refs = (html.match(/\/sites\/2\/uploads\/[^"')]+/g) || []).length;
+
+        // Widget Slides do Elementor com backgrounds vazios
+        const slideBgs = Array.from(document.querySelectorAll('.swiper-slide-bg'));
+        const slideBgsWithImage = slideBgs.filter(s => getComputedStyle(s).backgroundImage !== 'none').length;
+
+        // <img> quebrados (naturalWidth=0 + src populada + complete)
+        const allImgs = Array.from(document.querySelectorAll('img'));
+        const brokenImgs = allImgs.filter(i => i.complete && i.naturalWidth === 0 && i.src);
+
+        return {
+          orphan_refs_count: orphan_refs,
+          slide_bgs_total: slideBgs.length,
+          slide_bgs_with_image: slideBgsWithImage,
+          broken_imgs_count: brokenImgs.length,
+          broken_imgs_samples: brokenImgs.slice(0, 3).map(i => i.src.slice(-80)),
+          total_imgs: allImgs.length,
+        };
+      });
+
+      // Bug acionado se: (a) qualquer ref /sites/2/uploads/, OU (b) widget Slides
+      // existe mas tem 0 backgrounds (caso porosidades), OU (c) >2 imgs quebradas.
+      const pageHasBug =
+        result.orphan_refs_count > 0 ||
+        (result.slide_bgs_total > 0 && result.slide_bgs_with_image === 0) ||
+        result.broken_imgs_count > 2;
+
+      perPath.push({ path: p, ...result, has_bug: pageHasBug });
+    } catch (e) {
+      perPath.push({ path: p, error: (e.message || '?').slice(0, 120) });
+    }
+  }
+
+  const totalLeaks = perPath.reduce((sum, r) => sum + (r.orphan_refs_count || 0), 0);
+  const totalBrokenImgs = perPath.reduce((sum, r) => sum + (r.broken_imgs_count || 0), 0);
+  const pagesWithBug = perPath.filter(r => r.has_bug).length;
+
+  return {
+    gate_26_wpml_orphan_leak: {
+      total_orphan_refs: totalLeaks,
+      total_broken_imgs: totalBrokenImgs,
+      pages_with_bug: pagesWithBug,
+      per_path: perPath,
+    },
+  };
+}
+```
+
+### Snippet — Gate 28: stale s3-uploads path em _elementor_data (incidente 2026-05-18)
+
+Detecta paths legados do plugin s3-uploads ATIVO no `_elementor_data`. Após
+migrar para `s3-uploads OFF` + CF-OAC, esses paths ficam STALE e quebram
+ícones SVG inline do Elementor (jet-button "+", arrow icons, etc).
+
+Padrão a detectar (URL ou path):
+```
+/wp-content/uploads/s3/concertacaoamazonia-com-br-wp-static-prd-sa/assets/
+```
+
+Sintoma direto observado: ícones "+" dos botões SAIBA MAIS sumiram em todo
+o site prod após cleanup do diretório `uploads/s3/`. Causa: Elementor lê
+SVG via `file_get_contents()` do path local resolvido a partir da URL
+armazenada. Path stale → arquivo não existe → SVG vazio.
+
+Cobertura: navega na homepage (`/`) e checa o HTML completo + sub-gate
+diagnóstico de jet-button widgets que têm classe `--icon-right` mas SEM
+svg child (sintoma direto do bug).
+
+```js
+async (page) => {
+  await page.goto('https://concertacaoamazonia.com.br/?cb=' + Date.now(),
+    { waitUntil: 'networkidle', timeout: 45000 });
+  await page.waitForTimeout(1500);
+
+  const result = await page.evaluate(() => {
+    const html = document.documentElement.outerHTML;
+    // O padrão `wp-content/uploads/s3/` é específico do prefix s3-uploads
+    // legado. Outras strings com `/s3/` NÃO devem casar.
+    const stale_refs = (html.match(/wp-content\/uploads\/s3\/[^"')]+/g) || []);
+    // Sub-gate diagnóstico: jet-buttons que TEM class --icon-right mas SEM
+    // svg child → ícone quebrado (sintoma direto do bug)
+    const jetButtons = Array.from(document.querySelectorAll('[data-widget_type="jet-button.default"]'));
+    const btnsWithIconExpected = jetButtons.filter(w => {
+      const a = w.querySelector('a.jet-button__instance');
+      return a && a.classList.contains('jet-button__instance--icon-right');
+    });
+    const btnsWithSvg = btnsWithIconExpected.filter(w => !!w.querySelector('svg'));
+    return {
+      stale_refs_count: stale_refs.length,
+      stale_refs_sample: stale_refs.slice(0, 5),
+      jet_buttons_with_icon_class: btnsWithIconExpected.length,
+      jet_buttons_with_svg: btnsWithSvg.length,
+    };
+  });
+
+  return {
+    gate_28_legacy_s3_path: {
+      stale_refs_count: result.stale_refs_count,
+      stale_refs_sample: result.stale_refs_sample,
+      jet_buttons_icon_class: result.jet_buttons_with_icon_class,
+      jet_buttons_svg_rendered: result.jet_buttons_with_svg,
+      jet_buttons_missing_svg: result.jet_buttons_with_icon_class - result.jet_buttons_with_svg,
+    },
+  };
+}
+```
+
+### Snippet — Gate 20: Complianz banner em /en/ multisite (extensão da Fase 7.6)
+
+Estende a matriz multisite da Fase 7.6 para incluir blogs em inglês. Banner no blog EN deve mostrar texto em inglês.
+
+**Estratégia (atualizada 2026-05-02):** parsear o objeto JS `complianz` injetado inline no `<head>` (server-side, sem precisar esperar JS executar). Esse objeto contém os campos traduzíveis: `placeholdertext`, `aria_label`, `categories.{statistics,marketing}`, `page_links.{cookie-statement,privacy-statement}.title`, `locale`. Cada campo é validado independentemente — banner pode estar parcialmente traduzido (caso real Concertação 2026-05-02: textos OK, mas `page_links.title` ainda em PT em /en/).
+
+```js
+async (page) => {
+  const audit = async (url, expected_lang) => {
+    await page.context().clearCookies();
+    await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1500);
+
+    return await page.evaluate((lang) => {
+      // Objeto complianz é setado inline no <head> via wp_localize_script
+      const cfg = window.complianz;
+      if (!cfg) return { found: false, reason: 'window.complianz indefinido' };
+
+      const expectedPt = lang === 'pt';
+      const ptTerms = /aceitar|clique|necess[áa]rio|pol[ií]tica|aviso|estat[íi]sticas/i;
+      const enTerms = /accept|click|required|privacy|notice|statistics/i;
+
+      const isPt = (s) => typeof s === 'string' && ptTerms.test(s);
+      const isEn = (s) => typeof s === 'string' && enTerms.test(s);
+
+      // Campos a validar (cada um isolado)
+      const fields = {
+        placeholdertext:    cfg.placeholdertext || '',
+        aria_label:         cfg.aria_label      || '',
+        categories_stats:   cfg.categories?.statistics || '',
+        categories_mkt:     cfg.categories?.marketing  || '',
+        page_link_cookie:   cfg.page_links?.br?.['cookie-statement']?.title  || '',
+        page_link_privacy:  cfg.page_links?.br?.['privacy-statement']?.title || '',
+        locale:             cfg.locale || '',
+      };
+
+      const violations = [];
+      for (const [k, v] of Object.entries(fields)) {
+        if (!v || v.length < 2) continue; // campo vazio = ignora
+        if (k === 'locale') {
+          // locale: "lang=pt&locale=pt_BR" ou "lang=en&locale=en_US"
+          const localeMatch = v.match(/locale=([a-z]{2})_/);
+          const actualLocale = localeMatch ? localeMatch[1] : null;
+          if (lang === 'en' && actualLocale !== 'en') violations.push(`locale=${actualLocale} (esperado: en)`);
+          if (lang === 'pt' && actualLocale !== 'pt') violations.push(`locale=${actualLocale} (esperado: pt)`);
+          continue;
+        }
+        if (lang === 'en' && isPt(v) && !isEn(v))  violations.push(`${k}: PT ("${v.slice(0, 50)}...")`);
+        if (lang === 'pt' && isEn(v) && !isPt(v))  violations.push(`${k}: EN ("${v.slice(0, 50)}...")`);
+      }
+
+      return {
+        found: true,
+        url: location.href,
+        expected_lang: lang,
+        locale_actual: fields.locale,
+        violations,
+        violation_count: violations.length,
+        sample_fields: {
+          placeholdertext: fields.placeholdertext.slice(0, 80),
+          page_link_privacy: fields.page_link_privacy,
+        },
+      };
+    }, expected_lang);
+  };
+  return {
+    blog1_pt:    await audit('https://concertacaoamazonia.com.br/',                                  'pt'),
+    blog1_en:    await audit('https://concertacaoamazonia.com.br/en/',                               'en'),
+    blog2_pt:    await audit('https://concertacaoamazonia.com.br/cultura/',                          'pt'),
+    blog2_en:    await audit('https://concertacaoamazonia.com.br/cultura/en/',                       'en'),
+  };
+}
+```
+
+**Variante curl-only** (quando browser MCP indisponível): parsear o JSON inline via regex e Python.
+
+```bash
+curl -s "https://concertacaoamazonia.com.br/en/?cb=$(date +%s%N)" --max-time 30 -o /tmp/blog1_en.html
+python3 <<'EOF'
+import re, json
+html = open('/tmp/blog1_en.html').read()
+m = re.search(r'(?:var\s+|window\.)?complianz\s*=\s*(\{[^;]+\});', html, re.DOTALL)
+cfg = json.loads(m.group(1)) if m else {}
+
+def safe_page_link(cfg, slug):
+    """page_links.br pode ser dict (blog 1) ou list (blog 2 — estrutura diferente do Complianz)."""
+    pl = cfg.get('page_links', {})
+    if not isinstance(pl, dict): return ''
+    br = pl.get('br', {})
+    if isinstance(br, dict):
+        return br.get(slug, {}).get('title', '') if isinstance(br.get(slug), dict) else ''
+    if isinstance(br, list):
+        for item in br:
+            if isinstance(item, dict) and item.get('slug') == slug:
+                return item.get('title', '')
+    return ''
+
+checks = {
+    'locale': cfg.get('locale', ''),
+    'placeholdertext': cfg.get('placeholdertext', ''),
+    'categories_stats': cfg.get('categories', {}).get('statistics', '') if isinstance(cfg.get('categories'), dict) else '',
+    'page_link_privacy': safe_page_link(cfg, 'privacy-statement'),
+    'page_link_cookie':  safe_page_link(cfg, 'cookie-statement'),
+}
+violations = []
+for k, v in checks.items():
+    if k == 'locale' and 'locale=en_' not in v:
+        violations.append(f'{k}={v} (esperado en_*)')
+    elif k != 'locale' and v and any(t in v.lower() for t in ['aceitar', 'aviso', 'estatística', 'política']):
+        violations.append(f'{k}: PT ("{v[:50]}")')
+print(f'violations: {violations}')
+EOF
+```
+
+### Snippet — Gate 27: CSS stylesheets retornando MIME `text/html` (incidente 2026-05-18 21:30 BRT)
+
+Detecta o padrão em que WP Rocket `/cache/min/1/wp-content/...post-N.css` referenciado no HTML do CloudFront aponta para arquivo que sumiu do FS. Nginx faz fallback ao WordPress e retorna **HTML 404** com `content-type: text/html`. Browser com strict MIME checking **bloqueia** o CSS e o layout da página quebra inteiro mesmo com origin sano.
+
+**Sintoma observável:** header verde + menus carregam (CSS de plugin/tema vem direto de `/wp-content/themes/...`), mas hero e secções da página explodem em tamanho natural sem layout.
+
+**Causa raiz típica:** save no Elementor editor de OUTRA página dispara `rocket_clean_minify('css')` ou regenera `Files\CSS\Post->update()` parcial — apaga o `post-N.css` minificado mas não invalida o HTML cached do CloudFront que ainda referencia o `?ver=` antigo apontando para o arquivo que sumiu.
+
+**Cobertura:** rodar em home + /cultura/ (subsite). Qualquer outra página pode ser adicionada à lista. Snippet faz `fetch` no client checando o `Content-Type` real de cada `<link rel=stylesheet>` — bypassa preview do navegador.
+
+```js
+async (page) => {
+  const paths = [
+    'https://concertacaoamazonia.com.br/',
+    'https://concertacaoamazonia.com.br/cultura/',
+  ];
+
+  const perPath = [];
+
+  for (const url of paths) {
+    try {
+      await page.context().clearCookies();
+      await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForTimeout(800);
+
+      const result = await page.evaluate(async () => {
+        const links = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'));
+        const bad = [];
+        // Checa em paralelo, mas com cap para não saturar (até 30 stylesheets concorrentes)
+        const checks = links.map(async (l) => {
+          try {
+            const r = await fetch(l.href, {
+              method: 'GET', // HEAD pode não pegar 404→200 do WP; GET é seguro
+              cache: 'no-store',
+              signal: AbortSignal.timeout(8000),
+            });
+            const ct = (r.headers.get('content-type') || '').toLowerCase();
+            // CSS válido tem que ter `text/css` no Content-Type. Variações `text/css; charset=utf-8` passam.
+            if (!ct.includes('text/css')) {
+              bad.push({
+                href: l.href.slice(-100),
+                status: r.status,
+                content_type: ct.slice(0, 80),
+              });
+            }
+          } catch (e) {
+            // Network error (ERR_ABORTED, timeout) também conta — chrome cancela CSS rejeitado
+            bad.push({
+              href: l.href.slice(-100),
+              status: 0,
+              content_type: 'fetch_error: ' + (e.message || '?').slice(0, 60),
+            });
+          }
+        });
+        await Promise.all(checks);
+        return { total: links.length, bad_count: bad.length, bad_samples: bad.slice(0, 5) };
+      });
+
+      perPath.push({ url, ...result });
+    } catch (e) {
+      perPath.push({ url, error: (e.message || '?').slice(0, 120) });
+    }
+  }
+
+  const totalBad = perPath.reduce((s, r) => s + (r.bad_count || 0), 0);
+
+  return {
+    gate_27_css_mime_check: {
+      total_pages: paths.length,
+      total_bad_stylesheets: totalBad,
+      per_path: perPath,
+    },
+  };
+}
+```
+
+**Fix se gate 27 falhar (conservador, sem flush global):**
+
+```bash
+# 1. Identificar post_id afetado pelo path do CSS bloqueado
+#    (ex: /cache/min/1/.../post-2461.css → POST_ID=2461)
+
+WP='sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br'
+
+# 2. Limpar HTML cached do post e regenerar minify CSS
+$WP eval 'rocket_clean_post(<POST_ID>);'
+$WP eval 'rocket_clean_minify("css");'
+
+# 3. (Opcional) regenerar Elementor CSS file
+$WP eval '(new \Elementor\Core\Files\CSS\Post(<POST_ID>))->update();'
+
+# 4. CF invalidate cirúrgico (NUNCA usar /*)
+aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB \
+    --paths '/' --profile Concertação
+
+# 5. Aguardar invalidation (1-3min) e validar com playwright re-rodando gate 27
+```
+
+### Snippet — Gate 29: emails com `:porta` órfã em `_elementor_data` (incidente 2026-05-18 21:56 BRT)
+
+Detecta a assinatura DIRETA do bug Newsletter quebrada: campos `email_from`, `email_from_2`, `email_to`, `email_reply_to`, `email_subject` etc dentro de `_elementor_data` contendo padrão `@host:NNNN` (porta órfã sobrando de `wp search-replace` de hostname). Quando `is_email()` rejeita, action "email" do Elementor Pro Forms aborta com `{success:false, errors:[], data:[]}` — usuário vê "Erro do Servidor", lead é perdido silenciosamente.
+
+**Por que existe além do gate 27 (MIME):** gate 27 só detecta CSS quebrado; este detecta forms quebrados que sequer enviam emails. Bug é INVISÍVEL no browser/render — só aparece no submit. Cobre a classe inteira de bugs introduzidos por search-replace cego em `_elementor_data` JSON.
+
+**Por que existe além de fix automático no 09-importdatabase.sh:** o fix roda no deploy. Este gate roda no smoke pós-deploy como confirmação. Se gate 28 falhar, o fix do deploy não rodou ou tem regressão.
+
+**Validação via SSH** (não pelo browser — precisa SQL query em `_elementor_data`):
+
+```bash
+ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
+  wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br \
+  eval '
+global \$wpdb;
+\$EMAIL_KEYS = [\"email_from\",\"email_from_2\",\"email_from_name\",\"email_from_name_2\",\"email_to\",\"email_to_2\",\"email_to_cc\",\"email_reply_to\",\"email_reply_to_2\",\"email_subject\",\"email_subject_2\"];
+\$blogs = is_multisite() ? get_sites([\"fields\" => \"ids\"]) : [get_current_blog_id()];
+\$bad = [];
+foreach (\$blogs as \$bid) {
+  if (is_multisite()) switch_to_blog(\$bid);
+  \$tbl = \$wpdb->postmeta;
+  \$rows = \$wpdb->get_results(\"SELECT pm.post_id, pm.meta_value FROM {\$tbl} pm INNER JOIN {\$wpdb->posts} p ON p.ID=pm.post_id WHERE pm.meta_key=\\\"_elementor_data\\\" AND pm.meta_value LIKE \\\"%widgetType%form%\\\" AND pm.meta_value LIKE \\\"%email_%\\\" AND p.post_status IN (\\\"publish\\\",\\\"draft\\\",\\\"private\\\",\\\"pending\\\") AND p.post_type NOT IN (\\\"revision\\\")\", ARRAY_A);
+  foreach (\$rows as \$row) {
+    \$d = json_decode(\$row[\"meta_value\"], true);
+    if (!is_array(\$d)) continue;
+    \$walk = function(array \$nodes) use (&\$walk, \$EMAIL_KEYS, \$row, \$bid, &\$bad) {
+      foreach (\$nodes as \$node) {
+        if ((\$node[\"widgetType\"] ?? null) === \"form\") {
+          foreach (\$EMAIL_KEYS as \$k) {
+            \$v = \$node[\"settings\"][\$k] ?? null;
+            if (!is_string(\$v)) continue;
+            if (preg_match(\"/@[A-Za-z0-9.\\\\-]+:\\\\d{1,5}/\", \$v)) {
+              \$bad[] = sprintf(\"blog=%d post=%d field=%s value=%s\", \$bid, \$row[\"post_id\"], \$k, substr(\$v, 0, 60));
+            }
+          }
+        }
+        if (!empty(\$node[\"elements\"])) \$walk(\$node[\"elements\"]);
+      }
+    };
+    \$walk(\$d);
+  }
+  if (is_multisite()) restore_current_blog();
+}
+echo count(\$bad) . \" bad\\n\";
+foreach (array_slice(\$bad, 0, 5) as \$b) echo \"  \" . \$b . \"\\n\";
+'" 2>&1 | grep -v Deprecated
+```
+
+**Esperado (PASS):**
+```
+0 bad
+```
+
+**Esperado (FAIL):**
+```
+N bad
+  blog=1 post=72234 field=email_from_2 value=email@concertacaoamazonia.com.br:8484
+  blog=1 post=91977 field=email_from value=email@concertacaoamazonia.com.br:8484
+  ...
+```
+
+**Fix se gate 28 falhar:**
+
+1. Executar `fix_form_email_ports()` do `09-importdatabase.sh` standalone, ou rodar `scripts/regularize-form-emails.php`:
+   ```bash
+   scp scripts/regularize-form-emails.php concertacaoamazonia.com.br-prod-sa:/tmp/
+   ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br eval-file /tmp/regularize-form-emails.php"
+   ```
+2. Limpar cache: `wp eval 'rocket_clean_post(<POST_ID>);'` para cada post afetado
+3. Invalidar CloudFront se Newsletter está em template global do footer (afeta todas as páginas): `aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --paths '/' --profile Concertação`
+4. Re-rodar gate 28 — esperado: `0 bad`
+
+### Apresentar matriz Fase 9
+
+```
+| Gate | Verificação                                            | Esperado     | Real         | Status |
+|------|--------------------------------------------------------|--------------|--------------|--------|
+| 23a  | <link rel=stylesheet> Google Fonts (HIGH)              | 0            | 0            | ✅     |
+| 23a  | <link rel=preload as=font> Google Fonts (HIGH)         | 0            | 0            | ✅     |
+| 23b  | <link rel=preconnect/dns-prefetch> Google Fonts (INFO) | 0 ideal      | 1            | ℹ️ INFO |
+| 24   | <img src> com /green/ em prod (BLOCKER)                | 0            | 0            | ✅     |
+| 21   | <e-page-transition> tem <svg> populado                 | true, ≥100b  | true, 12.2KB | ✅     |
+| 22   | Elementor CSS contém URL de dev (BLOCKER)              | 0 leaks      | 0 leaks      | ✅     |
+| 20   | Complianz banner /en/ em inglês                        | true         | false        | 🚨     |
+| 25a  | CSP frame-src contém open.spotify.com (porosidades)    | true         | true         | ✅     |
+| 25b  | CSP connect-src contém *.spotify.com (porosidades)     | true         | true         | ✅     |
+| 25c  | CSP media-src contém *.scdn.co (porosidades)           | true         | true         | ✅     |
+| 25d  | iframe Spotify presente em /cultura/porosidades/       | true         | true         | ✅     |
+| 25e  | 0 console errors de CSP block do Spotify               | 0            | 0            | ✅     |
+| 26a  | 0 refs /sites/2/uploads/ em páginas EN blog 2          | 0            | 0            | ✅     |
+| 26b  | 0 páginas EN com bug WPML orphan (4 verificadas)       | 0            | 0            | ✅     |
+| 26c  | 0 <img> quebrados (naturalWidth=0) em páginas EN       | 0            | 0            | ✅     |
+| 27   | 0 <link rel=stylesheet> com Content-Type != text/css   | 0            | 0            | ✅     |
+| 29   | 0 emails com `:porta` órfã em `_elementor_data`         | 0            | 0            | ✅     |
+| 28a  | 0 refs /wp-content/uploads/s3/ em HTML rendered        | 0            | 0            | ✅     |
+| 28b  | jet-buttons com --icon-right rendering com svg child   | all          | all          | ✅     |
+```
+
+**Notas:**
+- Gate 23a (HIGH) é o que dispara FAIL — stylesheet OU preload de fonte
+- Gate 23b (INFO) reporta no relatório mas **não falha o smoke**
+- Para fix permanente do 23b: identificar plugin que mantém ref Google Fonts via `wp_resource_hints`
+
+## Gates de FAIL (qualquer um falha o smoke)
+
+🚨 **FAIL** se:
+1. Atlas (PT ou EN) GREEN: `jet_max_found_posts < 100`
+2. Qualquer página GREEN: `uploads_elementor_css > 0` (mu-plugin v2 deve garantir 0)
+3. Qualquer página GREEN: 404s em `/elementor-cache/2026/*.jpg|jpeg|png|webp` (bug v2.0.4 — fix em v2.0.5)
+4. Qualquer página GREEN: `hostname` sem `hml`
+5. Qualquer página GREEN: `listing_items === 0` quando `jet_max_found_posts > 0`
+6. Console errors com `ERR_CONNECTION_CLOSED` em qualquer página
+7. **Form Newsletter (PROD)**: `form_count === 0` (form sumiu) OU `fields_count < 2` (campos perdidos) OU `submit_label !== "ENVIAR"`
+8. **Form Contato (PROD)**: `form_count === 0` OU `fields_count < 3` (deve ter pelo menos nome, email, mensagem) OU `submit_visible === false`
+9. **Newsletter submit (GREEN)**: `submit_ok === false` após retry. Reportar `submit_reason` e `submit_message`.
+    - Se `submit_reason === 'green_offline'`: FAIL distinto — **não houve submit**, hostname não contém `hml` (CloudFront roteou para prod-blue, evitando poluir CRM/Newsletter de produção). Mensagem operacional: "GREEN OFFLINE — verificar se ALB rule de header `X-Test-Green: true` está aplicada e se o target group green tem instância saudável registrada."
+    - Outros `submit_reason` (form_not_found / submit_btn_not_found / error_message / timeout_15s): FAIL de submit válido — green respondeu mas form quebrou.
+10. **Contato submit (GREEN)**: `submit_ok === false` após retry. Reportar `submit_reason` e `submit_message`.
+    - Se `submit_reason === 'green_offline'`: FAIL distinto — **não houve submit**, hostname não contém `hml` (CloudFront roteou para prod-blue, evitando poluir CRM com lead falso). Mensagem operacional: "GREEN OFFLINE — verificar se ALB rule de header `X-Test-Green: true` está aplicada e se o target group green tem instância saudável registrada."
+    - Outros `submit_reason` (form_not_found / submit_btn_not_found / error_message / timeout_15s): FAIL de submit válido — green respondeu mas form quebrou.
+11. **Menu warm-up (qualquer ambiente)**: `ttfb_ms > 1500` na 2ª visita de qualquer item do menu. Reportar URL, ambiente, ttfb, e header de cache observado. (Header `cf-cache-status: MISS`/`x-wp-rocket-cache: MISS` é informativo — só dispara gate se também ultrapassar 1500ms.)
+12. **Menu warm-up — comparativo prod×green**: green com `ttfb_ms > 2x` o prod do mesmo item, mesmo se < 1500ms absoluto. Indica regressão de cache no green.
+13. **Paridade prod/dev (Fase 7.5)** — DEV é source-of-truth. Para CADA path do menu descoberto em DEV:
+    - `prod_status !== 200` E `dev_status === 200` — página existe em DEV mas falha em PROD (pendência de deploy ou regressão)
+    - `headings_match === false` — sequência de H1/H2/H3 diverge
+    - `downloads_match === false` — botões de download (texto/quantidade) divergem
+    - `height_diff_pct > 20` — altura da página difere mais de 20% (forte indício de seção faltando; tolerância +5% absorve banner Complianz e variação de lazy-load residual)
+    - `images_diff_pct > 40` — quantidade de imagens renderizadas (naturalWidth ≥100) difere mais de 40% (tolerância +10% absorve lazy-load fora do viewport mesmo após auto-scroll)
+    - `Math.abs(sections_diff) > 2` — diferença de mais de 2 sections Elementor
+    - **`prod_console_errors.length > 0`** — qualquer JS error em PROD (TypeError, ReferenceError, MIME refused, CORS). Reportar `prod_console_errors[0..2]` no detalhe.
+    - **`prod_csp_errors.length > 0` ou `dev_csp_errors.length > 0`** — qualquer CSP block em PROD ou DEV. Bucket separado, sem whitelist, gate dedicado. Reportar diretiva bloqueada e domínio (ex: `script-src bloqueou https://www.youtube.com/iframe_api`). CSP errors em DEV indicam que o ambiente está com CSP ativa que falta paridade (raro — dev normalmente sem CSP).
+    - **`prod_failed_resources.length > 0`** — qualquer 4xx/5xx em assets do próprio domínio em PROD (CSS, JS, imagens). Reportar `prod_failed_resources[0..2]`.
+    - `dev_console_errors.length > prod_console_errors.length` — DEV com mais erros que PROD = WARN não-bloqueante (reportar mas não falhar).
+
+    **Falsos positivos esperados (NÃO contar como erro):**
+    - `JQMIGRATE` warnings (info, não tipo `error`)
+    - `SES Removing unpermitted intrinsics` (lockdown extension MetaMask do user — só aparece em browsers com extensão instalada)
+    - YouTube `web-share` / `postMessage` warnings (de iframes embed, não controláveis)
+
+    **NUNCA whitelistar:** mensagens contendo `violates the following Content Security Policy directive`
+    (CSP block do servidor — sempre é bug real, irreversível pelo browser. Não confundir com bloqueio
+    do Complianz que reescreve `script src` para `data-cmplz-src` antes do consent).
+
+    Reportar cada path em FAIL/ERROR com motivo específico. Sumário final: `pass_count / total_paths` e contagem de FAIL vs ERROR.
+
+14. **Cache health (Fase 7.8) — Object cache drop-in**: `object_cache_dropin.installed === false`.
+    Plugin redis-cache pode estar ativo mas drop-in `wp-content/object-cache.php` ausente
+    → WP NÃO usa Redis. Reportar comando exato de fix no detalhe.
+
+14b. **Cache health — Drop-in perdido em wp-content swap (incidente 2026-05-19)**.
+    Validação cruzada via SSH para garantir que `wp-content/object-cache.php` existe
+    fisicamente. Útil quando o gate 14 retorna `installed=false` pra entender se é
+    realmente o drop-in ausente (vs problema de permissão de leitura via HTTP).
+
+    Origem do gate: deploy blue-green 2026-05-16 instalou drop-in via `07-redis.sh`,
+    mas `10-importwpcontent.sh` (rodando depois) fez swap atômico do wp-content
+    com tarball que NÃO continha o drop-in → drop-in desapareceu silenciosamente.
+    Detectado 3 dias depois pelo `/smoke` (CF mascarava porque HTML era servido
+    cached). Fix arquitetural em `10-importwpcontent.sh` v1.4.0: restauração
+    automática do drop-in pós-swap se `redis-cache` plugin presente.
+
+    Comando de validação SSH (run no servidor):
+    ```bash
+    ssh prod-sa "sudo ls -la /var/www/<SITE>/wp-content/object-cache.php 2>&1 | head -2; \
+      sudo -u www-data wp --path=/var/www/<SITE> --url=<URL> eval 'echo wp_using_ext_object_cache() ? \"YES\" : \"NO\";'"
+    ```
+
+    Sub-gates:
+    - `ls` retorna `No such file or directory` → drop-in ausente do FS
+    - `wp_using_ext_object_cache()` retorna `NO` → WordPress não usa Redis
+
+    Fix:
+    ```bash
+    ssh prod-sa "sudo cp /var/www/<SITE>/wp-content/plugins/redis-cache/includes/object-cache.php \\
+      /var/www/<SITE>/wp-content/object-cache.php && \\
+      sudo chown www-data:www-data /var/www/<SITE>/wp-content/object-cache.php && \\
+      sudo systemctl reload php8.3-fpm"
+    ```
+
+    Severidade: **BLOCKER** — Redis fica inerte, todo page hit miss vai direto ao
+    MySQL Aurora. wp-admin lento (sem cache), forms degradados. CF mascara HTML
+    estático mas falha em qualquer flow autenticado/POST.
+15. **Cache health (Fase 7.8) — Page cache (WP Rocket)**: `page_cache_wp_rocket.improvement_pct < 50`.
+    2ª request com mesma chave de cache não foi significativamente mais rápida que a 1ª.
+    Reportar `first_ttfb_ms`, `second_ttfb_ms`, e header de cache observado nas duas.
+16. **Cache health (Fase 7.8) — Edge cache (CloudFront)**: `edge_cache_cloudfront.cf_hit_on_second === false`.
+    CloudFront não cacheou entre 2 requests sequenciais. Causa: response sem `Cache-Control`
+    apropriado, cookie de sessão no response, ou behavior `Managed-CachingDisabled` aplicado erroneamente.
+17. **Cache health (Fase 7.8) — Object cache bypass**: `object_cache_bypass_test.bypass_works === false`.
+    Cookie de logged-in não está bypassando cache (TTFB ~igual ao anônimo). Risco: edição admin
+    servindo cache stale OU cache desabilitado para todos. Validar map `$rocket_is_logged_in` em
+    nginx.conf.
+18. **Cache health (Fase 7.8) — Browser cache assets**: qualquer asset CSS/JS com `cache_control`
+    contendo `no-store`, `no-cache`, ou `max-age=0`. Assets estáticos não estão sendo cacheados
+    pelo browser → request inútil em cada page view.
+19. **Redis health (Fase 7.8 opcional)**: quando endpoint `/wp-json/bit/v1/cache-health` está
+    disponível: `dbsize < 10` (cache vazio) OU `keyspace_hit_rate_pct < 20` (drop-in inerte ou
+    prefix drift) OU `evicted_keys > 1000/min` (memória pequena). Quando endpoint não existe
+    (`available === false`), apenas reportar `skipped: true` — não dispara gate.
+
+19b. **Referer block regression (Fase 7.9)** — incidente 2026-05-06.
+    Validação executada via SSH (Playwright não permite injetar Referer arbitrário). Para
+    cada par (referer, expected_code) listado no snippet da Fase 7.9, o `curl -H "Referer: ..."`
+    deve retornar EXATAMENTE o esperado:
+    - `Referer: https://host` (sem /, sem path) → **000** (444 close, bot bloqueado)
+    - `Referer: https://host/` (com /) → **200** (browser real, NÃO bloquear)
+    - `Referer: https://host/path/` → **200** (browser com path, NÃO bloquear)
+    - `Referer: HTTPS://HOST` (UPPERCASE) → **000** (case-insensitive cobre bot)
+
+    🚨 **FAIL crítico** se Referer COM `/` retornar 000 — regex está inclusiva demais
+    e está bloqueando navegação browser legítima (bug v1.15.0 de 2026-05-06: 292 reqs
+    legítimas perdidas em 2 dias antes da detecção).
+
+    🚨 **FAIL secundário (auditoria de regressão)**: hits 444 com Referer
+    `https://host/` (com /) > 5/dia em logs. Se houver, regex voltou a ser inclusivo.
+    Comando: `sudo awk '==444' /var/log/nginx/access.log | grep '"https://host/"' | wc -l`
+
+20. **Complianz banner traduzido em /en/ (Fase 9)**: `violation_count > 0` em `blog1_en` ou `blog2_en`.
+
+20. **Complianz banner traduzido em /en/ (Fase 9)**: `violation_count > 0` em `blog1_en` ou `blog2_en`.
+    Validação **field-by-field** (atualizada 2026-05-02): banner Complianz pode estar
+    parcialmente traduzido. Caso real Concertação 2026-05-02 mostrou:
+    - ✅ `placeholdertext` traduzido ("Click to accept" em /en/)
+    - ✅ `aria_label` traduzido
+    - ✅ `categories.statistics` ("statistics" em /en/, "estatísticas" em /pt/)
+    - ✅ `locale` correto (`lang=en&locale=en_US`)
+    - 🚨 `page_links.br.privacy-statement.title` permanece "Aviso de Privacidade" em /en/
+      (deveria ser "Privacy Notice")
+
+    Reportar cada violação no detalhe (campo + valor + idioma esperado/encontrado). WPML
+    Network Active não traduz strings de menus/links Complianz via UI; solução é mu-plugin
+    com filtro `wpml_translate_single_string`. Ref: memo `feedback_complianz_wpml_translation.md`.
+    Severidade: **HIGH** — compliance LGPD/GDPR broken parcialmente para audiência internacional.
+
+21. **Preloader Elementor vazio (Fase 9)**: `gate_21_preloader_empty.present === true && (has_svg === false || svg_size < 100)`.
+    Tag `<e-page-transition>` está presente mas sem `<svg>` interno (ou SVG truncado <100 bytes).
+    Causa: arquivo SVG do preloader ausente no FS local após cutover (Elementor lê via
+    `get_attached_file()`, não URL pública). Fix: cópia manual do SVG OU phase7-cutover step 1e
+    (v1.6.3+ sincroniza S3→FS). Ref: memo `feedback_preloader_filesystem_local.md`.
+    Severidade: **HIGH** — page transition visualmente quebrada.
+
+22. **Elementor CSS contém URL de DEV (Fase 9) — BLOCKER**: `gate_22_elementor_css_dev_leak.count > 0`.
+    Pelo menos 1 arquivo CSS em `/uploads/elementor/` ou `/elementor-cache/` referencia
+    `concertacao.bureau-it.com`, `cambrasmax.local` ou `localhost:NNNN` em prod. Causa: Elementor
+    CSS files não foram regenerados após DB import e WP Rocket cacheia CSS poluído. Fix:
+    `wp elementor flush_css` + `rocket_clean_post --post_id=X` + invalidação CF cirúrgica.
+    Ref: memo `feedback_filesystem_cache_post_deploy.md`. Severidade: **BLOCKER** — site público
+    em prod servindo URLs de dev (vazamento silencioso, sem 4xx).
+
+23. **Google Fonts externos no DOM (Fase 9) — refinado em 2 sub-gates**:
+
+    **Gate 23a (HIGH) — fonte/CSS externa real**:
+    `gate_23_google_fonts_external.stylesheet_count > 0` OU `gate_23_google_fonts_external.font_request_count > 0`.
+    Página carrega de fato CSS (`<link rel="stylesheet">`) ou fonte (`<link rel="preload" as="font">`)
+    de `fonts.googleapis.com` / `fonts.gstatic.com`. Plus Jakarta Sans é self-hosted no tema child
+    desde 2026-05-02 — refs como stylesheet/preload indicam plugin/widget enqueue não auditado
+    (TEC, JetEngine, Elementor widget novo). Severidade: **HIGH** — viola decisão arquitetural
+    (privacidade + performance + CSP risk).
+
+    **Gate 23b (INFO) — preconnect órfão**:
+    `gate_23_google_fonts_external.preconnect_count > 0` MAS `stylesheet_count === 0` E `font_request_count === 0`.
+    `<link rel="preconnect">` ou `<link rel="dns-prefetch">` para domínio Google Fonts apenas
+    aquece TCP/TLS handshake — **não baixa CSS nem fonte**. Resíduo benigno injetado pelo WP core
+    via `wp_resource_hints` filter quando algum CSS antigo ainda lista família Google. Severidade:
+    **INFO** — não dispara FAIL, apenas reporta. Para limpar: identificar plugin que mantém ref
+    via `remove_filter('wp_resource_hints', ...)` ou `wp_dequeue_style` no CSS culpado.
+
+24. **Uploads em path /green/ vazando (Fase 9) — BLOCKER**: `gate_24_uploads_green_leak.count > 0`.
+    Pelo menos 1 `<img src>` em prod aponta para path com `/green/` — provável
+    `REDACTED/green` em wp-config (deveria
+    ser `/assets`). Fix: `wp config set S3_UPLOADS_BUCKET ...prd-sa/assets --type=constant` +
+    `systemctl reload php8.3-fpm` + `aws s3 sync green/uploads/ assets/uploads/` + invalidação CF.
+    Ref: memo `feedback_cf_oac_green_to_assets_swap.md`. Severidade: **BLOCKER** — incidente
+    silencioso recorrente que causou perda de preloader Elementor por 24h em 2026-05-02.
+
+25. **Spotify embed em /cultura/porosidades/ (Fase 9) — HIGH**: incidente 2026-05-18.
+    Página de exposição com widget HTML embedando playlist Spotify (`open.spotify.com/embed/...`).
+    Sub-gates (todos devem passar):
+    - `gate_25_spotify_embed.csp_header_captured === false` — não capturou CSP da response.
+      Falha de instrumentação; revalidar manualmente via `curl -sI`.
+    - `gate_25_spotify_embed.frame_src_has_spotify === false` — CSP `frame-src` sem
+      `open.spotify.com`. **Browser bloqueia iframe inteiro** (renderiza `chrome-error://chromewebdata/`
+      visível como "Este conteúdo está bloqueado").
+    - `gate_25_spotify_embed.connect_src_has_spotify === false` — CSP `connect-src` sem
+      `*.spotify.com`. Iframe carrega mas player não consegue chamar `api.spotify.com`/`spclient`
+      → player aparece vazio ou trava em loading.
+    - `gate_25_spotify_embed.media_src_has_scdn === false` — CSP `media-src` sem `*.scdn.co`.
+      Player visível mas preview de 30s não toca (áudio servido pelo CDN scdn.co bloqueado).
+    - `gate_25_spotify_embed.iframe_present === false` — iframe sumiu do DOM. Pode ser remoção
+      acidental no Elementor ou bug de render do widget HTML.
+    - `gate_25_spotify_embed.csp_error_count > 0` — console emitiu erro
+      `Refused to frame 'https://open.spotify.com/' because it violates the following Content
+      Security Policy directive` durante o carregamento. Confirmação direta de bloqueio (mesmo
+      que header pareça ter os domínios — pode haver typo/encoding bug).
+
+    Fix: editar `03-nginx-sites.sh` (template) + hotfix em
+    `/etc/nginx/snippets/security-headers.conf` adicionando os 3 domínios; `sudo systemctl reload nginx`;
+    invalidar CloudFront em `/cultura/porosidades/`. Ref: memo `feedback_csp_spotify_embeds.md`.
+    Severidade: **HIGH** — quebra UX da exposição mas não derruba produto. Mesmo padrão que
+    [[feedback_csp_youtube_embeds]] — cada novo provedor de embed exige domínios específicos.
+
+26. **WPML orphan attachment leak (Fase 9) — BLOCKER**: incidente 2026-05-18 (CU 86ahhtk2d).
+    WPML duplicate-on-translate criou 109 attachments EN em `wp_2_posts` sem espelho em `wp_posts`
+    blog 1. Páginas EN do blog 2 renderizam widget Slides sem background-image e gallery thumbs
+    quebradas. Sub-gates (qualquer um falha):
+    - `gate_26_wpml_orphan_leak.total_orphan_refs > 0` — pelo menos 1 ref `/sites/2/uploads/` no
+      HTML de alguma página EN. Indica que `wp_get_attachment_url` está retornando path do subsite
+      em vez de resolver via sibling pt-br. **Causa provável**: mu-plugin
+      `bit-crossblog-attachment-fix.php` ausente, desativado, ou versão < 1.5.2.
+    - `gate_26_wpml_orphan_leak.pages_with_bug > 0` — qualquer página teve um dos 3 sintomas:
+      orphan_refs > 0, widget Slides com 0 backgrounds quando total > 0, ou >2 imgs quebrados.
+      Reportar `per_path[N].path` específico no relatório.
+    - `gate_26_wpml_orphan_leak.total_broken_imgs > 8` — toleramos ≤2 por página (placeholder/loaded
+      after timing). Acima disso indica regressão sistêmica.
+
+    Fix: validar 3 frentes — (a) mu-plugin v1.5.2+ presente e ativo no servidor
+    (`grep '* Version' /var/www/.../wp-content/mu-plugins/bit-crossblog-attachment-fix.php`),
+    (b) `elementor_css_print_method=external` no blog 2
+    (`wp --url=https://concertacaoamazonia.com.br/cultura/ option get elementor_css_print_method`),
+    (c) WPML media duplication OFF nos 2 blogs
+    (`wp eval 'print_r(\WPML\Media\Option::getNewContentSettings());'` deve retornar `[false, false, false]`).
+    Se mu-plugin OK e settings OK, regenerar Elementor CSS das 4 páginas EN
+    (`(new \Elementor\Core\Files\CSS\Post($id))->update_file()`) + invalidar CF cirúrgico em
+    `/cultura/en/*`. Ref: memos `feedback_wpml_orphan_attachments_blog2.md` +
+    `project_wpml_orphan_fix_deployed_prod.md`.
+
+    Severidade: **BLOCKER** — bug é silencioso (`/smoke` sem este gate passa) e direto
+    customer-facing (Fabricio reportou). Mu-plugin é estrutural; deployer deve verificar antes
+    de cutover green.
+
+27. **CSS MIME `text/html` (Fase 9) — BLOCKER**: incidente 2026-05-18 21:30 BRT (home concertação).
+    Daniel reportou home sem CSS via screenshot — header verde OK mas hero e secções explodiram
+    sem layout. Root cause: HTML cached no CloudFront referenciava
+    `/wp-content/cache/min/1/wp-content/elementor-cache/elementor/css/post-2461.css?ver=1779102530`
+    e `post-74762.css` (mesmo `?ver=`); os arquivos `.css` minificados não existiam no FS
+    (regeneração parcial via Elementor save de outras páginas apagou os min files mas não
+    invalidou o HTML). Nginx fallback ao WP retornou 404 com `content-type: text/html` →
+    strict MIME do browser rejeitou o CSS → layout quebrado mesmo com origin sano.
+
+    Sub-gate (BLOCKER):
+    - `gate_27_css_mime_check.total_bad_stylesheets > 0` — pelo menos 1 `<link rel=stylesheet>`
+      com `Content-Type != text/css` em qualquer página do snippet (home + /cultura/ por default).
+      Reportar `per_path[N].bad_samples[0..4]` com `href`, `status` (geralmente 404), e
+      `content_type` real (geralmente `text/html; charset=utf-8`).
+
+    Fix conservador (sem flush global, sequência testada no incidente):
+    1. Identificar `post_id` afetado pelo path do CSS (ex: `/cache/min/1/.../post-2461.css` → `2461`)
+    2. `wp eval 'rocket_clean_post(<POST_ID>);'`
+    3. `wp eval 'rocket_clean_minify("css");'` (regenera no próximo hit)
+    4. `wp eval '(new \Elementor\Core\Files\CSS\Post(<POST_ID>))->update();'` (opcional, se Elementor CSS file também estiver fora)
+    5. CF invalidate cirúrgico em `/` (NUNCA usar `/*`): `aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --paths '/' --profile Concertação`
+    6. Aguardar invalidation (1-3min) e re-rodar gate 27 — esperado: 0 bad stylesheets
+
+    Severidade: **BLOCKER** — visual catastrófico, browser detecta mas WP-CLI/curl direto não
+    (testar com `curl -sI .../post-N.css` revela o 404). Vetor sistêmico: `cache_*` invalidação
+    não-coordenada entre WP Rocket / Elementor / CloudFront. Memos: `feedback_wprocket_min_stale_404_breaks_layout.md`,
+    `feedback_filesystem_cache_post_deploy.md`, `feedback_elementor_flush_css_warmup.md`.
+
+28. **Stale s3-uploads path em _elementor_data (Fase 9) — BLOCKER**: incidente 2026-05-18 (CU 86ahj85qk).
+    URL legada do plugin s3-uploads ATIVO (`/wp-content/uploads/s3/<bucket>/assets/<path>`) sobrevive em
+    `_elementor_data` após migrar para `s3-uploads OFF` + CF-OAC. Quando Elementor renderiza SVG inline
+    (jet-button icons, Elementor button icon, dynamic tag image), faz `file_get_contents` no path local
+    derivado da URL — path stale resolve para arquivo que NÃO existe no FS → SVG vazio. Sintoma direto:
+    todos os ícones "+" verdes dos botões SAIBA MAIS sumiram em prod (567 ocorrências encontradas).
+
+    Sub-gates:
+    - `gate_28_legacy_s3_path.stale_refs_count > 0` (BLOCKER) — qualquer ocorrência do padrão
+      `/wp-content/uploads/s3/` no HTML rendered. Reportar primeiros 5 samples.
+    - `gate_28_legacy_s3_path.jet_buttons_missing_svg > 0` (HIGH) — jet-button widgets com classe
+      `--icon-right` (que indicam ícone configurado) mas SEM `<svg>` child no DOM. Sintoma direto
+      do bug mesmo quando o gate principal não pega o padrão (caso URL stale tenha sido reescrita
+      mas FS local ainda não tem o arquivo).
+
+    Fix em 2 frentes:
+    - **Dados**: `wp search-replace 'wp-content\/uploads\/s3\/<bucket>\/assets\/' 'wp-content\/uploads\/' --network --skip-columns=guid`
+      (atenção ao escape JSON `\/` — `_elementor_data` armazena com barras escapadas).
+    - **Filesystem**: sync via `aws s3 cp` dos SVGs ausentes do bucket para `wp-content/uploads/`.
+
+    Fix automatizado em `ec2-deploy/post-deploy/09-importdatabase.sh` v2.6.0+ via função
+    `search_replace_legacy_s3_paths` que roda após `search_replace_tunnel_fqdn`. Dependência:
+    env var `S3_UPLOADS_BUCKET` definida no `.env` raiz. Memos relacionados:
+    `feedback_s3_uploads_off_sync_required.md`, `feedback_preloader_filesystem_local.md`.
+
+    Severidade: **BLOCKER** — bug sistêmico (567 ocorrências detectadas) afetando todos os botões
+    de call-to-action em prod. Visualmente catastrófico mas silencioso para HTTP probes.
+
+29. **Emails com `:porta` órfã em `_elementor_data` (Fase 9) — BLOCKER**: incidente 2026-05-18 21:56 BRT.
+    Newsletter footer de prod retornava `{success:false, errors:[], data:[]}` silencioso porque o
+    `email_from_2` do form continha `email@concertacaoamazonia.com.br:8484` (porta DEV `:8484` órfã
+    sobrando de `wp search-replace` que trocou hostname mas não a porta). `is_email()` rejeita →
+    action "email" do Elementor Pro Forms aborta → submit falha sem mensagem clara ao usuário.
+    Total detectado em prod: 106 forms afetados em 918 posts, distribuídos em blogs 1 + 2 do multisite.
+    Bug silencioso há tempo indeterminado — todo lead via Newsletter footer foi perdido.
+
+    Sub-gate (BLOCKER):
+    - `bad > 0` no snippet SSH do gate 28 — qualquer ocorrência de `@host:NNNN` em 11 chaves
+      email_* (`email_from`, `email_from_2`, `email_from_name`, `email_from_name_2`,
+      `email_to`, `email_to_2`, `email_to_cc`, `email_reply_to`, `email_reply_to_2`,
+      `email_subject`, `email_subject_2`) dentro de `_elementor_data` em posts publicados
+      (revisions excluídas). Reportar `blog=N post=ID field=KEY value=...` para cada hit.
+
+    Fix em 2 frentes:
+    - **Dados (uma vez)**: rodar `scripts/regularize-form-emails.php` via SSH com `sudo -u www-data
+      wp eval-file` (modo APPLY após DRY-RUN). Strippa `:porta` em todas as chaves email_*
+      em `_elementor_data` filtrando revisions. Idempotente (rerun sem mudança = 0 fixes).
+    - **Automatizado (pipeline deploy)**: função `fix_form_email_ports()` em
+      `ec2-deploy/post-deploy/09-importdatabase.sh` roda após `search_replace_legacy_s3_paths`
+      em todo deploy. Walker recursivo + regex `(@[A-Za-z0-9.\-]+):\d{1,5}\b` + `update_post_meta`
+      com `wp_slash(wp_json_encode(... JSON_UNESCAPED_UNICODE))`. Não usar `JSON_UNESCAPED_SLASHES`
+      (causa drift de `\/` vs `/` no Elementor data → não idempotente).
+
+    Pós-fix: limpar cache do post afetado (`rocket_clean_post(<POST_ID>)`) + se for template
+    global do footer, invalidar CloudFront em `/` (afeta todas as páginas).
+
+    Severidade: **BLOCKER** — Newsletter/contato silenciosamente quebrados em prod, sem alarme
+    em monitoring (HTTP 200 + JSON success:false sem trace de erro). Vetor sistêmico:
+    `wp search-replace` cego em `_elementor_data` JSON. Memos: `feedback_form_email_port_drift.md`,
+    `feedback_elementor_data_wp_slash_required.md`.
+
+30. **wp_mail() funcional via SSH (Fase 7.8b) — BLOCKER**: incidente 2026-05-19.
+
+    Valida que `wp_mail()` retorna `true` ao invés de `false`. Detecta:
+    - Constantes SMTP_* ausentes em wp-config.php (incidente 2026-05-19: blue-green
+      provisionamento como HML com `SMTP_HOST_HML` vazio no .env, cascata pra PROD
+      não disparou, ses-mailer.php inerte, `wp_mail()` cai em PHP `mail()` →
+      `/usr/sbin/sendmail not found` → returns false)
+    - Credenciais SES revogadas/expiradas (SMTP auth fail)
+    - Bloqueio outbound porta 587/SMTPS pelo SG ou WAF
+    - mu-plugin `ses-mailer.php` ausente
+    - PhpMailer.ErrorInfo populado mesmo retornando true (delivery deferido)
+
+    Comando de validação SSH (rodar pós-deploy):
+    ```bash
+    ssh prod-sa "sudo -u www-data wp --path=/var/www/<SITE> --url=<URL> eval '
+      \$ok = wp_mail(\"smoke-no-send@bureau-it.com\", \"smoke wp_mail test\", \"smoke\");
+      echo \"wp_mail=\" . var_export(\$ok, true) . PHP_EOL;
+      global \$phpmailer;
+      if (isset(\$phpmailer) && is_object(\$phpmailer)) {
+        echo \"host=\" . (\$phpmailer->Host ?? \"?\") . PHP_EOL;
+        echo \"errorInfo=\" . (\$phpmailer->ErrorInfo ?: \"(none)\") . PHP_EOL;
+      }
+    '"
+    ```
+
+    Sub-gates (qualquer um falha):
+    - `wp_mail=false` → submit pipeline silenciosamente quebrado
+    - `phpmailer.Host` vazio ou diferente de `email-smtp.*` → SMTP_HOST não chegou ao PhpMailer
+    - `phpmailer.ErrorInfo` populado (não vazio) → erro em runtime, mesmo se return true
+
+    Fix:
+    ```bash
+    # 1. Verificar constantes SMTP em wp-config.php
+    ssh prod-sa "sudo grep -E 'SMTP_(HOST|PORT|USERNAME|PASSWORD|FROM)' /var/www/<SITE>/wp-config.php"
+
+    # 2. Se ausentes: re-rodar a1-wordpress-autoconfigure.sh
+    ssh prod-sa "cd /home/ubuntu/post-deploy && sudo ENVIRONMENT=prod bash a1-wordpress-autoconfigure.sh /var/www/<SITE>"
+
+    # 3. Reload FPM
+    ssh prod-sa "sudo systemctl reload php8.3-fpm"
+
+    # 4. Re-validar gate 30
+    ```
+
+    Severidade: **BLOCKER** — quando wp_mail falha, todo form Elementor Pro com
+    action email retorna `{success:false, errors:[]}` silencioso. Bug invisível
+    pra HTTP probes. Memo: `feedback_smtp_constants_missing_prod.md`.
+
+## Fase 10 — Outline HTML semântico (acessibilidade + SEO)
+
+Valida estrutura semântica das páginas para garantir acessibilidade (WCAG SC 2.4.6
+"Headings and Labels") e SEO (Google ranking depende de hierarquia de headings + uso
+correto de landmarks). Combo de 2 gates:
+
+- **Gate 31 (estrutural)**: rodado em ~15 paths (12 menu + 3 singles de CPT). Valida
+  exatamente 1 `<h1>`, hierarquia sem pular níveis (h2→h4), `<main>` presente, `<article>`
+  em singles de CPT.
+- **Gate 32 (snapshot home)**: captura outline completo da home e compara com snapshot
+  versionado em `.claude/commands/smoke-snapshots/home-outline.json`. Detecta QUALQUER
+  mudança estrutural — exige update consciente do snapshot quando layout muda.
+
+### Snippet — Gate 31 (estrutural multi-página)
+
+Lista de paths cobre menu principal + 1 single de cada CPT público (descoberta dinâmica
+via `post-type list --public=1`). Custo ~30s para 15 paths via curl + Python.
+
+```bash
+ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
+  wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br \
+  eval '
+\$paths = [\"/\"];
+// Menu paths (estáticos — sincronizar com Snippet 1 da Fase 7.5)
+foreach ([\"/sobre-nos/\",\"/sobre-nos/4-amazonias/\",\"/atuacao/\",\"/conhecimento/\",
+          \"/conhecimento/espiral-de-conhecimento/\",\"/cultura/\",
+          \"/cultura/atlas-cultural-das-amazonias/\",\"/agenda-integradora/\",
+          \"/contato/\",\"/eventos/lista/\"] as \$p) \$paths[] = \$p;
+// 1 single de cada CPT public (descoberta dinâmica)
+foreach ([\"post\",\"tribe_events\",\"estudos\",\"releases\",\"100dias\",
+          \"webinarios\",\"plenarias\"] as \$cpt) {
+  \$ps = get_posts([\"post_type\"=>\$cpt,\"posts_per_page\"=>1,
+                    \"post_status\"=>\"publish\",\"orderby\"=>\"date\",\"order\"=>\"DESC\"]);
+  if (!empty(\$ps)) \$paths[] = parse_url(get_permalink(\$ps[0]->ID), PHP_URL_PATH);
+}
+foreach (\$paths as \$p) echo \$p . PHP_EOL;
+'" 2>&1 | grep -v Deprecated | grep '^/' > /tmp/smoke-paths.txt
+
+# Para cada path: curl + Python parse outline
+python3 <<'PY' < /tmp/smoke-paths.txt
+import re, sys, subprocess, urllib.parse
+BASE = "https://concertacaoamazonia.com.br"
+SINGLE_CPT_REGEX = re.compile(r"^/(event|estudos|releases|100dias|webinarios|plenaria|veiculo|plataforma)/[^/]+/?$")
+results = []
+for path in [l.strip() for l in sys.stdin if l.strip()]:
+    url = BASE + path
+    html = subprocess.check_output(["curl","-s",f"{url}?cb=smk"], timeout=30).decode()
+    # Parse headings em ordem
+    heads = [(m.group(1).lower(), re.sub(r"\s+"," ", re.sub(r"<[^>]+>"," ",m.group(2))).strip()[:60])
+             for m in re.finditer(r"<(h[1-6])\b[^>]*>(.*?)</\1>", html, re.DOTALL|re.IGNORECASE)]
+    h1_count = sum(1 for h in heads if h[0]=="h1")
+    # Hierarchy: cada nível só pode aumentar 1 por vez
+    skips = []
+    last_level = 0
+    for tag,_ in heads:
+        lvl = int(tag[1])
+        if last_level and lvl > last_level + 1:
+            skips.append(f"h{last_level}→{tag}")
+        last_level = lvl
+    has_main = bool(re.search(r"<main\b", html, re.IGNORECASE))
+    has_article = bool(re.search(r"<article\b", html, re.IGNORECASE))
+    is_single = bool(SINGLE_CPT_REGEX.match(path))
+    issues = []
+    if h1_count != 1: issues.append(f"h1_count={h1_count}")
+    if skips: issues.append(f"skips:{','.join(skips[:3])}")
+    if not has_main: issues.append("no_main")
+    if is_single and not has_article: issues.append("no_article_in_single")
+    status = "OK" if not issues else "FAIL: "+", ".join(issues)
+    print(f"{status:<60} {path}")
+    results.append((path, issues))
+print(f"\nTotal: {len(results)} paths, {sum(1 for _,i in results if not i)} pass, {sum(1 for _,i in results if i)} fail")
+PY
+```
+
+**Esperado (PASS):** todos paths com `OK`. Singles de CPT (event/estudos/releases/100dias/webinarios/plenaria) devem ter `<main>` E `<article>`.
+
+**Sub-gates (qualquer um falha — severidade HIGH, não BLOCKER):**
+- `h1_count != 1` — múltiplos h1 (confuso pra screen reader + SEO penalty) OU 0 h1
+- `skips` > 0 — hierarquia pulou nível (ex: h2→h4)
+- `no_main` — landmark `<main>` ausente (acessibilidade WCAG)
+- `no_article_in_single` — single de CPT sem `<article>` (SEO + a11y)
+
+### Snippet — Gate 32 (snapshot home)
+
+Captura outline completo da home + landmarks e compara com snapshot versionado.
+
+```bash
+# Captura outline atual
+curl -s "https://concertacaoamazonia.com.br/?cb=$(date +%s)" 2>/dev/null > /tmp/home-now.html
+python3 <<'PY' > /tmp/home-outline-now.json
+import re, json
+with open('/tmp/home-now.html') as f: doc = f.read()
+outline = {
+  "headings": [
+    {"tag": m.group(1).lower(),
+     "text": re.sub(r"\s+"," ", re.sub(r"<[^>]+>"," ", m.group(2))).strip()[:80]}
+    for m in re.finditer(r"<(h[1-6])\b[^>]*>(.*?)</\1>", doc, re.DOTALL|re.IGNORECASE)
+  ],
+  "landmarks": {tag: len(re.findall(r"<"+tag+r"\b[^>]*>", doc, re.IGNORECASE))
+                for tag in ['header','nav','main','article','aside','footer']}
+}
+print(json.dumps(outline, ensure_ascii=False, indent=2))
+PY
+
+# Comparar com snapshot versionado
+SNAP=.claude/commands/smoke-snapshots/home-outline.json
+if [[ ! -f "$SNAP" ]]; then
+  mkdir -p "$(dirname "$SNAP")"
+  cp /tmp/home-outline-now.json "$SNAP"
+  echo "[INFO] snapshot inicial criado em $SNAP — re-rodar gate 32 para validar"
+else
+  diff -u "$SNAP" /tmp/home-outline-now.json && echo "✅ Gate 32 PASS — outline home idêntico ao snapshot" \
+    || echo "🚨 Gate 32 FAIL — outline home divergiu. Inspecionar diff. Se intencional, atualizar snapshot: cp /tmp/home-outline-now.json $SNAP"
+fi
+```
+
+**Esperado (PASS):** `diff` vazio (snapshot bate exatamente). Quando layout/conteúdo da home muda intencionalmente, atualizar snapshot com `cp` (decisão consciente).
+
+**Severidade**: HIGH. Snapshot serve como **canário de mudanças estruturais não-intencionais** —
+typo no template, plugin que injeta heading errado, regression de tradução, etc.
+
+### Gates 31+32 — Gates de FAIL
+
+31. **Outline estrutural (Fase 10) — HIGH**: incidente 2026-05-19.
+
+    Sub-gates (qualquer um em qualquer path falha o smoke):
+    - `h1_count != 1` em qualquer página (singles devem ter exatamente 1, home pode ter 1 do título do template; 0 ou >1 é bug)
+    - `skips` (h-pula-nível) em qualquer página
+    - `no_main` em qualquer página (landmark obrigatório WCAG SC 2.4.1)
+    - `no_article_in_single` em single de CPT (SEO Schema.org)
+
+    Bugs descobertos em concertação 2026-05-19 (deixados sem fix por decisão):
+    - Home (`/`): H1 = "Eventos" do widget JetEngine; 9× h2 antes do h1
+    - Single post: sem `<main>`, sem `<article>`
+    - Single estudo: **0 h1**, sem `<main>`, sem `<article>` (crítico para SEO)
+    - Single tribe_events: `<main>` presente (theme TEC sobrescreve), mas h1 duplicado
+
+    Fix: child theme ajustes em single-{cpt}.php (adicionar `<main>` + `<article>` wrapper)
+    e remover h1 acidental do widget JetEngine de eventos na home (trocar pra h2).
+    Ref: `feedback_outline_html_bugs.md` (a criar quando for fixar).
+
+    Severidade: **HIGH** (não BLOCKER porque site funciona, mas WCAG 2.4.6 falha + SEO penalty).
+
+32. **Outline snapshot home (Fase 10) — MEDIUM**:
+
+    `diff` entre snapshot versionado e outline atual da home != 0. Indica mudança
+    estrutural não-validada. Pode ser:
+    - Mudança intencional de layout/conteúdo (atualizar snapshot)
+    - Plugin/widget novo injetando heading (auditar)
+    - Tradução EN/PT divergente (snapshot pode precisar por-idioma futuramente)
+
+    Fix: revisar diff. Se intencional, `cp /tmp/home-outline-now.json .claude/commands/smoke-snapshots/home-outline.json`.
+
+33. **jet_download retorna 302 — HIGH**:
+
+    `GET /?jet_download=<hash-amostra>` deve retornar **302** com header `Location:`
+    apontando para `/wp-content/uploads/...`. Origem do gate: bug 2026-05-20 onde
+    mu-plugin `bit-jet-s3-redirect.php` v1.0.0 falhava com CF-OAC + s3-uploads OFF
+    (guard `strpos s3.|amazonaws.com` não matchava URL local) — handler caía em
+    fallthrough, WordPress renderizava home page de 524KB em vez do PDF. Botões de
+    download em todos os estudos retornavam HTML sem erro visível, sem que ninguém
+    percebesse até usuário reportar.
+
+    Pegadinha: usar `curl -X GET` (não HEAD). Bug nginx `$rocket_skip_reason`
+    pre-v1.18.0 só cobria GET literal — HEAD com QS bypassava PHP servindo
+    `index-https.html`. Gate 35 testa isso especificamente.
+
+    Fix: validar mu-plugin v1.1.1+ ativo (`grep Version /var/www/.../mu-plugins/bit-jet-s3-redirect.php`),
+    reload PHP-FPM, invalidar CF `/?jet_download=*`.
+
+34. **jet_download target entrega binary via CF — HIGH**:
+
+    Seguir o `Location:` do gate 33 e validar destino: **200** + content-type
+    binário (`application/pdf|zip|...`) + `x-cache: ... cloudfront`. Origem do gate:
+    auditoria 2026-05-20 detectou 2/2417 hashes (0.08%) com 403 do S3 — uploads
+    duplicados ou deletados que ficaram órfãos no option `jet_elements_download_button_hashes`.
+    Em produção real, esses 2 hashes retornavam 403 mas nenhum post atual os
+    referenciava (eram fantasmas).
+
+    Fix: validar que arquivo existe no S3 (`aws s3 ls bucket/assets/uploads/.../arquivo.pdf`).
+    Se não existir: arquivo precisa ser re-uploaded, OU o post precisa ser atualizado
+    para apontar para attachment diferente, OU o hash pode ser removido do option
+    (se nenhum post atual referencia o ID).
+
+35. **jet_download HEAD retorna 302 também — MEDIUM (probe regression detector)**:
+
+    `HEAD /?jet_download=<hash>` deve retornar **302** (idêntico ao GET). Se vier
+    200 com HTML 524KB, é regressão do bug nginx `$rocket_skip_reason` regex
+    (deve cobrir `GET|HEAD`, não só `GET`). Origem do gate: 2026-05-20 descobri
+    que HEAD com QS `jet_download` bypassava PHP via `try_files $rocket_root_cache`
+    porque map nginx só capturava GET literal. Fix em `03-nginx-sites.sh` v1.18.0.
+
+    Usuários reais (GET) não foram impactados. Mas probes Pingdom/UptimeRobot,
+    monitoring scripts com `curl -I`, auditorias automatizadas com HEAD: todas
+    veriam falsos positivos antes do fix.
+
+    Fix: aplicar `03-nginx-sites.sh` v1.18.0+ ou patchar manualmente
+    `/etc/nginx/nginx.conf` substituindo `"~^.:GET:.+"` por `"~^.:(GET|HEAD):.+"`,
+    `nginx -t && systemctl reload nginx`.
+
+36. **JetEngine Listing Grid Load More carrega cards — HIGH**:
+
+    POST do botão "Carregar mais" do JetEngine ListingGrid deve ir para
+    `/wp-admin/admin-ajax.php` (não para a URL da página) e retornar **200** +
+    aumentar a contagem de `.jet-listing-grid__item` no DOM. Origem do gate:
+    incidente 2026-05-20 onde o JetEngine envia POST para
+    `<URL da página>?nocache=<ts>` por padrão (filtro `jet-engine/listings/ajax-listing-url`
+    retornando `home_url()` em vez de `admin_url('admin-ajax.php')`) — CloudFront
+    rejeita com 403 porque `DefaultCacheBehavior.AllowedMethods=[HEAD,GET]`.
+
+    Afeta 8 páginas em prod (4 PT + 4 EN): Espiral, Mapa de Plataformas,
+    Publicações, 4 Amazônias + versões EN. Sem o fix, todos os botões
+    "Carregar mais" / "Load more" retornam silenciosamente sem erro JS visível.
+
+    Fix: mu-plugin `bit-jet-loadmore-ajax-url.php` v1.0.0+ ativo
+    (`grep Version /var/www/.../mu-plugins/bit-jet-loadmore-ajax-url.php`),
+    reload PHP-FPM.
+
+### Snippet — Gate 36 (JetEngine load-more end-to-end)
+
+Após gates 33-35, antes do relatório. **Usa Playwright** (precisa de DOM real
+e do JS do JetEngine para disparar o POST). Navega para `/espiral-de-conhecimento/`,
+conta cards iniciais, clica `#espiralLoadMore`, espera o POST a `admin-ajax.php`
+completar, conta cards de novo.
+
+```javascript
+// Snippet smoke (browser_*) — gate 36
+const URL_TEST = "https://concertacaoamazonia.com.br/espiral-de-conhecimento/?eixo=eixo1&_label=governanca&jsf=jet-engine:estudos&tax=eixos:172#estudos";
+
+await page.goto(URL_TEST, { waitUntil: "networkidle" });
+
+const pre = await page.evaluate(() => ({
+  items: document.querySelectorAll('.jet-listing-grid__item').length,
+  ajaxlisting: (window.JetEngineSettings || {}).ajaxlisting,
+}));
+
+// Gate 36a: ajaxlisting deve ser admin-ajax.php (não URL da página)
+const gate_36a = typeof pre.ajaxlisting === "string"
+  && /\/wp-admin\/admin-ajax\.php$/.test(pre.ajaxlisting);
+
+// Captura resposta do load-more
+const responsePromise = page.waitForResponse(r =>
+  /\/wp-admin\/admin-ajax\.php/.test(r.url()) && r.request().method() === "POST",
+  { timeout: 10000 }
+);
+
+await page.click('#espiralLoadMore a.jet-button__instance');
+
+let postStatus = null;
+try {
+  const resp = await responsePromise;
+  postStatus = resp.status();
+} catch (e) { postStatus = "TIMEOUT"; }
+
+await page.waitForTimeout(2000);
+
+const post = await page.evaluate(() => ({
+  items: document.querySelectorAll('.jet-listing-grid__item').length,
+}));
+
+const gate_36b = postStatus === 200;
+const gate_36c = post.items > pre.items;
+
+console.log(JSON.stringify({
+  gate_36a_ajaxlisting_is_admin_ajax: { pass: gate_36a, ajaxlisting: pre.ajaxlisting },
+  gate_36b_post_200: { pass: gate_36b, status: postStatus },
+  gate_36c_items_increased: { pass: gate_36c, pre: pre.items, post: post.items },
+}, null, 2));
+```
+
+**Gates do snippet:**
+- Gate 36a PASS: `JetEngineSettings.ajaxlisting` aponta para `admin-ajax.php`.
+  Se FAIL com URL da página → mu-plugin `bit-jet-loadmore-ajax-url.php` não está
+  ativo ou OPcache não foi recarregado.
+- Gate 36b PASS: POST a `admin-ajax.php` retorna 200. Se FAIL com 403/timeout
+  → CF bloqueando (path errado, mu-plugin inerte) ou origin caído.
+- Gate 36c PASS: `items_post > items_pre`. Se FAIL com counts iguais → handler
+  PHP `wp_ajax_jet_engine_ajax` não respondeu corretamente (verificar logs
+  PHP-FPM, signature da query, post_status filter).
+
+### Snippet — Gates 33-35 (jet_download integridade end-to-end)
+
+Após gate 32, antes do relatório. **Não usa Playwright** — apenas `fetch()` ou
+`curl` via `Bash`. Amostra 3 hashes de prod (extraídos do option) e testa cada
+um nos 3 ângulos: GET 302, HEAD 302, target entrega binary via CF.
+
+```javascript
+// Snippet smoke (browser_run_code) — gates 33/34/35
+const FQDN = "https://concertacaoamazonia.com.br";
+
+// Lista de hashes conhecidos para amostragem (atualizar periodicamente):
+// 1. bioeconomia (estudos) — ID 50691, PDF 2MB
+// 2. tapajos-pesca (estudos) — ID 21901, PDF
+// 3. covid-saude (estudos) — qualquer hash válido em prod
+const SAMPLE_HASHES = [
+  "6ee8392574e708633bb1fa4dcde0276585579216", // bioeconomia
+  "9e08f20041254f32dd9c0c66eb0399878988f5a8", // tapajos-pesca
+];
+
+async function testHash(hash, method) {
+  const url = `${FQDN}/?jet_download=${hash}`;
+  // X-Test-Green com nanos garante CF cache miss (cache key permanente)
+  const cacheBust = `smoke-jet-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  const res = await fetch(url, {
+    method,
+    redirect: "manual",
+    headers: { "X-Test-Green": cacheBust },
+  });
+  return {
+    status: res.status,
+    location: res.headers.get("location"),
+    contentType: res.headers.get("content-type"),
+    xCache: res.headers.get("x-cache"),
+  };
+}
+
+async function testTarget(location) {
+  const res = await fetch(location, {
+    method: "HEAD",
+    headers: { "X-Test-Green": `smoke-target-${Date.now()}` },
+  });
+  return {
+    status: res.status,
+    contentType: res.headers.get("content-type"),
+    contentLength: res.headers.get("content-length"),
+    xCache: res.headers.get("x-cache"),
+  };
+}
+
+const results = { gate_33: [], gate_34: [], gate_35: [] };
+
+for (const hash of SAMPLE_HASHES) {
+  // Gate 33: GET -> 302 + Location uploads
+  const get = await testHash(hash, "GET");
+  const get_ok =
+    get.status === 302 &&
+    typeof get.location === "string" &&
+    /\/wp-content\/uploads\//.test(get.location);
+  results.gate_33.push({ hash, ...get, ok: get_ok });
+
+  // Gate 35: HEAD -> 302 (não 200 HTML)
+  const head = await testHash(hash, "HEAD");
+  const head_ok = head.status === 302;
+  results.gate_35.push({ hash, ...head, ok: head_ok });
+
+  // Gate 34: target entrega binary via CF
+  if (get.location) {
+    const target = await testTarget(get.location);
+    const target_ok =
+      target.status === 200 &&
+      typeof target.contentType === "string" &&
+      /^(application\/(pdf|zip|octet-stream|msword|vnd\.|x-zip)|image\/|audio\/|video\/)/.test(target.contentType) &&
+      typeof target.xCache === "string" &&
+      /cloudfront/i.test(target.xCache);
+    results.gate_34.push({ hash, location: get.location, ...target, ok: target_ok });
+  } else {
+    results.gate_34.push({ hash, ok: false, reason: "no Location from gate 33" });
+  }
+}
+
+// Verdict
+const gate_33_pass = results.gate_33.every((r) => r.ok);
+const gate_34_pass = results.gate_34.every((r) => r.ok);
+const gate_35_pass = results.gate_35.every((r) => r.ok);
+
+console.log(JSON.stringify({
+  gate_33_jet_get_redirect: { pass: gate_33_pass, details: results.gate_33 },
+  gate_34_jet_target_binary_cf: { pass: gate_34_pass, details: results.gate_34 },
+  gate_35_jet_head_redirect: { pass: gate_35_pass, details: results.gate_35 },
+}, null, 2));
+```
+
+**Gates do snippet:**
+- Gate 33 PASS: GET retorna 302 + Location apontando para `/wp-content/uploads/...`.
+  Se FAIL com `status: 200, contentType: text/html` → mu-plugin não está ativo
+  ou regressão da lógica `is_file($local_path)`.
+- Gate 34 PASS: HEAD do `Location:` retorna 200 + content-type binário + `x-cache: cloudfront`.
+  Se FAIL com `status: 403` → arquivo não existe no S3 (drift FS↔S3).
+  Se FAIL com `xCache != cloudfront` → CF não está na frente (proxy errado).
+- Gate 35 PASS: HEAD `/?jet_download=hash` retorna 302 igual ao GET.
+  Se FAIL com `status: 200, contentType: text/html` → nginx `$rocket_skip_reason`
+  regex não cobre HEAD (precisa `03-nginx-sites.sh` v1.18.0+).
+
+## Relatório Final Pragmático
+
+Após executar todas as fases, gerar **bloco único** com formato decisível:
+
+```
+═══════════════════════════════════════════════════════════════════
+SMOKE TEST REPORT — Concertação Amazônia
+Executado: <timestamp ISO>
+Duração: <Xmin>
+═══════════════════════════════════════════════════════════════════
+
+VEREDICTO: ✅ PASS  |  ⚠️ PASS_WITH_RESSALVAS  |  🚨 FAIL  |  ⛔ BLOCKER
+
+Critério:
+  • PASS                 = 0 gates falharam
+  • PASS_WITH_RESSALVAS  = só MEDIUM/LOW falharam, nenhum HIGH/BLOCKER
+  • FAIL                 = ≥1 gate HIGH falhou (não BLOCKER)
+  • BLOCKER              = ≥1 gate BLOCKER falhou — NÃO PROMOVER PARA PROD
+
+───────────────────────────────────────────────────────────────────
+RESUMO POR FASE
+───────────────────────────────────────────────────────────────────
+
+Fase  Cobertura                    Gates testados   Pass   Fail
+─────────────────────────────────────────────────────────────────
+1-5   Páginas críticas (PROD+GREEN)   1-6              X      Y
+6-7   Forms PROD                       7-8              X      Y
+6-7   Forms GREEN submit               9-10             X      Y
+7.5   Paridade DEV→PROD                13               X      Y
+7.6   Complianz multisite              (sem gate #)     —      —
+7.7   GTM injection                    (sem gate #)     —      —
+7.8   Cache health (4 camadas)         14-19            X      Y
+8     Menu warm-up                     11-12            X      Y
+9     Leak detection                   20-25            X      Y
+
+───────────────────────────────────────────────────────────────────
+GATES FALHARAM (ordenados por severidade)
+───────────────────────────────────────────────────────────────────
+
+⛔ BLOCKER (NÃO PROMOVER):
+  • Gate 22 — CSS de prod referencia concertacao.bureau-it.com (3 leaks)
+    → Fix: wp elementor flush_css + rocket_clean_post + CF invalidation
+  • Gate 24 — <img src> com /green/ em prod (12 imagens vazando)
+    → Fix: wp config set S3_UPLOADS_BUCKET .../assets + reload FPM + sync S3
+
+🚨 HIGH (FAIL):
+  • Gate 20 — Banner Complianz em /en/ está em PT
+    → Fix: criar mu-plugin com filtro wpml_translate_single_string
+
+⚠️ MEDIUM/LOW: <listar se houver>
+
+───────────────────────────────────────────────────────────────────
+GATES PASSARAM (sumário)
+───────────────────────────────────────────────────────────────────
+
+✅ Páginas 1-5 (PROD): hostname OK, listings populados, 0 uploads_elementor_css
+✅ Forms PROD: form_count=2, submit_label="ENVIAR"
+⏭️ Forms GREEN submit: SKIPPED (green offline — guard previne poluição CRM)
+✅ Paridade DEV→PROD em 16/16 paths do menu
+✅ Cache health: drop-in OK, page cache 96% improvement, CF hit, bypass works
+✅ Menu warm-up: todos itens TTFB <1500ms
+
+───────────────────────────────────────────────────────────────────
+AÇÕES IMEDIATAS RECOMENDADAS
+───────────────────────────────────────────────────────────────────
+
+ANTES DE PROMOVER NOVA INSTÂNCIA OU CUTOVER:
+  1. Corrigir gate 22 (CSS leak) — comando: wp elementor flush_css
+  2. Corrigir gate 24 (S3 path) — verificar wp-config WP_UPLOADS_BUCKET
+  3. Re-rodar /smoke após fixes para validar
+
+PÓS-DEPLOY (24-48h):
+  4. Corrigir gate 20 (Complianz EN) — criar mu-plugin
+  5. Monitorar /var/log/php8.3-fpm.log por novos warnings
+
+───────────────────────────────────────────────────────────────────
+MÉTRICAS DE PERFORMANCE (PROD, sample 10 páginas)
+───────────────────────────────────────────────────────────────────
+
+  TTFB médio (cached):     XX ms
+  TTFB p95 (cached):       XX ms
+  TTFB médio (origin):     XX ms
+  CF hit ratio:            XX%
+  Console errors médio:    X / página
+
+═══════════════════════════════════════════════════════════════════
+```
+
+**Regras do relatório:**
+- **Sempre incluir veredicto único** no topo (4 estados possíveis)
+- **Listar gates falhados em ordem de severidade** (BLOCKER → HIGH → MEDIUM/LOW)
+- **Para cada gate falhado: incluir comando de fix** (1-line) ou referência a memo
+- **Sumarizar gates passaram** em 1 linha cada (não detalhar)
+- **Métricas de performance**: 5-7 números agregados, sem tabela por página
+- **Ações imediatas**: máximo 5 itens, ordenados por prioridade
+- **Sem HTML/markdown rico**: ASCII puro com `─` e `═` para legibilidade em terminal e logs
+
+## Veredicto
+
+✅ **SMOKE PASS** — todas as 5 páginas + 2 formulários verdes prontos para cutover.
+🚨 **SMOKE FAIL** — listar gates disparados, sugerir fixes.
+
+---
+
+comite. 
+cheque o que houve Onde-possamos-sonhar-2026.jpg:1  Failed to load resource: the server responded with a status of 403 ()
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Connecting to 'https://region1.google-analytics.com/g/collect?v=2&tid=G-D1PB4BJ60X&gtm=45je65j1v884497452z8852241859za20gzb852241859zd852241859&_p=1779341727669&gcs=G100&gcd=13q3q3q2q5l1&npa=1&dma_cps=-&dma=1&ecid=1426731160&_eu=AAAAAGAC&are=1&cid=757641224.1779341732&ec_mode=a&frm=0&pscdl=denied&rcb=0&sr=3440x1440&uaa=arm&uab=64&uafvl=Chromium%3B148.0.7778.168%7CGoogle%2520Chrome%3B148.0.7778.168%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=macOS&uapv=26.3.0&uaw=0&ul=pt-br&gaf=2&_s=1&tag_exp=0~115938466~115938468&sid=1779341731&sct=1&seg=0&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&dt=Uma%20Concerta%C3%A7%C3%A3o%20pela%20Amazonia%3A%20Cultura%20%E2%80%93%20Conex%C3%A3o%20de%20saberes%2C%20pessoas%20e%20institui%C3%A7%C3%B5es%20engajadas%20no%20desenvolvimento%20sustent%C3%A1vel%20da%20Amaz%C3%B4nia.&en=page_view&_fv=1&_nsi=1&_ss=1&tfd=8929' violates the following Content Security Policy directive: "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://stats.g.doubleclick.net https://www.google.com https://connect.facebook.net https://vlibras.gov.br https://popups.rdstation.com.br https://d335luupugsy2.cloudfront.net https://*.spotify.com". The action has been blocked.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Fetch API cannot load https://region1.google-analytics.com/g/collect?v=2&tid=G-D1PB4BJ60X&gtm=45je65j1v884497452z8852241859za20gzb852241859zd852241859&_p=1779341727669&gcs=G100&gcd=13q3q3q2q5l1&npa=1&dma_cps=-&dma=1&ecid=1426731160&_eu=AAAAAGAC&are=1&cid=757641224.1779341732&ec_mode=a&frm=0&pscdl=denied&rcb=0&sr=3440x1440&uaa=arm&uab=64&uafvl=Chromium%3B148.0.7778.168%7CGoogle%2520Chrome%3B148.0.7778.168%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=macOS&uapv=26.3.0&uaw=0&ul=pt-br&gaf=2&_s=1&tag_exp=0~115938466~115938468&sid=1779341731&sct=1&seg=0&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&dt=Uma%20Concerta%C3%A7%C3%A3o%20pela%20Amazonia%3A%20Cultura%20%E2%80%93%20Conex%C3%A3o%20de%20saberes%2C%20pessoas%20e%20institui%C3%A7%C3%B5es%20engajadas%20no%20desenvolvimento%20sustent%C3%A1vel%20da%20Amaz%C3%B4nia.&en=page_view&_fv=1&_nsi=1&_ss=1&tfd=8929. Refused to connect because it violates the document's Content Security Policy.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Connecting to 'https://pagead2.googlesyndication.com/ccm/collect?rcb=0&frm=0&en=page_view&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&scrsrc=www.googletagmanager.com&rnd=135378884.1779341732&navt=n&npa=1&gtm=45je65j1v884497452z8852241859za20gzb852241859zd852241859xec&gcs=G100&gcd=13q3q3q2q5l1&dma_cps=-&dma=1&tag_exp=0~115938466~115938468&apve=1&apvf=f&apvc=1&tids=AW-17590648206&tid=AW-17590648206&tft=1779341732005&tfd=8932' violates the following Content Security Policy directive: "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://stats.g.doubleclick.net https://www.google.com https://connect.facebook.net https://vlibras.gov.br https://popups.rdstation.com.br https://d335luupugsy2.cloudfront.net https://*.spotify.com". The action has been blocked.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Fetch API cannot load https://pagead2.googlesyndication.com/ccm/collect?rcb=0&frm=0&en=page_view&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&scrsrc=www.googletagmanager.com&rnd=135378884.1779341732&navt=n&npa=1&gtm=45je65j1v884497452z8852241859za20gzb852241859zd852241859xec&gcs=G100&gcd=13q3q3q2q5l1&dma_cps=-&dma=1&tag_exp=0~115938466~115938468&apve=1&apvf=f&apvc=1&tids=AW-17590648206&tid=AW-17590648206&tft=1779341732005&tfd=8932. Refused to connect because it violates the document's Content Security Policy.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Connecting to 'https://region1.analytics.google.com/g/collect?v=2&tid=G-D1PB4BJ60X&gtm=45je65j1v884497452za20gzb852241859zd852241859&_p=1779341727669&_gaz=1&gcs=G111&gcu=1&gcd=13r3r3r2r5l1&npa=0&dma_cps=a&dma=1&ecid=1426731160&_eu=AAAAAGQC&are=1&cid=154933698.1770945877&frm=0&gcut=3&pscdl=noapi&rcb=0&sr=3440x1440&uaa=arm&uab=64&uafvl=Chromium%3B148.0.7778.168%7CGoogle%2520Chrome%3B148.0.7778.168%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=macOS&uapv=26.3.0&uaw=0&ul=pt-br&gaf=2&_s=2&tag_exp=0~115938466~115938468~116701382&sid=1779341731&sct=5&seg=0&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&dt=Uma%20Concerta%C3%A7%C3%A3o%20pela%20Amazonia%3A%20Cultura%20%E2%80%93%20Conex%C3%A3o%20de%20saberes%2C%20pessoas%20e%20institui%C3%A7%C3%B5es%20engajadas%20no%20desenvolvimento%20sustent%C3%A1vel%20da%20Amaz%C3%B4nia.&en=user_engagement&ep.ga_temp_client_id=757641224.1779341732&ep.ga_temp_ecid=1426731160&_et=5325&tfd=14257' violates the following Content Security Policy directive: "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://stats.g.doubleclick.net https://www.google.com https://connect.facebook.net https://vlibras.gov.br https://popups.rdstation.com.br https://d335luupugsy2.cloudfront.net https://*.spotify.com". The action has been blocked.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Fetch API cannot load https://region1.analytics.google.com/g/collect?v=2&tid=G-D1PB4BJ60X&gtm=45je65j1v884497452za20gzb852241859zd852241859&_p=1779341727669&_gaz=1&gcs=G111&gcu=1&gcd=13r3r3r2r5l1&npa=0&dma_cps=a&dma=1&ecid=1426731160&_eu=AAAAAGQC&are=1&cid=154933698.1770945877&frm=0&gcut=3&pscdl=noapi&rcb=0&sr=3440x1440&uaa=arm&uab=64&uafvl=Chromium%3B148.0.7778.168%7CGoogle%2520Chrome%3B148.0.7778.168%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=macOS&uapv=26.3.0&uaw=0&ul=pt-br&gaf=2&_s=2&tag_exp=0~115938466~115938468~116701382&sid=1779341731&sct=5&seg=0&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&dt=Uma%20Concerta%C3%A7%C3%A3o%20pela%20Amazonia%3A%20Cultura%20%E2%80%93%20Conex%C3%A3o%20de%20saberes%2C%20pessoas%20e%20institui%C3%A7%C3%B5es%20engajadas%20no%20desenvolvimento%20sustent%C3%A1vel%20da%20Amaz%C3%B4nia.&en=user_engagement&ep.ga_temp_client_id=757641224.1779341732&ep.ga_temp_ecid=1426731160&_et=5325&tfd=14257. Refused to connect because it violates the document's Content Security Policy.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Connecting to 'https://region1.analytics.google.com/g/collect?v=2&tid=G-D1PB4BJ60X&gtm=45je65j1v884497452za20gzb852241859zd852241859&_p=1779341727669&gcs=G111&gcd=13r3r3r2r5l1&npa=0&dma_cps=a&dma=1&ecid=1426731160&_eu=AAAAAGQC&are=1&cid=154933698.1770945877&frm=0&pscdl=noapi&rcb=0&sr=3440x1440&uaa=arm&uab=64&uafvl=Chromium%3B148.0.7778.168%7CGoogle%2520Chrome%3B148.0.7778.168%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=macOS&uapv=26.3.0&uaw=0&ul=pt-br&gaf=2&_s=3&tag_exp=0~115938466~115938468~116701382&sid=1779341731&sct=5&seg=1&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&dt=Uma%20Concerta%C3%A7%C3%A3o%20pela%20Amazonia%3A%20Cultura%20%E2%80%93%20Conex%C3%A3o%20de%20saberes%2C%20pessoas%20e%20institui%C3%A7%C3%B5es%20engajadas%20no%20desenvolvimento%20sustent%C3%A1vel%20da%20Amaz%C3%B4nia.&en=user_engagement&_et=13683&tfd=31277' violates the following Content Security Policy directive: "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://stats.g.doubleclick.net https://www.google.com https://connect.facebook.net https://vlibras.gov.br https://popups.rdstation.com.br https://d335luupugsy2.cloudfront.net https://*.spotify.com". The action has been blocked.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329 Fetch API cannot load https://region1.analytics.google.com/g/collect?v=2&tid=G-D1PB4BJ60X&gtm=45je65j1v884497452za20gzb852241859zd852241859&_p=1779341727669&gcs=G111&gcd=13r3r3r2r5l1&npa=0&dma_cps=a&dma=1&ecid=1426731160&_eu=AAAAAGQC&are=1&cid=154933698.1770945877&frm=0&pscdl=noapi&rcb=0&sr=3440x1440&uaa=arm&uab=64&uafvl=Chromium%3B148.0.7778.168%7CGoogle%2520Chrome%3B148.0.7778.168%7CNot%252FA)Brand%3B99.0.0.0&uam=&uamb=0&uap=macOS&uapv=26.3.0&uaw=0&ul=pt-br&gaf=2&_s=3&tag_exp=0~115938466~115938468~116701382&sid=1779341731&sct=5&seg=1&dl=https%3A%2F%2Fconcertacaoamazonia.com.br%2Fcultura%2F&dt=Uma%20Concerta%C3%A7%C3%A3o%20pela%20Amazonia%3A%20Cultura%20%E2%80%93%20Conex%C3%A3o%20de%20saberes%2C%20pessoas%20e%20institui%C3%A7%C3%B5es%20engajadas%20no%20desenvolvimento%20sustent%C3%A1vel%20da%20Amaz%C3%B4nia.&en=user_engagement&_et=13683&tfd=31277. Refused to connect because it violates the document's Content Security Policy.
+pd @ js?id=G-D1PB4BJ60X&cx=c&gtm=4e65j1:329
+[Image #4]
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_kYucpJ/Captura de Tela 2026-05-21 às 02.36.38.png]
+
+---
+
+<task-notification>
+<task-id>b353qtxx8</task-id>
+<summary>Monitor event: "aguardar snapshot pré-swap"</summary>
+<event>DONE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b353qtxx8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/b353qtxx8.output</output-file>
+<status>completed</status>
+<summary>Monitor "aguardar snapshot pré-swap" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>buc11pqic</task-id>
+<tool-use-id>toolu_01Qs7Rg7Vds5MsuJ3cmhp7Vu</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/buc11pqic.output</output-file>
+<status>completed</status>
+<summary>Background command "Snapshot pre-swap" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b7rg1bvx3</task-id>
+<tool-use-id>toolu_011XeudtYfd5TcdUc4JK64G4</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/b7rg1bvx3.output</output-file>
+<status>completed</status>
+<summary>Background command "S3 sync green to assets" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bto9bd6c8</task-id>
+<summary>Monitor event: "aguardar S3 sync green→assets"</summary>
+<event>DONE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bto9bd6c8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/bto9bd6c8.output</output-file>
+<status>completed</status>
+<summary>Monitor "aguardar S3 sync green→assets" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bl5rhqpq3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/bl5rhqpq3.output</output-file>
+<status>completed</status>
+<summary>Background command "Steps 2 + 3: wp-config + reload FPM" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+analise com playwright o erro 404 https://concertacaoamazonia.com.br/cultura/
+
+---
+
+corrija em prod. pode resolver as pendencias e antes de mexer na ultima (CSP media-src), me explique o problema
+
+---
+
+<task-notification>
+<task-id>bhgoq6zds</task-id>
+<summary>Monitor event: "aguardar db export + grep"</summary>
+<event>DONE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhgoq6zds</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/bhgoq6zds.output</output-file>
+<status>completed</status>
+<summary>Monitor "aguardar db export + grep" stream ended</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bf9ak62ib</task-id>
+<tool-use-id>toolu_01RpUioPPSfdiHiHs5M8Fije</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/bf9ak62ib.output</output-file>
+<status>completed</status>
+<summary>Background command "Find us-east-1 anywhere in DB" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+onde estão esses audios em dev?
+corrija isso na arquitetura desde o post-deploy até prod     • WP_REDIS_PREFIX='hml:' em prod
+faça auditoria para se certificar que podemos remover cores-do-futuro/ de media.concertacaoamazonia.com.br
+
+---
+
+audite Bucket us-east-1 ainda tem 202506/ e gts-202506/
+paralelamente, 5 agentes revisando as tasks realizadas
+
+---
+
+corrija as prioridades e rode 1 ciclo de revisão com 5 agentes na sequencia. a revisão deve contemplar validação visual e console usando playwright
+
+---
+
+<task-notification>
+<task-id>b9k9sxy7o</task-id>
+<summary>Monitor event: "aguardar CF css invalidate"</summary>
+<event>DONE</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9k9sxy7o</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/3da60995-7491-4f55-9d6a-ea63cb7cf96c/tasks/b9k9sxy7o.output</output-file>
+<status>completed</status>
+<summary>Monitor "aguardar CF css invalidate" stream ended</summary>
+</task-notification>
+
+---
+
+sim, links funcionam. Aplique os passos recomendados e depois rode novo ciclo de auditoria
+
+---
+
+<task-notification>
+<task-id>b3muiwsg7</task-id>
+<summary>Monitor event: "aguardar find audit-acl"</summary>
+<event>[Monitor timed out — re-arm if needed.]</event>
+</task-notification>
+
+---
+
+sim. depois rode 1 ciclo de auditoria com 5 agentes
+
+---
+
+ok. mas revise isso, pois o plugin é licenciado[Image #5]
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-21 às 22.00.32.png]
+
+---
+
+feito      1. wp-rocket.me → Sites → Ban + Unban em concertacaoamazonia.com.br
+apenas valide que está ok a licença respondendo http 200. nao precisa reativar o RUCSS
+adicionou a checagem ao /smoke ?

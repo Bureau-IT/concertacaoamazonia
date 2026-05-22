@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "1089fffc6024",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 9,
+  "files_touched": [
+    ".claude/commands/audit-acl.md",
+    ".claude/commands/smoke.md",
+    "docs/runbook-crossblog-403.md",
+    "wordpress/wp-content/mu-plugins/bit-crossblog-attachment-fix.README.md",
+    "wordpress/wp-content/mu-plugins/bit-crossblog-dev-notice.php"
+  ],
+  "sessions": [
+    {
+      "metadata": "/10/89fffc6024/0/metadata.json",
+      "transcript": "/10/89fffc6024/0/full.jsonl",
+      "context": "/10/89fffc6024/0/context.md",
+      "content_hash": "/10/89fffc6024/0/content_hash.txt",
+      "prompt": "/10/89fffc6024/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4473,
+    "cache_creation_tokens": 2251883,
+    "cache_read_tokens": 220282701,
+    "output_tokens": 349728,
+    "api_call_count": 498
+  }
+}
