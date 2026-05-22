@@ -3,7 +3,7 @@
   "checkpoint_id": "1089fffc6024",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 15,
+  "checkpoints_count": 20,
   "files_touched": [
     ".claude/commands/audit-acl.md",
     ".claude/commands/smoke.md",
@@ -25,6 +25,13 @@
       "context": "/10/89fffc6024/1/context.md",
       "content_hash": "/10/89fffc6024/1/content_hash.txt",
       "prompt": "/10/89fffc6024/1/prompt.txt"
+    },
+    {
+      "metadata": "/10/89fffc6024/2/metadata.json",
+      "transcript": "/10/89fffc6024/2/full.jsonl",
+      "context": "",
+      "content_hash": "/10/89fffc6024/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
