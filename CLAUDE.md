@@ -76,6 +76,7 @@ Além dos mu-plugins padrão, este site tem:
 | `bit-crossblog-attachment-fix.php` | Fix cross-blog para attachments do blog 1 em contexto de blog 2 (URL, path, download, gallery, lightbox titles) |
 | `tunnel-url-rewrite.php` | Rewrite de URLs no modo tunnel |
 | `bit-tec-cache.php` | Cache 24h de `tribe_get_option('previous_ecp_versions')` — elimina DB query + `usort()` custoso a cada request em `tribe_events_is_new_install()` (spike CPU 02/04/2026) |
+| `bit-elementor-form-rdstation.php` | Form Action `bit_rdstation` — envia leads do form do rodapé para RD Station via RDSTATION_API_KEY. Graceful: API falha não quebra o submit. Log em `/var/log/bit-rdstation/` (fora do webroot por design — criado pelo bootstrap.sh em DEV, por Task 3.5 + tmpfiles.d em PROD). |
 
 ## Banco de Dados
 

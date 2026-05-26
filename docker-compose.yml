@@ -107,6 +107,9 @@ services:
       WP_MULTISITE_MODE: ${WP_MULTISITE_MODE:-subdirectory}
       WP_SITE_TITLE: ${WP_SITE_TITLE:-bIT BPO}
 
+      # RD Station API Key (server-side) — lida do .env raiz LINKED_ENV
+      RDSTATION_API_KEY: ${RDSTATION_API_KEY_DEV}
+
       # Development
       DEBUG: ${DEBUG:-1}
       PHP_DISPLAY_ERRORS: ${PHP_DISPLAY_ERRORS:-On}

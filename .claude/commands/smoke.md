@@ -2263,3 +2263,42 @@ MÉTRICAS DE PERFORMANCE (PROD, sample 10 páginas)
 
 ✅ **SMOKE PASS** — todas as 5 páginas + 2 formulários verdes prontos para cutover.
 🚨 **SMOKE FAIL** — listar gates disparados, sugerir fixes.
+
+### Snippet — Gate 39 (RD Station Form Action registrada + KEY definido)
+
+Valida que o mu-plugin `bit-elementor-form-rdstation` está ativo e a constant
+`RDSTATION_API_KEY` foi injetada pelo bootstrap. Adicionado em 2026-05-22 pela
+Parte 2 da integração RD Station.
+
+```bash
+# Em DEV
+docker exec -u www-data concertacao-dev-wordpress \
+  wp --url="https://cambrasmax.local:8484/" eval '
+$forms = \ElementorPro\Plugin::instance()->modules_manager->get_modules("forms");
+$actions = $forms->get_form_actions();
+$registered = isset( $actions["bit_rdstation"] ) ? "REGISTERED" : "MISSING";
+$key_status = ( defined( "RDSTATION_API_KEY" ) && RDSTATION_API_KEY ) ? "DEFINED" : "UNDEFINED";
+echo "Gate 39 — bit_rdstation=$registered | KEY=$key_status\n";
+if ( $registered !== "REGISTERED" || $key_status !== "DEFINED" ) {
+    echo "FAIL\n";
+    exit( 1 );
+}
+echo "PASS\n";
+'
+
+# Em PROD (via SSH)
+ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
+  wp --path=/var/www/concertacaoamazonia.com.br \
+     --url='https://concertacaoamazonia.com.br/' eval '
+\$forms = \ElementorPro\Plugin::instance()->modules_manager->get_modules(\"forms\");
+\$actions = \$forms->get_form_actions();
+\$r = isset( \$actions[\"bit_rdstation\"] ) ? \"REGISTERED\" : \"MISSING\";
+\$k = ( defined( \"RDSTATION_API_KEY\" ) && RDSTATION_API_KEY ) ? \"DEFINED\" : \"UNDEFINED\";
+echo \"Gate 39 — bit_rdstation=\$r | KEY=\$k\n\";
+'"
+```
+
+**Critério PASS:** `bit_rdstation=REGISTERED | KEY=DEFINED`.
+**FAIL = bloqueia o deploy.** Causas comuns:
+- `bit_rdstation=MISSING`: mu-plugin não copiado para `mu-plugins/` em prod, ou Elementor Pro inativo.
+- `KEY=UNDEFINED`: `RDSTATION_API_KEY_PROD` não setado no `.env` raiz, OU bloco `setup_rdstation_constants()` do bootstrap não rodou no deploy.
