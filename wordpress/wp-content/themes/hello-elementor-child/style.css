@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.2.32
+Version: 2.2.38
 Template: hello-elementor
 */
 
@@ -260,3 +260,10 @@ Template: hello-elementor
     color: var(--txt-invertido, #FFFFFF) !important;
 }
 
+
+/* Acessibilidade: títulos de single (jet-listing-dynamic-field renderizado como h1)
+   herdam margin default do tema (8px top, 16px bottom). Override para manter
+   alinhamento visual idêntico ao div original. Ref: smoke gate 31 fix 2026-05-19 */
+.elementor-widget-jet-listing-dynamic-field .jet-listing-dynamic-field__content {
+    margin: 0 !important;
+}

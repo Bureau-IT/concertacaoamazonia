@@ -27,36 +27,41 @@
 /* ==========================================================================
    DESTAQUE — listing com badge "Em destaque"
    Aplicado via CSS class "listing_destaque" no JetEngine Listing Grid.
-   O :has() filtra pelo href para isolar publicações específicas em destaque.
+   O destaque é 100% data-driven: o marcador `.bit-destaque-flag` é renderizado
+   pelo template do item (28187) apenas quando o post tem meta `destaque = 9`,
+   via JetEngine Dynamic Visibility (JEDV). O `:has(.bit-destaque-flag)` isola
+   os cards destacados sem depender de slug.
 
-   Nota: .elementor-element-540275a é o ID do container de título/data
-   no template de listing da página. Requer revisão se o template mudar.
+   Decisão de design: o card destaque fica VISUALMENTE IGUAL aos demais
+   (sem fundo, sem cores invertidas) — o único diferencial é a badge "Em destaque"
+   no topo e a ordenação (destaque primeiro). Título/data/botão = estilo normal.
+
+   Cor da badge: Verde escuro / Color Extra 1 (--e-global-color-96a86ed) com
+   texto branco. CLAUDE.md: usar sempre var(--e-global-color-*), nunca hex direto.
    ========================================================================== */
 
-/* Garante que itens sem destaque fiquem após os em destaque (flex order) */
+/* Ordenação: destaque(s) primeiro */
 .listing_destaque .jet-listing-grid__item {
+    order: 2;
+}
+
+.listing_destaque .jet-listing-grid__item:has(.bit-destaque-flag) {
     order: 1;
 }
 
-/* Container do item em destaque */
-.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .e-con-inner {
-    background   : var(--ucpa-color-3);
-    border-radius: 1px;
-    box-shadow   : 0px 0px 0px 12px var(--ucpa-color-3);
-}
-
-/* Badge "Em destaque" posicionado acima do container de título */
-.listing_destaque .jet-listing-grid__item:has(a[href*="uma-agenda"]) .elementor-element-540275a > .e-con-inner::before {
+/* Badge "Em destaque" posicionada acima do container de título.
+   .elementor-element-540275a é o container do item no template 28187. */
+.listing_destaque .jet-listing-grid__item:has(.bit-destaque-flag) .elementor-element-540275a > .e-con-inner::before {
     content       : "Em destaque";
     position      : absolute;
     top           : -1.6rem;
     left          : 50%;
     transform     : translateX(-50%);
-    background    : var(--ucpa-color-3);
+    background    : var(--e-global-color-96a86ed);
     padding       : 2px 6px;
     border-radius : 5px;
     font-size     : 12px;
     font-weight   : bold;
     text-transform: uppercase;
-    color         : #000000;
+    color         : #FFFFFF;
 }
