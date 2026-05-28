@@ -1350,7 +1350,7 @@ Cache column: prefere `cf_cache_status`, fallback para `wp_rocket_cache` ou `x_c
 
 ## Fase 9 — Detecção de leaks e regressões silenciosas (PROD)
 
-9 gates que cobrem incidentes recorrentes: URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`, CSP regression do Spotify embed em `/cultura/porosidades/` (2026-05-18), WPML orphan attachment leak em páginas EN do blog 2 (CU 86ahhtk2d, 2026-05-18), CSS WP Rocket min retornando 404+HTML (incidente 2026-05-18 21:30 BRT — home perdeu `post-2461.css` e `post-74762.css` por dessincronia entre HTML cached do CF e `cache/min/1/` regenerado parcialmente), e stale s3-uploads path em _elementor_data quebrando ícones SVG inline (CU 86ahj85qk, 2026-05-18 — 567 ocorrências detectadas em prod após cleanup do uploads/s3/).
+10 gates que cobrem incidentes recorrentes: URL de DEV vazando em CSS de prod, uploads em path `/green/` errado, Google Fonts externos, preloader Elementor vazio, banner Complianz não traduzido em `/en/`, CSP regression do Spotify embed em `/cultura/porosidades/` (2026-05-18), WPML orphan attachment leak em páginas EN do blog 2 (CU 86ahhtk2d, 2026-05-18), CSS WP Rocket min retornando 404+HTML (incidente 2026-05-18 21:30 BRT — home perdeu `post-2461.css` e `post-74762.css` por dessincronia entre HTML cached do CF e `cache/min/1/` regenerado parcialmente), stale s3-uploads path em _elementor_data quebrando ícones SVG inline (CU 86ahj85qk, 2026-05-18 — 567 ocorrências detectadas em prod após cleanup do uploads/s3/), e emails com `:porta` órfã em `_elementor_data` quebrando submit do Elementor Pro Forms silenciosamente (incidente 2026-05-18 21:56 BRT — Newsletter footer retornava `success:false` sem mensagem; 106 forms afetados em prod; fix automatizado em `09-importdatabase.sh::fix_form_email_ports`).
 
 ### Snippet — Leak detection composto (rodar 1x em PROD após Fase 7.5)
 
@@ -1526,6 +1526,56 @@ async (page) => {
   };
 }
 ```
+
+### Gate 25b — CSP connect-src cobre RD Station (incidente 2026-05-28)
+
+Verificação **estática** (curl, ~3s/path) do header `Content-Security-Policy`: o `connect-src`
+DEVE conter `event-api.rdstation.com.br`. O JS `rd-js-integration.min.js` (CDN
+`d335luupugsy2.cloudfront.net`) envia conversões de formulário via POST para
+`https://event-api.rdstation.com.br/v2/form_integrations`. Sem esse domínio no `connect-src`,
+o browser bloqueia ("Network Error" no console) e o lead nunca chega ao RD. Páginas com form
+RD: home (`/`, footer), `/contato/`, `/atuacao/encontros/` e `/en/activities/news/` (footer
+compartilhado).
+
+```bash
+python3 <<'PY'
+import subprocess, re
+BASE = "https://concertacaoamazonia.com.br"
+# páginas com form RD Station (footer compartilhado, PT + EN)
+PATHS = ["/", "/contato/", "/atuacao/encontros/", "/en/activities/news/"]
+REQUIRED = ["event-api.rdstation.com.br", "popups.rdstation.com.br", "d335luupugsy2.cloudfront.net"]
+fails = 0
+for path in PATHS:
+    hdrs = subprocess.check_output(["curl","-sI",f"{BASE}{path}"], timeout=30).decode("utf-8","ignore")
+    m = re.search(r'content-security-policy:\s*(.+)', hdrs, re.I)
+    if not m:
+        print(f"FAIL csp_absent: path={path} (header CSP não presente)"); fails += 1; continue
+    cs = re.search(r'connect-src([^;]+)', m.group(1), re.I)
+    cs = cs.group(1) if cs else ""
+    missing = [d for d in REQUIRED if d not in cs]
+    if missing:
+        print(f"FAIL csp_rdstation: path={path} faltando em connect-src: {missing}"); fails += 1
+    else:
+        print(f"OK csp_rdstation: path={path} connect-src cobre RD Station")
+print(f"\n{fails} csp_rdstation_fails")
+PY
+```
+
+**Esperado (PASS):** `0 csp_rdstation_fails`.
+
+**Esperado (FAIL):**
+```
+FAIL csp_rdstation: path=/ faltando em connect-src: ['event-api.rdstation.com.br']
+1 csp_rdstation_fails
+```
+
+**Limitação de cache (IMPORTANTE):** o header CSP vem no HTML, e CloudFront/WP Rocket cacheiam
+o header junto. Após editar `03-nginx-sites.sh` + reload nginx, é OBRIGATÓRIO `cache-flush
+--prod --post-id=N` (ou `--prod /` para a home) de **TODAS** as páginas com form RD — senão o
+browser recebe a CSP antiga (curl direto na origin já mostra a nova). Este gate pega justamente
+páginas esquecidas no flush (no fix de 2026-05-28, a home `/` e a EN ficaram stale após o flush
+inicial só das páginas PT 97/1240). Fix da regression: `03-nginx-sites.sh` v1.20.0+
+(adiciona `event-api.rdstation.com.br` em connect-src). Memória: [[csp-ga4-regional-endpoints]].
 
 ### Snippet — Gate 26: WPML orphan attachment leak em páginas EN do blog 2 (incidente 2026-05-18)
 
@@ -1883,6 +1933,78 @@ aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB \
 # 5. Aguardar invalidation (1-3min) e validar com playwright re-rodando gate 27
 ```
 
+### Snippet — Gate 29: emails com `:porta` órfã em `_elementor_data` (incidente 2026-05-18 21:56 BRT)
+
+Detecta a assinatura DIRETA do bug Newsletter quebrada: campos `email_from`, `email_from_2`, `email_to`, `email_reply_to`, `email_subject` etc dentro de `_elementor_data` contendo padrão `@host:NNNN` (porta órfã sobrando de `wp search-replace` de hostname). Quando `is_email()` rejeita, action "email" do Elementor Pro Forms aborta com `{success:false, errors:[], data:[]}` — usuário vê "Erro do Servidor", lead é perdido silenciosamente.
+
+**Por que existe além do gate 27 (MIME):** gate 27 só detecta CSS quebrado; este detecta forms quebrados que sequer enviam emails. Bug é INVISÍVEL no browser/render — só aparece no submit. Cobre a classe inteira de bugs introduzidos por search-replace cego em `_elementor_data` JSON.
+
+**Por que existe além de fix automático no 09-importdatabase.sh:** o fix roda no deploy. Este gate roda no smoke pós-deploy como confirmação. Se gate 28 falhar, o fix do deploy não rodou ou tem regressão.
+
+**Validação via SSH** (não pelo browser — precisa SQL query em `_elementor_data`):
+
+```bash
+ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
+  wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br \
+  eval '
+global \$wpdb;
+\$EMAIL_KEYS = [\"email_from\",\"email_from_2\",\"email_from_name\",\"email_from_name_2\",\"email_to\",\"email_to_2\",\"email_to_cc\",\"email_reply_to\",\"email_reply_to_2\",\"email_subject\",\"email_subject_2\"];
+\$blogs = is_multisite() ? get_sites([\"fields\" => \"ids\"]) : [get_current_blog_id()];
+\$bad = [];
+foreach (\$blogs as \$bid) {
+  if (is_multisite()) switch_to_blog(\$bid);
+  \$tbl = \$wpdb->postmeta;
+  \$rows = \$wpdb->get_results(\"SELECT pm.post_id, pm.meta_value FROM {\$tbl} pm INNER JOIN {\$wpdb->posts} p ON p.ID=pm.post_id WHERE pm.meta_key=\\\"_elementor_data\\\" AND pm.meta_value LIKE \\\"%widgetType%form%\\\" AND pm.meta_value LIKE \\\"%email_%\\\" AND p.post_status IN (\\\"publish\\\",\\\"draft\\\",\\\"private\\\",\\\"pending\\\") AND p.post_type NOT IN (\\\"revision\\\")\", ARRAY_A);
+  foreach (\$rows as \$row) {
+    \$d = json_decode(\$row[\"meta_value\"], true);
+    if (!is_array(\$d)) continue;
+    \$walk = function(array \$nodes) use (&\$walk, \$EMAIL_KEYS, \$row, \$bid, &\$bad) {
+      foreach (\$nodes as \$node) {
+        if ((\$node[\"widgetType\"] ?? null) === \"form\") {
+          foreach (\$EMAIL_KEYS as \$k) {
+            \$v = \$node[\"settings\"][\$k] ?? null;
+            if (!is_string(\$v)) continue;
+            if (preg_match(\"/@[A-Za-z0-9.\\\\-]+:\\\\d{1,5}/\", \$v)) {
+              \$bad[] = sprintf(\"blog=%d post=%d field=%s value=%s\", \$bid, \$row[\"post_id\"], \$k, substr(\$v, 0, 60));
+            }
+          }
+        }
+        if (!empty(\$node[\"elements\"])) \$walk(\$node[\"elements\"]);
+      }
+    };
+    \$walk(\$d);
+  }
+  if (is_multisite()) restore_current_blog();
+}
+echo count(\$bad) . \" bad\\n\";
+foreach (array_slice(\$bad, 0, 5) as \$b) echo \"  \" . \$b . \"\\n\";
+'" 2>&1 | grep -v Deprecated
+```
+
+**Esperado (PASS):**
+```
+0 bad
+```
+
+**Esperado (FAIL):**
+```
+N bad
+  blog=1 post=72234 field=email_from_2 value=email@concertacaoamazonia.com.br:8484
+  blog=1 post=91977 field=email_from value=email@concertacaoamazonia.com.br:8484
+  ...
+```
+
+**Fix se gate 28 falhar:**
+
+1. Executar `fix_form_email_ports()` do `09-importdatabase.sh` standalone, ou rodar `scripts/regularize-form-emails.php`:
+   ```bash
+   scp scripts/regularize-form-emails.php concertacaoamazonia.com.br-prod-sa:/tmp/
+   ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br eval-file /tmp/regularize-form-emails.php"
+   ```
+2. Limpar cache: `wp eval 'rocket_clean_post(<POST_ID>);'` para cada post afetado
+3. Invalidar CloudFront se Newsletter está em template global do footer (afeta todas as páginas): `aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --paths '/' --profile Concertação`
+4. Re-rodar gate 28 — esperado: `0 bad`
+
 ### Apresentar matriz Fase 9
 
 ```
@@ -1904,6 +2026,7 @@ aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB \
 | 26b  | 0 páginas EN com bug WPML orphan (4 verificadas)       | 0            | 0            | ✅     |
 | 26c  | 0 <img> quebrados (naturalWidth=0) em páginas EN       | 0            | 0            | ✅     |
 | 27   | 0 <link rel=stylesheet> com Content-Type != text/css   | 0            | 0            | ✅     |
+| 29   | 0 emails com `:porta` órfã em `_elementor_data`         | 0            | 0            | ✅     |
 | 28a  | 0 refs /wp-content/uploads/s3/ em HTML rendered        | 0            | 0            | ✅     |
 | 28b  | jet-buttons com --icon-right rendering com svg child   | all          | all          | ✅     |
 ```
@@ -1958,6 +2081,40 @@ aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB \
 14. **Cache health (Fase 7.8) — Object cache drop-in**: `object_cache_dropin.installed === false`.
     Plugin redis-cache pode estar ativo mas drop-in `wp-content/object-cache.php` ausente
     → WP NÃO usa Redis. Reportar comando exato de fix no detalhe.
+
+14b. **Cache health — Drop-in perdido em wp-content swap (incidente 2026-05-19)**.
+    Validação cruzada via SSH para garantir que `wp-content/object-cache.php` existe
+    fisicamente. Útil quando o gate 14 retorna `installed=false` pra entender se é
+    realmente o drop-in ausente (vs problema de permissão de leitura via HTTP).
+
+    Origem do gate: deploy blue-green 2026-05-16 instalou drop-in via `07-redis.sh`,
+    mas `10-importwpcontent.sh` (rodando depois) fez swap atômico do wp-content
+    com tarball que NÃO continha o drop-in → drop-in desapareceu silenciosamente.
+    Detectado 3 dias depois pelo `/smoke` (CF mascarava porque HTML era servido
+    cached). Fix arquitetural em `10-importwpcontent.sh` v1.4.0: restauração
+    automática do drop-in pós-swap se `redis-cache` plugin presente.
+
+    Comando de validação SSH (run no servidor):
+    ```bash
+    ssh prod-sa "sudo ls -la /var/www/<SITE>/wp-content/object-cache.php 2>&1 | head -2; \
+      sudo -u www-data wp --path=/var/www/<SITE> --url=<URL> eval 'echo wp_using_ext_object_cache() ? \"YES\" : \"NO\";'"
+    ```
+
+    Sub-gates:
+    - `ls` retorna `No such file or directory` → drop-in ausente do FS
+    - `wp_using_ext_object_cache()` retorna `NO` → WordPress não usa Redis
+
+    Fix:
+    ```bash
+    ssh prod-sa "sudo cp /var/www/<SITE>/wp-content/plugins/redis-cache/includes/object-cache.php \\
+      /var/www/<SITE>/wp-content/object-cache.php && \\
+      sudo chown www-data:www-data /var/www/<SITE>/wp-content/object-cache.php && \\
+      sudo systemctl reload php8.3-fpm"
+    ```
+
+    Severidade: **BLOCKER** — Redis fica inerte, todo page hit miss vai direto ao
+    MySQL Aurora. wp-admin lento (sem cache), forms degradados. CF mascara HTML
+    estático mas falha em qualquer flow autenticado/POST.
 15. **Cache health (Fase 7.8) — Page cache (WP Rocket)**: `page_cache_wp_rocket.improvement_pct < 50`.
     2ª request com mesma chave de cache não foi significativamente mais rápida que a 1ª.
     Reportar `first_ttfb_ms`, `second_ttfb_ms`, e header de cache observado nas duas.
@@ -2162,6 +2319,1662 @@ aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB \
     Severidade: **BLOCKER** — bug sistêmico (567 ocorrências detectadas) afetando todos os botões
     de call-to-action em prod. Visualmente catastrófico mas silencioso para HTTP probes.
 
+29. **Emails com `:porta` órfã em `_elementor_data` (Fase 9) — BLOCKER**: incidente 2026-05-18 21:56 BRT.
+    Newsletter footer de prod retornava `{success:false, errors:[], data:[]}` silencioso porque o
+    `email_from_2` do form continha `email@concertacaoamazonia.com.br:8484` (porta DEV `:8484` órfã
+    sobrando de `wp search-replace` que trocou hostname mas não a porta). `is_email()` rejeita →
+    action "email" do Elementor Pro Forms aborta → submit falha sem mensagem clara ao usuário.
+    Total detectado em prod: 106 forms afetados em 918 posts, distribuídos em blogs 1 + 2 do multisite.
+    Bug silencioso há tempo indeterminado — todo lead via Newsletter footer foi perdido.
+
+    Sub-gate (BLOCKER):
+    - `bad > 0` no snippet SSH do gate 28 — qualquer ocorrência de `@host:NNNN` em 11 chaves
+      email_* (`email_from`, `email_from_2`, `email_from_name`, `email_from_name_2`,
+      `email_to`, `email_to_2`, `email_to_cc`, `email_reply_to`, `email_reply_to_2`,
+      `email_subject`, `email_subject_2`) dentro de `_elementor_data` em posts publicados
+      (revisions excluídas). Reportar `blog=N post=ID field=KEY value=...` para cada hit.
+
+    Fix em 2 frentes:
+    - **Dados (uma vez)**: rodar `scripts/regularize-form-emails.php` via SSH com `sudo -u www-data
+      wp eval-file` (modo APPLY após DRY-RUN). Strippa `:porta` em todas as chaves email_*
+      em `_elementor_data` filtrando revisions. Idempotente (rerun sem mudança = 0 fixes).
+    - **Automatizado (pipeline deploy)**: função `fix_form_email_ports()` em
+      `ec2-deploy/post-deploy/09-importdatabase.sh` roda após `search_replace_legacy_s3_paths`
+      em todo deploy. Walker recursivo + regex `(@[A-Za-z0-9.\-]+):\d{1,5}\b` + `update_post_meta`
+      com `wp_slash(wp_json_encode(... JSON_UNESCAPED_UNICODE))`. Não usar `JSON_UNESCAPED_SLASHES`
+      (causa drift de `\/` vs `/` no Elementor data → não idempotente).
+
+    Pós-fix: limpar cache do post afetado (`rocket_clean_post(<POST_ID>)`) + se for template
+    global do footer, invalidar CloudFront em `/` (afeta todas as páginas).
+
+    Severidade: **BLOCKER** — Newsletter/contato silenciosamente quebrados em prod, sem alarme
+    em monitoring (HTTP 200 + JSON success:false sem trace de erro). Vetor sistêmico:
+    `wp search-replace` cego em `_elementor_data` JSON. Memos: `feedback_form_email_port_drift.md`,
+    `feedback_elementor_data_wp_slash_required.md`.
+
+30. **wp_mail() funcional via SSH (Fase 7.8b) — BLOCKER**: incidente 2026-05-19.
+
+    Valida que `wp_mail()` retorna `true` ao invés de `false`. Detecta:
+    - Constantes SMTP_* ausentes em wp-config.php (incidente 2026-05-19: blue-green
+      provisionamento como HML com `SMTP_HOST_HML` vazio no .env, cascata pra PROD
+      não disparou, ses-mailer.php inerte, `wp_mail()` cai em PHP `mail()` →
+      `/usr/sbin/sendmail not found` → returns false)
+    - Credenciais SES revogadas/expiradas (SMTP auth fail)
+    - Bloqueio outbound porta 587/SMTPS pelo SG ou WAF
+    - mu-plugin `ses-mailer.php` ausente
+    - PhpMailer.ErrorInfo populado mesmo retornando true (delivery deferido)
+
+    Comando de validação SSH (rodar pós-deploy):
+    ```bash
+    ssh prod-sa "sudo -u www-data wp --path=/var/www/<SITE> --url=<URL> eval '
+      \$ok = wp_mail(\"smoke-no-send@bureau-it.com\", \"smoke wp_mail test\", \"smoke\");
+      echo \"wp_mail=\" . var_export(\$ok, true) . PHP_EOL;
+      global \$phpmailer;
+      if (isset(\$phpmailer) && is_object(\$phpmailer)) {
+        echo \"host=\" . (\$phpmailer->Host ?? \"?\") . PHP_EOL;
+        echo \"errorInfo=\" . (\$phpmailer->ErrorInfo ?: \"(none)\") . PHP_EOL;
+      }
+    '"
+    ```
+
+    Sub-gates (qualquer um falha):
+    - `wp_mail=false` → submit pipeline silenciosamente quebrado
+    - `phpmailer.Host` vazio ou diferente de `email-smtp.*` → SMTP_HOST não chegou ao PhpMailer
+    - `phpmailer.ErrorInfo` populado (não vazio) → erro em runtime, mesmo se return true
+
+    Fix:
+    ```bash
+    # 1. Verificar constantes SMTP em wp-config.php
+    ssh prod-sa "sudo grep -E 'SMTP_(HOST|PORT|USERNAME|PASSWORD|FROM)' /var/www/<SITE>/wp-config.php"
+
+    # 2. Se ausentes: re-rodar a1-wordpress-autoconfigure.sh
+    ssh prod-sa "cd /home/ubuntu/post-deploy && sudo ENVIRONMENT=prod bash a1-wordpress-autoconfigure.sh /var/www/<SITE>"
+
+    # 3. Reload FPM
+    ssh prod-sa "sudo systemctl reload php8.3-fpm"
+
+    # 4. Re-validar gate 30
+    ```
+
+    Severidade: **BLOCKER** — quando wp_mail falha, todo form Elementor Pro com
+    action email retorna `{success:false, errors:[]}` silencioso. Bug invisível
+    pra HTTP probes. Memo: `feedback_smtp_constants_missing_prod.md`.
+
+## Fase 10 — Outline HTML semântico (acessibilidade + SEO)
+
+Valida estrutura semântica das páginas para garantir acessibilidade (WCAG SC 2.4.6
+"Headings and Labels") e SEO (Google ranking depende de hierarquia de headings + uso
+correto de landmarks). Combo de 2 gates:
+
+- **Gate 31 (estrutural)**: rodado em ~15 paths (12 menu + 3 singles de CPT). Valida
+  exatamente 1 `<h1>`, hierarquia sem pular níveis (h2→h4), `<main>` presente, `<article>`
+  em singles de CPT.
+- **Gate 32 (snapshot home)**: captura outline completo da home e compara com snapshot
+  versionado em `.claude/commands/smoke-snapshots/home-outline.json`. Detecta QUALQUER
+  mudança estrutural — exige update consciente do snapshot quando layout muda.
+
+### Snippet — Gate 31 (estrutural multi-página)
+
+Lista de paths cobre menu principal + 1 single de cada CPT público (descoberta dinâmica
+via `post-type list --public=1`). Custo ~30s para 15 paths via curl + Python.
+
+```bash
+ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
+  wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br \
+  eval '
+\$paths = [\"/\"];
+// Menu paths (estáticos — sincronizar com Snippet 1 da Fase 7.5)
+foreach ([\"/sobre-nos/\",\"/sobre-nos/4-amazonias/\",\"/atuacao/\",\"/conhecimento/\",
+          \"/conhecimento/espiral-de-conhecimento/\",\"/cultura/\",
+          \"/cultura/atlas-cultural-das-amazonias/\",\"/agenda-integradora/\",
+          \"/contato/\",\"/eventos/lista/\"] as \$p) \$paths[] = \$p;
+// 1 single de cada CPT public (descoberta dinâmica)
+foreach ([\"post\",\"tribe_events\",\"estudos\",\"releases\",\"100dias\",
+          \"webinarios\",\"plenarias\"] as \$cpt) {
+  \$ps = get_posts([\"post_type\"=>\$cpt,\"posts_per_page\"=>1,
+                    \"post_status\"=>\"publish\",\"orderby\"=>\"date\",\"order\"=>\"DESC\"]);
+  if (!empty(\$ps)) \$paths[] = parse_url(get_permalink(\$ps[0]->ID), PHP_URL_PATH);
+}
+foreach (\$paths as \$p) echo \$p . PHP_EOL;
+'" 2>&1 | grep -v Deprecated | grep '^/' > /tmp/smoke-paths.txt
+
+# Para cada path: curl + Python parse outline
+python3 <<'PY' < /tmp/smoke-paths.txt
+import re, sys, subprocess, urllib.parse
+BASE = "https://concertacaoamazonia.com.br"
+SINGLE_CPT_REGEX = re.compile(r"^/(event|estudos|releases|100dias|webinarios|plenaria|veiculo|plataforma)/[^/]+/?$")
+results = []
+for path in [l.strip() for l in sys.stdin if l.strip()]:
+    url = BASE + path
+    html = subprocess.check_output(["curl","-s",f"{url}?cb=smk"], timeout=30).decode()
+    # Parse headings em ordem
+    heads = [(m.group(1).lower(), re.sub(r"\s+"," ", re.sub(r"<[^>]+>"," ",m.group(2))).strip()[:60])
+             for m in re.finditer(r"<(h[1-6])\b[^>]*>(.*?)</\1>", html, re.DOTALL|re.IGNORECASE)]
+    h1_count = sum(1 for h in heads if h[0]=="h1")
+    # Hierarchy: cada nível só pode aumentar 1 por vez
+    skips = []
+    last_level = 0
+    for tag,_ in heads:
+        lvl = int(tag[1])
+        if last_level and lvl > last_level + 1:
+            skips.append(f"h{last_level}→{tag}")
+        last_level = lvl
+    has_main = bool(re.search(r"<main\b", html, re.IGNORECASE))
+    has_article = bool(re.search(r"<article\b", html, re.IGNORECASE))
+    is_single = bool(SINGLE_CPT_REGEX.match(path))
+    issues = []
+    if h1_count != 1: issues.append(f"h1_count={h1_count}")
+    if skips: issues.append(f"skips:{','.join(skips[:3])}")
+    if not has_main: issues.append("no_main")
+    if is_single and not has_article: issues.append("no_article_in_single")
+    status = "OK" if not issues else "FAIL: "+", ".join(issues)
+    print(f"{status:<60} {path}")
+    results.append((path, issues))
+print(f"\nTotal: {len(results)} paths, {sum(1 for _,i in results if not i)} pass, {sum(1 for _,i in results if i)} fail")
+PY
+```
+
+**Esperado (PASS):** todos paths com `OK`. Singles de CPT (event/estudos/releases/100dias/webinarios/plenaria) devem ter `<main>` E `<article>`.
+
+**Sub-gates (qualquer um falha — severidade HIGH, não BLOCKER):**
+- `h1_count != 1` — múltiplos h1 (confuso pra screen reader + SEO penalty) OU 0 h1
+- `skips` > 0 — hierarquia pulou nível (ex: h2→h4)
+- `no_main` — landmark `<main>` ausente (acessibilidade WCAG)
+- `no_article_in_single` — single de CPT sem `<article>` (SEO + a11y)
+
+### Snippet — Gate 32 (snapshot home)
+
+Captura outline completo da home + landmarks e compara com snapshot versionado.
+
+```bash
+# Captura outline atual
+curl -s "https://concertacaoamazonia.com.br/?cb=$(date +%s)" 2>/dev/null > /tmp/home-now.html
+python3 <<'PY' > /tmp/home-outline-now.json
+import re, json
+with open('/tmp/home-now.html') as f: doc = f.read()
+outline = {
+  "headings": [
+    {"tag": m.group(1).lower(),
+     "text": re.sub(r"\s+"," ", re.sub(r"<[^>]+>"," ", m.group(2))).strip()[:80]}
+    for m in re.finditer(r"<(h[1-6])\b[^>]*>(.*?)</\1>", doc, re.DOTALL|re.IGNORECASE)
+  ],
+  "landmarks": {tag: len(re.findall(r"<"+tag+r"\b[^>]*>", doc, re.IGNORECASE))
+                for tag in ['header','nav','main','article','aside','footer']}
+}
+print(json.dumps(outline, ensure_ascii=False, indent=2))
+PY
+
+# Comparar com snapshot versionado
+SNAP=.claude/commands/smoke-snapshots/home-outline.json
+if [[ ! -f "$SNAP" ]]; then
+  mkdir -p "$(dirname "$SNAP")"
+  cp /tmp/home-outline-now.json "$SNAP"
+  echo "[INFO] snapshot inicial criado em $SNAP — re-rodar gate 32 para validar"
+else
+  diff -u "$SNAP" /tmp/home-outline-now.json && echo "✅ Gate 32 PASS — outline home idêntico ao snapshot" \
+    || echo "🚨 Gate 32 FAIL — outline home divergiu. Inspecionar diff. Se intencional, atualizar snapshot: cp /tmp/home-outline-now.json $SNAP"
+fi
+```
+
+**Esperado (PASS):** `diff` vazio (snapshot bate exatamente). Quando layout/conteúdo da home muda intencionalmente, atualizar snapshot com `cp` (decisão consciente).
+
+**Severidade**: HIGH. Snapshot serve como **canário de mudanças estruturais não-intencionais** —
+typo no template, plugin que injeta heading errado, regression de tradução, etc.
+
+### Gates 31+32 — Gates de FAIL
+
+31. **Outline estrutural (Fase 10) — HIGH**: incidente 2026-05-19.
+
+    Sub-gates (qualquer um em qualquer path falha o smoke):
+    - `h1_count != 1` em qualquer página (singles devem ter exatamente 1, home pode ter 1 do título do template; 0 ou >1 é bug)
+    - `skips` (h-pula-nível) em qualquer página
+    - `no_main` em qualquer página (landmark obrigatório WCAG SC 2.4.1)
+    - `no_article_in_single` em single de CPT (SEO Schema.org)
+
+    Bugs descobertos em concertação 2026-05-19 (deixados sem fix por decisão):
+    - Home (`/`): H1 = "Eventos" do widget JetEngine; 9× h2 antes do h1
+    - Single post: sem `<main>`, sem `<article>`
+    - Single estudo: **0 h1**, sem `<main>`, sem `<article>` (crítico para SEO)
+    - Single tribe_events: `<main>` presente (theme TEC sobrescreve), mas h1 duplicado
+
+    Fix: child theme ajustes em single-{cpt}.php (adicionar `<main>` + `<article>` wrapper)
+    e remover h1 acidental do widget JetEngine de eventos na home (trocar pra h2).
+    Ref: `feedback_outline_html_bugs.md` (a criar quando for fixar).
+
+    Severidade: **HIGH** (não BLOCKER porque site funciona, mas WCAG 2.4.6 falha + SEO penalty).
+
+32. **Outline snapshot home (Fase 10) — MEDIUM**:
+
+    `diff` entre snapshot versionado e outline atual da home != 0. Indica mudança
+    estrutural não-validada. Pode ser:
+    - Mudança intencional de layout/conteúdo (atualizar snapshot)
+    - Plugin/widget novo injetando heading (auditar)
+    - Tradução EN/PT divergente (snapshot pode precisar por-idioma futuramente)
+
+    Fix: revisar diff. Se intencional, `cp /tmp/home-outline-now.json .claude/commands/smoke-snapshots/home-outline.json`.
+
+### Gates 31d/31e/31g/31h — Detectores SEO (auditoria 2026-05-22)
+
+Adicionados após auditoria 10 agentes (cycle 1+2) que validou o gate 31. Gates
+secundários detectam classes de bug SEO que `outline_html` não cobre. Roda em
+TODAS as páginas do array `OUTLINE_PATHS_HUB` + `OUTLINE_PATHS_SINGLES` da Fase 10.
+
+31d. **noindex em hub indexável — BLOCKER**:
+
+    `<meta name="robots" content="...noindex...">` em hub/single declarado público
+    desindexa a página do Google. Falso positivo aceitável: páginas com auditoria de
+    SEO declarada como "private" — listar exceção em snapshot. Origem: auditoria
+    2026-05-22 levantou hipótese de noindex em `/conhecimento/` (confirmou: ausente,
+    mas gate evita regressão futura).
+
+    Sub-gate:
+    - `meta_robots_noindex == true` em qualquer path do array `OUTLINE_PATHS_*`
+
+    Fix imediato: identificar origem (Yoast UI / RankMath / mu-plugin / option
+    `blog_public=0`) e remover `noindex`. Para hubs, Yoast deve ter
+    "Permitir motores de busca: SIM" + "Configuração SEO: Padrão (indexável)".
+
+31e. **soft 404 (HTTP 200 + body 404) — BLOCKER**:
+
+    Página retorna `HTTP 200` mas `<title>` ou `<body class>` indicam página de
+    erro. Google trata como soft 404 e desperdiça crawl budget. Origem: auditoria
+    2026-05-22 detectou 5 URLs `/en/*` em prod com soft 404 vivo
+    (sem WPML translation OU CPT permalink errado).
+
+    Sub-gates (qualquer um falha):
+    - HTTP status = 200 E `<title>` contém "Page not found"/"Página não encontrada"
+    - HTTP status = 200 E `<body class>` contém `error404`
+
+    Fix: criar redirect 301 no plugin Redirection (`wp_redirection_items`) para
+    URL canônica equivalente. Cobertura mínima de testes: hubs PT + EN + 1 single
+    por CPT.
+
+31g. **Article JSON-LD ausente em singles — MEDIUM**:
+
+    Singles de CPT públicos (`post`, `estudos`, `tribe_events`, `100dias`,
+    `webinarios`, `releases`) devem ter `<script type="application/ld+json">` com
+    `@type: Article` / `Event` / `BlogPosting`. Falta = perda direta de rich
+    results no Google (~+35% CTR esperado em search snippets ricos vs simples).
+
+    Sub-gate:
+    - Em singles: `count(script[type="application/ld+json"][@type in (Article,BlogPosting,Event,NewsArticle)]) == 0`
+
+    Fix: ativar/configurar SEO plugin (Yoast/RankMath) para emitir Article schema,
+    OU adicionar emissão custom via `wp_head` no child theme (preferencial).
+
+31h. **hreflang ausente em hubs multilíngues — MEDIUM**:
+
+    Hubs com tradução WPML PT↔EN devem emitir `<link rel="alternate" hreflang="...">`
+    para o par. Sem hreflang, Google pode indexar versão errada por idioma
+    (cluster errado). Origem: auditoria 2026-05-22 detectou ausência em hubs PT+EN
+    em prod concertação (WPML não emite hreflang por default no template Elementor
+    dos hubs).
+
+    Sub-gate (rodar só em hubs do array `OUTLINE_PATHS_HUB`):
+    - `count(link[rel="alternate"][hreflang]) < 2` (espera-se mínimo pt-br + en)
+
+    Fix: WPML Settings → Languages → "Add alternate URLs for the same content in
+    different languages" → ON. Validar `<head>` da página depois.
+
+33. **jet_download retorna 302 — HIGH**:
+
+    `GET /?jet_download=<hash-amostra>` deve retornar **302** com header `Location:`
+    apontando para `/wp-content/uploads/...`. Origem do gate: bug 2026-05-20 onde
+    mu-plugin `bit-jet-s3-redirect.php` v1.0.0 falhava com CF-OAC + s3-uploads OFF
+    (guard `strpos s3.|amazonaws.com` não matchava URL local) — handler caía em
+    fallthrough, WordPress renderizava home page de 524KB em vez do PDF. Botões de
+    download em todos os estudos retornavam HTML sem erro visível, sem que ninguém
+    percebesse até usuário reportar.
+
+    Pegadinha: usar `curl -X GET` (não HEAD). Bug nginx `$rocket_skip_reason`
+    pre-v1.18.0 só cobria GET literal — HEAD com QS bypassava PHP servindo
+    `index-https.html`. Gate 35 testa isso especificamente.
+
+    Fix: validar mu-plugin v1.1.1+ ativo (`grep Version /var/www/.../mu-plugins/bit-jet-s3-redirect.php`),
+    reload PHP-FPM, invalidar CF `/?jet_download=*`.
+
+34. **jet_download target entrega binary via CF — HIGH**:
+
+    Seguir o `Location:` do gate 33 e validar destino: **200** + content-type
+    binário (`application/pdf|zip|...`) + `x-cache: ... cloudfront`. Origem do gate:
+    auditoria 2026-05-20 detectou 2/2417 hashes (0.08%) com 403 do S3 — uploads
+    duplicados ou deletados que ficaram órfãos no option `jet_elements_download_button_hashes`.
+    Em produção real, esses 2 hashes retornavam 403 mas nenhum post atual os
+    referenciava (eram fantasmas).
+
+    Fix: validar que arquivo existe no S3 (`aws s3 ls bucket/assets/uploads/.../arquivo.pdf`).
+    Se não existir: arquivo precisa ser re-uploaded, OU o post precisa ser atualizado
+    para apontar para attachment diferente, OU o hash pode ser removido do option
+    (se nenhum post atual referencia o ID).
+
+35. **jet_download HEAD retorna 302 também — MEDIUM (probe regression detector)**:
+
+    `HEAD /?jet_download=<hash>` deve retornar **302** (idêntico ao GET). Se vier
+    200 com HTML 524KB, é regressão do bug nginx `$rocket_skip_reason` regex
+    (deve cobrir `GET|HEAD`, não só `GET`). Origem do gate: 2026-05-20 descobri
+    que HEAD com QS `jet_download` bypassava PHP via `try_files $rocket_root_cache`
+    porque map nginx só capturava GET literal. Fix em `03-nginx-sites.sh` v1.18.0.
+
+    Usuários reais (GET) não foram impactados. Mas probes Pingdom/UptimeRobot,
+    monitoring scripts com `curl -I`, auditorias automatizadas com HEAD: todas
+    veriam falsos positivos antes do fix.
+
+    Fix: aplicar `03-nginx-sites.sh` v1.18.0+ ou patchar manualmente
+    `/etc/nginx/nginx.conf` substituindo `"~^.:GET:.+"` por `"~^.:(GET|HEAD):.+"`,
+    `nginx -t && systemctl reload nginx`.
+
+36. **JetEngine Listing Grid Load More carrega cards — HIGH**:
+
+    POST do botão "Carregar mais" do JetEngine ListingGrid deve ir para
+    `/wp-admin/admin-ajax.php` (não para a URL da página) e retornar **200** +
+    aumentar a contagem de `.jet-listing-grid__item` no DOM. Origem do gate:
+    incidente 2026-05-20 onde o JetEngine envia POST para
+    `<URL da página>?nocache=<ts>` por padrão (filtro `jet-engine/listings/ajax-listing-url`
+    retornando `home_url()` em vez de `admin_url('admin-ajax.php')`) — CloudFront
+    rejeita com 403 porque `DefaultCacheBehavior.AllowedMethods=[HEAD,GET]`.
+
+    Afeta 8 páginas em prod (4 PT + 4 EN): Espiral, Mapa de Plataformas,
+    Publicações, 4 Amazônias + versões EN. Sem o fix, todos os botões
+    "Carregar mais" / "Load more" retornam silenciosamente sem erro JS visível.
+
+    Fix: mu-plugin `bit-jet-loadmore-ajax-url.php` v1.0.0+ ativo
+    (`grep Version /var/www/.../mu-plugins/bit-jet-loadmore-ajax-url.php`),
+    reload PHP-FPM.
+
+37. **Cross-blog `<img>`/srcset 4xx em /cultura/ (multisite NML) — HIGH**:
+
+    Página blog 2 (`/cultura/*`) renderiza `<img srcset>` com URLs apontando
+    para `/sites/N/uploads/...` que retornam 4xx (arquivos não existem nesse
+    path — só em `/uploads/<YYYY>/<MM>/`). Origem: WP core `wp_calculate_image_srcset()`
+    usa `wp_get_upload_dir()` do contexto blog atual (blog 2), ignorando
+    `$image_src` já corrigido pelo Hook 9 do mu-plugin `bit-crossblog-attachment-fix.php`
+    (NML/Hook 9 reescreve `src`, mas não srcset). Hook 13 só cobria órfãos
+    WPML; Hook 14 v1.6.0+ cobre o caso default NML.
+
+    Sub-gates (qualquer um falha):
+    - `failed_4xx_count > 0` em qualquer página — pelo menos 1 `<img>` com
+      `srcset` apontando para `/sites/N/uploads/` retornou 4xx ao browser
+    - `sites_n_in_html_refs > 0` em qualquer página — DOM ainda contém refs
+      `/sites/N/uploads/` (Hook 14 não está atuando — versão antiga, OPcache
+      stale, ou plugin terceiro re-injeta path)
+    - `broken_count > 0` (`naturalWidth === 0`) — sintoma direto de srcset
+      quebrado. Filtrar imgs com `offsetParent !== null` para evitar falso
+      positivo de elementos hidden/lazy-load não acionado.
+
+    Cobertura: 6 páginas blog 2 (lista no snippet) + 1 página EN para validar
+    Hooks 9-13 (caso WPML). Snippet em "### Snippet — Gate 37".
+
+    Fix em sequência: validar mu-plugin v1.6.0+ ativo
+    (`ssh prod-sa 'sudo grep "* Version" /var/www/.../mu-plugins/bit-crossblog-attachment-fix.php'`)
+    + reload PHP-FPM + CF invalidate cirúrgico das páginas afetadas.
+    Runbook: `docs/runbook-crossblog-403.md`.
+    Memória: [[feedback_nml_crossblog_srcset_hook14]].
+
+### Snippet — Gate 36 (JetEngine load-more end-to-end)
+
+Após gates 33-35, antes do relatório. **Usa Playwright** (precisa de DOM real
+e do JS do JetEngine para disparar o POST). Navega para `/espiral-de-conhecimento/`,
+conta cards iniciais, clica `#espiralLoadMore`, espera o POST a `admin-ajax.php`
+completar, conta cards de novo.
+
+```javascript
+// Snippet smoke (browser_*) — gate 36
+const URL_TEST = "https://concertacaoamazonia.com.br/espiral-de-conhecimento/?eixo=eixo1&_label=governanca&jsf=jet-engine:estudos&tax=eixos:172#estudos";
+
+await page.goto(URL_TEST, { waitUntil: "networkidle" });
+
+const pre = await page.evaluate(() => ({
+  items: document.querySelectorAll('.jet-listing-grid__item').length,
+  ajaxlisting: (window.JetEngineSettings || {}).ajaxlisting,
+}));
+
+// Gate 36a: ajaxlisting deve ser admin-ajax.php (não URL da página)
+const gate_36a = typeof pre.ajaxlisting === "string"
+  && /\/wp-admin\/admin-ajax\.php$/.test(pre.ajaxlisting);
+
+// Captura resposta do load-more
+const responsePromise = page.waitForResponse(r =>
+  /\/wp-admin\/admin-ajax\.php/.test(r.url()) && r.request().method() === "POST",
+  { timeout: 10000 }
+);
+
+await page.click('#espiralLoadMore a.jet-button__instance');
+
+let postStatus = null;
+try {
+  const resp = await responsePromise;
+  postStatus = resp.status();
+} catch (e) { postStatus = "TIMEOUT"; }
+
+await page.waitForTimeout(2000);
+
+const post = await page.evaluate(() => ({
+  items: document.querySelectorAll('.jet-listing-grid__item').length,
+}));
+
+const gate_36b = postStatus === 200;
+const gate_36c = post.items > pre.items;
+
+console.log(JSON.stringify({
+  gate_36a_ajaxlisting_is_admin_ajax: { pass: gate_36a, ajaxlisting: pre.ajaxlisting },
+  gate_36b_post_200: { pass: gate_36b, status: postStatus },
+  gate_36c_items_increased: { pass: gate_36c, pre: pre.items, post: post.items },
+}, null, 2));
+```
+
+**Gates do snippet:**
+- Gate 36a PASS: `JetEngineSettings.ajaxlisting` aponta para `admin-ajax.php`.
+  Se FAIL com URL da página → mu-plugin `bit-jet-loadmore-ajax-url.php` não está
+  ativo ou OPcache não foi recarregado.
+- Gate 36b PASS: POST a `admin-ajax.php` retorna 200. Se FAIL com 403/timeout
+  → CF bloqueando (path errado, mu-plugin inerte) ou origin caído.
+- Gate 36c PASS: `items_post > items_pre`. Se FAIL com counts iguais → handler
+  PHP `wp_ajax_jet_engine_ajax` não respondeu corretamente (verificar logs
+  PHP-FPM, signature da query, post_status filter).
+
+37. **Cross-blog `<img>`/srcset 4xx em /cultura/ (multisite NML) — HIGH**:
+
+    Origem do gate: bug 2026-05-21 onde attachment 92371 ("Onde possamos sonhar, 2026")
+    vivia só em `wp_posts` (blog 1) e era referenciado por página `/cultura/` (blog 2)
+    via Elementor. WordPress core `wp_calculate_image_srcset()` reconstruía URLs
+    usando `wp_get_upload_dir()` do contexto blog 2, gerando `srcset` com
+    `/sites/2/uploads/...` que retornavam 403 do S3. Hook 13 do mu-plugin não
+    cobria (só atuava em órfãos WPML). Hook 14 v1.6.0+ cobre o caso default
+    do Network Media Library.
+
+    Bug é **invisível ao curl simples** (basta inspecionar HTML, sem fazer HEAD
+    nos assets) — daí o gate via Playwright que faz fetch real.
+
+    Cobertura: 5 páginas representativas do blog 2 + página afetada conhecida.
+
+    Sub-gates (qualquer um falha):
+    - `gate_37_4xx_per_page > 0` em qualquer página — pelo menos 1 `<img>` com
+      `srcset` apontando para `/sites/N/uploads/` retornou 4xx ao browser
+    - `gate_37_sites_n_refs > 0` em qualquer página — DOM ainda contém refs
+      `/sites/N/uploads/` (Hook 14 não está atuando)
+    - `gate_37_broken_imgs > 2` em qualquer página — `naturalWidth === 0` em
+      imagens completas é sintoma direto de srcset quebrado
+
+    Fix em sequência: validar mu-plugin v1.6.0+ ativo + reload PHP-FPM +
+    CF invalidate cirúrgico das páginas afetadas. Runbook completo:
+    `docs/runbook-crossblog-403.md`. Memória: `feedback_nml_crossblog_srcset_hook14.md`.
+
+38. **WP Rocket RUCSS queue collapse — HIGH**: incidente 2026-05-21.
+
+    Quando `remove_unused_css=1` e SaaS RUCSS retorna 400 (license invalid,
+    domínio banido pós-cutover, ou throttling), a tabela `wp_wpr_rucss_used_css`
+    acumula jobs `failed` + `to-submit` infinitamente (cada hit na home enfileira
+    novo job, cada retry falha de novo). Concertação tinha **9009 jobs travados,
+    0 completed em 8 dias** quando o gate 27 começou a reincidir.
+
+    Causa secundária: o ciclo `enfileira → falha → retry → WP Rocket regenera
+    HTML cache` cria janela de race entre HTML cached (referencia `?ver=X`) e
+    Elementor CSS file (regravado com `?ver=Y` por save de outro template) —
+    sintoma observável é gate 27 (CSS MIME `text/html`) reincidindo após fix
+    manual.
+
+    **Validação via SSH** (não cabe em Playwright — precisa SQL):
+
+    ```bash
+    ssh prod-sa "sudo -u www-data wp --path=/var/www/<SITE> \
+      db query 'SELECT status, COUNT(*) AS n FROM wp_wpr_rucss_used_css GROUP BY status'"
+    ```
+
+    Sub-gates (qualquer um falha):
+    - `failed > 50` — RUCSS colapsando. Investigar resposta SaaS (license, ban
+      em wp-rocket.me, throttling).
+    - `failed > 500` — CRITICAL — desabilitar RUCSS imediatamente
+      (`remove_unused_css=0`) para parar ciclo de regeneração de HTML cache.
+    - `(to-submit + pending) > 200` E `completed == 0` há > 1h — pipeline parado,
+      mesmo diagnóstico.
+    - `completed > 0` E `failed < 50` — OK, RUCSS funcional.
+
+    Fix rápido (banhar SaaS RUCSS sem investigar):
+    ```bash
+    wp option patch update wp_rocket_settings remove_unused_css 0
+    wp db query 'DELETE FROM wp_wpr_rucss_used_css'
+    wp db query 'DELETE FROM wp_actionscheduler_actions WHERE hook LIKE "%rocket_saas%"'
+    wp eval 'rocket_clean_domain();'
+    sudo find /var/www/<SITE>/wp-content/cache/min -type f -delete
+    aws cloudfront create-invalidation --paths "/" "/wp-content/cache/min/*" "/wp-content/elementor-cache/*"
+    ```
+
+    Fix definitivo (se quiser RUCSS funcionando):
+    1. wp-rocket.me → Account → Sites → encontrar domínio → Ban + Unban
+       (força re-validação SaaS)
+    2. Aguardar 2-5min, reabilitar `remove_unused_css=1`
+    3. Inserir 1 job teste manual: `INSERT INTO wp_wpr_rucss_used_css ...`
+    4. Disparar `wp action-scheduler run`
+    5. Verificar se job_id retornou (não-vazio = SaaS aceitou)
+
+    Memória: `feedback_wp_rocket_rucss_saas_collapse.md`.
+
+39. **Espiral do Conhecimento — i18n term_ids — BLOCKER**: incidente 2026-05-22.
+
+    Tema **sensível para o cliente**. O widget `bit-elementor-espiral-widget`
+    sintetiza 21 links com `?eixo=eixoN&tax=eixos:<term_id>` apontando para o
+    filtro JSF do JetEngine na página "Espiral de Conhecimento". WPML mantém
+    term_ids separados por idioma na taxonomia `eixos` (PT 184 "Mudanças
+    Climáticas" ≠ EN 1646 "Climate Change"). Antes do fix v2.2.0 do mu-plugin,
+    todos os links em `/en/` usavam IDs PT → filtro retornava 0 cards.
+
+    Gate valida que cada um dos 21 axes em PT e EN bate com o mapa canônico
+    `SPIRAL_AXES_MAP` (snippet "Gate 39"). Sub-gates:
+    - `wrong_en.length > 0` — algum eixo em `/en/` divergiu do mapa (ID PT
+      vazando para EN, ou ID inválido). Investigar filtro `wpml_object_id`
+      em `bit-elementor-espiral-widget.php` (bloco synth_links).
+    - `wrong_pt.length > 0` — algum eixo em `/` (PT) divergiu — term
+      renomeado/recriado no painel WPML, atualizar `SPIRAL_AXES_MAP`.
+    - `pt.count !== 21` ou `en.count !== 21` — widget não renderizou todos os
+      segmentos (Repeater quebrado ou widget removido da home).
+    - `lang_ok === false` — WPML não setou `<html lang>` correto.
+
+    Memória: validado em dev 2026-05-22 (PT 172→EN 1635, …).
+
+### Snippet — Gate 38 (RUCSS health via SSH)
+
+Após validações Playwright, antes do relatório. **Não é Playwright** — SQL via SSH.
+
+```bash
+# Em /smoke (Bash):
+GATE_38_OUTPUT=$(ssh concertacaoamazonia.com.br-prod-sa "
+  sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br \
+    db query 'SELECT status, COUNT(*) AS n FROM wp_wpr_rucss_used_css GROUP BY status' \
+    --skip-column-names 2>/dev/null
+")
+
+# Parsear contagens
+FAILED=$(echo "$GATE_38_OUTPUT" | awk '$1=="failed"{print $2}')
+PENDING=$(echo "$GATE_38_OUTPUT" | awk '$1=="pending"{print $2}')
+TOSUBMIT=$(echo "$GATE_38_OUTPUT" | awk '$1=="to-submit"{print $2}')
+COMPLETED=$(echo "$GATE_38_OUTPUT" | awk '$1=="completed"{print $2}')
+
+# Defaults
+: "${FAILED:=0}" "${PENDING:=0}" "${TOSUBMIT:=0}" "${COMPLETED:=0}"
+
+# Verificar: RUCSS habilitado?
+RUCSS_ENABLED=$(ssh concertacaoamazonia.com.br-prod-sa "
+  sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br \
+    eval 'echo (int)(get_option(\"wp_rocket_settings\", [])[\"remove_unused_css\"] ?? 0);'
+")
+
+echo "Gate 38 — RUCSS health:"
+echo "  RUCSS habilitado: $RUCSS_ENABLED"
+echo "  Counts: failed=$FAILED pending=$PENDING to-submit=$TOSUBMIT completed=$COMPLETED"
+
+# Aplicar thresholds só se RUCSS habilitado
+if [[ "$RUCSS_ENABLED" == "1" ]]; then
+  if (( FAILED > 500 )); then
+    echo "🚨 Gate 38 CRITICAL: failed=$FAILED > 500 — desabilitar RUCSS imediatamente"
+    exit 1
+  elif (( FAILED > 50 )); then
+    echo "⚠️  Gate 38 FAIL: failed=$FAILED > 50 — investigar SaaS RUCSS"
+    exit 1
+  elif (( TOSUBMIT + PENDING > 200 && COMPLETED == 0 )); then
+    echo "⚠️  Gate 38 FAIL: pipeline parado (to-submit+pending=$((TOSUBMIT+PENDING)), 0 completed)"
+    exit 1
+  else
+    echo "✅ Gate 38 OK"
+  fi
+else
+  echo "✅ Gate 38 OK (RUCSS desabilitado — sem risco)"
+fi
+```
+
+**Gates do snippet:**
+- Gate 38a PASS: `RUCSS_ENABLED=0` (desabilitado conforme decisão 2026-05-21)
+- Gate 38b PASS: `failed < 50` E `(to-submit + pending) < 200 OR completed > 0`
+- Gate 38c FAIL: `failed > 50` (RUCSS colapsando)
+- Gate 38d CRITICAL: `failed > 500` (SaaS rejeita há dias)
+
+### Snippet — Gate 37 (cross-blog srcset 4xx)
+
+Roda em PROD (sem header X-Test-Green) ou GREEN (com header). Varre 5+ páginas
+do blog 2 e detecta refs `/sites/N/uploads/` + 4xx em assets.
+
+```javascript
+// Snippet smoke (browser_run_code) — gate 37
+async (page) => {
+  const ctx = page.context();
+  await ctx.setExtraHTTPHeaders(HEADER_VAL || {});
+  await ctx.clearCookies();
+
+  const BASE = 'https://concertacaoamazonia.com.br';
+  const TARGET_BLOG = 2; // /cultura/
+  const PAGES = [
+    '/cultura/',
+    '/cultura/atlas-cultural-das-amazonias/',
+    '/cultura/poeticas-do-possivel/',
+    '/cultura/exposicao-cores-do-futuro/',
+    '/cultura/porosidades/',
+    '/cultura/galeria/',
+  ];
+
+  const results = [];
+
+  for (const path of PAGES) {
+    const failed4xx = [];
+    const responseHandler = (resp) => {
+      const u = resp.url();
+      const s = resp.status();
+      if (s >= 400 && s < 500 && /\/sites\/\d+\/uploads\//.test(u)) {
+        failed4xx.push({ status: s, url: u.slice(-100) });
+      }
+    };
+    page.on('response', responseHandler);
+
+    try {
+      await page.goto(`${BASE}${path}?cb=${Date.now()}`, { waitUntil: 'networkidle', timeout: 45000 });
+      // Lazy-load: scroll para forçar carregamento de imgs fora do viewport
+      await page.evaluate(async () => {
+        await new Promise(resolve => {
+          const total = document.body.scrollHeight;
+          let scrolled = 0;
+          const step = 500;
+          const timer = setInterval(() => {
+            window.scrollBy(0, step);
+            scrolled += step;
+            if (scrolled >= total) { clearInterval(timer); window.scrollTo(0, 0); resolve(); }
+          }, 100);
+        });
+      });
+      await page.waitForTimeout(1500);
+
+      const data = await page.evaluate((blog) => {
+        const re = new RegExp(`/sites/${blog}/uploads/`, 'g');
+        const html = document.documentElement.outerHTML;
+        const sites_n_in_html = (html.match(re) || []).length;
+        const imgs = Array.from(document.querySelectorAll('img'));
+        const broken = imgs.filter(i => i.complete && i.naturalWidth === 0 && i.src);
+        const srcset_with_sites_n = imgs.filter(i => re.test(i.srcset || '')).length;
+        const src_with_sites_n = imgs.filter(i => re.test(i.src || '')).length;
+        return {
+          total_imgs: imgs.length,
+          broken_count: broken.length,
+          broken_samples: broken.slice(0, 3).map(i => (i.currentSrc || i.src).split('/').slice(-2).join('/')),
+          srcset_with_sites_n,
+          src_with_sites_n,
+          sites_n_in_html_refs: sites_n_in_html,
+        };
+      }, TARGET_BLOG);
+
+      results.push({
+        path,
+        ...data,
+        failed_4xx_count: failed4xx.length,
+        failed_4xx_samples: failed4xx.slice(0, 3),
+      });
+    } catch (e) {
+      results.push({ path, error: (e.message || '?').slice(0, 120) });
+    } finally {
+      page.off('response', responseHandler);
+    }
+  }
+
+  const fail_count = results.filter(r =>
+    (r.failed_4xx_count || 0) > 0
+    || (r.sites_n_in_html_refs || 0) > 0
+    || (r.broken_count || 0) > 2
+  ).length;
+
+  return {
+    total_pages: PAGES.length,
+    fail_count,
+    pass: fail_count === 0,
+    per_page: results,
+  };
+}
+```
+
+**Gates do snippet:**
+
+- Gate 37a PASS: `failed_4xx_count === 0` em todas as páginas. Se FAIL com 403/404
+  em `/sites/N/uploads/` → Hook 14 não atuou (versão antiga? OPcache?).
+- Gate 37b PASS: `sites_n_in_html_refs === 0`. Se FAIL → HTML ainda contém
+  paths `/sites/N/` mesmo após render (Hook 14 corrige só `<img srcset>`,
+  outros consumers podem renderizar errado).
+- Gate 37c PASS: `broken_count <= 2` por página (tolerância de 2 para
+  imagens fora do viewport ou lazy-load não acionado). Se FAIL com counts
+  altos → bug ativo, abrir runbook `docs/runbook-crossblog-403.md`.
+
+### Snippet — Gates 33-35 (jet_download integridade end-to-end)
+
+Após gate 32, antes do relatório. **Não usa Playwright** — apenas `fetch()` ou
+`curl` via `Bash`. Amostra 3 hashes de prod (extraídos do option) e testa cada
+um nos 3 ângulos: GET 302, HEAD 302, target entrega binary via CF.
+
+```javascript
+// Snippet smoke (browser_run_code) — gates 33/34/35
+const FQDN = "https://concertacaoamazonia.com.br";
+
+// Lista de hashes conhecidos para amostragem (atualizar periodicamente):
+// 1. bioeconomia (estudos) — ID 50691, PDF 2MB
+// 2. tapajos-pesca (estudos) — ID 21901, PDF
+// 3. covid-saude (estudos) — qualquer hash válido em prod
+const SAMPLE_HASHES = [
+  "6ee8392574e708633bb1fa4dcde0276585579216", // bioeconomia
+  "9e08f20041254f32dd9c0c66eb0399878988f5a8", // tapajos-pesca
+];
+
+async function testHash(hash, method) {
+  const url = `${FQDN}/?jet_download=${hash}`;
+  // X-Test-Green com nanos garante CF cache miss (cache key permanente)
+  const cacheBust = `smoke-jet-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  const res = await fetch(url, {
+    method,
+    redirect: "manual",
+    headers: { "X-Test-Green": cacheBust },
+  });
+  return {
+    status: res.status,
+    location: res.headers.get("location"),
+    contentType: res.headers.get("content-type"),
+    xCache: res.headers.get("x-cache"),
+  };
+}
+
+async function testTarget(location) {
+  const res = await fetch(location, {
+    method: "HEAD",
+    headers: { "X-Test-Green": `smoke-target-${Date.now()}` },
+  });
+  return {
+    status: res.status,
+    contentType: res.headers.get("content-type"),
+    contentLength: res.headers.get("content-length"),
+    xCache: res.headers.get("x-cache"),
+  };
+}
+
+const results = { gate_33: [], gate_34: [], gate_35: [] };
+
+for (const hash of SAMPLE_HASHES) {
+  // Gate 33: GET -> 302 + Location uploads
+  const get = await testHash(hash, "GET");
+  const get_ok =
+    get.status === 302 &&
+    typeof get.location === "string" &&
+    /\/wp-content\/uploads\//.test(get.location);
+  results.gate_33.push({ hash, ...get, ok: get_ok });
+
+  // Gate 35: HEAD -> 302 (não 200 HTML)
+  const head = await testHash(hash, "HEAD");
+  const head_ok = head.status === 302;
+  results.gate_35.push({ hash, ...head, ok: head_ok });
+
+  // Gate 34: target entrega binary via CF
+  if (get.location) {
+    const target = await testTarget(get.location);
+    const target_ok =
+      target.status === 200 &&
+      typeof target.contentType === "string" &&
+      /^(application\/(pdf|zip|octet-stream|msword|vnd\.|x-zip)|image\/|audio\/|video\/)/.test(target.contentType) &&
+      typeof target.xCache === "string" &&
+      /cloudfront/i.test(target.xCache);
+    results.gate_34.push({ hash, location: get.location, ...target, ok: target_ok });
+  } else {
+    results.gate_34.push({ hash, ok: false, reason: "no Location from gate 33" });
+  }
+}
+
+// Verdict
+const gate_33_pass = results.gate_33.every((r) => r.ok);
+const gate_34_pass = results.gate_34.every((r) => r.ok);
+const gate_35_pass = results.gate_35.every((r) => r.ok);
+
+console.log(JSON.stringify({
+  gate_33_jet_get_redirect: { pass: gate_33_pass, details: results.gate_33 },
+  gate_34_jet_target_binary_cf: { pass: gate_34_pass, details: results.gate_34 },
+  gate_35_jet_head_redirect: { pass: gate_35_pass, details: results.gate_35 },
+}, null, 2));
+```
+
+**Gates do snippet:**
+- Gate 33 PASS: GET retorna 302 + Location apontando para `/wp-content/uploads/...`.
+  Se FAIL com `status: 200, contentType: text/html` → mu-plugin não está ativo
+  ou regressão da lógica `is_file($local_path)`.
+- Gate 34 PASS: HEAD do `Location:` retorna 200 + content-type binário + `x-cache: cloudfront`.
+  Se FAIL com `status: 403` → arquivo não existe no S3 (drift FS↔S3).
+  Se FAIL com `xCache != cloudfront` → CF não está na frente (proxy errado).
+- Gate 35 PASS: HEAD `/?jet_download=hash` retorna 302 igual ao GET.
+  Se FAIL com `status: 200, contentType: text/html` → nginx `$rocket_skip_reason`
+  regex não cobre HEAD (precisa `03-nginx-sites.sh` v1.18.0+).
+
+### Snippet — Gate 39 (Espiral do Conhecimento — i18n term_ids)
+
+Após gates 33-35, antes do relatório. **Tema sensível para o cliente** —
+incidente 2026-05-22: links da Espiral em `/en/` apontavam para term_ids PT da
+taxonomia `eixos`, resultando em **filtro JSF vazio** no JetEngine (PT 184
+"Mudanças Climáticas" não casa com EN 1646 "Climate Change" porque WPML
+mantém IDs separados por idioma).
+
+**Não usa Playwright** — apenas `fetch()` no HTML da home PT e EN. Valida que
+os 21 links da espiral em CADA idioma correspondem ao mapa canônico de term_ids
+da taxonomia `eixos` (PT/EN). O mapa é **estável entre dev/HML/prod** porque
+todos clonam do mesmo banco — qualquer divergência de ID indica regressão real
+(widget pegou ID errado, term renomeado/recriado no painel, ou tradução WPML
+quebrada).
+
+```javascript
+// Snippet smoke (browser_run_code) — gate 39
+const FQDN = "https://concertacaoamazonia.com.br";
+
+// Mapa canonico [pos, pt_term_id, en_term_id, label_pt] para os 21 eixos da
+// taxonomia "eixos" (subtermos do termo "Espiral"). Estavel entre ambientes.
+// Levantado via WPML em 2026-05-22 (dev). Se mudar em prod, ATUALIZAR aqui.
+const SPIRAL_AXES_MAP = [
+  [1,  172,  1635, "Governanca"],
+  [2,  174,  1636, "Instrumentos de financiamento"],
+  [3,  175,  1637, "Planos e politicas publicas"],
+  [4,  176,  1638, "Negocios"],
+  [5,  177,  1639, "Sociedade civil"],
+  [6,  187,  1649, "Ciencia, tecnologia e inovacao"],
+  [7,  178,  1640, "Cultura"],
+  [8,  180,  1642, "Mudanca do uso do solo"],
+  [9,  2013, 2488, "Ordenamento territorial e regularizacao fundiaria"],
+  [10, 182,  1644, "Infraestrutura"],
+  [11, 183,  1645, "Comunicacao e midia"],
+  [12, 184,  1646, "Mudancas Climaticas"],
+  [13, 185,  1647, "Agenda Internacional"],
+  [14, 1819, 2387, "Educacao"],
+  [15, 604,  1651, "Bioeconomia"],
+  [16, 598,  1650, "Seguranca"],
+  [17, 2479, 2489, "Saude"],
+  [18, 2360, 2386, "Cidades"],
+  [19, 2463, 2490, "Biodiversidade"],
+  [20, 2401, 2491, "PIQCTs"],
+  [21, 2464, 2492, "Direitos humanos"],
+];
+
+async function fetchSpiralAxes(path, useGreenHeader) {
+  const headers = { "Cache-Control": "no-cache" };
+  if (useGreenHeader) headers["X-Test-Green"] = `smoke-spiral-${Date.now()}`;
+  const res = await fetch(`${FQDN}${path}?cb=${Date.now()}`, { headers });
+  const html = await res.text();
+  // Extrai TODOS os 21 links: id="Spiral26Text-N" ... href="...tax=eixos:M..."
+  const regex = /<a[^>]+href="([^"]*tax=eixos:(\d+)[^"]*)"\s+id="Spiral26Text-(\d+)"/g;
+  const axes = {};
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    axes[parseInt(m[3], 10)] = parseInt(m[2], 10);
+  }
+  return {
+    status: res.status,
+    htmlLang: (html.match(/<html[^>]*\blang="([^"]+)"/) || [, ''])[1],
+    axes,
+    count: Object.keys(axes).length,
+  };
+}
+
+// Buscar PT e EN (USE_GREEN = true se rodando contra green)
+const USE_GREEN = false;
+const pt = await fetchSpiralAxes("/", USE_GREEN);
+const en = await fetchSpiralAxes("/en/", USE_GREEN);
+
+const expected_count = SPIRAL_AXES_MAP.length; // 21
+const both_have_21 = pt.count === expected_count && en.count === expected_count;
+
+// Validacao posicao-a-posicao contra mapa canonico
+const wrong_pt = [];
+const wrong_en = [];
+for (const [pos, expected_pt, expected_en, label] of SPIRAL_AXES_MAP) {
+  if (pt.axes[pos] !== expected_pt) {
+    wrong_pt.push({ pos, label, expected: expected_pt, got: pt.axes[pos] ?? null });
+  }
+  if (en.axes[pos] !== expected_en) {
+    wrong_en.push({ pos, label, expected: expected_en, got: en.axes[pos] ?? null });
+  }
+}
+
+const lang_ok = /^pt/i.test(pt.htmlLang) && /^en/i.test(en.htmlLang);
+const gate_39_pass = both_have_21 && wrong_pt.length === 0 && wrong_en.length === 0 && lang_ok;
+
+console.log(JSON.stringify({
+  gate_39_spiral_axes_i18n: {
+    pass: gate_39_pass,
+    expected_count,
+    pt: { count: pt.count, lang: pt.htmlLang },
+    en: { count: en.count, lang: en.htmlLang },
+    wrong_pt,           // posicoes onde tax=eixos:N divergiu do mapa em PT
+    wrong_en,           // posicoes onde tax=eixos:N divergiu do mapa em EN
+    lang_ok,
+  },
+}, null, 2));
+```
+
+**Gates do snippet:**
+
+- **Gate 39 PASS:** PT e EN têm 21 axes cada, todos os term_ids correspondem ao mapa canônico `SPIRAL_AXES_MAP`, `<html lang>` correto em ambas.
+- **Gate 39 FAIL — `wrong_en.length > 0`:** algum eixo em `/en/` tem `tax=eixos:<id>` que não bate com o mapa EN. Causa típica: regressão do filtro `wpml_object_id` em `bit-elementor-espiral-widget.php` — o widget está usando ID PT (que aparecerá em `got` enquanto o esperado está em `expected`). Severidade: **BLOCKER** — filtro JSF retorna vazio em `/en/`, listing de "Estudos" não aparece. Fix: garantir que `synth_links` ainda chama `apply_filters('wpml_object_id', $term_id, 'eixos', true, $current_lang)` antes de montar a URL.
+- **Gate 39 FAIL — `wrong_pt.length > 0`:** algum eixo em `/` (PT) divergiu do mapa. Pode indicar: (a) Repeater editado no painel sem atualizar o mapa, (b) term `Espiral: X` deletado/recriado no painel WPML (novo ID), (c) widget regrediu para fallback que pega term errado. Comparar `got` com mapa atual via `wp term list eixos --parent=1148`.
+- **Gate 39 FAIL — `pt.count != 21` ou `en.count != 21`:** widget Espiral não renderizou todos os 21 segmentos. Investigar `_elementor_data` da home (PT 2461, EN 2519) e estado do `axes_repeater`.
+- **Gate 39 FAIL — `lang_ok === false`:** WPML não setou `<html lang>` correto.
+
+**Manutenção do mapa:** se algum term `Espiral: X` for renomeado/recriado no
+painel WPML, o ID muda. Atualizar `SPIRAL_AXES_MAP` neste snippet via:
+```bash
+ssh prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br eval '
+  \$terms = get_terms([\"taxonomy\" => \"eixos\", \"parent\" => 1148, \"hide_empty\" => false]);
+  foreach (\$terms as \$t) {
+    \$en = apply_filters(\"wpml_object_id\", \$t->term_id, \"eixos\", false, \"en\");
+    echo \$t->term_id . \" → EN \" . (\$en ?: 0) . \" (\" . \$t->name . \")\n\";
+  }
+'"
+```
+
+**Em green:** trocar `USE_GREEN = true`. O header `X-Test-Green` força
+roteamento ALB para green target group + bypass CF cache.
+
+40. **Paridade PT↔EN de páginas equivalentes — BLOCKER**: incidente 2026-05-25.
+
+    O cliente reportou que `https://concertacaoamazonia.com.br/en/` estava
+    redirecionando para `/en/blog/bid-emite-us-100-milhoes-...` (post de blog,
+    não a home EN). Investigação descobriu que **CF cache estava servindo
+    `.ics` (text/calendar)** para `/en/` por contaminação de cache:
+    alguém acessou `/en/?ical=1`, o TEC gerou feed iCalendar, e o CF cacheou
+    como key `/en/` (porque `ical` não estava na whitelist de query strings
+    da Cache Policy `wp-cache-default-hostaware`).
+
+    O bug era **invisível em probes HTTP normais** (HEAD curl pegou variante
+    diferente do cache de outro PoP) e só apareceu em navegação real do
+    browser, no PoP GRU3-P8.
+
+    Gate compara cada par PT↔EN (via WPML `wpml_object_id` ou paths conhecidos)
+    e valida que **ambos retornam mesmo Content-Type, sizes similares, e
+    body class de mesmo template/post-type**. Detecta:
+    - PT serve HTML, EN serve `text/calendar` (contaminação iCal)
+    - PT 200, EN 301 (redirect cached)
+    - PT body class `home page-id-X`, EN body class `single-post post-id-Y` (page errada cached)
+    - PT 300KB+, EN <50KB (HTML truncado/erro)
+
+    Sub-gates UNIVERSAIS (aplicam em PAIR + SOLO — validação do PT/single):
+    - `pt_status_<code>` — status != 200 (redirect/4xx/5xx em página normal)
+    - `pt_is_ics` — Content-Type contém `text/calendar` (smoking gun)
+    - `pt_is_attachment` — `Content-Disposition: attachment` em página normal
+    - `pt_redirects` — Location header em página normal (cache stale 301)
+    - `pt_error404` — body class indica error404 (soft 404 silencioso)
+    - `pt_size_small(Nb)` — body < 50KB (HTML truncado/corrompido)
+
+    Sub-gates COMPARATIVOS (só PAIR — comparam PT vs EN):
+    - `status_diff(P/E)` — códigos HTTP divergem
+    - `ct_diff(P/E)` — Content-Type diverge
+    - `size_diff(N%) > 70%` — tamanho diverge >70% (cache stale)
+    - `bc_pt_home_en_not` / `bc_en_home_pt_not` — body class home vs não-home
+    - `en_is_ics` / `en_is_attachment` / `en_error404` / `en_only_redirects` —
+      mesmo conjunto do PT mas aplicado ao EN
+
+    Origem do gate: 2026-05-25 16:00 BRT. Fix:
+    1. CF invalidate cirúrgico `/en` `/en/` (resolve imediato).
+    2. Atualizar Cache Policy `wp-cache-default-hostaware` (id `8e1062b8-291b-44d1-a8a1-fb7a1e4d6024`)
+       incluindo `ical` + `outlook-ical` na whitelist de query strings — impede
+       futura contaminação.
+
+    Severidade: **BLOCKER** — bug customer-facing, descoberto pelo cliente,
+    silencioso pra probes HEAD comuns.
+
+### Snippet — Gate 40 (paridade PT↔EN)
+
+Rodar via Bash/curl (não Playwright — precisa pegar Content-Type real do CF).
+
+**Pares são descobertos DINAMICAMENTE via WPML** (`wpml_object_id`) — evita drift
+de slugs hardcoded. Para cada page PT publish, resolve a tradução EN e usa o
+permalink real. Inclui também home `/` ↔ `/en/` + roots de blog 2 (`/cultura/`).
+
+```bash
+export BASE="https://concertacaoamazonia.com.br"
+
+# Descobrir pares dinamicamente via WPML (rodar 1x por execução do smoke).
+# Cobertura em 3 modos:
+#   PAIR  (PT↔EN comparativo): pages publish com tradução EN + 1 single de CPT
+#         com tradução EN. Compara Content-Type, status, size, body class.
+#   SOLO  (validação unilateral): 2 amostras de cada CPT public (incluindo CPTs
+#         sem tradução WPML — tribe_events, estudos, tribe_venue, tribe_organizer).
+#         Detecta render errado: 4xx/5xx, .ics em página normal, redirect inesperado,
+#         body class error404, size <50KB.
+#   ROOT  (homepage canonical): / + /en/ + /cultura/ + /cultura/en/
+#
+# Filtros pages PAIR:
+#   - status=publish em PT E EN
+#   - en_id != pt_id (pular pages sem tradução)
+#   - SKIP page_on_front em PT E EN (evita canonical redirect /en/home/ → /en/
+#     aparecer como FAIL falso; / e /en/ já são testados via root)
+#
+# Filtros singles SOLO:
+#   - get_posts retorna até 2 publish mais recentes por CPT (orderby date DESC)
+#   - CPT lista é dinâmica (get_post_types public=1) — pula internos: page,
+#     attachment, elementor_library, e-floating-buttons, tribe_event_series
+#
+# Formato do output: `<path>||<kind>||<en_path_opcional>`
+#   - `path||solo` — validação unilateral
+#   - `pt_path||pair||en_path` — par comparativo
+ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
+  wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br \
+  eval '
+\$front_pt = (int) get_option(\"page_on_front\");
+\$front_en = (int) apply_filters(\"wpml_object_id\", \$front_pt, \"page\", false, \"en\");
+\$seen_pt_paths = []; // dedupe: SOLO não duplica path já coberto por PAIR
+
+// PARTE 1 (PAIR): todas as pages com tradução EN
+\$pages = get_pages([\"post_status\" => \"publish\"]);
+foreach (\$pages as \$page) {
+  if (\$page->ID === \$front_pt) continue;
+  \$en_id = apply_filters(\"wpml_object_id\", \$page->ID, \"page\", false, \"en\");
+  if (!\$en_id || \$en_id === \$page->ID) continue;
+  if (\$en_id === \$front_en) continue;
+  \$en_post = get_post(\$en_id);
+  if (!\$en_post || \$en_post->post_status !== \"publish\") continue;
+  \$pt_path = parse_url(get_permalink(\$page->ID), PHP_URL_PATH);
+  \$en_path = parse_url(get_permalink(\$en_id), PHP_URL_PATH);
+  echo \$pt_path . \"||pair||\" . \$en_path . PHP_EOL;
+  \$seen_pt_paths[\$pt_path] = true;
+}
+
+// PARTE 2 (PAIR): 1 single de cada CPT com tradução EN
+\$target_cpts = [\"post\", \"releases\", \"100dias\", \"webinarios\", \"plenarias\",
+                \"tribe_events\", \"estudos\"];
+foreach (\$target_cpts as \$cpt) {
+  \$ids = get_posts([\"post_type\" => \$cpt, \"posts_per_page\" => -1,
+                    \"post_status\" => \"publish\", \"fields\" => \"ids\"]);
+  if (empty(\$ids)) continue;
+  foreach (\$ids as \$pt_id) {
+    \$en_id = apply_filters(\"wpml_object_id\", \$pt_id, \$cpt, false, \"en\");
+    if (!\$en_id || \$en_id === \$pt_id) continue;
+    \$en_post = get_post(\$en_id);
+    if (!\$en_post || \$en_post->post_status !== \"publish\") continue;
+    \$pt_path = parse_url(get_permalink(\$pt_id), PHP_URL_PATH);
+    \$en_path = parse_url(get_permalink(\$en_id), PHP_URL_PATH);
+    echo \$pt_path . \"||pair||\" . \$en_path . PHP_EOL;
+    \$seen_pt_paths[\$pt_path] = true;
+    break;
+  }
+}
+
+// PARTE 3 (SOLO): 2 amostras de cada CPT public (mesmo sem tradução EN)
+// — valida renderização básica de CPTs como tribe_events, tribe_venue,
+// tribe_organizer, estudos que NÃO têm WPML configurado.
+\$cpts_all = get_post_types([\"public\" => true], \"objects\");
+\$cpt_skip = [\"attachment\", \"page\", \"elementor_library\",
+             \"e-floating-buttons\", \"tribe_event_series\"];
+foreach (\$cpts_all as \$cpt) {
+  if (in_array(\$cpt->name, \$cpt_skip)) continue;
+  \$ps = get_posts([\"post_type\" => \$cpt->name, \"posts_per_page\" => 2,
+                   \"post_status\" => \"publish\", \"orderby\" => \"date\", \"order\" => \"DESC\"]);
+  foreach (\$ps as \$p) {
+    \$path = parse_url(get_permalink(\$p->ID), PHP_URL_PATH);
+    if (isset(\$seen_pt_paths[\$path])) continue; // dedupe se já é PAIR
+    echo \$path . \"||solo||\" . PHP_EOL;
+  }
+}
+' 2>&1" 2>&1 | grep -vE 'Deprecated|Tribe__' | grep -E '^/[^|]*\|\|(pair|solo)\|\|' > /tmp/g40_pairs.txt
+
+# Adicionar roots (home blog 1 + home blog 2 — testam canonical homepage):
+echo "/||pair||/en/" >> /tmp/g40_pairs.txt
+echo "/cultura/||pair||/cultura/en/" >> /tmp/g40_pairs.txt
+
+echo "Total pares descobertos: $(wc -l < /tmp/g40_pairs.txt)"
+
+check_pair() {
+  # Aceita 2 formatos:
+  #   "pt_path||pair||en_path" — par comparativo PT↔EN
+  #   "path||solo||"           — validação unilateral (CPT sem tradução)
+  local entry="$1"
+  local pt_path="${entry%%||*}"
+  local rest="${entry#*||}"
+  local kind="${rest%%||*}"
+  local en_path="${rest#*||}"
+
+  # tr -d '\r' obrigatório — HTTP headers vêm com CRLF; sed substitui xargs
+  # (xargs trata aspas/backticks como special chars do shell).
+  local pt_info pt_status pt_ct pt_cd pt_loc
+  pt_info=$(curl -sS -I --max-time 30 "${BASE}${pt_path}?cb=g40h$(date +%s%N)$$" 2>/dev/null | tr -d '\r')
+  pt_status=$(echo "$pt_info" | head -1 | awk '{print $2}')
+  pt_ct=$(echo "$pt_info" | sed -nE 's/^[Cc]ontent-[Tt]ype:[[:space:]]*([^;]+).*/\1/p' | head -1 | sed 's/[[:space:]]*$//')
+  pt_cd=$(echo "$pt_info" | sed -nE 's/^[Cc]ontent-[Dd]isposition:[[:space:]]*(.*)/\1/p' | head -1)
+  pt_loc=$(echo "$pt_info" | sed -nE 's/^[Ll]ocation:[[:space:]]*(.*)/\1/p' | head -1)
+
+  local pt_tmp="/tmp/g40_pt_$$_$RANDOM.html"
+  curl -sS --max-time 30 "${BASE}${pt_path}?cb=g40g$(date +%s%N)$$" -o "$pt_tmp"
+  local pt_size=$(wc -c < "$pt_tmp" | tr -d ' ')
+  local pt_bc=$(grep -oE '<body class="[^"]+"' "$pt_tmp" | head -1 | grep -oE 'page-id-[0-9]+|home|single-post|error404|page-template-[a-z-]+|single-[a-z_]+' | tr '\n' ',' | sed 's/,$//')
+  rm -f "$pt_tmp"
+
+  local issues=""
+
+  # Sub-gates UNIVERSAIS (aplicam em pair E solo) — validam render do PT:
+  [[ "$pt_status" != "200" ]] && issues="${issues}pt_status_${pt_status} "
+  [[ "$pt_ct" == *calendar* ]] && issues="${issues}pt_is_ics "
+  [[ -n "$pt_cd" && "$pt_cd" == *attachment* ]] && issues="${issues}pt_is_attachment "
+  [[ -n "$pt_loc" ]] && issues="${issues}pt_redirects(${pt_loc}) "
+  [[ "$pt_bc" == *error404* ]] && issues="${issues}pt_error404 "
+  (( pt_size < 50000 )) && issues="${issues}pt_size_small(${pt_size}b) "
+
+  if [[ "$kind" == "solo" ]]; then
+    # SOLO: só valida PT. Output diferente.
+    local verdict="✅"; [[ -n "$issues" ]] && verdict="🚨"
+    printf '%s  %s (solo)\n' "$verdict" "$pt_path"
+    [[ -n "$issues" ]] && printf '   status=%s ct=%s size=%dk bc=%s issues=%s\n' \
+      "$pt_status" "$pt_ct" "$((pt_size/1024))" "$pt_bc" "$issues"
+    return
+  fi
+
+  # PAIR: tem EN — fazer comparação completa
+  local en_info en_status en_ct en_cd en_loc
+  en_info=$(curl -sS -I --max-time 30 "${BASE}${en_path}?cb=g40h$(date +%s%N)$$" 2>/dev/null | tr -d '\r')
+  en_status=$(echo "$en_info" | head -1 | awk '{print $2}')
+  en_ct=$(echo "$en_info" | sed -nE 's/^[Cc]ontent-[Tt]ype:[[:space:]]*([^;]+).*/\1/p' | head -1 | sed 's/[[:space:]]*$//')
+  en_cd=$(echo "$en_info" | sed -nE 's/^[Cc]ontent-[Dd]isposition:[[:space:]]*(.*)/\1/p' | head -1)
+  en_loc=$(echo "$en_info" | sed -nE 's/^[Ll]ocation:[[:space:]]*(.*)/\1/p' | head -1)
+
+  local en_tmp="/tmp/g40_en_$$_$RANDOM.html"
+  curl -sS --max-time 30 "${BASE}${en_path}?cb=g40g$(date +%s%N)$$" -o "$en_tmp"
+  local en_size=$(wc -c < "$en_tmp" | tr -d ' ')
+  local en_bc=$(grep -oE '<body class="[^"]+"' "$en_tmp" | head -1 | grep -oE 'page-id-[0-9]+|home|single-post|error404|page-template-[a-z-]+|single-[a-z_]+' | tr '\n' ',' | sed 's/,$//')
+  rm -f "$en_tmp"
+
+  # Sub-gates COMPARATIVOS:
+  [[ "$pt_status" != "$en_status" ]] && issues="${issues}status_diff(${pt_status}/${en_status}) "
+  [[ "$pt_ct" != "$en_ct" ]] && issues="${issues}ct_diff(${pt_ct}/${en_ct}) "
+  [[ "$en_ct" == *calendar* ]] && issues="${issues}en_is_ics "
+  [[ -n "$en_cd" && "$en_cd" == *attachment* ]] && issues="${issues}en_is_attachment "
+  [[ -n "$en_loc" && -z "$pt_loc" ]] && issues="${issues}en_only_redirects(${en_loc}) "
+  [[ "$en_bc" == *error404* ]] && issues="${issues}en_error404 "
+
+  local diff_pct=$(python3 -c "p=$pt_size; e=$en_size; m=max(p,e); print(int(abs(p-e)/m*100) if m else 0)")
+  (( diff_pct > 70 )) && issues="${issues}size_diff(${diff_pct}%) "
+
+  if [[ "$pt_bc" == *home* && "$en_bc" != *home* ]]; then issues="${issues}bc_pt_home_en_not "; fi
+  if [[ "$pt_bc" != *home* && "$en_bc" == *home* ]]; then issues="${issues}bc_en_home_pt_not "; fi
+
+  local verdict="✅"; [[ -n "$issues" ]] && verdict="🚨"
+  printf '%s  %s ↔ %s\n' "$verdict" "$pt_path" "$en_path"
+  [[ -n "$issues" ]] && printf '   status=%s/%s ct=%s/%s size=%dk/%dk bc=%s/%s issues=%s\n' \
+    "$pt_status" "$en_status" "$pt_ct" "$en_ct" "$((pt_size/1024))" "$((en_size/1024))" "$pt_bc" "$en_bc" "$issues"
+}
+export -f check_pair
+
+# Paralelismo via background jobs + wait + semáforo de 4 processos.
+# Evita xargs (BSD/macOS xargs falha com "command line cannot be assembled,
+# too long" em URLs com slugs grandes — testado: webinarios com 100+ chars
+# pula silenciosamente, xargs -0 não resolve).
+results_file=$(mktemp)
+max_parallel=4
+active=0
+while IFS= read -r pair; do
+  [[ -z "$pair" ]] && continue
+  { check_pair "$pair" >> "$results_file"; } &
+  active=$((active + 1))
+  if (( active >= max_parallel )); then
+    wait -n  # aguarda qualquer background terminar
+    active=$((active - 1))
+  fi
+done < /tmp/g40_pairs.txt
+wait  # último batch
+sort "$results_file"
+rm -f "$results_file"
+```
+
+**Gates do snippet:**
+
+- **Gate 40 PASS:** todos os pares com mesmo Content-Type (`text/html`), status iguais, sizes próximos, body class compatível.
+- **Gate 40 FAIL `en_is_ics`:** EN serve `text/calendar` → cache CF contaminado por `?ical=1` ou similar. Fix imediato: `aws cloudfront create-invalidation --paths '/en' '/en/...' --profile <P>`. Fix definitivo: garantir `ical`/`outlook-ical` na whitelist da Cache Policy.
+- **Gate 40 FAIL `en_is_attachment`:** EN tem `Content-Disposition: attachment` → mesma classe do bug acima. Mesmo fix.
+- **Gate 40 FAIL `en_only_redirects`:** EN retorna 301 mas PT retorna 200 → redirect emitido em algum momento ficou cached, ou WPML/Yoast/Redirection criou regra acidental.
+- **Gate 40 FAIL `bc_pt_home_en_not` / `bc_en_home_pt_not`:** body class diverge entre home/single/page — cache pegou page errada (incidente original: `/en/` servia post BID).
+- **Gate 40 FAIL `size_diff(N%)`:** HTML truncado ou .ics no lugar do HTML (7KB vs 530KB diferença diagnostica).
+- **Gate 40 FAIL `error404`:** alguma página em 404 silencioso (status 200 mas body de erro).
+
+**Cobertura típica:** 10 pares PT↔EN principais. Adicionar pares novos ao
+array `PAIRS` quando WPML criar nova tradução. **Custo: ~15s para 10 pares**.
+
+41. **Forms Elementor Pro sem reCAPTCHA v3 — HIGH**: incidente 2026-05-25.
+
+    Detecta forms Elementor Pro publicados que não têm campo `field_type: recaptcha_v3`
+    no `_elementor_data`. Sem reCAPTCHA + sem Honeypot do mu-plugin `bit-smoke-recaptcha-bypass.php`
+    sendo acionado, o form aceita qualquer POST a `/wp-admin/admin-ajax.php` com payload
+    válido — vetor de spam direto sem ratelimit.
+
+    Origem do gate: 2026-05-25 — form `/contato/` (post 672, widget 65ce4a9) descoberto
+    aceitando submit sem reCAPTCHA. Fix v1 aplicado: campo recaptcha_v3 injetado via
+    script no `_elementor_data` (`scripts/add_recaptcha_to_form.php`).
+
+    Sub-gate (BLOCKER):
+    - `forms_without_recaptcha > 0` — pelo menos 1 widget `form` publicado em página
+      pública (post_status=publish, post_type IN page/post/CPTs públicos) sem field
+      recaptcha_v3 no array `form_fields`.
+
+    Falsos positivos esperados (whitelist):
+    - Forms internos de wp-admin (não acessíveis a anonymous)
+    - Forms em templates/blocos não publicados (revision/draft)
+
+    Validação via SSH (não cabe em Playwright — precisa walker JSON em `_elementor_data`):
+
+    ```bash
+    ssh prod-sa "sudo -u www-data wp --path=/var/www/<SITE> --url=<URL> eval '
+    global \$wpdb;
+    \$blogs = is_multisite() ? get_sites([\"fields\"=>\"ids\"]) : [get_current_blog_id()];
+    \$bad = [];
+    foreach (\$blogs as \$bid) {
+      if (is_multisite()) switch_to_blog(\$bid);
+      \$rows = \$wpdb->get_results(\"SELECT pm.post_id, p.post_title FROM {\$wpdb->postmeta} pm INNER JOIN {\$wpdb->posts} p ON p.ID=pm.post_id WHERE pm.meta_key=\\\"_elementor_data\\\" AND pm.meta_value LIKE \\\"%widgetType%form%\\\" AND p.post_status=\\\"publish\\\" AND p.post_type NOT IN (\\\"revision\\\", \\\"elementor_library\\\")\", ARRAY_A);
+      foreach (\$rows as \$row) {
+        \$d = json_decode(get_post_meta(\$row[\"post_id\"], \"_elementor_data\", true), true);
+        if (!is_array(\$d)) continue;
+        \$walk = function(\$nodes) use (&\$walk, \$bid, \$row, &\$bad) {
+          foreach (\$nodes as \$node) {
+            if ((\$node[\"widgetType\"] ?? null) === \"form\") {
+              \$has_recaptcha = false;
+              foreach ((\$node[\"settings\"][\"form_fields\"] ?? []) as \$f) {
+                if ((\$f[\"field_type\"] ?? null) === \"recaptcha_v3\") { \$has_recaptcha = true; break; }
+              }
+              if (!\$has_recaptcha) {
+                \$bad[] = sprintf(\"blog=%d post=%d title=%s widget=%s\",
+                  \$bid, \$row[\"post_id\"], substr(\$row[\"post_title\"], 0, 30), \$node[\"id\"]);
+              }
+            }
+            if (!empty(\$node[\"elements\"])) \$walk(\$node[\"elements\"]);
+          }
+        };
+        \$walk(\$d);
+      }
+      if (is_multisite()) restore_current_blog();
+    }
+    echo count(\$bad) . \" forms_without_recaptcha\\n\";
+    foreach (array_slice(\$bad, 0, 10) as \$b) echo \"  \" . \$b . \"\\n\";
+    '"
+    ```
+
+    **Esperado (PASS):** `0 forms_without_recaptcha`.
+
+    **Esperado (FAIL):**
+    ```
+    N forms_without_recaptcha
+      blog=1 post=672 title=Contato widget=65ce4a9
+      ...
+    ```
+
+    Fix: rodar script `scripts/add_recaptcha_to_form.php` apontando para o widget
+    detectado (preserva todos os outros settings + idempotente).
+
+    Severidade: **HIGH** — vetor de spam direto, não BLOCKER (site funciona) mas
+    risco real de poluição CRM/email/banco.
+
+42. **JetEngine Listing renderizado vazio (item colapsado) — HIGH**: incidente 2026-05-27.
+
+    Detecta `jet-listing-grid` cujo item renderiza o **wrapper** (`jet-listing-dynamic-post-<ID>`)
+    mas com **corpo vazio** — sem nenhum `jet-listing-dynamic-field`/`dynamic-image`/`dynamic-link`
+    dentro. Sintoma visual: a seção "encolhe" para a altura do título e o próximo bloco da
+    página (no caso de `/atuacao/encontros/`, o container `#footer_form_desktop` da newsletter)
+    sobe e parece footer fora de lugar.
+
+    Origem do gate: 2026-05-27 — seção **PLENÁRIAS** em `/atuacao/encontros/`. O listing 44298
+    (template `jet-listing-items` slug `listagem-slider-banner-plenaria-2`) renderizava o
+    wrapper `jet-listing-dynamic-post-92180` ("Jogando luz sobre as Amazônias") mas **sem nenhum
+    dynamic-field**. Causa raiz: o `_elementor_data` do template 44298 em prod era uma versão
+    obsoleta (post_modified 2026-03-09, 54663 bytes, **0** widgets `jet-listing-dynamic-field`,
+    44 condições `jedv` que escondiam o conteúdo) divergente da versão de dev (9984 bytes,
+    **2** dynamic-fields). O post da plenária (92180) existia e estava `publish` em ambos —
+    não era conteúdo ausente, era **template drift** entre dev e prod.
+
+    Sub-gate (HIGH):
+    - `empty_grids > 0` — pelo menos 1 `jet-listing-grid--<ID>` cujo HTML interno (do
+      container do grid até o próximo grid) não contém nenhum `jet-listing-dynamic-field`,
+      `jet-listing-dynamic-image` nem `jet-listing-dynamic-link`. Escopar **por grid
+      container** (não por wrapper de item) é essencial: o regex `jet-listing-dynamic-post-<ID>`
+      sozinho casa também em seletores CSS (`<style>.jet-listing-dynamic-post-NN{...}`) e em
+      variantes mobile/desktop duplicadas, gerando falsos positivos.
+
+    Cobre hubs/páginas com listing JetEngine renderizado. Custo ~5s por path via curl + Python.
+
+    **Limitação conhecida — cache CloudFront:** `?nowprocket=1` bypassa apenas WP Rocket
+    (PHP), NÃO o CloudFront (CF ignora querystrings para cache key). O gate valida HTML
+    edge cacheado (pode estar stale até 12-24h). Em FAIL **após** um fix recém-aplicado,
+    invalidar o path com `std cache-flush --prod --cf-only <path>` e re-rodar o gate.
+    Para validação 100% origin (bypass total do CF), curl direto no ALB com header
+    `X-Test-Green: true` (memory `feedback_xtest_green_value_true`).
+
+    ```bash
+    python3 <<'PY'
+    import re, subprocess
+    BASE = "https://concertacaoamazonia.com.br"
+    # Páginas com listing JetEngine destacado (posts_num:1 ou hubs). Adicionar quando
+    # criar novos hubs que usem o padrão `jet-listing-grid--<ID>` com card de destaque.
+    PATHS = [
+        "/atuacao/encontros/",         # PLENÁRIAS (listing 44298, post destacado)
+        "/conhecimento/",              # hub principal
+        "/conhecimento/espiral-de-conhecimento/",
+        "/conhecimento/publicacoes/",          # OUTRAS PUBLICAÇÕES (listing 28187, query 57)
+        "/en/knowledge/publications/",         # idem EN (page 72926) — incidente lazy-load 2026-05-28
+        "/cultura/",
+        "/cultura/atlas-cultural-das-amazonias/",
+        "/sobre-nos/",
+        "/sobre-nos/4-amazonias/",
+        "/agenda-integradora/",
+    ]
+    # Widgets dinâmicos de conteúdo. Ampliado além de field|image|link para evitar FP em
+    # listings legítimos que usam só terms/meta/repeater/calendar/gallery.
+    DF = re.compile(r"jet-listing-dynamic-(field|image|link|terms|meta|repeater|calendar|gallery)")
+    total_empty = 0
+    for path in PATHS:
+        try:
+            html = subprocess.check_output(
+                ["curl", "-s", f"{BASE}{path}?nowprocket=1"], timeout=30).decode("utf-8", "ignore")
+        except subprocess.CalledProcessError:
+            print(f"SKIP curl_fail: path={path}")
+            continue
+        # Ancorar nos containers de grid REAIS (jet-listing-grid--ID seguido de data-queried-id),
+        # não em seletores CSS nem wrappers de item.
+        grids = list(re.finditer(r'jet-listing-grid--(\d+)"[^>]*data-queried-id', html))
+        for i, g in enumerate(grids):
+            gid = g.group(1)
+            start = g.start()
+            end = grids[i + 1].start() if i + 1 < len(grids) else len(html)
+            body = html[start:end]
+            first_post = re.search(r'jet-listing-dynamic-post-(\d+)', body)
+            if first_post and not DF.search(body):
+                total_empty += 1
+                print(f"FAIL empty_grid: listing={gid} post={first_post.group(1)} path={path}")
+    print(f"\n{total_empty} empty_grids")
+    PY
+    ```
+
+    **Esperado (PASS):** `0 empty_grids`.
+
+    **Esperado (FAIL):**
+    ```
+    FAIL empty_grid: listing=44298 post=92180 path=/atuacao/encontros/
+    1 empty_grids
+    ```
+
+    Fix: o template do listing em prod está com `_elementor_data` divergente/obsoleto.
+    Comparar tamanho e contagem de dynamic-fields dev↔prod:
+    ```bash
+    # DEV
+    docker exec -u www-data concertacao-dev-wordpress wp db query \
+      "SELECT LENGTH(meta_value) FROM wp_postmeta WHERE post_id=<LISTING_ID> AND meta_key='_elementor_data';" --skip-column-names
+    # PROD
+    ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br \
+      post meta get <LISTING_ID> _elementor_data | grep -oc 'jet-listing-dynamic-field'"
+    ```
+    Deploy do template correto (dev→prod) + regen Elementor CSS + `wp jet-engine listing clear-cache`
+    + invalidate CF cirúrgico do path afetado.
+
+    Severidade: **HIGH** — conteúdo de seção inteira some visualmente (UX quebrada),
+    mas site funciona; não BLOCKER.
+
+43. **Featured image não herdada em tradução WPML (thumbnail ausente em grid EN) — HIGH**: incidente 2026-05-28.
+
+    Detecta traduções (EN) de CPTs renderizados em JetEngine Listing Grid que **NÃO têm
+    `_thumbnail_id`** quando o original (PT) tem. Sintoma visual: no grid da versão EN, os
+    cards aparecem com título/data/botão mas **sem a imagem** (painel de thumbnail vazio),
+    porque o template do listing puxa a imagem via dynamic tag `post-featured-image` como
+    `background-image` — e a tradução EN tem featured image vazia.
+
+    **Por que o Gate 42 NÃO pega:** o Gate 42 detecta grid *colapsado* (wrapper de post sem
+    nenhum dynamic-field). Aqui os cards renderizam normalmente (título, data, link presentes)
+    — só falta a imagem. São falhas de classes diferentes: Gate 42 = template quebrado;
+    Gate 43 = dado (featured image) ausente na tradução.
+
+    Origem do gate: 2026-05-28 — página EN `/en/activities/news/` (grid 5679, CPT `plenarias`).
+    13 de 40 traduções EN de plenárias estavam sem `_thumbnail_id` enquanto o original PT tinha.
+    Causa raiz: config WPML `_wpml_media.new_content_settings.duplicate_featured = false`
+    (mantida OFF de propósito — evita attachments órfãos, ver memory `feedback_nml_crossblog_srcset_hook14`).
+    Efeito colateral: traduções nascem sem featured image herdada.
+
+    Sub-gate (HIGH):
+    - `en_missing_thumb > 0` — pelo menos 1 tradução EN `publish` de um CPT alvo cujo
+      `_thumbnail_id` está vazio enquanto o original PT (mesmo `trid` WPML) tem `_thumbnail_id`.
+
+    CPTs alvo: os renderizados em grids com card de imagem. Hoje: `plenarias`, `estudos`,
+    `post`, `releases`, `100dias`, `webinarios`. Ampliar quando um novo CPT entrar num grid.
+
+    Validação via SSH (server-side — não dá pra inferir do HTML qual CPT/tradução falha):
+
+    ```bash
+    ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br eval '
+    global \$wpdb;
+    \$cpts = [\"plenarias\",\"estudos\",\"post\",\"releases\",\"100dias\",\"webinarios\"];
+    \$bad = [];
+    foreach (\$cpts as \$cpt) {
+      \$rows = \$wpdb->get_results(\$wpdb->prepare(
+        \"SELECT element_id, trid, language_code FROM {\$wpdb->prefix}icl_translations WHERE element_type=%s\",
+        \"post_\" . \$cpt), ARRAY_A);
+      \$by_trid = [];
+      foreach (\$rows as \$r) { \$by_trid[\$r[\"trid\"]][\$r[\"language_code\"]] = (int) \$r[\"element_id\"]; }
+      foreach (\$by_trid as \$trid => \$langs) {
+        if (!isset(\$langs[\"en\"]) || !isset(\$langs[\"pt-br\"])) continue;
+        \$en = \$langs[\"en\"]; \$pt = \$langs[\"pt-br\"];
+        if (get_post_status(\$en) !== \"publish\") continue;
+        \$en_thumb = get_post_meta(\$en, \"_thumbnail_id\", true);
+        \$pt_thumb = get_post_meta(\$pt, \"_thumbnail_id\", true);
+        // só conta quando PT TEM imagem mas EN não herdou (caso corrigível)
+        if (empty(\$en_thumb) && !empty(\$pt_thumb) && get_post((int) \$pt_thumb)) {
+          \$bad[] = sprintf(\"cpt=%s EN=%d (PT=%d thumb=%d) %s\", \$cpt, \$en, \$pt, \$pt_thumb, substr(get_the_title(\$en),0,35));
+        }
+      }
+    }
+    echo count(\$bad) . \" en_missing_thumb\n\";
+    foreach (array_slice(\$bad, 0, 20) as \$b) echo \"  \" . \$b . \"\n\";
+    '" 2>&1 | grep -v Deprecated
+    ```
+
+    **Esperado (PASS):** `0 en_missing_thumb`.
+
+    **Esperado (FAIL):**
+    ```
+    13 en_missing_thumb
+      cpt=plenarias EN=91946 (PT=91418 thumb=89983) Prioridades para as Amazônias
+      ...
+    ```
+
+    Fix (idempotente — copia o `_thumbnail_id` do PT para a tradução EN; mídia é compartilhada
+    via NML no blog 1, então o mesmo attachment ID serve ambos os idiomas sem criar órfão):
+    ```bash
+    ssh prod "sudo -u www-data wp --path=/var/www/<SITE> eval '
+    global \$wpdb; \$cpts=[\"plenarias\",...];
+    foreach (\$cpts as \$cpt) { /* mesmo walker; */ update_post_meta(\$en,\"_thumbnail_id\",(int)\$pt_thumb); clean_post_cache(\$en); }
+    '"
+    # depois: regen Elementor CSS do listing+página EN + rocket_clean_post + CF invalidate cirúrgico
+    ```
+
+    **Nota:** casos onde o PT TAMBÉM não tem thumb (`pt_thumb=none`) NÃO contam — não há o que
+    herdar; esses usam o fallback do dynamic tag. Não tentar "consertar" copiando vazio.
+
+    Severidade: **HIGH** — thumbnails somem só na versão traduzida (UX quebrada para público
+    internacional), mas site funciona; não BLOCKER.
+
+44. **JetSmartFilters quebrados (busca/paginação não filtram o grid) — HIGH**: incidente 2026-05-28.
+
+    Detecta filtros JetSmartFilters (`jet-smart-filters-search`, `jet-smart-filters-pagination`,
+    `jet-smart-filters-checkboxes`, etc.) cujo `query_id` **não casa** com nenhum grid JetEngine
+    renderizável na mesma página. Sintoma: ao usar a busca/filtro, o controle entra em
+    `jet-filters-single-loading` (spinner) e fica preso — o grid nunca atualiza.
+
+    Origem do gate: 2026-05-28 — `/conhecimento/publicacoes/`. O filtro de busca tinha
+    `query_id="estudos"` mas o grid (listing 28187, custom query 57) renderizava com
+    `data-query-id="57"` (numérico da custom query) e **sem o CSS ID `estudos`**. O JSF resolve
+    o vínculo filtro→grid via seletor `#<query_id> .jet-listing-grid.jet-listing` — sem um
+    elemento `id="estudos"`, `$provider.length===0`, nenhuma requisição AJAX é disparada, spinner
+    infinito. Fix: setar `_element_id="estudos"` (Avançado → CSS ID) no widget do grid, casando
+    com o `query_id` do filtro. Corrigiu busca E paginação juntas (mesmo `query_id`).
+
+    **Por que Gates 42/43 não pegam:** Gate 42 = grid colapsado (template); Gate 43 = thumbnail
+    ausente; Gate 44 = vínculo filtro↔grid quebrado (o grid renderiza certo, mas os filtros não
+    o controlam). Classes distintas.
+
+    Sub-gates (HIGH):
+    - `orphan_filters > 0` — filtro JSF com `data-query-id="X"` (X != "default") sem nenhum
+      elemento `id="X"` contendo `.jet-listing-grid` na página. **Vínculo quebrado** → spinner.
+    - `search_no_ajax` — (validação dinâmica, só Playwright) ao digitar ≥3 chars no
+      `.jet-search-filter__input`, NENHUM POST a `admin-ajax.php?action=jet_smart_filters` é
+      disparado em ~4s. Indica `$provider` não resolvido.
+
+    **Parte estática (curl + Python) — roda sempre, barata (~5s/path):**
+
+    ```bash
+    python3 <<'PY'
+    import re, subprocess
+    BASE = "https://concertacaoamazonia.com.br"
+    PATHS = ["/conhecimento/publicacoes/", "/en/knowledge/publications/"]  # páginas com filtros JSF
+    orphans = 0
+    for path in PATHS:
+        html = subprocess.check_output(["curl","-s",f"{BASE}{path}?nowprocket=1"], timeout=30).decode("utf-8","ignore")
+        # query_ids que os filtros JSF declaram (search/pagination/checkboxes/etc.)
+        filter_qids = set(re.findall(r'jet-smart-filters-[a-z]+[^>]*data-query-id="([^"]+)"', html))
+        filter_qids |= set(re.findall(r'data-query-id="([^"]+)"[^>]*jet-smart-filters', html))
+        for qid in filter_qids:
+            if qid == "default":
+                continue
+            # existe um elemento id="<qid>" que envolve um jet-listing-grid?
+            # heurística: id="qid" aparece E há um jet-listing-grid após ele no mesmo container
+            has_anchor = re.search(rf'id="{re.escape(qid)}"[^>]*>(?:(?!</?(?:section|div class="elementor-element)).)*?jet-listing-grid', html, re.DOTALL)
+            # fallback robusto: id="qid" presente em qualquer lugar E grid presente na página
+            id_present = bool(re.search(rf'\bid="{re.escape(qid)}"', html))
+            grid_present = "jet-listing-grid" in html
+            if not id_present and grid_present:
+                orphans += 1
+                print(f"FAIL orphan_filter: query_id={qid} sem id=\"{qid}\" no DOM | path={path}")
+    print(f"\n{orphans} orphan_filters")
+    PY
+    ```
+
+    **Parte dinâmica (Playwright) — confirma o ciclo AJAX completo:**
+
+    ```js
+    // Em cada path com busca: digitar e validar que filtra
+    await page.goto(BASE + "/conhecimento/publicacoes/?cb=" + Date.now());
+    await page.locator(".jet-search-filter__input").pressSequentially("agenda");
+    // capturar requests admin-ajax + estado do grid após ~4s
+    await page.waitForTimeout(4000);
+    const r = await page.evaluate(() => {
+      const wrap = document.querySelector(".jet-search-filter");
+      const grid = document.querySelector("#estudos .jet-listing-grid, [data-listing-id]");
+      const cards = grid ? grid.querySelectorAll('[class*="jet-listing-dynamic-post-"]').length : 0;
+      return { still_loading: wrap ? [...wrap.classList].includes("jet-filters-single-loading") : null, cards };
+    });
+    // PASS: still_loading=false E cards mudou (filtrou). FAIL: still_loading=true (spinner preso).
+    ```
+
+    **Esperado (PASS):** `0 orphan_filters`; busca filtra (`still_loading=false`, contagem de cards muda).
+
+    **Esperado (FAIL):**
+    ```
+    FAIL orphan_filter: query_id=estudos sem id="estudos" no DOM | path=/conhecimento/publicacoes/
+    1 orphan_filters
+    ```
+
+    Fix: setar `_element_id` no widget do grid = `query_id` do filtro (ex: `estudos`), via patch
+    do `_elementor_data` + clear Element Cache (`files_manager->clear_cache()`) + re-save do
+    documento + CF invalidate cirúrgico. Replicar na versão EN (WPML).
+
+    Severidade: **HIGH** — busca/paginação inutilizáveis (UX quebrada), mas o conteúdo
+    aparece; não BLOCKER.
+
+45. **Paginação JSF numerada não navega (offset quebra paged) — HIGH**: incidente 2026-05-28.
+
+    Detecta grid JetEngine com paginação JetSmartFilters numerada que **renderiza, mas
+    sempre retorna os mesmos posts** ao mudar de página. O controle de paginação atualiza
+    o número da página, mas o conteúdo do grid não muda — o usuário clica "2", "3"... e vê
+    sempre os mesmos cards.
+
+    **Por que o Gate 44 NÃO pega:** Gate 44 valida o *vínculo* filtro↔grid (o AJAX dispara?).
+    Aqui o vínculo está OK e o AJAX dispara e retorna **200** — mas o `WP_Query` ignora o
+    `paged`, então a resposta traz a mesma página. É falha de classe diferente: Gate 44 =
+    AJAX não dispara; Gate 45 = AJAX dispara mas não pagina.
+
+    Origem do gate: 2026-05-28 — `/atuacao/encontros/` (grid 5679, custom query 58 do
+    JetEngine Query Builder). A query 58 tinha `offset:1` (para pular o post destacado).
+    Causa raiz: `offset` numa custom query do Query Builder **quebra a paginação** — o JSF,
+    no caminho de custom query (`queries/posts.php`), só seta `paged`/`page` e nunca
+    recalcula o offset; o `WP_Query` do core descarta o `paged` quando `offset` está
+    presente. (O caminho de query *nativa* do widget tem `query_maybe_has_offset()` que
+    reconcilia — custom query do QB não tem.) Fix: remover offset dos 2 lugares (query QB +
+    override `posts_query` `order_offset` do widget) + excluir o destaque via `post__not_in`
+    dinâmico com macro `%query_results|<sub-query>|ids%` na chave `__dynamic_posts`.
+    Memória: [[feedback_jsf_offset_breaks_pagination]].
+
+    Sub-gate (HIGH):
+    - `frozen_pagination > 0` — pelo menos 1 grid com paginação JSF cuja página 2 (via AJAX)
+      retorna o **mesmo conjunto de post-ids** da página 1.
+
+    **Parte estática (curl + Python) — roda sempre, barata (~6s/path):**
+
+    Compara os post-ids do render inicial (página 1) com a resposta AJAX da página 2.
+    Reproduz o POST que o JSF faz para `admin-ajax.php` (`action=jet_smart_filters`,
+    `provider=jet-engine/<query_id>`, `paged=2`).
+
+    ```bash
+    python3 <<'PY'
+    import re, subprocess, json
+    BASE = "https://concertacaoamazonia.com.br"
+    # path | query_id (JSF _element_id) | custom_query_id | listing_id | lang
+    # lang é passado no request AJAX (admin-ajax sem lang resolve em PT — para EN
+    # o WPML precisa do parâmetro para retornar as traduções, senão p2 vem em PT).
+    TARGETS = [
+        ("/atuacao/encontros/",    "plenaria", "58", "5679", ""),
+        ("/en/activities/news/",   "plenaria", "58", "5679", "en"),
+    ]
+    frozen = 0
+    def ids_in(html, listing_id):
+        m = re.search(rf'jet-listing-grid--{listing_id}.*?(?=jet-smart-filters|jet-listing-grid--(?!{listing_id})|\Z)', html, re.S)
+        seg = m.group(0) if m else ""
+        seen = []
+        for x in re.findall(r'jet-listing-dynamic-post-(\d+)', seg):
+            if x not in seen: seen.append(x)
+        return seen
+    for path, qid, cqid, lid, lang in TARGETS:
+        html = subprocess.check_output(["curl","-s",f"{BASE}{path}?nowprocket=1"], timeout=30).decode("utf-8","ignore")
+        p1 = ids_in(html, lid)
+        # request AJAX página 2 (lang p/ WPML resolver traduções na versão EN)
+        fields = [
+            "action=jet_smart_filters", f"provider=jet-engine/{qid}",
+            f"settings[lisitng_id]={lid}","settings[custom_query]=yes",
+            f"settings[custom_query_id]={cqid}",f"settings[_element_id]={qid}",
+            f"props[query_id]={cqid}","paged=2",
+        ]
+        if lang:
+            fields.append(f"lang={lang}")
+        data = "&".join(fields)
+        out = subprocess.check_output(["curl","-s",f"{BASE}/wp-admin/admin-ajax.php",
+            "-H","X-Requested-With: XMLHttpRequest","--data",data], timeout=30).decode("utf-8","ignore")
+        p2 = []
+        try:
+            content = json.loads(out).get("content","")
+            for x in re.findall(r'jet-listing-dynamic-post-(\d+)', content):
+                if x not in p2: p2.append(x)
+        except Exception:
+            p2 = []
+        same = bool(p1) and p1 == p2
+        if same:
+            frozen += 1
+            print(f"FAIL frozen_pagination: path={path} p1==p2={p1[:3]}... (offset quebrando paged?)")
+        else:
+            print(f"OK pagina navega: path={path} p1={p1[:2]} p2={p2[:2]}")
+    print(f"\n{frozen} frozen_pagination")
+    PY
+    ```
+
+    **Esperado (PASS):** `0 frozen_pagination` — página 2 traz post-ids diferentes da página 1.
+
+    **Esperado (FAIL):**
+    ```
+    FAIL frozen_pagination: path=/atuacao/encontros/ p1==p2=['91418', '89289', '82220']... (offset quebrando paged?)
+    1 frozen_pagination
+    ```
+
+    **Nota EN/WPML:** o `p1` (render inicial via curl da página `/en/`) pode vir com IDs
+    PT quando o CloudFront serve cache cruzado de idioma; o `p2` usa `lang=en` e retorna
+    traduções. O gate compara `p1 != p2` (navegou?), que continua válido mesmo com IDs
+    de idiomas distintos — o objetivo é detectar **paginação congelada**, não paridade
+    de tradução (isso é o Gate 43). Não tratar divergência PT/EN aqui como falha.
+
+    Fix: ver [[feedback_jsf_offset_breaks_pagination]]. Remover offset da query QB
+    (coluna `args` de `wp_jet_post_types`, PHP-serializado) E do override `posts_query`
+    do widget no `_elementor_data` das páginas (PT+EN) + sub-query de destaque +
+    `post__not_in` dinâmico. Limpar `jet_cache` + Elementor CSS + WP Rocket/CF cirúrgico.
+
+    Severidade: **HIGH** — paginação inutilizável (UX quebrada, usuário preso na página 1),
+    mas o conteúdo da página 1 aparece; não BLOCKER.
+
 ## Relatório Final Pragmático
 
 Após executar todas as fases, gerar **bloco único** com formato decisível:
@@ -2263,42 +4076,3 @@ MÉTRICAS DE PERFORMANCE (PROD, sample 10 páginas)
 
 ✅ **SMOKE PASS** — todas as 5 páginas + 2 formulários verdes prontos para cutover.
 🚨 **SMOKE FAIL** — listar gates disparados, sugerir fixes.
-
-### Snippet — Gate 39 (RD Station Form Action registrada + KEY definido)
-
-Valida que o mu-plugin `bit-elementor-form-rdstation` está ativo e a constant
-`RDSTATION_API_KEY` foi injetada pelo bootstrap. Adicionado em 2026-05-22 pela
-Parte 2 da integração RD Station.
-
-```bash
-# Em DEV
-docker exec -u www-data concertacao-dev-wordpress \
-  wp --url="https://cambrasmax.local:8484/" eval '
-$forms = \ElementorPro\Plugin::instance()->modules_manager->get_modules("forms");
-$actions = $forms->get_form_actions();
-$registered = isset( $actions["bit_rdstation"] ) ? "REGISTERED" : "MISSING";
-$key_status = ( defined( "RDSTATION_API_KEY" ) && RDSTATION_API_KEY ) ? "DEFINED" : "UNDEFINED";
-echo "Gate 39 — bit_rdstation=$registered | KEY=$key_status\n";
-if ( $registered !== "REGISTERED" || $key_status !== "DEFINED" ) {
-    echo "FAIL\n";
-    exit( 1 );
-}
-echo "PASS\n";
-'
-
-# Em PROD (via SSH)
-ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data \
-  wp --path=/var/www/concertacaoamazonia.com.br \
-     --url='https://concertacaoamazonia.com.br/' eval '
-\$forms = \ElementorPro\Plugin::instance()->modules_manager->get_modules(\"forms\");
-\$actions = \$forms->get_form_actions();
-\$r = isset( \$actions[\"bit_rdstation\"] ) ? \"REGISTERED\" : \"MISSING\";
-\$k = ( defined( \"RDSTATION_API_KEY\" ) && RDSTATION_API_KEY ) ? \"DEFINED\" : \"UNDEFINED\";
-echo \"Gate 39 — bit_rdstation=\$r | KEY=\$k\n\";
-'"
-```
-
-**Critério PASS:** `bit_rdstation=REGISTERED | KEY=DEFINED`.
-**FAIL = bloqueia o deploy.** Causas comuns:
-- `bit_rdstation=MISSING`: mu-plugin não copiado para `mu-plugins/` em prod, ou Elementor Pro inativo.
-- `KEY=UNDEFINED`: `RDSTATION_API_KEY_PROD` não setado no `.env` raiz, OU bloco `setup_rdstation_constants()` do bootstrap não rodou no deploy.
