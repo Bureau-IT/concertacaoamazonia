@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "03abd360e16d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/skills/bit-waf/templates/rules/block-php-scan.json",
+    ".claude/skills/bit-waf/templates/rules/block-sensitive-dotfiles.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/03/abd360e16d/0/metadata.json",
+      "transcript": "/03/abd360e16d/0/full.jsonl",
+      "context": "/03/abd360e16d/0/context.md",
+      "content_hash": "/03/abd360e16d/0/content_hash.txt",
+      "prompt": "/03/abd360e16d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1132,
+    "cache_creation_tokens": 4045218,
+    "cache_read_tokens": 273426088,
+    "output_tokens": 462150,
+    "api_call_count": 579
+  }
+}
