@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "64a970dd9ef2",
+  "session_id": "6f0847f9-28b0-4cba-b914-7eabc8f72ca3",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-29T23:22:41.101906Z",
+  "branch": "main",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "docs/runbook-deploy-atlas-en-prod.md",
+    "scripts/01-eixos-translate.php",
+    "scripts/02-create-en-artistas.php",
+    "scripts/03-link-en-terms.php",
+    "scripts/04-create-en-tax-filters.php",
+    "scripts/05-fermat-coords.php",
+    "scripts/centroides.json",
+    "scripts/deploy-01-glossaries.php",
+    "scripts/deploy-03-reconcile-meta.php",
+    "scripts/deploy-07-pais-filters.php",
+    "scripts/deploy-08-elementor.php",
+    "scripts/fix-atlas-en-pagination-string.php",
+    "scripts/fix-banner-cultural-atlas-en.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6ea726c9e311",
+  "token_usage": {
+    "input_tokens": 9788,
+    "cache_creation_tokens": 7500115,
+    "cache_read_tokens": 377683944,
+    "output_tokens": 548179,
+    "api_call_count": 781
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-29T23:22:37.955696Z",
+    "agent_lines": 1943,
+    "human_added": 455,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2398,
+    "agent_percentage": 81.02585487906589
+  }
+}

@@ -3,12 +3,19 @@
   "checkpoint_id": "64a970dd9ef2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 32,
+  "checkpoints_count": 39,
   "files_touched": [
+    "docs/runbook-deploy-atlas-en-prod.md",
     "scripts/01-eixos-translate.php",
     "scripts/02-create-en-artistas.php",
     "scripts/03-link-en-terms.php",
     "scripts/04-create-en-tax-filters.php",
+    "scripts/05-fermat-coords.php",
+    "scripts/centroides.json",
+    "scripts/deploy-01-glossaries.php",
+    "scripts/deploy-03-reconcile-meta.php",
+    "scripts/deploy-07-pais-filters.php",
+    "scripts/deploy-08-elementor.php",
     "scripts/deploy-09-area-en-filter.php",
     "scripts/fix-atlas-en-pagination-string.php",
     "scripts/fix-banner-cultural-atlas-en.php"
@@ -34,13 +41,20 @@
       "context": "/64/a970dd9ef2/2/context.md",
       "content_hash": "/64/a970dd9ef2/2/content_hash.txt",
       "prompt": "/64/a970dd9ef2/2/prompt.txt"
+    },
+    {
+      "metadata": "/64/a970dd9ef2/3/metadata.json",
+      "transcript": "/64/a970dd9ef2/3/full.jsonl",
+      "context": "/64/a970dd9ef2/3/context.md",
+      "content_hash": "/64/a970dd9ef2/3/content_hash.txt",
+      "prompt": "/64/a970dd9ef2/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5560,
-    "cache_creation_tokens": 13089632,
-    "cache_read_tokens": 610386499,
-    "output_tokens": 1212707,
-    "api_call_count": 1432
+    "input_tokens": 15348,
+    "cache_creation_tokens": 20589747,
+    "cache_read_tokens": 988070443,
+    "output_tokens": 1760886,
+    "api_call_count": 2213
   }
 }
