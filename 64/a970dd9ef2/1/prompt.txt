@@ -1,0 +1,171 @@
+https://concertacaoamazonia.com.br/concertacao-e-tedxamazonia-ampliam-parceria-em-busca-de-mais-visibilidade-para-representatividade-da-regiao/
+
+essa pagina perdeu css novamente, porque?
+
+---
+
+dispare 5 agentes para reanalisar o cenário e a solução
+
+---
+
+o Montagna estava dormindo a essa hora... será que não foi alguma automação que rodamos nesse horário? Nós (eu e voce, Claude) estavamos trabalhando nesse horário, analise isso. 
+Pode matar o processo zumbi.
+
+---
+
+estou rodando um /smoke em outra sessão agora. em 10 minutos analise se ainda é necessário fazer  o warm-up e para normalizar tudo
+
+---
+
+Reavaliar se o warm-up em massa do CSS Elementor ainda é necessário. O usuário rodou /smoke em outra sessão (que visita muitas páginas e dispara regeneração on-demand). Checar via SSH read-only quantos dos 1.484 post-*.css já foram regerados após o flush das 03:38, comparar com antes (~99 às 11:45), e decidir: se a cobertura subiu bastante e as páginas principais estão estilizadas, warm-up pode ser desnecessário; caso contrário, oferecer rodar o warm-up batch via WP-CLI.
+
+---
+
+<task-notification>
+<task-id>b2eaxovgc</task-id>
+<tool-use-id>toolu_01UD9qoDKqW8c7CDUzfs1M1Q</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-dcambria-scripts-server-tools-v2-docker-dev-sites-concertacao/2c2b06d4-44b2-45c0-ab06-f664c5e18b84/tasks/b2eaxovgc.output</output-file>
+<status>completed</status>
+<summary>Background command "Identificar quais páginas já regeneraram" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+esses flushes globais foram executados atraves de scripts std ou diretamente por voce?
+
+---
+
+adicione a nuance
+
+---
+
+[Image #1] o evento da imagem em dev mudou de titulo. Ajuste o novo titulo em prod.
+a pagina single [Image #2] de evento teve ajustes de css dentro do admin do wordpress conforme imagem, atualize tambem em prod
+
+---
+
+[Image: source: /Users/dcambria/Downloads/image (16).png]
+
+[Image: source: /Users/dcambria/Downloads/image (17).png]
+
+---
+
+https://concertacaoamazonia.com.br/sobre-nos/
+
+na versao em EN desta pagina:
+
+ABOUT US - Na dobra “TEAM” é preciso atualizar a diagramação com as mesmas alterações que foram feitas na versão em português (com as secretárias executivas na primeira linha e um espaço para as outras três linhas com os outros 6 nomes)
+
+já corrigimos em dev, publique em prod
+
+---
+
+[Image #3] aplicou cache bust para a pagina? aqui pra mim nao atualizou
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_I0HITn/Captura de Tela 2026-05-28 às 13.59.04.png]
+
+---
+
+sim
+
+---
+
+https://app.clickup.com/t/86ahm9p4w consegue resolver essa atividade? trata-se de 2 ajustes dentro do codigo do svg, basicamente substituir texto
+
+---
+
+[Image #4] precisa colocar "de Segurança Pública" na proxima linha, pra que o texto não fique por debaixo do desenho do hexagono
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-28 às 16.17.13.png]
+
+---
+
+[Image #6] afaste um pouco esse bloca de texto para a esquerda
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_EVLi4m/Captura de Tela 2026-05-28 às 17.00.55.png]
+
+---
+
+[Image #7] nao, isso foi demais, era apenas alguns pixes, 5px ja tava bom
+
+---
+
+[Image: source: /Users/dcambria/Downloads/Captura de Tela 2026-05-28 às 17.10.12.png]
+
+---
+
+mas tem que deslocar o titulo Segurança e Direitos Humanos junto
+
+---
+
+faltou trocar em Educação
+Facilitação: Roda Educativa
+
+---
+
+[Image #8] no mobie precisa ajustar e pular linha entre:
+
+Facilitação:
+Roda Educativa
+
+Também é necessário que o svg inteiro dos grupos de trabalho apareçam na tela, está cortando.
+Resolva em dev e aguarde minha autorização para subir em prod
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_EkNEz1/Captura de Tela 2026-05-28 às 20.23.43.png]
+
+---
+
+nao são favos de mel nem espiral. Vamos chamar esse svg de colméia, ok?
+Espiral é outro svg totalmente diferente, que está na home e em espiral-do-conhecimento
+
+---
+
+publique em prod
+
+---
+
+[Image #9] em prod o css nao atualizou, colmeia ainda aparece cortada
+
+---
+
+[Image: source: /var/folders/ng/9fzwjl211j9b9dfvlvqrs5800000gn/T/TemporaryItems/NSIRD_screencaptureui_Wlkl4m/Captura de Tela 2026-05-28 às 20.51.32.png]
+
+---
+
+/conhecimento/entrevistas/ ainda esta aparecendo com 1 coluna pra mim
+
+---
+
+vale a pena que o std cache flush consiga o CSS do Elementor e remover o minify CSS stale do WP Rocket?
+
+---
+
+comite
+
+---
+
+porque so funciona em guia anonima? nao foi feito cache bust?
+
+---
+
+ok, é cache no meu browser. Me explique pros e contras de Cache-Control: no-cache, must-revalidate como solução. Todos os meses mudamos todas as cores do site, e semanalmente diversas alterações, como vc tem acompanhado. Me aprofunde nos detalhes
+
+---
+
+sim
+
+---
+
+como eu testo?
+
+---
+
+faça o teste
