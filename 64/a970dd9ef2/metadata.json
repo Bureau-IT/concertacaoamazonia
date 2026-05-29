@@ -3,8 +3,9 @@
   "checkpoint_id": "64a970dd9ef2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 40,
+  "checkpoints_count": 52,
   "files_touched": [
+    ".claude/commands/smoke.md",
     "docs/runbook-deploy-atlas-en-prod.md",
     "scripts/01-eixos-translate.php",
     "scripts/02-create-en-artistas.php",
@@ -55,13 +56,20 @@
       "context": "/64/a970dd9ef2/4/context.md",
       "content_hash": "/64/a970dd9ef2/4/content_hash.txt",
       "prompt": "/64/a970dd9ef2/4/prompt.txt"
+    },
+    {
+      "metadata": "/64/a970dd9ef2/5/metadata.json",
+      "transcript": "/64/a970dd9ef2/5/full.jsonl",
+      "context": "/64/a970dd9ef2/5/context.md",
+      "content_hash": "/64/a970dd9ef2/5/content_hash.txt",
+      "prompt": "/64/a970dd9ef2/5/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 17830,
-    "cache_creation_tokens": 29612868,
-    "cache_read_tokens": 1254170914,
-    "output_tokens": 2304165,
-    "api_call_count": 2795
+    "input_tokens": 54304,
+    "cache_creation_tokens": 30564321,
+    "cache_read_tokens": 1317835421,
+    "output_tokens": 2461781,
+    "api_call_count": 3064
   }
 }
