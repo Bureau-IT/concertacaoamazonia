@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "64a970dd9ef2",
+  "session_id": "5d3b190d-36ab-4d51-a3dc-eec311098b41",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-29T23:21:20.791727Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "scripts/fix-atlas-en-pagination-string.php",
+    "scripts/fix-banner-cultural-atlas-en.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "59654a087e63",
+  "token_usage": {
+    "input_tokens": 3149,
+    "cache_creation_tokens": 1593051,
+    "cache_read_tokens": 47156505,
+    "output_tokens": 170093,
+    "api_call_count": 228
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-29T23:21:20.343316Z",
+    "agent_lines": 187,
+    "human_added": 2211,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2398,
+    "agent_percentage": 7.79816513761468
+  }
+}
