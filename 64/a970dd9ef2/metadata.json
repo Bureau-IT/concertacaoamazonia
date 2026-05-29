@@ -3,7 +3,7 @@
   "checkpoint_id": "64a970dd9ef2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 52,
+  "checkpoints_count": 67,
   "files_touched": [
     ".claude/commands/smoke.md",
     "docs/runbook-deploy-atlas-en-prod.md",
@@ -18,6 +18,7 @@
     "scripts/deploy-07-pais-filters.php",
     "scripts/deploy-08-elementor.php",
     "scripts/deploy-09-area-en-filter.php",
+    "scripts/deploy-10-query39-no-cache.php",
     "scripts/fix-atlas-en-pagination-string.php",
     "scripts/fix-banner-cultural-atlas-en.php"
   ],
@@ -63,13 +64,20 @@
       "context": "/64/a970dd9ef2/5/context.md",
       "content_hash": "/64/a970dd9ef2/5/content_hash.txt",
       "prompt": "/64/a970dd9ef2/5/prompt.txt"
+    },
+    {
+      "metadata": "/64/a970dd9ef2/6/metadata.json",
+      "transcript": "/64/a970dd9ef2/6/full.jsonl",
+      "context": "/64/a970dd9ef2/6/context.md",
+      "content_hash": "/64/a970dd9ef2/6/content_hash.txt",
+      "prompt": "/64/a970dd9ef2/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 54304,
-    "cache_creation_tokens": 30564321,
-    "cache_read_tokens": 1317835421,
-    "output_tokens": 2461781,
-    "api_call_count": 3064
+    "input_tokens": 156233,
+    "cache_creation_tokens": 33130297,
+    "cache_read_tokens": 1642485991,
+    "output_tokens": 2969766,
+    "api_call_count": 3771
   }
 }

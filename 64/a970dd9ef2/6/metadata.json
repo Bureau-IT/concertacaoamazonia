@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "64a970dd9ef2",
+  "session_id": "e80adb31-faea-400e-9ae2-dbf45f3f2678",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-29T23:27:13.835868Z",
+  "branch": "main",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "scripts/01-eixos-translate.php",
+    "scripts/02-create-en-artistas.php",
+    "scripts/03-link-en-terms.php",
+    "scripts/04-create-en-tax-filters.php",
+    "scripts/05-fermat-coords.php",
+    "scripts/deploy-09-area-en-filter.php",
+    "scripts/deploy-10-query39-no-cache.php",
+    "scripts/fix-atlas-en-pagination-string.php",
+    "scripts/fix-banner-cultural-atlas-en.php"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5aa86dc8f480",
+  "token_usage": {
+    "input_tokens": 101929,
+    "cache_creation_tokens": 2565976,
+    "cache_read_tokens": 324650570,
+    "output_tokens": 507985,
+    "api_call_count": 707
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-29T23:27:11.23875Z",
+    "agent_lines": 832,
+    "human_added": 1566,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2398,
+    "agent_percentage": 34.695579649708094
+  }
+}
