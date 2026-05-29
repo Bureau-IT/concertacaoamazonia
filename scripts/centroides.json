@@ -1,0 +1,807 @@
+{
+  "Belém | Pará": {
+    "lat": -1.4558,
+    "lon": -48.5039,
+    "radius_km": 13
+  },
+  "Manaus | Amazonas": {
+    "lat": -3.119,
+    "lon": -60.0217,
+    "radius_km": 13
+  },
+  "Rio Branco | Acre": {
+    "lat": -9.9754,
+    "lon": -67.8249,
+    "radius_km": 10
+  },
+  "Macapá | Amapá": {
+    "lat": 0.0349,
+    "lon": -51.0694,
+    "radius_km": 10
+  },
+  "Boa Vista | Roraima": {
+    "lat": 2.8235,
+    "lon": -60.6758,
+    "radius_km": 10
+  },
+  "Porto Velho | Rondônia": {
+    "lat": -8.7619,
+    "lon": -63.9039,
+    "radius_km": 10
+  },
+  "Santarém | Pará": {
+    "lat": -2.4431,
+    "lon": -54.7083,
+    "radius_km": 10
+  },
+  "São Paulo | São Paulo": {
+    "lat": -23.5505,
+    "lon": -46.6333,
+    "radius_km": 12
+  },
+  "São Luís | Maranhão": {
+    "lat": -2.5307,
+    "lon": -44.3068,
+    "radius_km": 10
+  },
+  "Parintins | Amazonas": {
+    "lat": -2.6283,
+    "lon": -56.7358,
+    "radius_km": 8
+  },
+  "Ananindeua | Pará": {
+    "lat": -1.3656,
+    "lon": -48.3722,
+    "radius_km": 8
+  },
+  "Cuiabá | Mato Grosso": {
+    "lat": -15.6014,
+    "lon": -56.0979,
+    "radius_km": 10
+  },
+  "Marabá | Pará": {
+    "lat": -5.3686,
+    "lon": -49.1178,
+    "radius_km": 9
+  },
+  "Palmas | Tocantins": {
+    "lat": -10.1689,
+    "lon": -48.3317,
+    "radius_km": 9
+  },
+  "São Gabriel da Cachoeira | Amazonas": {
+    "lat": -0.1303,
+    "lon": -67.0892,
+    "radius_km": 8
+  },
+  "Cruzeiro do Sul | Acre": {
+    "lat": -7.6307,
+    "lon": -72.6705,
+    "radius_km": 8
+  },
+  "Rio de Janeiro | Rio de Janeiro": {
+    "lat": -22.9068,
+    "lon": -43.1729,
+    "radius_km": 10
+  },
+  "Alta Floresta | Mato Grosso": {
+    "lat": -9.8756,
+    "lon": -56.0861,
+    "radius_km": 7
+  },
+  "Altamira | Pará": {
+    "lat": -3.2032,
+    "lon": -52.2064,
+    "radius_km": 8
+  },
+  "Alter do Chão | Pará": {
+    "lat": -2.5097,
+    "lon": -54.9474,
+    "radius_km": 5
+  },
+  "Bragança | Pará": {
+    "lat": -1.0536,
+    "lon": -46.7656,
+    "radius_km": 6
+  },
+  "Breves | Pará": {
+    "lat": -1.6822,
+    "lon": -50.4806,
+    "radius_km": 6
+  },
+  "Canaã dos Carajás | Pará": {
+    "lat": -6.4969,
+    "lon": -49.8783,
+    "radius_km": 6
+  },
+  "Jordão | Acre": {
+    "lat": -9.4339,
+    "lon": -71.8761,
+    "radius_km": 6
+  },
+  "Juruti | Pará": {
+    "lat": -2.1522,
+    "lon": -56.0922,
+    "radius_km": 6
+  },
+  "TI Xingu | Mato Grosso": {
+    "lat": -12.0,
+    "lon": -53.2,
+    "radius_km": 8
+  },
+  "Tefé | Amazonas": {
+    "lat": -3.3683,
+    "lon": -64.7114,
+    "radius_km": 6
+  },
+  "Xapuri | Acre": {
+    "lat": -10.6517,
+    "lon": -68.5044,
+    "radius_km": 6
+  },
+  "(estado) Pará": {
+    "lat": -4.5,
+    "lon": -52.5,
+    "radius_km": 60
+  },
+  "Abaetetuba | Pará": {
+    "lat": -1.7236,
+    "lon": -48.8789,
+    "radius_km": 6
+  },
+  "Ariquemes | Rondônia": {
+    "lat": -9.9133,
+    "lon": -63.0408,
+    "radius_km": 6
+  },
+  "Assis Brasil | Acre": {
+    "lat": -10.9419,
+    "lon": -69.5681,
+    "radius_km": 5
+  },
+  "Açailândia | Maranhão": {
+    "lat": -4.9472,
+    "lon": -47.5006,
+    "radius_km": 6
+  },
+  "Bom Jardim | Maranhão": {
+    "lat": -3.5631,
+    "lon": -45.6097,
+    "radius_km": 5
+  },
+  "Brasília | Distrito Federal": {
+    "lat": -15.7939,
+    "lon": -47.8828,
+    "radius_km": 10
+  },
+  "Cametá | Pará": {
+    "lat": -2.2447,
+    "lon": -49.4956,
+    "radius_km": 6
+  },
+  "Castanhal | Pará": {
+    "lat": -1.2939,
+    "lon": -47.9264,
+    "radius_km": 6
+  },
+  "Guajará-Mirim | Rondônia": {
+    "lat": -10.7889,
+    "lon": -65.3394,
+    "radius_km": 6
+  },
+  "Icoaraci | Pará": {
+    "lat": -1.3056,
+    "lon": -48.4631,
+    "radius_km": 5
+  },
+  "Igarapé-Miri | Pará": {
+    "lat": -1.975,
+    "lon": -48.9594,
+    "radius_km": 5
+  },
+  "Itacoatiara | Amazonas": {
+    "lat": -3.1431,
+    "lon": -58.4442,
+    "radius_km": 6
+  },
+  "Lima | ": {
+    "lat": -12.0464,
+    "lon": -77.0428,
+    "radius_km": 12
+  },
+  "Maués | Amazonas": {
+    "lat": -3.3836,
+    "lon": -57.7186,
+    "radius_km": 6
+  },
+  "Olinda | Pernambuco": {
+    "lat": -8.0089,
+    "lon": -34.8553,
+    "radius_km": 6
+  },
+  "Ourém | Pará": {
+    "lat": -1.5511,
+    "lon": -47.1156,
+    "radius_km": 5
+  },
+  "Salvador | Bahia": {
+    "lat": -12.9777,
+    "lon": -38.5016,
+    "radius_km": 10
+  },
+  "Santa Izabel do Pará | Pará": {
+    "lat": -1.2989,
+    "lon": -48.1606,
+    "radius_km": 5
+  },
+  "Sinop | Mato Grosso": {
+    "lat": -11.8642,
+    "lon": -55.5025,
+    "radius_km": 6
+  },
+  "Soure | Pará": {
+    "lat": -0.7167,
+    "lon": -48.5233,
+    "radius_km": 5
+  },
+  "TI Sawé Muybu, Itaituba e Trairão | Pará": {
+    "lat": -4.5,
+    "lon": -56.3,
+    "radius_km": 8
+  },
+  "Tarauacá | Acre": {
+    "lat": -8.1614,
+    "lon": -70.7656,
+    "radius_km": 6
+  },
+  "(estado) Amapá": {
+    "lat": 1.4,
+    "lon": -51.8,
+    "radius_km": 60
+  },
+  "(estado) Amazonas": {
+    "lat": -4.5,
+    "lon": -64.5,
+    "radius_km": 80
+  },
+  "Afuá, Marajó | Pará": {
+    "lat": -0.1558,
+    "lon": -50.3869,
+    "radius_km": 5
+  },
+  "Aldeia Demini | Roraima": {
+    "lat": 0.95,
+    "lon": -62.9,
+    "radius_km": 5
+  },
+  "Aldeia Jamari | Rondônia": {
+    "lat": -9.2,
+    "lon": -63.0,
+    "radius_km": 5
+  },
+  "Aldeia São João Batista, Amazonas | Amazonas": {
+    "lat": -3.3,
+    "lon": -64.7,
+    "radius_km": 5
+  },
+  "Aldeia Umariaçú II, Tabatinga | Amazonas": {
+    "lat": -4.2553,
+    "lon": -69.9383,
+    "radius_km": 4
+  },
+  "Almeirim | Pará": {
+    "lat": -1.5233,
+    "lon": -52.5817,
+    "radius_km": 6
+  },
+  "Amarante do Maranhão | Maranhão": {
+    "lat": -5.5664,
+    "lon": -46.7444,
+    "radius_km": 5
+  },
+  "Araguaína | Tocantins": {
+    "lat": -7.1908,
+    "lon": -48.2069,
+    "radius_km": 7
+  },
+  "Aurora do Tocantins | Tocantins": {
+    "lat": -12.7156,
+    "lon": -46.4083,
+    "radius_km": 5
+  },
+  "Baixo Tapajós | Pará": {
+    "lat": -2.8,
+    "lon": -55.0,
+    "radius_km": 10
+  },
+  "Barra dos Garças | Mato Grosso": {
+    "lat": -15.89,
+    "lon": -52.2569,
+    "radius_km": 6
+  },
+  "Barreirinha | Amazonas": {
+    "lat": -2.7942,
+    "lon": -57.0686,
+    "radius_km": 5
+  },
+  "Belém dos Solimões | Amazonas": {
+    "lat": -4.3,
+    "lon": -69.8,
+    "radius_km": 5
+  },
+  "Benjamin Constant | Amazonas": {
+    "lat": -4.3833,
+    "lon": -70.0319,
+    "radius_km": 5
+  },
+  "Boca do Acre | Amazonas": {
+    "lat": -8.7522,
+    "lon": -67.3978,
+    "radius_km": 6
+  },
+  "Cachoeira do Arari | Pará": {
+    "lat": -1.0103,
+    "lon": -48.9622,
+    "radius_km": 5
+  },
+  "Campinas | São Paulo": {
+    "lat": -22.9099,
+    "lon": -47.0626,
+    "radius_km": 8
+  },
+  "Capanema | Pará": {
+    "lat": -1.1961,
+    "lon": -47.1808,
+    "radius_km": 5
+  },
+  "Caracaraí | Roraima": {
+    "lat": 1.8197,
+    "lon": -61.1289,
+    "radius_km": 6
+  },
+  "Carajás | Pará": {
+    "lat": -6.0,
+    "lon": -50.3,
+    "radius_km": 8
+  },
+  "Carauari | Amazonas": {
+    "lat": -4.8828,
+    "lon": -66.8958,
+    "radius_km": 6
+  },
+  "Careiro castanho | Amazonas": {
+    "lat": -3.7833,
+    "lon": -60.3667,
+    "radius_km": 5
+  },
+  "Comunidade Quilombola de Itamatatiua | Maranhão": {
+    "lat": -2.05,
+    "lon": -44.7,
+    "radius_km": 4
+  },
+  "Comunidade do Tumbira - Iranduba | Amazonas": {
+    "lat": -2.85,
+    "lon": -60.55,
+    "radius_km": 4
+  },
+  "Curitiba | Paraná": {
+    "lat": -25.4284,
+    "lon": -49.2733,
+    "radius_km": 8
+  },
+  "Curuçá | Pará": {
+    "lat": -0.7222,
+    "lon": -47.8533,
+    "radius_km": 5
+  },
+  "Cáceres | Mato Grosso": {
+    "lat": -16.0717,
+    "lon": -57.6789,
+    "radius_km": 6
+  },
+  "Darí | Amazonas": {
+    "lat": -3.4,
+    "lon": -64.0,
+    "radius_km": 5
+  },
+  "Filadélfia | Tocantins": {
+    "lat": -7.3392,
+    "lon": -47.4956,
+    "radius_km": 5
+  },
+  "Fortaleza | Ceará": {
+    "lat": -3.7319,
+    "lon": -38.5267,
+    "radius_km": 9
+  },
+  "General Carneiro | Mato Grosso": {
+    "lat": -15.7011,
+    "lon": -52.7575,
+    "radius_km": 5
+  },
+  "Goiatins | Tocantins": {
+    "lat": -7.7142,
+    "lon": -47.3147,
+    "radius_km": 5
+  },
+  "Goiânia | Goiás": {
+    "lat": -16.6869,
+    "lon": -49.2648,
+    "radius_km": 9
+  },
+  "Icapuí | Ceará": {
+    "lat": -4.7128,
+    "lon": -37.3547,
+    "radius_km": 5
+  },
+  "Ilha de Soure | Pará": {
+    "lat": -0.7167,
+    "lon": -48.5233,
+    "radius_km": 5
+  },
+  "Ilha do Marajó | Pará": {
+    "lat": -0.9,
+    "lon": -49.5,
+    "radius_km": 20
+  },
+  "Ilha do Outeiro | Pará": {
+    "lat": -1.2589,
+    "lon": -48.4583,
+    "radius_km": 5
+  },
+  "Imperatriz | Maranhão": {
+    "lat": -5.5264,
+    "lon": -47.4919,
+    "radius_km": 7
+  },
+  "Indianopolis | São Paulo": {
+    "lat": -23.5917,
+    "lon": -46.6628,
+    "radius_km": 4
+  },
+  "Iranduba | Amazonas": {
+    "lat": -3.2847,
+    "lon": -60.1864,
+    "radius_km": 6
+  },
+  "Itatiaia | Rio de Janeiro": {
+    "lat": -22.4969,
+    "lon": -44.5575,
+    "radius_km": 5
+  },
+  "Jalapão | Tocantins": {
+    "lat": -10.5,
+    "lon": -46.5,
+    "radius_km": 25
+  },
+  "Ji-Paraná | Rondônia": {
+    "lat": -10.8853,
+    "lon": -61.9517,
+    "radius_km": 6
+  },
+  "Lábrea | Amazonas": {
+    "lat": -7.2586,
+    "lon": -64.7989,
+    "radius_km": 6
+  },
+  "Manaquiri | Amazonas": {
+    "lat": -3.3406,
+    "lon": -60.3408,
+    "radius_km": 5
+  },
+  "Marajó | Pará": {
+    "lat": -0.9,
+    "lon": -49.5,
+    "radius_km": 20
+  },
+  "Marapanim | Pará": {
+    "lat": -0.7178,
+    "lon": -47.6986,
+    "radius_km": 5
+  },
+  "Marechal Taumaturgo | Acre": {
+    "lat": -8.9417,
+    "lon": -72.7903,
+    "radius_km": 5
+  },
+  "Marituba | Pará": {
+    "lat": -1.36,
+    "lon": -48.3419,
+    "radius_km": 5
+  },
+  "Melgaço | Pará": {
+    "lat": -1.8042,
+    "lon": -50.7128,
+    "radius_km": 5
+  },
+  "Moju | Pará": {
+    "lat": -1.8839,
+    "lon": -48.7686,
+    "radius_km": 5
+  },
+  "Monte Alegre | Pará": {
+    "lat": -2.0078,
+    "lon": -54.0689,
+    "radius_km": 6
+  },
+  "Muaná | Pará": {
+    "lat": -1.5283,
+    "lon": -49.2167,
+    "radius_km": 5
+  },
+  "Nação Guarani Kaiowá | Mato Grosso": {
+    "lat": -22.5,
+    "lon": -54.8,
+    "radius_km": 8
+  },
+  "Nhamundá | Amazonas": {
+    "lat": -2.1861,
+    "lon": -56.7128,
+    "radius_km": 5
+  },
+  "Normandia | Roraima": {
+    "lat": 3.8856,
+    "lon": -59.6228,
+    "radius_km": 5
+  },
+  "Novo Airão | Amazonas": {
+    "lat": -2.6211,
+    "lon": -60.9433,
+    "radius_km": 6
+  },
+  "Oiapoque | Amapá": {
+    "lat": 3.8419,
+    "lon": -51.8331,
+    "radius_km": 6
+  },
+  "Palmeirópolis | Tocantins": {
+    "lat": -13.0469,
+    "lon": -48.4061,
+    "radius_km": 5
+  },
+  "Paragominas | Pará": {
+    "lat": -2.9967,
+    "lon": -47.3531,
+    "radius_km": 6
+  },
+  "Paranatinga | Mato Grosso": {
+    "lat": -14.4264,
+    "lon": -54.0511,
+    "radius_km": 6
+  },
+  "Parauapebas | Pará": {
+    "lat": -6.0678,
+    "lon": -49.9022,
+    "radius_km": 6
+  },
+  "Pedro Afonso | Tocantins": {
+    "lat": -8.9706,
+    "lon": -48.1736,
+    "radius_km": 5
+  },
+  "Penalva | Maranhão": {
+    "lat": -3.2956,
+    "lon": -45.1736,
+    "radius_km": 5
+  },
+  "Pinheiro | Maranhão": {
+    "lat": -2.5211,
+    "lon": -45.0822,
+    "radius_km": 6
+  },
+  "Pio XII | Maranhão": {
+    "lat": -3.8939,
+    "lon": -45.1739,
+    "radius_km": 5
+  },
+  "Pirenópolis | Goiás": {
+    "lat": -15.8517,
+    "lon": -48.9594,
+    "radius_km": 5
+  },
+  "Ponta de Pedras | Pará": {
+    "lat": -1.3956,
+    "lon": -48.8722,
+    "radius_km": 5
+  },
+  "Porto Nacional | Tocantins": {
+    "lat": -10.7081,
+    "lon": -48.4172,
+    "radius_km": 6
+  },
+  "Poxoréu | Mato Grosso": {
+    "lat": -15.8369,
+    "lon": -54.39,
+    "radius_km": 5
+  },
+  "Rondonópolis | Mato Grosso": {
+    "lat": -16.4708,
+    "lon": -54.6356,
+    "radius_km": 7
+  },
+  "Rurópolis | Pará": {
+    "lat": -4.0992,
+    "lon": -54.9078,
+    "radius_km": 5
+  },
+  "Salvaterra | Pará": {
+    "lat": -0.7572,
+    "lon": -48.5128,
+    "radius_km": 5
+  },
+  "Santa Luzia | Maranhão": {
+    "lat": -4.0814,
+    "lon": -45.7039,
+    "radius_km": 5
+  },
+  "Santa Rita | Maranhão": {
+    "lat": -3.1431,
+    "lon": -44.3219,
+    "radius_km": 5
+  },
+  "Santana | Amapá": {
+    "lat": -0.0583,
+    "lon": -51.1817,
+    "radius_km": 6
+  },
+  "Santo Antônio do Iça | Amazonas": {
+    "lat": -3.1019,
+    "lon": -67.9419,
+    "radius_km": 5
+  },
+  "Santos | São Paulo": {
+    "lat": -23.9608,
+    "lon": -46.3331,
+    "radius_km": 7
+  },
+  "São Caetano de odivelas | Pará": {
+    "lat": -0.7494,
+    "lon": -48.0247,
+    "radius_km": 5
+  },
+  "São Domingos do Capim | Pará": {
+    "lat": -1.6839,
+    "lon": -47.7681,
+    "radius_km": 5
+  },
+  "São João da Tapera | Alagoas": {
+    "lat": -9.55,
+    "lon": -37.4,
+    "radius_km": 5
+  },
+  "São Leopoldo | Rio Grande do Sul": {
+    "lat": -29.7603,
+    "lon": -51.1472,
+    "radius_km": 6
+  },
+  "São Luís | Tocantins": {
+    "lat": -11.2789,
+    "lon": -48.9889,
+    "radius_km": 5
+  },
+  "São Miguel do Guamá | Pará": {
+    "lat": -1.6269,
+    "lon": -47.4831,
+    "radius_km": 5
+  },
+  "São Paulo de Olivença | Amazonas": {
+    "lat": -3.3792,
+    "lon": -68.8722,
+    "radius_km": 6
+  },
+  "São Sebastião da Boa Vista | Pará": {
+    "lat": -1.7228,
+    "lon": -49.5314,
+    "radius_km": 5
+  },
+  "São Sebastião do Uatumã | Amazonas": {
+    "lat": -2.5614,
+    "lon": -57.8722,
+    "radius_km": 5
+  },
+  "TI Igarapé Laje | Rondônia": {
+    "lat": -10.5,
+    "lon": -64.5,
+    "radius_km": 6
+  },
+  "TI Kayapó | Pará": {
+    "lat": -7.5,
+    "lon": -51.5,
+    "radius_km": 10
+  },
+  "TI Praia do Carapanã | Acre": {
+    "lat": -9.0,
+    "lon": -70.5,
+    "radius_km": 6
+  },
+  "TI Tumucumaque | Amapá": {
+    "lat": 1.5,
+    "lon": -54.5,
+    "radius_km": 15
+  },
+  "TI Vale do Javari | Amazonas": {
+    "lat": -5.5,
+    "lon": -71.5,
+    "radius_km": 15
+  },
+  "TI Wawi | Mato Grosso": {
+    "lat": -11.5,
+    "lon": -53.0,
+    "radius_km": 8
+  },
+  "TI Yawanawa Rio Gregório, Aldeia Sete Estrelas, Tarauacá | Acre": {
+    "lat": -8.3,
+    "lon": -71.0,
+    "radius_km": 6
+  },
+  "TI Yawanawa Rio Gregório, Tarauacá | Acre": {
+    "lat": -8.3,
+    "lon": -71.0,
+    "radius_km": 6
+  },
+  "Tabatinga | Amazonas": {
+    "lat": -4.2528,
+    "lon": -69.9381,
+    "radius_km": 5
+  },
+  "Tomé-Açu | Pará": {
+    "lat": -2.4189,
+    "lon": -48.1522,
+    "radius_km": 6
+  },
+  "Tucuruí | Pará": {
+    "lat": -3.7661,
+    "lon": -49.6725,
+    "radius_km": 6
+  },
+  "Turiaçu | Maranhão": {
+    "lat": -1.6628,
+    "lon": -45.3697,
+    "radius_km": 5
+  },
+  "Txicão | Mato Grosso": {
+    "lat": -11.6,
+    "lon": -53.1,
+    "radius_km": 6
+  },
+  "Viana | Maranhão": {
+    "lat": -3.2189,
+    "lon": -45.0033,
+    "radius_km": 5
+  },
+  "Vigia de Nazaré | Pará": {
+    "lat": -0.8581,
+    "lon": -48.1419,
+    "radius_km": 5
+  },
+  "Vigia | Pará": {
+    "lat": -0.8581,
+    "lon": -48.1419,
+    "radius_km": 5
+  },
+  "Vila Pitinga | Amazonas": {
+    "lat": -0.8167,
+    "lon": -60.0833,
+    "radius_km": 5
+  },
+  "Vila de Boim | Pará": {
+    "lat": -2.7833,
+    "lon": -55.1667,
+    "radius_km": 5
+  },
+  "Vilhena | Rondônia": {
+    "lat": -12.7406,
+    "lon": -60.1458,
+    "radius_km": 6
+  },
+  "Volta Grande do Xingu | Pará": {
+    "lat": -3.3,
+    "lon": -51.8,
+    "radius_km": 10
+  },
+  "Porto Alegre | Rio Grande do Sul": {
+    "lat": -30.0346,
+    "lon": -51.2177,
+    "radius_km": 8
+  }
+}

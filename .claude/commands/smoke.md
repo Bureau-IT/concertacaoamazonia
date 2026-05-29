@@ -416,56 +416,82 @@ PROD valida apenas presença/campos/label do submit. GREEN executa submit real c
 
 Compara renderização da MESMA página em PROD (`concertacaoamazonia.com.br`) e DEV (`concertacao.bureau-it.com` via tunnel). Detecta divergências de DOM/heading/imagens/altura que indicam regressão de deploy mesmo quando HTML retornado parece idêntico.
 
-**DEV é a fonte da verdade**: a lista de páginas é descoberta varrendo o menu da home DEV. Páginas que existem em DEV mas não em PROD = pendência de deploy. Páginas que renderizam diferente = regressão.
+**DEV é a fonte da verdade**: a lista de páginas é descoberta varrendo os menus DEV. Páginas que existem em DEV mas não em PROD = pendência de deploy. Páginas que renderizam diferente = regressão.
 
-### Snippet 1 — Descobrir páginas do menu em DEV (executar 1x)
+**Cobertura obrigatória (2026-05-28): TODAS as páginas dos menus/submenus do site.** O Snippet 1 varre o DOM de **duas** homes (blog 1 raiz `/` e blog 2 `/cultura/`), porque cada blog renderiza menus diferentes (`Principal`/`Cultura Principal`) e submenus de hover nem sempre expõem todos os `<a>` no DOM da home do outro blog. Para garantir 100% de cobertura mesmo quando o DOM esconde um submenu, a lista descoberta é **unida** à `MENU_CANONICAL` abaixo — a relação canônica extraída dos menus WP ativos (`Principal` 3 + `Principal - EN` 1628, blog 1; `Cultura Principal` 2462 + `Culture Main` 2463, blog 2). Reextrair via `wp menu item list <id> --fields=url` quando o menu mudar.
+
+### Snippet 1 — Descobrir páginas dos menus em DEV (executar 1x)
 
 ```js
 async (page) => {
-  await page.context().clearCookies();
-  await page.goto('https://concertacao.bureau-it.com/?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+  // MENU_CANONICAL — relação fixa dos itens de menu/submenu ativos (PT+EN, blog1+blog2).
+  // Fonte: `wp menu item list` dos menus com location atribuída (2026-05-28).
+  // Manter sincronizada quando itens forem adicionados/removidos dos menus.
+  const MENU_CANONICAL = [
+    // Blog 1 — Principal (PT)
+    '/sobre-nos/', '/sobre-nos/5-pilares/', '/sobre-nos/4-amazonias/', '/agenda-integradora/',
+    '/atuacao/', '/atuacao/encontros/', '/atuacao/grupos-de-trabalho/', '/atuacao/iniciativas-estruturantes/',
+    '/atuacao/atuacao-internacional/', '/atuacao/faq/',
+    '/conhecimento/', '/conhecimento/publicacoes/', '/conhecimento/espiral-de-conhecimento/',
+    '/conhecimento/mapa-das-plataformas/', '/conhecimento/entrevistas/',
+    '/cultura/', '/cultura/linha-do-tempo/', '/cultura/atlas-cultural-das-amazonias/', '/cultura/galeria/',
+    '/cultura/porosidades/', '/cultura/exposicao-cores-do-futuro/', '/cultura/poeticas-do-possivel/',
+    '/cultura/amazonias-negras/', '/contato/',
+    // Blog 1 — Principal EN
+    '/en/what-we-are/', '/en/what-we-are/5-pillars/', '/en/what-we-are/4-amazons/', '/en/agenda-integradora/',
+    '/en/activities/', '/en/activities/news/', '/en/activities/workgroups/', '/en/activities/projetos-estruturantes/',
+    '/en/activities/international-activities/', '/en/activities/faq/',
+    '/en/knowledge/', '/en/knowledge/publications/', '/en/knowledge/spiral-of-knowledge/',
+    '/en/knowledge/platform-map/', '/en/knowledge/interviews/',
+    '/en/cultura/', '/en/cultura/linha-do-tempo/', '/en/cultura/atlas-cultural-das-amazonias/',
+    '/en/cultura/galeria/', '/en/cultura/porosidades/', '/en/cultura/exposicao-cores-do-futuro/',
+    '/en/cultura/poeticas-do-possivel/', '/en/contact_us/',
+  ];
+  // Páginas críticas fora dos menus (incidentes históricos). Cada entrada referencia o incidente.
+  const REQUIRED_PATHS = [
+    '/cultura/porosidades/', // embed Spotify — CSP regression test (incidente 2026-05-18)
+  ];
 
-  const urls = await page.evaluate(() => {
-    const sels = [
-      'header nav a[href]',
-      '.elementor-nav-menu a[href]',
-      '#site-navigation a[href]',
-      '.main-navigation a[href]',
-      'nav.elementor-nav-menu--main a[href]',
-      'footer nav a[href]',          // inclui menu do footer
-      '.elementor-location-footer a[href]',
-    ];
-    const set = new Set();
-    sels.forEach(s => document.querySelectorAll(s).forEach(a => {
-      const href = a.href || '';
-      if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-      // Aceitar apenas URLs do próprio domínio dev (tunnel)
-      if (!href.startsWith('https://concertacao.bureau-it.com/')) return;
-      const url = new URL(href);
-      // Strip de query/hash, normalizar path com trailing slash
-      let path = url.pathname;
-      if (!path.endsWith('/')) path += '/';
-      // Pular: home, feeds, comments, eventos individuais (event/...), wp-*
-      if (path === '/' || path === '/en/') return;
-      if (path.includes('/comments/feed') || path.includes('/feed/')) return;
-      if (path.startsWith('/event/') || path.startsWith('/en/event/')) return;
-      if (path.startsWith('/wp-')) return;
-      set.add(path);
-    }));
-    // Páginas críticas fora do menu (incidentes históricos). Sempre incluir.
-    // Cada entrada deve referenciar o incidente que motivou a inclusão.
-    const REQUIRED_PATHS = [
-      '/cultura/porosidades/', // embed Spotify — CSP regression test (incidente 2026-05-18)
-    ];
-    REQUIRED_PATHS.forEach(p => set.add(p));
-    return [...set].sort();
-  });
+  const collectFromHome = async (homeUrl) => {
+    await page.context().clearCookies();
+    await page.goto(homeUrl + '?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+    return page.evaluate(() => {
+      const sels = [
+        'header nav a[href]', '.elementor-nav-menu a[href]', '#site-navigation a[href]',
+        '.main-navigation a[href]', 'nav.elementor-nav-menu--main a[href]',
+        '.elementor-sub-item a[href]', '.sub-menu a[href]', '.menu-item a[href]', // submenus
+        'footer nav a[href]', '.elementor-location-footer a[href]',
+      ];
+      const out = [];
+      sels.forEach(s => document.querySelectorAll(s).forEach(a => {
+        const href = a.href || '';
+        if (!href || /^(javascript:|mailto:|tel:)/.test(href)) return;
+        if (!href.startsWith('https://concertacao.bureau-it.com/')) return;
+        const url = new URL(href);
+        let path = url.pathname;
+        if (!path.endsWith('/')) path += '/';
+        if (path === '/' || path === '/en/') return;
+        if (path.includes('/comments/feed') || path.includes('/feed/')) return;
+        if (path.startsWith('/event/') || path.startsWith('/en/event/')) return;
+        if (path.startsWith('/wp-')) return;
+        out.push(path);
+      }));
+      return out;
+    });
+  };
 
-  return { discovered_count: urls.length, urls };
+  const set = new Set(MENU_CANONICAL);          // base canônica obrigatória
+  REQUIRED_PATHS.forEach(p => set.add(p));
+  // varrer DOM das duas homes (blog 1 + blog 2) e unir
+  for (const home of ['https://concertacao.bureau-it.com/', 'https://concertacao.bureau-it.com/cultura/']) {
+    try { (await collectFromHome(home)).forEach(p => set.add(p)); } catch (e) { /* home indisponível, segue com canônica */ }
+  }
+  const urls = [...set].sort();
+  return { discovered_count: urls.length, canonical_count: MENU_CANONICAL.length, urls };
 }
 ```
 
-Esperado: ~15-25 paths PT/EN únicos (`/atuacao/`, `/conhecimento/`, `/conhecimento/espiral-de-conhecimento/`, `/contato/`, `/en/activities/`, etc).
+Esperado: ~47+ paths PT/EN únicos cobrindo todos os itens de menu/submenu dos dois blogs (`/atuacao/*`, `/conhecimento/*`, `/cultura/*`, `/sobre-nos/*`, `/en/*`). Se `discovered_count < canonical_count`, algo na varredura falhou — a base canônica garante o piso.
 
 ### Snippet 2 — Comparar PROD vs DEV para CADA path descoberto
 
@@ -3974,6 +4000,269 @@ array `PAIRS` quando WPML criar nova tradução. **Custo: ~15s para 10 pares**.
 
     Severidade: **HIGH** — paginação inutilizável (UX quebrada, usuário preso na página 1),
     mas o conteúdo da página 1 aparece; não BLOCKER.
+
+46. **Redirect 3xx com `Location:` vazando host de DEV — HIGH**: incidente 2026-05-28.
+
+    Detecta qualquer página dos menus cujo `Location:` (header de um redirect 3xx) aponte
+    para um host de **desenvolvimento** (`cambrasmax.local`, `concertacao.bureau-it.com`,
+    `localhost:NNNN`) em produção. O usuário/crawler que acessa uma URL alternativa do site
+    é jogado para um host de dev inacessível publicamente (SSL inválido / connection refused).
+
+    **Por que o Gate 22 NÃO pega:** Gate 22 baixa o **conteúdo dos arquivos CSS** do Elementor
+    e procura URLs de dev *dentro do CSS*. Aqui o vazamento está no **header `Location:` de um
+    redirect HTTP** — uma camada que nenhum outro gate inspeciona. **Por que o Gate 40 NÃO pega:**
+    Gate 40 detecta *se* uma página emite redirect inesperado, mas não valida **para onde** o
+    `Location` aponta (não distingue destino prod de destino dev) e roda só nos ~10 pares PT↔EN.
+
+    Origem do gate: 2026-05-28 — investigando o deploy da Linha do Tempo, a URL WPML alternativa
+    `/en/culture/timeline/` (slug EN traduzido, diretório `/en/`) retornava no **TUNNEL/DEV**
+    (`concertacao.bureau-it.com`) **301 → `https://cambrasmax.local:8484/cultura/en/timeline/`**.
+    No DEV isso é esperado (lá `home_url` É cambrasmax). **O bug só existe se aparecer em PROD REAL**
+    (`concertacaoamazonia.com.br`) — verificado nesse caso: prod retorna 200, está limpo. O gate
+    existe para **detectar regressão**: se um deploy/import vazar o `home_url` de dev para prod (já
+    aconteceu em CSS — gate 22; em `_elementor_data` — gates 26/28), o `Location:` de um redirect WPML
+    passaria a apontar para cambrasmax/tunnel em prod, e nenhum gate via.
+
+    **ALVO: PROD REAL** (`https://concertacaoamazonia.com.br`), nunca o tunnel — o tunnel é dev e
+    legitimamente aponta para cambrasmax nos redirects WPML de slug-traduzido.
+
+    Sub-gate (HIGH):
+    - `dev_leak_redirects > 0` — pelo menos 1 path **em prod** cujo redirect 3xx tem `Location:`
+      com host de dev (`cambrasmax.local` / `concertacao.bureau-it.com` / `localhost:NNNN`).
+
+    **Parte estática (curl) — roda sempre, barata (~10s para todos os paths):**
+
+    Itera a lista de paths do Snippet 1 (TODOS os menus) + as variantes de slug-traduzido WPML
+    de `/cultura/*` (`/en/culture/<slug-en>/`), que são as mais propensas a redirect WPML. Para cada
+    uma, faz um `curl` SEM seguir redirect **contra prod real** e inspeciona o `Location:`.
+
+    ```bash
+    # PATHS = lista do Snippet 1 (substituir) + variantes WPML culture EN conhecidas.
+    PATHS=$(cat /tmp/g46_paths.txt 2>/dev/null || cat <<'EOF'
+    /cultura/linha-do-tempo/
+    /en/cultura/linha-do-tempo/
+    /en/culture/timeline/
+    /en/culture/gallery/
+    /en/culture/
+    EOF
+    )
+    BASE="https://concertacaoamazonia.com.br"
+    DEV_RE='cambrasmax\.local|concertacao\.bureau-it\.com|localhost:[0-9]+'
+    leaks=0
+    while IFS= read -r p; do
+      [[ -z "$p" ]] && continue
+      # -I não basta (alguns redirects só em GET); usar -s -o /dev/null -D -
+      loc=$(curl -s -o /dev/null -D - "${BASE}${p}" 2>/dev/null | awk 'tolower($1)=="location:"{print $2}' | tr -d '\r')
+      if [[ -n "$loc" ]] && echo "$loc" | grep -qiE "$DEV_RE"; then
+        echo "FAIL dev_leak_redirect: ${p} -> ${loc}"
+        leaks=$((leaks+1))
+      fi
+    done <<< "$PATHS"
+    echo "${leaks} dev_leak_redirects"
+    ```
+
+    **Esperado (PASS):** `0 dev_leak_redirects` — nenhum `Location:` aponta para host de dev.
+
+    **Esperado (FAIL):**
+    ```
+    FAIL dev_leak_redirect: /en/culture/timeline/ -> https://cambrasmax.local:8484/cultura/en/timeline/
+    1 dev_leak_redirects
+    ```
+
+    Fix: rastrear a origem do `Location` (WPML language URL / canonical redirect / regra Redirection /
+    `_elementor_data` hardcoded). Para o caso WPML `/en/culture/*`: verificar config de URL de idioma
+    do WPML e o `home`/`siteurl` por blog; o redirect é gerado a partir do estado de dev — após corrigir,
+    invalidar CF dos paths. Se for regra do plugin Redirection: `wp db query` em `wp_redirection_items`
+    procurando `action_data LIKE '%cambrasmax%'`.
+
+    Severidade: **HIGH** — vazamento de infraestrutura de dev em prod; URL alternativa do site leva a
+    host inacessível. Não BLOCKER se a URL canônica do menu (200) for a divulgada, mas crawlers/links
+    externos podem usar a variante.
+
+47. **Imagem servida muito acima do tamanho de exibição (oversized thumbnail) — MEDIUM**: incidente 2026-05-28.
+
+    Detecta `<img>`/`background-image` cuja **resolução natural** (ou tamanho de arquivo) é muito
+    maior que a área onde é renderizada — desperdício de banda e LCP/loading lento. Pega o anti-padrão
+    do Elementor Gallery / widgets com `thumbnail_image_size: "full"` servindo a imagem original
+    (ex.: 1414×2000px, ~350 KB) num thumbnail de ~180px.
+
+    **Por que nenhum gate pega:** não havia gate de *performance de imagem*. Gate 37 checa imagens
+    **quebradas** (`naturalWidth === 0`), não imagens **gigantes**. O peso passa despercebido porque
+    a imagem carrega corretamente — só devagar.
+
+    Origem do gate: 2026-05-28 — galeria de quadrinhos em `/cultura/linha-do-tempo/` (widget Elementor
+    Gallery `ef72346`, `thumbnail_image_size: full`) servia 5 imagens de 1414×2000px (~1,8 MB JPEG /
+    1,2 MB AVIF) exibidas a 181×321px. Fix: `thumbnail_image_size` `full`→`large` (724×1024) nas pages
+    26769 (PT) + 92057 (EN) → −60% de peso. Memória: [[feedback_elementor_gallery_thumbnail_full_oversized]].
+
+    Sub-gates (MEDIUM):
+    - `oversized_imgs > 0` — pelo menos 1 imagem com `naturalWidth >= 2 × (displayWidth × DPR)` E
+      `naturalWidth >= 1000px` (ignora ícones/logos pequenos e o retina 2x legítimo).
+    - Tolerância: imagens dentro de lightbox/modal (carregam full ao clicar) são ignoradas
+      (`closest('.elementor-lightbox, [data-elementor-lightbox]')`).
+
+    **Snippet Playwright — rodar nas páginas com galeria/grid de imagem (mín.: linha-do-tempo PT+EN):**
+
+    ```js
+    async (page) => {
+      const PATHS = ['/cultura/linha-do-tempo/', '/cultura/en/timeline/'];
+      const BASE = 'https://concertacaoamazonia.com.br';
+      const DPR = 2; // assumir retina como pior caso aceitável
+      const findings = [];
+      for (const path of PATHS) {
+        await page.goto(BASE + path + '?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
+        // disparar lazy-load: rolar a página inteira
+        await page.evaluate(async () => {
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          for (let y = 0; y < document.body.scrollHeight; y += 500) { window.scrollTo(0, y); await sleep(120); }
+          await sleep(1500);
+        });
+        const over = await page.evaluate((DPR) => {
+          const out = [];
+          const check = (naturalW, dispW, src, kind) => {
+            if (naturalW >= 1000 && dispW > 0 && naturalW >= 2 * (dispW * DPR)) {
+              out.push({ kind, src: src.split('/').pop().slice(0, 50), naturalW, dispW: Math.round(dispW), ratio: +(naturalW / (dispW * DPR)).toFixed(1) });
+            }
+          };
+          document.querySelectorAll('img').forEach(i => {
+            if (i.closest('.elementor-lightbox, [data-elementor-lightbox]')) return;
+            const r = i.getBoundingClientRect();
+            if (r.width < 40) return;
+            check(i.naturalWidth, r.width, i.currentSrc || i.src || '', 'img');
+          });
+          // background-image: usar dimensão natural via Image() é async; aproximar pela URL do size
+          // (se a URL não tem sufixo -WxH e o elemento é pequeno, é candidato a full oversized)
+          document.querySelectorAll('.e-gallery-image, [style*="background-image"]').forEach(e => {
+            const bg = getComputedStyle(e).backgroundImage;
+            const m = bg.match(/url\(["']?([^"')]+\.(?:jpg|jpeg|png|webp|avif))/i);
+            if (!m) return;
+            const url = m[1];
+            const r = e.getBoundingClientRect();
+            if (r.width < 40) return;
+            const sizeMatch = url.match(/-(\d+)x(\d+)\.(?:jpg|jpeg|png|webp|avif)$/i);
+            // sem sufixo de size = imagem FULL como background → flag se elemento for pequeno
+            if (!sizeMatch && r.width < 600) out.push({ kind: 'bg-full', src: url.split('/').pop().slice(0, 50), dispW: Math.round(r.width), note: 'background-image usando FULL (sem thumbnail)' });
+            else if (sizeMatch && +sizeMatch[1] >= 2 * (r.width * DPR) && +sizeMatch[1] >= 1000) out.push({ kind: 'bg', src: url.split('/').pop().slice(0, 50), naturalW: +sizeMatch[1], dispW: Math.round(r.width), ratio: +(+sizeMatch[1] / (r.width * DPR)).toFixed(1) });
+          });
+          return out;
+        }, DPR);
+        over.forEach(o => findings.push({ path, ...o }));
+      }
+      return { oversized_imgs: findings.length, findings };
+    }
+    ```
+
+    **Esperado (PASS):** `oversized_imgs: 0` — nenhuma imagem >2× o necessário para o display (retina já contado).
+
+    **Esperado (FAIL):**
+    ```
+    oversized_imgs: 5
+    findings: [{ path:'/cultura/linha-do-tempo/', kind:'bg-full', src:'hq-plenaria-1-1.jpg', dispW:181, note:'background-image usando FULL (sem thumbnail)' }, ...]
+    ```
+
+    Fix: no widget afetado, trocar `thumbnail_image_size`/`image_size` de `full` para um size recortado
+    (`large` 724px, `medium_large` 768px, ou custom). Garantir que o thumbnail recortado exista
+    (`wp media regenerate <id>` se 404). Limpar `_elementor_element_cache` + Elementor CSS + WP Rocket
+    minify + CF. Ver [[feedback_elementor_gallery_thumbnail_full_oversized]].
+
+    Severidade: **MEDIUM** — não quebra a página, mas degrada LCP/banda; relevante em mobile/3G.
+
+### Snippet — Gate 48 (Atlas: popup do mapa por card + paginação next, PT+EN)
+
+Após gates 40+, antes do relatório. **Usa Playwright** (clique de mouse real + JS do
+JetEngine Maps). Origem: bug 2026-05-29 — após criar os 657 artistas EN e regenerar
+coordenadas, os cards da listagem lateral do Atlas referenciam `open_map_listing_popup&id=<post>`,
+mas o **widget de mapa só plota `posts_num` markers** (estava 500 < 645 artistas com
+coordenada). Cards cujo `id` não estava entre os markers plotados **não abriam o popup**
+ao clicar (sintoma: "clique não funciona, exceto Abraão"). Causa = `posts_num` do widget
+de mapa menor que o total de artistas com coordenada + ordenação mapa (ID) ≠ listagem (título).
+
+Roda em PT (`/cultura/atlas-cultural-das-amazonias/`) e EN (`/cultura/en/cultural-atlas-of-the-amazon/`).
+Para cada idioma: (a) confere que os 4 primeiros cards têm `id` presente nos markers do mapa;
+(b) clica com mouse real no `+` do 1º card e verifica que o `.leaflet-popup` abre;
+(c) clica em "next" da paginação e confere que a 1ª linha muda.
+
+```javascript
+// Snippet smoke (browser_run_code_unsafe) — gate 48 — rodar por idioma
+async (page) => {
+  const URLS = {
+    PT: "https://concertacaoamazonia.com.br/cultura/atlas-cultural-das-amazonias/",
+    EN: "https://concertacaoamazonia.com.br/cultura/en/cultural-atlas-of-the-amazon/",
+  };
+  const out = {};
+  for (const [lang, url] of Object.entries(URLS)) {
+    await page.goto(url + "?cb=" + Date.now(), { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".leaflet-marker-icon", { timeout: 15000 }).catch(()=>{});
+    await page.waitForTimeout(3000);
+
+    // (a) 4 primeiros cards têm id nos markers?
+    const idmatch = await page.evaluate(() => {
+      const map = document.querySelector(".jet-map-listing");
+      let markers = []; try { markers = JSON.parse(map.getAttribute("data-markers")); } catch(e){}
+      const set = new Set(markers.map(m => m.id));
+      const cards = Array.from(document.querySelectorAll(".jet-listing-grid__item")).slice(0,4).map(c => {
+        const id = (c.querySelector("a.jet-engine-listing-overlay-link")?.getAttribute("href")?.match(/id=(\d+)/)||[])[1];
+        return { name: c.querySelector(".jet-listing-dynamic-field__content")?.textContent.trim(), id, in_markers: id ? set.has(parseInt(id)) : false };
+      });
+      return { total_markers: markers.length, cards };
+    });
+    const gate_48a = idmatch.cards.every(c => c.in_markers);
+
+    // (b) clicar no + do 1º card abre popup
+    const info = await page.evaluate(() => {
+      const link = document.querySelector(".jet-listing-grid__item a.jet-engine-listing-overlay-link");
+      if (!link) return null;
+      const r = link.getBoundingClientRect();
+      return { cx: r.x + r.width/2, cy: r.y + r.height/2 };
+    });
+    let gate_48b = false;
+    if (info) {
+      await page.mouse.click(info.cx, info.cy);
+      await page.waitForTimeout(4000);
+      gate_48b = await page.evaluate(() => document.querySelectorAll(".leaflet-popup, .leaflet-popup-content-wrapper").length > 0);
+    }
+
+    // (c) paginação next muda a 1ª linha
+    const pag = await page.evaluate(() => {
+      const before = document.querySelector(".jet-listing-grid__item .jet-listing-dynamic-field__content")?.textContent.trim();
+      const nav = document.querySelector(".jet-filters-pagination__item.prev-next.next, .jet-filters-pagination .next");
+      if (!nav) return { found:false, before };
+      const r = nav.getBoundingClientRect();
+      return { found:true, before, cx: r.x + r.width/2, cy: r.y + r.height/2 };
+    });
+    let gate_48c = false, firstAfter = null;
+    if (pag.found) {
+      await page.mouse.click(pag.cx, pag.cy);
+      await page.waitForTimeout(3000);
+      firstAfter = await page.evaluate(() => document.querySelector(".jet-listing-grid__item .jet-listing-dynamic-field__content")?.textContent.trim());
+      gate_48c = firstAfter && firstAfter !== pag.before;
+    }
+
+    out[lang] = {
+      total_markers: idmatch.total_markers,
+      gate_48a_cards_in_markers: { pass: gate_48a, cards: idmatch.cards },
+      gate_48b_popup_opens: { pass: gate_48b },
+      gate_48c_pagination_next: { pass: gate_48c, before: pag.before, after: firstAfter },
+    };
+  }
+  return out;
+}
+```
+
+**Gates do snippet (rodar PT e EN):**
+- Gate 48a PASS: os 4 primeiros cards têm `id` presente em `data-markers` do mapa.
+  Se FAIL → `posts_num` do widget de mapa (`d0df2db`) é menor que o total de artistas
+  com coordenada. Fix: aumentar `posts_num` (atualmente 700) acima do total.
+  Validar: `total_markers` deve ser ≈ nº de artistas com coordenada (~645), não 500.
+- Gate 48b PASS: clicar no `+` do 1º card abre `.leaflet-popup`. Se FAIL com 48a OK →
+  handler do JetEngine Maps quebrado ou popup template (15372) sem conteúdo.
+- Gate 48c PASS: clicar "next" troca a 1ª linha da listagem (paginação JSF funciona).
+  Se FAIL → ver gate 36 (load-more/admin-ajax) — mesma família de POST JSF.
+
+> **Nota:** o `+` (`jet-engine-listing-overlay-link`) é um overlay invisível; testes com
+> `.click()` sintético / `dispatchEvent` NÃO disparam o handler — usar `page.mouse.click`
+> nas coordenadas do elemento (clique de ponteiro real). Os IDs dos cards/markers são os
+> dos posts do idioma corrente (EN tem posts próprios via WPML; ver [[feedback_atlas_filter_i18n_glossary_vs_taxonomy]]).
 
 ## Relatório Final Pragmático
 
