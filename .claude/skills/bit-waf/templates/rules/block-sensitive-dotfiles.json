@@ -1,0 +1,114 @@
+{
+  "_meta": {
+    "name": "block-sensitive-dotfiles",
+    "version": "1.0.0",
+    "description": "Bloqueia tentativas de leitura de dotfiles sensiveis na borda: .git/, .svn/, .hg/, .bzr (VCS), .env (segredos), .aws/ (credenciais), .DS_Store. Defesa em profundidade — mesmo com docroot limpo, nega o vazamento na borda CF antes de chegar ao origin.",
+    "source_incident": "follow-up audit-acl 2026-05-29: /.git/config retornava 200 (era pagina 404 do WP com status errado). Docroot confirmado limpo via SSH, mas sem regra de borda negando dotfiles VCS.",
+    "wcu_estimate": 30,
+    "applies_to": ["wordpress", "generic"],
+    "last_reviewed": "2026-05-29",
+    "notes": [
+      "STARTS_WITH na UriPath pega dotfile na raiz do docroot (/.git, /.env) que e onde 99% dos scanners batem.",
+      "KBI (AWS Managed KnownBadInputs) ja cobre .env profundamente via ExploitablePaths_URIPATH — esta regra adiciona cobertura VCS (.git/.svn/.hg/.bzr) e .aws/ que o KBI nao garante.",
+      "TextTransformation LOWERCASE — scanners variam capitalizacao (.GIT, .Git).",
+      "Action 403 com CustomResponseBodyKey BIT-Recurso-Indisponivel (mesmo padrao de Block-PHP-Scan).",
+      "Nenhum path legitimo do WordPress comeca com /. (dot) na raiz — risco de falso-positivo nulo. .well-known/ NAO casa (nao comeca com /.w... = sim comeca, CUIDADO): por isso usar patterns especificos, nao /. generico.",
+      "NAO usar match generico /.（ponto) — quebraria /.well-known/ (ACME, security.txt). Listar cada dotfile explicitamente."
+    ]
+  },
+  "rule": {
+    "Name": "Block-Sensitive-Dotfiles",
+    "Priority": 18,
+    "Statement": {
+      "OrStatement": {
+        "Statements": [
+          {
+            "ByteMatchStatement": {
+              "_pattern": "starts_with /.git",
+              "SearchString": "Ly5naXQ=",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "STARTS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "starts_with /.svn",
+              "SearchString": "Ly5zdm4=",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "STARTS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "starts_with /.hg/",
+              "SearchString": "Ly5oZy8=",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "STARTS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "starts_with /.bzr",
+              "SearchString": "Ly5ienI=",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "STARTS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "starts_with /.aws/",
+              "SearchString": "Ly5hd3Mv",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "STARTS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "contains /.git/",
+              "SearchString": "Ly5naXQv",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "contains /.svn/",
+              "SearchString": "Ly5zdm4v",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "contains /.ds_store",
+              "SearchString": "Ly5kc19zdG9yZQ==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "CONTAINS"
+            }
+          }
+        ]
+      }
+    },
+    "Action": {
+      "Block": {
+        "CustomResponse": {
+          "ResponseCode": 403,
+          "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+        }
+      }
+    },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Block-Sensitive-Dotfiles"
+    }
+  }
+}

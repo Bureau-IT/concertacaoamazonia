@@ -1,0 +1,135 @@
+{
+  "_meta": {
+    "name": "block-php-scan",
+    "version": "1.0.0",
+    "description": "Bloqueia requests para *.php que NÃO estão na whitelist WordPress oficial. Cobre WordPress vulnerability scanners (zoom1.php, xmrlpc.php, wp_filemanager.php, etc) sem afetar funcionalidade WP.",
+    "source_incident": "audit-acl-2026-05-25 spike scanner 18:43-44 BRT, 284 reqs em 2min",
+    "wcu_estimate": 12,
+    "applies_to": ["wordpress"],
+    "last_reviewed": "2026-05-25",
+    "placeholders": {
+      "{{DEV_IPSET_ARN}}": "ARN do IPSet do DevTeam (waf-sites.yaml: dev_ipset_arn) — bypass para devs admin"
+    },
+    "notes": [
+      "Whitelist baseada em paths .php legítimos do core WordPress + plugins comuns",
+      "DevTeam (NordBrazil90CIDR) bypassa via NOT IPSet — permite acesso a /wp-admin/*.php (users.php, tools.php, upgrade.php)",
+      "Action 403 — scanner é tráfego ofensivo, não merece resposta amigável",
+      "Pattern PATH_ENDS_WITH .php — mais barato (CONTAINS) do que regex",
+      "WHITELIST testada contra 24h logs WAF (293 reqs .php legítimas em sample)"
+    ]
+  },
+  "rule": {
+    "Name": "Block-PHP-Scan",
+    "Priority": 8,
+    "Statement": {
+      "AndStatement": {
+        "Statements": [
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .php",
+              "SearchString": "LnBocA==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "NotStatement": {
+              "Statement": {
+                "OrStatement": {
+                  "Statements": [
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "/wp-admin/admin-ajax.php",
+                        "SearchString": "L3dwLWFkbWluL2FkbWluLWFqYXgucGhw",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "EXACTLY"
+                      }
+                    },
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "/wp-login.php",
+                        "SearchString": "L3dwLWxvZ2luLnBocA==",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "EXACTLY"
+                      }
+                    },
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "/wp-cron.php",
+                        "SearchString": "L3dwLWNyb24ucGhw",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "EXACTLY"
+                      }
+                    },
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "/xmlrpc.php",
+                        "SearchString": "L3htbHJwYy5waHA=",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "EXACTLY"
+                      }
+                    },
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "starts_with /wp-admin/",
+                        "SearchString": "L3dwLWFkbWluLw==",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "STARTS_WITH"
+                      }
+                    },
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "starts_with /wp-content/plugins/",
+                        "SearchString": "L3dwLWNvbnRlbnQvcGx1Z2lucy8=",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "STARTS_WITH"
+                      }
+                    },
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "starts_with /wp-content/themes/",
+                        "SearchString": "L3dwLWNvbnRlbnQvdGhlbWVzLw==",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "STARTS_WITH"
+                      }
+                    },
+                    {
+                      "ByteMatchStatement": {
+                        "_pattern": "starts_with /wp-includes/",
+                        "SearchString": "L3dwLWluY2x1ZGVzLw==",
+                        "FieldToMatch": {"UriPath": {}},
+                        "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+                        "PositionalConstraint": "STARTS_WITH"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "Action": {
+      "Block": {
+        "CustomResponse": {
+          "ResponseCode": 403,
+          "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+        }
+      }
+    },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Block-PHP-Scan"
+    }
+  }
+}

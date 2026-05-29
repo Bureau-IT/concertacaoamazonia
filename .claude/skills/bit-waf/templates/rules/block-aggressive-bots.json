@@ -1,22 +1,23 @@
 {
   "_meta": {
     "name": "block-aggressive-bots",
-    "version": "1.0.0",
-    "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista de UAs em templates/patterns/bot-uas.txt para rotacao independente. Action 429 (Too Many Requests) — sinal honesto pro bot ao inves de Block silencioso.",
+    "version": "1.1.0",
+    "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista expandida em 2026-05-22 após detecção de 8.4k reqs/dia AwarioBot.",
     "source_incidents": [
       "feedback_meta_crawler_block",
-      "feedback_tec_crawler_traps"
+      "feedback_tec_crawler_traps",
+      "feedback_awariobot_blocked"
     ],
     "wcu_estimate": 5,
-    "applies_to": ["wordpress"],
-    "last_reviewed": "2026-05-04",
-    "placeholders": {
-      "{{UA_PATTERNS}}": "Cada pattern como ByteMatchStatement separado dentro de OrStatement. Ver bot-uas.txt para lista atual."
-    },
+    "applies_to": [
+      "wordpress"
+    ],
+    "last_reviewed": "2026-05-25",
     "notes": [
-      "AI bots (ClaudeBot, GPTBot, PerplexityBot) nao incluidos por padrao - decisao por cliente. Concertacao mantem desbloqueados (advocacy ambiental se beneficia de visibilidade em IA).",
-      "Para gerar JSON pronto, processar bot-uas.txt: cada linha nao-comentada vira ByteMatchStatement com SearchString=base64(pattern), CONTAINS, LOWERCASE.",
-      "Action 429 evita 'desafiar' bot real (que pode insistir) e ainda bloqueia."
+      "v1.1.0 (2026-05-22): adicionados AwarioBot, BacklinksExtendedBot, meta-externalagent após 8.4k reqs/dia detectados em logs nginx prod. GPTBot/Baiduspider/YandexImages adicionados ao deploy mas faltavam no template.",
+      "AI bots (ClaudeBot, PerplexityBot) mantidos desbloqueados para Concertação (advocacy ambiental).",
+      "Para regenerar JSON, ler patterns de templates/patterns/bot-uas.txt e gerar ByteMatchStatement com SearchString=base64(pattern), CONTAINS, LOWERCASE.",
+      "Action 429 evita desafiar bot real (que pode insistir) — bloqueio honesto."
     ]
   },
   "rule": {
@@ -27,73 +28,239 @@
         "Statements": [
           {
             "ByteMatchStatement": {
-              "_pattern": "SemrushBot",
-              "SearchString": "c2VtcnVzaGJvdA==",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "R1BUQm90",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           },
           {
             "ByteMatchStatement": {
-              "_pattern": "AhrefsBot",
-              "SearchString": "YWhyZWZzYm90",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "RGF0YUZvclNlb0JvdA==",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           },
           {
             "ByteMatchStatement": {
-              "_pattern": "MJ12bot",
-              "SearchString": "bWoxMmJvdA==",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "QWhyZWZzQm90",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           },
           {
             "ByteMatchStatement": {
-              "_pattern": "bytespider",
-              "SearchString": "Ynl0ZXNwaWRlcg==",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "U2VtcnVzaEJvdA==",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           },
           {
             "ByteMatchStatement": {
-              "_pattern": "Amazonbot",
-              "SearchString": "YW1hem9uYm90",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "TUoxMmJvdA==",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           },
           {
             "ByteMatchStatement": {
-              "_pattern": "PetalBot",
-              "SearchString": "cGV0YWxib3Q=",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "Qnl0ZXNwaWRlcg==",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           },
           {
             "ByteMatchStatement": {
-              "_pattern": "DotBot",
-              "SearchString": "ZG90Ym90",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "QmFpZHVzcGlkZXI=",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           },
           {
             "ByteMatchStatement": {
-              "_pattern": "DataForSeoBot",
-              "SearchString": "ZGF0YWZvcnNlb2JvdA==",
-              "FieldToMatch": {"SingleHeader": {"Name": "user-agent"}},
-              "TextTransformations": [{"Priority": 0, "Type": "LOWERCASE"}],
+              "SearchString": "WWFuZGV4SW1hZ2Vz",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "UGV0YWxCb3Q=",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "YXdhcmlvYm90",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "LOWERCASE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "YmFja2xpbmtzZXh0ZW5kZWRib3Q=",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "LOWERCASE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "bWV0YS1leHRlcm5hbGFnZW50",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "LOWERCASE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "SWJvdUJvdA==",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "QWxpeXVuU2VjQm90",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
               "PositionalConstraint": "CONTAINS"
             }
           }
@@ -103,7 +270,7 @@
     "Action": {
       "Block": {
         "CustomResponse": {
-          "ResponseCode": 429
+          "ResponseCode": 403
         }
       }
     },

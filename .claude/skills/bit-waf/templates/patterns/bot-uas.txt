@@ -6,11 +6,12 @@
 #
 # Formato: regex case-insensitive (PositionalConstraint=CONTAINS).
 #
-# Last reviewed: 2026-05-04
+# Last reviewed: 2026-05-25
 # Source incidents:
 #   - feedback_meta_crawler_block (meta-externalagent satura FPM)
 #   - feedback_referer_literal_bot_block (fake-Firefox/142, Chrome/147)
 #   - feedback_tec_crawler_traps (events-calendar saturation)
+#   - feedback_awariobot_blocked (8.4k reqs/dia, deploy 2026-05-22)
 
 # === Search/SEO crawlers que ignoram robots.txt ou nao tem assinatura ativa ===
 SemrushBot                 # SEO scraper, nao temos assinatura Semrush
@@ -18,6 +19,12 @@ AhrefsBot                  # SEO scraper, nao temos assinatura Ahrefs
 MJ12bot                    # Majestic SEO, agressivo em sites pequenos
 DotBot                     # Moz, agressivo
 PetalBot                   # Huawei search, agressivo BR
+BacklinksExtendedBot       # SEO link-graph builder, adicionado 2026-05-22 (135 reqs/dia)
+DataForSeoBot              # SEO data collection
+Baiduspider                # Baidu search, agressivo
+YandexImages               # Yandex image crawler
+IbouBot                    # SEO scraper, baixa identificacao
+AliyunSecBot               # Alibaba security scanner
 
 # === AI training scrapers (decisao caso-a-caso por cliente) ===
 # Manter desbloqueados por padrao para Concertacao (visibilidade em IAs e estrategica
@@ -35,6 +42,13 @@ Claude-Web                 # Distinto de ClaudeBot - nao verificado
 # === Social media crawlers que saturam ===
 meta-externalagent         # Facebook, ignora robots, satura FPM (incidente 2026-05-01)
 # facebookexternalhit      # MANTER - usado por share buttons legitimos
+
+# === Brand monitoring / social listening ===
+AwarioBot                  # Awario social listening, 8.4k reqs/dia (incidente 2026-05-22)
+
+# === AI bots adicionados em prod (revisar caso-a-caso) ===
+GPTBot                     # OpenAI scraper - ATIVO em prod desde antes
+# Concertacao manteve GPTBot bloqueado (decisao revisar em proxima auditoria)
 
 # === Spider/scanner generico identificavel ===
 TikTokSpider               # ByteDance scanning
