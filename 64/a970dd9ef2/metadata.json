@@ -3,7 +3,7 @@
   "checkpoint_id": "64a970dd9ef2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 39,
+  "checkpoints_count": 40,
   "files_touched": [
     "docs/runbook-deploy-atlas-en-prod.md",
     "scripts/01-eixos-translate.php",
@@ -48,13 +48,20 @@
       "context": "/64/a970dd9ef2/3/context.md",
       "content_hash": "/64/a970dd9ef2/3/content_hash.txt",
       "prompt": "/64/a970dd9ef2/3/prompt.txt"
+    },
+    {
+      "metadata": "/64/a970dd9ef2/4/metadata.json",
+      "transcript": "/64/a970dd9ef2/4/full.jsonl",
+      "context": "/64/a970dd9ef2/4/context.md",
+      "content_hash": "/64/a970dd9ef2/4/content_hash.txt",
+      "prompt": "/64/a970dd9ef2/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 15348,
-    "cache_creation_tokens": 20589747,
-    "cache_read_tokens": 988070443,
-    "output_tokens": 1760886,
-    "api_call_count": 2213
+    "input_tokens": 17830,
+    "cache_creation_tokens": 29612868,
+    "cache_read_tokens": 1254170914,
+    "output_tokens": 2304165,
+    "api_call_count": 2795
   }
 }
