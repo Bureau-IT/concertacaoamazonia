@@ -1,20 +1,23 @@
 {
   "_meta": {
     "name": "block-aggressive-bots",
-    "version": "1.1.0",
-    "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista expandida em 2026-05-22 após detecção de 8.4k reqs/dia AwarioBot.",
+    "version": "1.2.0",
+    "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista expandida em 2026-05-22 (AwarioBot) e 2026-06-08 (scraper fake-Chrome que afogou CPU/zerou créditos t3).",
     "source_incidents": [
       "feedback_meta_crawler_block",
       "feedback_tec_crawler_traps",
-      "feedback_awariobot_blocked"
+      "feedback_awariobot_blocked",
+      "incident-504-fakechrome-t3-credits"
     ],
-    "wcu_estimate": 5,
+    "wcu_estimate": 6,
     "applies_to": [
       "wordpress"
     ],
-    "last_reviewed": "2026-05-25",
+    "last_reviewed": "2026-06-08",
     "notes": [
+      "v1.2.0 (2026-06-08): adicionado scraper fake-Chrome (UA 'AppleWebKit/537.36 Chrome/124.0 Safari/537.36' sem '(KHTML, like Gecko)') após incidente 504 — 60k reqs/dia afogaram a CPU e zeraram os créditos t3.large. Ver bot-uas.txt para a assinatura e o match endurecido recomendado.",
       "v1.1.0 (2026-05-22): adicionados AwarioBot, BacklinksExtendedBot, meta-externalagent após 8.4k reqs/dia detectados em logs nginx prod. GPTBot/Baiduspider/YandexImages adicionados ao deploy mas faltavam no template.",
+      "DRIFT template x prod: a ACL prod tinha 19 statements em 2026-06-08 vs ~14 do template histórico — re-sincronizar numa próxima auditoria (audit-acl).",
       "AI bots (ClaudeBot, PerplexityBot) mantidos desbloqueados para Concertação (advocacy ambiental).",
       "Para regenerar JSON, ler patterns de templates/patterns/bot-uas.txt e gerar ByteMatchStatement com SearchString=base64(pattern), CONTAINS, LOWERCASE.",
       "Action 429 evita desafiar bot real (que pode insistir) — bloqueio honesto."
@@ -250,6 +253,24 @@
           {
             "ByteMatchStatement": {
               "SearchString": "QWxpeXVuU2VjQm90",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "_comment": "Scraper fake-Chrome (incidente 2026-06-08). SearchString=base64('AppleWebKit/537.36 Chrome/124.0 Safari/537.36') — substring impossivel em Chrome legitimo (falta '(KHTML, like Gecko)' + versao curta). FRAGIL a evasao de versao; endurecimento recomendado em bot-uas.txt (AND CONTAINS 'Chrome/' + NOT CONTAINS '(KHTML, like Gecko)').",
+            "ByteMatchStatement": {
+              "SearchString": "QXBwbGVXZWJLaXQvNTM3LjM2IENocm9tZS8xMjQuMCBTYWZhcmkvNTM3LjM2",
               "FieldToMatch": {
                 "SingleHeader": {
                   "Name": "user-agent"

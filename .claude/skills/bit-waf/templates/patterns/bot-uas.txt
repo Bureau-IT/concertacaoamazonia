@@ -61,6 +61,23 @@ Sogou                      # Sogou search (China), agressivo
 # - Chrome/147 com referer literal sem path
 # Esses sao bloqueados via nginx map (deny_bot_referer) ao inves de WAF UA match
 # por serem mais facilmente contornaveis em WAF (mudanca de UA trivial).
+#
+# --- Incidente 2026-06-08: scraper fake-Chrome afogou CPU (504 / t3 credits zerados) ---
+# UA: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
+# Assinatura de fake: Chrome real SEMPRE tem "AppleWebKit/537.36 (KHTML, like Gecko)
+#   Chrome/124.0.6367.x" — o scraper omite "(KHTML, like Gecko)" E usa versao curta
+#   (124.0 em vez de 124.0.NNNN.N). 60.136 reqs (93% do trafego anormal), varrendo
+#   /internal/log.sql e /admin/httpsdocs.* (dumps SQL expostos).
+# Bloqueado em prod via Block-AggressiveBots: ByteMatchStatement CONTAINS no user-agent,
+#   SearchString="AppleWebKit/537.36 Chrome/124.0 Safari/537.36" (substring impossivel
+#   em Chrome legitimo), TT=NONE. Zero falso-positivo confirmado (Chrome/Edge/Opera/Brave
+#   reais e Chrome Android = 200).
+# GOTCHA — match FRAGIL a evasao: trocar Chrome/124.0 -> 125.0 ou inserir
+#   "(KHTML, like Gecko)" escapa. Match endurecido recomendado (validar em Count antes):
+#   AND[ CONTAINS "Chrome/", NOT CONTAINS "(KHTML, like Gecko)" ] — captura a assinatura
+#   estrutural (Chromium-like sem o token KHTML obrigatorio), resiste a bump de versao.
+#   Como e um AND, NAO cabe como item simples do OrStatement de UAs; entra como
+#   AndStatement separado dentro do OrStatement, ou como rule dedicada.
 
 # === Crawler genericos com nome explicito ===
 crawler                    # match generico CONTAINS - cuidado com falso-positivo
