@@ -77,13 +77,13 @@ nova usa orderby por título ASC (padrão estável para listagem de plataformas)
 Filtro de tema (checkbox `13571`) injeta a query var `categorias-da-plataforma`
 sobre a taxonomia `eixos` via glossary; o provider JSF é `plataformas-de-pesquisa`
 (= `_element_id` do listing). A query nova deve ser do tipo `posts`,
-`post_type=plataformas`, `post_status=publish`, `posts_per_page=8` (espelhando o
-`posts_num=8` atual do widget e o "Load More"), sem tax_query fixa (os filtros
-injetam dinamicamente, como na query 12).
+`post_type=plataformas`, `post_status=publish`, `posts_per_page=12`, sem tax_query
+fixa (os filtros injetam dinamicamente, como na query 12).
 
-> **Nota — posts_per_page:** o listing usa `posts_num=8` + Load More. A query 12
-> da Espiral usa `posts_per_page=12`, daí o "12". A query nova usa **8** para bater
-> com o comportamento atual da página. O `[end-item]` cobre qualquer valor.
+> **Nota — posts_per_page:** definido em **12** (decisão do Daniel 2026-06-08),
+> alinhado à query 12 da Espiral. O widget de listing tinha `posts_num=8`; será
+> ajustado para 12 também, ou o `custom_query_id` sobrescreve o `posts_num` do
+> widget (a query manda no paging). O `[end-item]` cobre qualquer valor.
 
 ## Componentes da mudança
 
@@ -91,7 +91,7 @@ injetam dinamicamente, como na query 12).
 
 - Tipo: `posts`
 - `post_type: ["plataformas"]`, `post_status: ["publish"]`
-- `posts_per_page: 8`
+- `posts_per_page: 12`
 - `orderby: title ASC`
 - Sem meta/tax query fixa (filtros injetam via provider)
 - **Criada via JetEngine** (UI ou MCP `jetengine-mcp tool-add-query`), capturando
@@ -102,8 +102,8 @@ injetam dinamicamente, como na query 12).
 No `_elementor_data`:
 
 - **Listing `23d592f`**: adicionar `"use_custom_query":"yes"` e
-  `"custom_query_id":"<NEW_QID>"`. Manter `_element_id=plataformas-de-pesquisa`
-  e `posts_num=8`.
+  `"custom_query_id":"<NEW_QID>"`. Manter `_element_id=plataformas-de-pesquisa`.
+  Ajustar `posts_num` para `12` (ou deixar a query mandar no paging).
 - **Count `b2d868d`**: trocar o dynamic tag para
   `query_id=<NEW_QID>`, `count_type=custom_format`,
   `custom_format = "Mostrando [end-item] de %total% plataformas cadastradas"`.
