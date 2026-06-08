@@ -23,6 +23,10 @@ BacklinksExtendedBot       # SEO link-graph builder, adicionado 2026-05-22 (135 
 DataForSeoBot              # SEO data collection
 Baiduspider                # Baidu search, agressivo
 YandexImages               # Yandex image crawler
+YandexBot                  # Yandex search, agressivo (sincronizado da ACL 2026-06-08)
+YandexAccessibilityBot     # Yandex a11y crawler (sincronizado da ACL 2026-06-08)
+YandexMobileBot            # Yandex mobile crawler (sincronizado da ACL 2026-06-08)
+YandexImageResizer         # Yandex image resizer (sincronizado da ACL 2026-06-08)
 IbouBot                    # SEO scraper, baixa identificacao
 AliyunSecBot               # Alibaba security scanner
 

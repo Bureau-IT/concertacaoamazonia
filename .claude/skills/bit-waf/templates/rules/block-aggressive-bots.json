@@ -1,26 +1,27 @@
 {
   "_meta": {
     "name": "block-aggressive-bots",
-    "version": "1.2.0",
-    "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista expandida em 2026-05-22 (AwarioBot) e 2026-06-08 (scraper fake-Chrome que afogou CPU/zerou créditos t3).",
+    "version": "1.3.0",
+    "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista expandida em 2026-05-22 (AwarioBot), 2026-06-08 (scraper fake-Chrome). Re-sincronizado com a ACL prod em 2026-06-08 (19 statements).",
     "source_incidents": [
       "feedback_meta_crawler_block",
       "feedback_tec_crawler_traps",
       "feedback_awariobot_blocked",
       "incident-504-fakechrome-t3-credits"
     ],
-    "wcu_estimate": 6,
+    "wcu_estimate": 26,
     "applies_to": [
       "wordpress"
     ],
     "last_reviewed": "2026-06-08",
     "notes": [
-      "v1.2.0 (2026-06-08): adicionado scraper fake-Chrome (UA 'AppleWebKit/537.36 Chrome/124.0 Safari/537.36' sem '(KHTML, like Gecko)') após incidente 504 — 60k reqs/dia afogaram a CPU e zeraram os créditos t3.large. Ver bot-uas.txt para a assinatura e o match endurecido recomendado.",
-      "v1.1.0 (2026-05-22): adicionados AwarioBot, BacklinksExtendedBot, meta-externalagent após 8.4k reqs/dia detectados em logs nginx prod. GPTBot/Baiduspider/YandexImages adicionados ao deploy mas faltavam no template.",
-      "DRIFT template x prod: a ACL prod tinha 19 statements em 2026-06-08 vs ~14 do template histórico — re-sincronizar numa próxima auditoria (audit-acl).",
+      "v1.3.0 (2026-06-08): RE-SINCRONIZADO com a ACL prod (fonte da verdade). Drift resolvido: (a) adicionados 4 Yandex bots que estavam na ACL mas faltavam no template (YandexBot, YandexAccessibilityBot, YandexMobileBot, YandexImageResizer); (b) o fake-Chrome virou AndStatement ENDURECIDO [CONTAINS 'chrome/' LOWERCASE + NOT CONTAINS 'khtml, like gecko' LOWERCASE] em vez do literal 'Chrome/124.0' — resiste a evasão de versão e NÃO pega Googlebot/bingbot (que usam 'KHTML, like Gecko;' com ponto-e-vírgula, não ')'). Total: 19 statements.",
+      "v1.2.0 (2026-06-08): adicionado scraper fake-Chrome após incidente 504 — 60k reqs/dia afogaram a CPU e zeraram os créditos t3.large.",
+      "v1.1.0 (2026-05-22): adicionados AwarioBot, BacklinksExtendedBot, meta-externalagent após 8.4k reqs/dia detectados em logs nginx prod.",
+      "GOTCHA fake-Chrome: NUNCA negar '(KHTML, like Gecko)' COM parêntese — bloqueia Googlebot/bingbot/Amazonbot (incidente SEO ~4.5k hits/dia). Negar 'khtml, like gecko' SEM parêntese.",
       "AI bots (ClaudeBot, PerplexityBot) mantidos desbloqueados para Concertação (advocacy ambiental).",
-      "Para regenerar JSON, ler patterns de templates/patterns/bot-uas.txt e gerar ByteMatchStatement com SearchString=base64(pattern), CONTAINS, LOWERCASE.",
-      "Action 429 evita desafiar bot real (que pode insistir) — bloqueio honesto."
+      "Para regenerar JSON: extrair os Statements vivos da ACL prod (fonte da verdade) via get-web-acl; o template segue a ACL, não o contrário, após o drift de 2026-06-08.",
+      "Action 403 com CustomResponseBodyKey. Antes documentado como 429 — a ACL usa 403."
     ]
   },
   "rule": {
@@ -268,9 +269,8 @@
             }
           },
           {
-            "_comment": "Scraper fake-Chrome (incidente 2026-06-08). SearchString=base64('AppleWebKit/537.36 Chrome/124.0 Safari/537.36') — substring impossivel em Chrome legitimo (falta '(KHTML, like Gecko)' + versao curta). FRAGIL a evasao de versao; endurecimento recomendado em bot-uas.txt (AND CONTAINS 'Chrome/' + NOT CONTAINS '(KHTML, like Gecko)').",
             "ByteMatchStatement": {
-              "SearchString": "QXBwbGVXZWJLaXQvNTM3LjM2IENocm9tZS8xMjQuMCBTYWZhcmkvNTM3LjM2",
+              "SearchString": "WWFuZGV4Qm90",
               "FieldToMatch": {
                 "SingleHeader": {
                   "Name": "user-agent"
@@ -283,6 +283,101 @@
                 }
               ],
               "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "WWFuZGV4QWNjZXNzaWJpbGl0eUJvdA==",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "WWFuZGV4TW9iaWxlQm90",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "WWFuZGV4SW1hZ2VSZXNpemVy",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "AndStatement": {
+              "Statements": [
+                {
+                  "ByteMatchStatement": {
+                    "SearchString": "Y2hyb21lLw==",
+                    "FieldToMatch": {
+                      "SingleHeader": {
+                        "Name": "user-agent"
+                      }
+                    },
+                    "TextTransformations": [
+                      {
+                        "Priority": 0,
+                        "Type": "LOWERCASE"
+                      }
+                    ],
+                    "PositionalConstraint": "CONTAINS"
+                  }
+                },
+                {
+                  "NotStatement": {
+                    "Statement": {
+                      "ByteMatchStatement": {
+                        "SearchString": "a2h0bWwsIGxpa2UgZ2Vja28=",
+                        "FieldToMatch": {
+                          "SingleHeader": {
+                            "Name": "user-agent"
+                          }
+                        },
+                        "TextTransformations": [
+                          {
+                            "Priority": 0,
+                            "Type": "LOWERCASE"
+                          }
+                        ],
+                        "PositionalConstraint": "CONTAINS"
+                      }
+                    }
+                  }
+                }
+              ]
             }
           }
         ]
