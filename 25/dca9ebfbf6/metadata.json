@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "25dca9ebfbf6",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".claude/skills/bit-waf/templates/patterns/bot-uas.txt"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/dca9ebfbf6/0/metadata.json",
+      "transcript": "/25/dca9ebfbf6/0/full.jsonl",
+      "context": "/25/dca9ebfbf6/0/context.md",
+      "content_hash": "/25/dca9ebfbf6/0/content_hash.txt",
+      "prompt": "/25/dca9ebfbf6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 29310,
+    "cache_creation_tokens": 10365917,
+    "cache_read_tokens": 515107319,
+    "output_tokens": 796578,
+    "api_call_count": 1084
+  }
+}

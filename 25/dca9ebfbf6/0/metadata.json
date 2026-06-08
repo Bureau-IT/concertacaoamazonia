@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "25dca9ebfbf6",
+  "session_id": "6f0847f9-28b0-4cba-b914-7eabc8f72ca3",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-08T21:11:48.578989Z",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".claude/skills/bit-waf/templates/patterns/bot-uas.txt"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6d9db3072ab0",
+  "token_usage": {
+    "input_tokens": 29310,
+    "cache_creation_tokens": 10365917,
+    "cache_read_tokens": 515107319,
+    "output_tokens": 796578,
+    "api_call_count": 1084
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-08T21:11:44.870672Z",
+    "agent_lines": 0,
+    "human_added": 43,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 43,
+    "agent_percentage": 0
+  }
+}
