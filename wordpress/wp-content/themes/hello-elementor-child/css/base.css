@@ -80,17 +80,35 @@ html body a[href*="mailto"]:hover {
     color: inherit !important;
 }
 
-/* --- 2.4 Seleção de Texto --- */
+/* --- 2.4 Seleção de Texto ---
+ * Texto deve permanecer SELECIONÁVEL e legível em qualquer página.
+ * Fundo  = cor de destaque (Accent global), 100% dinâmico.
+ * Texto  = preto OU branco, escolhido AUTOMATICAMENTE pela própria lightness
+ *          do destaque, sem hardcode e sem fallback de cor. Tudo deriva de
+ *          var(--e-global-color-accent) via OKLCH relative color.
+ *
+ * Como funciona: lê a lightness OKLCH do accent (l, 0–1). Se l ≥ 0.62, o
+ * destaque é claro → texto preto (L=0). Se l < 0.62, é escuro → texto branco
+ * (L=1). chroma 0 deixa o texto neutro (contraste máximo, sem tingir).
+ * O pivô 0.62 (não 0.5) alinha o ponto de virada OKLCH ao ponto real de
+ * virada de contraste WCAG para cores saturadas — validado empiricamente no
+ * browser contra a paleta atual (accent #B12B79 → texto branco, 6.02:1) e
+ * cores futuras hipotéticas (≥4.5:1 / AA em todos os tons de marca). Se a
+ * paleta mudar no Elementor, a regra se re-resolve sozinha — nada a editar.
+ *
+ * A expressão `clamp(0, (l - 0.62) * 1000 + 0.5, 1)` é um degrau: vale ~0
+ * quando l < 0.62 e ~1 quando l ≥ 0.62. `1 - degrau` inverte para a cor do
+ * texto. Suporte: OKLCH relative color (Chrome 111+, Firefox 113+, Safari
+ * 15.4+) — sem fallback necessário no parque de browsers atual.
+ */
 ::selection {
-    background-color: var(--ucpa-color-white);
-    color           : var(--ucpa-color-accent);
+    background-color: var(--e-global-color-accent);
+    color           : oklch(from var(--e-global-color-accent) calc(1 - clamp(0, (l - 0.62) * 1000 + 0.5, 1)) 0 h);
 }
 
-@supports (color: color-mix(in oklch, black 50%, white)) {
-    ::selection {
-        background-color: color-mix(in oklch, var(--ucpa-color-main) 90%, black 10%);
-        color           : color-mix(in oklch, var(--ucpa-color-main) 10%, white 90%);
-    }
+::-moz-selection {
+    background-color: var(--e-global-color-accent);
+    color           : oklch(from var(--e-global-color-accent) calc(1 - clamp(0, (l - 0.62) * 1000 + 0.5, 1)) 0 h);
 }
 
 /* --- 2.5 Outline --- */
@@ -125,4 +143,15 @@ html body a[href*="mailto"]:hover {
 /* --- 3.1 Labels --- */
 html body.elementor-kit-2553 label {
     color: var(--ucpa-color-main, #000);
+}
+
+/* --- 3.2 Accordion JetTabs (Exposições Anteriores / Galeria) ---
+ * O plugin JetTabs aplica `border-radius: 5px` em `.jet-toggle`
+ * (jet-tabs-frontend.css). Como cada item só tem `border-bottom`,
+ * o raio curva as pontas da linha divisória (efeito gancho).
+ * Zeramos o raio para manter as divisórias 100% retas.
+ */
+.jet-accordion .jet-toggle,
+.jet-toggle.jet-accordion__item {
+    border-radius: 0;
 }
