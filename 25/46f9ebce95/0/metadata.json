@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "2546f9ebce95",
+  "session_id": "30786c78-79f8-46e6-a0a5-9245b635a710",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-09T01:01:10.38949Z",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/superpowers/plans/2026-06-08-mapa-plataformas-query-count.md",
+    "docs/superpowers/specs/2026-06-08-mapa-plataformas-query-count-design.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b10480721415",
+  "token_usage": {
+    "input_tokens": 29008,
+    "cache_creation_tokens": 370535,
+    "cache_read_tokens": 41303066,
+    "output_tokens": 113030,
+    "api_call_count": 218
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-09T01:01:09.997803Z",
+    "agent_lines": 38,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 38,
+    "agent_percentage": 100
+  }
+}
