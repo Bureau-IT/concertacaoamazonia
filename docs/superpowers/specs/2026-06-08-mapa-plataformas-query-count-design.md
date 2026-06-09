@@ -42,15 +42,33 @@ widget de count** (nenhum heading com dynamic tag).
 
 1. **"Conta estudos, não plataformas"** — o count lê a query 12 (estudos), que
    nenhum filtro da página Mapa dispara.
-2. **"<12 mostra 12"** — `jet-query-count` só funciona com **queries do Query
-   Builder**. A macro `%visible%` (`Posts_Query::get_items_page_count()` =
-   `$wp_query->post_count`) é atualizada no AJAX pelo JS do JetSmartFilters
-   **apenas quando o `<span data-query="N">` casa com o provider que o filtro
-   dispara**. Como o count aponta para a query 12 (não disparada na Mapa), o
-   número fica congelado no valor renderizado no servidor na 1ª página
-   (`posts_per_page=12`). A macro **`[end-item]`** (`get_end_item_index_on_page()`)
-   limita ao `post_count` real e é a forma robusta — por isso a Espiral já tem
-   um widget corrigido (`0781799`) usando `[end-item]`.
+2. **"<12 mostra 12"** — o `jet-query-count` é renderizado server-side e só é
+   **atualizado no AJAX do filtro via "fragments"** que o JetEngine injeta em
+   `jet-smart-filters/render/ajax/data` (ver
+   `query-builder/listings/filters.php::maybe_setup_filter`, linhas ~150-161).
+   Os fragments são keyed pelo selector
+   `.jet-engine-query-count.count-type-end-item.query-<ID>` e só são emitidos
+   **quando o listing é renderizado através do pipeline do Query Builder** —
+   ou seja, quando o widget de listing efetivamente usa uma custom query.
+
+> **DESCOBERTA CRÍTICA (validada empiricamente em dev 2026-06-08):** O gate que
+> faz o listing usar a Query Builder query é a setting **`custom_query` = "yes"**
+> (booleano), lida em `query-builder/listings/manager.php::get_query_id()`:
+> `$is_custom_query = filter_var($settings['custom_query'], FILTER_VALIDATE_BOOLEAN)`.
+> A chave **`use_custom_query`** (que aparece em alguns exports da Espiral) **NÃO
+> é lida** por este gate. Se setarmos só `use_custom_query=yes` + `custom_query_id`,
+> o listing AINDA renderiza pela fonte interna, o hook `maybe_setup_filter` NÃO
+> dispara para a query, os fragments de count NÃO são emitidos, e o contador fica
+> **congelado** ("12") em qualquer filtro. **Setar `custom_query="yes"`** (a chave
+> correta) + `custom_query_id="76"` resolve: o render passa pelo Query Builder,
+> os fragments são emitidos e o `[end-item]`/`%total%` atualizam no AJAX.
+>
+> Reprodução do fix: busca "Emergência" (1 resultado) → conta passou de
+> "12 de 60" travado para **"1 de 1"** correto, ao vivo.
+
+A macro **`[end-item]`** (`get_end_item_index_on_page()`) é a forma robusta para
+o `%visible%` (ambas refletem `post_count` da página, mas `[end-item]` é a que a
+Espiral já usava no widget corrigido `0781799`).
 
 O `jet-query-count` exige um `query_id` numérico do Query Builder. O listing de
 plataformas hoje **não** usa uma query do Query Builder (usa a fonte interna do
@@ -101,24 +119,35 @@ fixa (os filtros injetam dinamicamente, como na query 12).
 
 No `_elementor_data`:
 
-- **Listing `23d592f`**: adicionar `"use_custom_query":"yes"` e
-  `"custom_query_id":"<NEW_QID>"`. Manter `_element_id=plataformas-de-pesquisa`.
-  Ajustar `posts_num` para `12` (ou deixar a query mandar no paging).
+- **Listing `23d592f`**: setar **`"custom_query":"yes"`** (CHAVE CORRETA) e
+  `"custom_query_id":"<NEW_QID>"`; remover `use_custom_query` se existir. Manter
+  `_element_id=plataformas-de-pesquisa`. Ajustar `posts_num` para `12`.
 - **Count `b2d868d`**: trocar o dynamic tag para
   `query_id=<NEW_QID>`, `count_type=custom_format`,
   `custom_format = "Mostrando [end-item] de %total% plataformas cadastradas"`.
 
 ### 3. Mapa EN (75718) — religar listing + ADICIONAR count
 
-- **Listing `23d592f`**: mesma alteração (`custom_query_id=<NEW_QID>`).
+- **Listing `23d592f`**: mesma alteração (**`custom_query=yes`** + `custom_query_id=<NEW_QID>`).
 - **Adicionar** um widget heading idêntico ao count PT, posicionado no mesmo
   container de resultados, com dynamic tag:
   `custom_format = "Showing [end-item] of %total% registered platforms"`.
 
-### 4. Espiral PT (26826) — corrigir bug %visible%
+### 4. Espiral PT (26826) + EN (79123) — CORREÇÃO REAL = `custom_query=yes` no listing
 
-- **Remover** o widget bugado `bb87a69` (usa `%visible%`), OU trocá-lo para
-  `[end-item]`. Decisão: **trocar `%visible%` → `[end-item]`** no `bb87a69`
+> **REVISÃO 2026-06-08 (validada ao vivo):** o sintoma "<12 mostra 12" na Espiral
+> tem a MESMA causa raiz da Mapa: o listing `1a6ba01` tinha só `custom_query_id=12`
+> SEM `custom_query=yes`, então renderizava pela fonte interna (CPT estudos) e o
+> count NÃO atualizava no AJAX (fragments não emitidos). Comprovado: busca
+> "adolesc" (2 resultados) mostrava **"12 de 421"** travado em AMBOS os widgets
+> (`%visible%` E `[end-item]`). Após setar **`custom_query=yes`** no `1a6ba01`,
+> a busca passou a mostrar **"2 de 2"** corretamente em todos os spans —
+> **inclusive no widget `%visible%`**. Ou seja: a troca `%visible%`→`[end-item]`
+> NÃO era o fix; o fix é `custom_query=yes`. A troca de macro vira cleanup opcional.
+
+- **Listing `1a6ba01`** (PT `26826` e EN `79123`): setar **`custom_query="yes"`**
+  + `custom_query_id="12"`. Este é o fix que faz o contador atualizar no filtro.
+- **(Opcional/cosmético) Macro `%visible%` → `[end-item]`** no `bb87a69`
   (menos invasivo que remover; mantém qualquer estilo aplicado). O widget
   `0781799` já está correto e fica como está.
   - Após o ajuste, os dois widgets ficam consistentes (ambos `[end-item]`).

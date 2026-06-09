@@ -111,7 +111,16 @@ Não há arquivo versionado nesta task (query vive no banco dev). Pular commit; 
 
 ## Task 2: Religar o listing grid à nova query (PT 26827 + EN 75718)
 
-O widget `23d592f` existe igual nas duas páginas. Vamos adicionar `use_custom_query=yes` + `custom_query_id=<NEW_QID>` e ajustar `posts_num=12`.
+O widget `23d592f` existe igual nas duas páginas. Vamos setar **`custom_query=yes`** (CHAVE CORRETA — gate de `get_query_id()`) + `custom_query_id=<NEW_QID>` e ajustar `posts_num=12`.
+
+> **⚠️ CHAVE CORRETA = `custom_query`, NÃO `use_custom_query`.** Validado em dev:
+> `query-builder/listings/manager.php::get_query_id()` lê
+> `filter_var($settings['custom_query'], FILTER_VALIDATE_BOOLEAN)`. Sem
+> `custom_query=yes`, o listing renderiza pela fonte interna, o hook que emite os
+> count-fragments do AJAX (`maybe_setup_filter`) NÃO dispara, e o contador fica
+> congelado em "12" sob qualquer filtro (= o bug "<12 mostra 12"). NÃO usar
+> `use_custom_query` (não é lido). O script abaixo já usa a chave certa e remove
+> `use_custom_query` se existir.
 
 **Files:**
 - Modify (banco): meta `_elementor_data` de `26827` e `75718`
@@ -140,8 +149,9 @@ foreach ([26827, 75718] as $pid) {
   $mut = function(&$els) use (&$mut, $qid, &$changed) {
     foreach ($els as &$el) {
       if (($el["id"] ?? "") === "23d592f") {
-        $el["settings"]["use_custom_query"] = "yes";
+        $el["settings"]["custom_query"] = "yes";      // CHAVE CORRETA (gate get_query_id)
         $el["settings"]["custom_query_id"] = $qid;
+        unset($el["settings"]["use_custom_query"]);    // remove chave errada se existir
         $el["settings"]["posts_num"] = 12;
         $changed = true;
       }
@@ -174,11 +184,16 @@ foreach ([26827,75718] as $pid){
   echo "[$pid] json_valid=".(is_array($d)?"SIM":"NAO")."\n";
   $f=null; $w=function($els)use(&$w,&$f){foreach($els as $el){if(($el["id"]??"")==="23d592f")$f=$el["settings"];if(!empty($el["elements"]))$w($el["elements"]);}};
   $w($d);
-  echo "   use_custom_query=".($f["use_custom_query"]??"-")." custom_query_id=".($f["custom_query_id"]??"-")." posts_num=".($f["posts_num"]??"-")."\n";
+  echo "   custom_query=".($f["custom_query"]??"-")." custom_query_id=".($f["custom_query_id"]??"-")." posts_num=".($f["posts_num"]??"-")."\n";
 }
 '
 ```
-Expected (ambas): `json_valid=SIM`, `use_custom_query=yes custom_query_id=<NEW_QID> posts_num=12`.
+Expected (ambas): `json_valid=SIM`, `custom_query=yes custom_query_id=<NEW_QID> posts_num=12`.
+
+- [ ] **Step 3b: Validar AO VIVO que o contador atualiza no filtro (gate do fix)**
+
+Abrir `https://cambrasmax.local:8484/conhecimento/mapa-das-plataformas/` no browser, digitar "Emergência" no campo de busca (com keystrokes reais — `pressSequentially` no Playwright; eventos sintéticos `dispatchEvent` NÃO disparam o debounce do JSF de forma confiável). Aguardar o AJAX.
+Expected: o contador muda de "Mostrando 12 de 60..." para **"Mostrando 1 de 1 plataformas cadastradas"** (1 card renderizado). Se continuar "12 de 60" com 1 card, o `custom_query` NÃO pegou — revisar Step 2.
 
 - [ ] **Step 4: Limpar caches Elementor das 2 páginas**
 
@@ -381,11 +396,39 @@ Expected: aparece **"Showing 12 of 60 registered platforms"**; com busca de pouc
 
 ---
 
-## Task 5: Corrigir a Espiral (PT 26826 + EN 79123) — `%visible%` → `[end-item]` + traduzir EN
+## Task 5: Corrigir a Espiral (PT 26826 + EN 79123) — `custom_query=yes` no listing + traduzir EN
 
-Na Espiral, o widget `bb87a69` usa `%visible%` (bugado). O `0781799` já usa `[end-item]`. Vamos: trocar `bb87a69` para `[end-item]` (PT e EN), e traduzir os textos no EN.
+> **CORREÇÃO REAL (validada em dev 2026-06-08):** o contador da Espiral congela em
+> "12" no filtro pela MESMA causa da Mapa — o listing `1a6ba01` tinha só
+> `custom_query_id=12` SEM `custom_query=yes`, então renderizava pela fonte interna
+> e o count não atualizava no AJAX. **O fix decisivo é setar `custom_query=yes` no
+> listing `1a6ba01` (PT e EN)** — comprovado: busca "adolesc" (2 resultados) saiu
+> de "12 de 421" travado para "2 de 2" correto, inclusive no widget `%visible%`.
+> A troca `%visible%`→`[end-item]` é cleanup cosmético (ambas as macros dão o mesmo
+> valor correto quando os fragments atualizam). Tradução EN segue necessária.
+
+Passos: (1) `custom_query=yes` no `1a6ba01` em PT+EN; (2) [cosmético] trocar
+`bb87a69` `%visible%`→`[end-item]` em PT; (3) traduzir `bb87a69`+`0781799` no EN.
 
 **Files:** Modify (banco) meta `_elementor_data` de `26826` e `79123`.
+
+- [ ] **Step 0: Fix decisivo — `custom_query=yes` no listing 1a6ba01 (PT + EN)**
+
+Run:
+```bash
+docker exec -u www-data concertacao-dev-wordpress wp eval '
+foreach([26826,79123] as $pid){
+  $d=json_decode(get_post_meta($pid,"_elementor_data",true),true);
+  $chg=false;$w=function(&$els)use(&$w,&$chg){foreach($els as &$el){if(($el["id"]??"")==="1a6ba01"){$el["settings"]["custom_query"]="yes";$el["settings"]["custom_query_id"]="12";$chg=true;}if(!empty($el["elements"]))$w($el["elements"]);}};
+  $w($d);
+  $enc=wp_json_encode($d); if(json_decode($enc)===null){echo "ERRO encode $pid\n";continue;}
+  update_post_meta($pid,"_elementor_data",wp_slash($enc));
+  delete_post_meta($pid,"_elementor_element_cache");
+  echo $chg?"OK $pid listing custom_query=yes\n":"AVISO 1a6ba01 nao achado em $pid\n";
+}
+'
+```
+Expected: `OK 26826 ...` e `OK 79123 ...`.
 
 - [ ] **Step 1: Backup fresco**
 
@@ -495,9 +538,14 @@ Expected: `PROD_QID=<número>`. **Guardar `<PROD_QID>`.**
 
 - [ ] **Step 3: Aplicar TODAS as edições de `_elementor_data` em prod com `<PROD_QID>`**
 
-Reexecutar os scripts das Tasks 2, 3, 4 e 5 **via SSH em prod**, substituindo:
+Reexecutar os scripts das Tasks 2 (com `custom_query=yes`), 3, 4 e 5 (incl.
+**Step 0 = `custom_query=yes` no listing Espiral `1a6ba01`**) **via SSH em prod**, substituindo:
 - `docker exec -u www-data concertacao-dev-wordpress wp` → `ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br ..."`
 - `<NEW_QID>` → `<PROD_QID>`
+
+> **Não esquecer:** o fix que destrava o contador é `custom_query=yes` nos listings
+> `23d592f` (Mapa) e `1a6ba01` (Espiral). Sem isso, o count fica congelado em prod
+> igual ao bug original. Validar AO VIVO em prod com busca <12 (Tasks 3b/EN).
 
 > Fazer **backup prod** de cada meta antes (`wp post meta get <ID> _elementor_data --format=json > /tmp/prod_pre_<ID>.json`).
 
