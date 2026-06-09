@@ -70,6 +70,17 @@ A macro **`[end-item]`** (`get_end_item_index_on_page()`) é a forma robusta par
 o `%visible%` (ambas refletem `post_count` da página, mas `[end-item]` é a que a
 Espiral já usava no widget corrigido `0781799`).
 
+> **REVISÃO 2026-06-08 — formato final = INTERVALO `[start-item]–[end-item]`
+> (decisão do Daniel):** A paginação destas páginas é **numérica** (JSF
+> pagination, troca de página — NÃO "Carregar Mais" acumulativo, apesar de
+> `use_load_more=yes` no settings). Com `[end-item]` sozinho, a pág 2 mostrava
+> "Mostrando 24 de 60" (índice do último item acumulado), que confunde. O
+> formato correto é **`Mostrando [start-item]–[end-item] de %total% ...`**:
+> pág 1 → "1–12 de 60", pág 2 → "13–24 de 60", última cheia → "49–60 de 60",
+> e última PARCIAL (com filtro) → ex. "13–15 de 15" (3 cards). Validado ao vivo
+> nas 4 páginas. `[start-item]` (`get_start_item_index_on_page()`) e
+> `[end-item]` atualizam corretamente na paginação numérica JSF.
+
 O `jet-query-count` exige um `query_id` numérico do Query Builder. O listing de
 plataformas hoje **não** usa uma query do Query Builder (usa a fonte interna do
 listing `14035`). Logo, para o count refletir os filtros corretamente, é preciso
@@ -124,14 +135,14 @@ No `_elementor_data`:
   `_element_id=plataformas-de-pesquisa`. Ajustar `posts_num` para `12`.
 - **Count `b2d868d`**: trocar o dynamic tag para
   `query_id=<NEW_QID>`, `count_type=custom_format`,
-  `custom_format = "Mostrando [end-item] de %total% plataformas cadastradas"`.
+  `custom_format = "Mostrando [start-item]–[end-item] de %total% plataformas cadastradas"`.
 
 ### 3. Mapa EN (75718) — religar listing + ADICIONAR count
 
 - **Listing `23d592f`**: mesma alteração (**`custom_query=yes`** + `custom_query_id=<NEW_QID>`).
 - **Adicionar** um widget heading idêntico ao count PT, posicionado no mesmo
   container de resultados, com dynamic tag:
-  `custom_format = "Showing [end-item] of %total% registered platforms"`.
+  `custom_format = "Showing [start-item]–[end-item] of %total% registered platforms"`.
 
 ### 4. Espiral PT (26826) + EN (79123) — CORREÇÃO REAL = `custom_query=yes` no listing
 
@@ -157,9 +168,9 @@ No `_elementor_data`:
 ### 5. Espiral EN (79123) — corrigir bug + traduzir
 
 - `bb87a69`: `%visible%` → `[end-item]` **e** texto para inglês:
-  `"Showing [end-item] of a total of %total% registered studies."`
+  `"Showing [start-item]–[end-item] of a total of %total% registered studies."`
 - `0781799`: traduzir texto para inglês:
-  `"Showing [end-item] of a total of %total% registered studies."`
+  `"Showing [start-item]–[end-item] of a total of %total% registered studies."`
 
 ## Fluxo de dados (depois)
 
@@ -213,16 +224,18 @@ No `_elementor_data`:
   código novo. Segue o padrão de `feedback_jsf_offset_breaks_pagination`
   (fix nativo sem mu-plugin).
 
-## Critérios de sucesso
+## Critérios de sucesso (formato INTERVALO — validado ao vivo 2026-06-08)
 
-1. Mapa PT: "Mostrando N de 60 plataformas cadastradas", N = itens reais na
-   página (≤8 antes do Load More; cap correto quando filtro retorna <8).
-2. Mapa EN: "Showing N of M registered platforms" (count novo, localizado).
-3. Busca com 2 resultados → mostra "2", nunca "12"/"8".
-4. Filtros (checkbox temas, busca, paginação, Load More) continuam funcionando
-   na Mapa (provider `plataformas-de-pesquisa` intacto).
-5. Espiral PT/EN: contador correto com `[end-item]`, EN localizado.
-6. Sem regressão de layout/CSS (validar via browser + `/smoke` se aplicável).
+1. Mapa PT: "Mostrando 1–12 de 60 plataformas cadastradas" (pág 1); pág 2 →
+   "13–24 de 60"; última cheia → "49–60 de 60".
+2. Mapa EN: "Showing 1–12 of 60 registered platforms" (count novo, localizado).
+3. Busca "Brasil" (15 resultados): pág 1 "1–12 de 15", pág 2 (parcial, 3 cards)
+   **"13–15 de 15"** — última página parcial mostra o cap correto, nunca "24".
+4. Busca com 1 resultado → "1–1 de 1". Busca 2 resultados (Espiral) → "1–2 de 2".
+5. Filtros (checkbox temas, busca, paginação numérica) continuam funcionando na
+   Mapa (provider `plataformas-de-pesquisa` intacto).
+6. Espiral PT/EN: contador com `[start-item]–[end-item]`, EN localizado.
+7. Sem regressão de layout/CSS (validar via browser + `/smoke` se aplicável).
 
 ## Fora de escopo
 

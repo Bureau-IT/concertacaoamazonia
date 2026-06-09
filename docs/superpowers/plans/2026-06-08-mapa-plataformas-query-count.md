@@ -4,7 +4,7 @@
 
 **Goal:** Fazer o contador "Mostrando X de Y" da página Mapa de Plataformas contar **plataformas** (não estudos) e eliminar o bug em que resultados <12 mostram "12", com paridade PT/EN; corrigir também a origem do bug na Espiral.
 
-**Architecture:** Solução 100% data-driven (sem mu-plugin). Cria uma query JetEngine para o CPT `plataformas`, religa o listing grid a ela via `custom_query_id`, e aponta o dynamic tag `jet-query-count` para essa query usando a macro robusta `[end-item]`. Edições no `_elementor_data` feitas por script PHP que localiza widgets por ID (decode → mutate → `wp_json_encode` → `wp_slash`).
+**Architecture:** Solução 100% data-driven (sem mu-plugin). Cria uma query JetEngine para o CPT `plataformas`, religa o listing grid a ela via **`custom_query=yes` + `custom_query_id`** (chave correta — destrava os count-fragments do AJAX), e aponta o dynamic tag `jet-query-count` para essa query usando o formato de INTERVALO `[start-item]–[end-item]` (paginação numérica). Edições no `_elementor_data` feitas por script PHP que localiza widgets por ID (decode → mutate → `wp_json_encode` → `wp_slash`).
 
 **Tech Stack:** WordPress Multisite (blog 1), JetEngine Query Builder, JetSmartFilters, Elementor, WP-CLI dentro do container `concertacao-dev-wordpress`.
 
@@ -193,7 +193,7 @@ Expected (ambas): `json_valid=SIM`, `custom_query=yes custom_query_id=<NEW_QID> 
 - [ ] **Step 3b: Validar AO VIVO que o contador atualiza no filtro (gate do fix)**
 
 Abrir `https://cambrasmax.local:8484/conhecimento/mapa-das-plataformas/` no browser, digitar "Emergência" no campo de busca (com keystrokes reais — `pressSequentially` no Playwright; eventos sintéticos `dispatchEvent` NÃO disparam o debounce do JSF de forma confiável). Aguardar o AJAX.
-Expected: o contador muda de "Mostrando 12 de 60..." para **"Mostrando 1 de 1 plataformas cadastradas"** (1 card renderizado). Se continuar "12 de 60" com 1 card, o `custom_query` NÃO pegou — revisar Step 2.
+Expected: pág 1 = **"Mostrando 1–12 de 60 plataformas cadastradas"**; busca "Emergência" (1 card) → **"Mostrando 1–1 de 1 plataformas cadastradas"**. Se continuar "1–12 de 60" com 1 card, o `custom_query` NÃO pegou — revisar Step 2. Validar também pág 2 (clicar "2" na paginação) → "13–24 de 60" e última página (cap correto, ex. busca "Brasil"→15 resultados→pág 2 "13–15 de 15", 3 cards).
 
 - [ ] **Step 4: Limpar caches Elementor das 2 páginas**
 
@@ -237,7 +237,7 @@ Expected: dois arquivos `post_task2_*.json`. (Sem git commit — são artefatos 
 
 **Files:** Modify (banco) meta `_elementor_data` de `26827`, widget `b2d868d`.
 
-**Texto alvo PT:** `Mostrando [end-item] de %total% plataformas cadastradas`
+**Texto alvo PT:** `Mostrando [start-item]–[end-item] de %total% plataformas cadastradas`
 
 - [ ] **Step 1: Aplicar via script PHP (constrói o dynamic tag com query certa)**
 
@@ -246,7 +246,7 @@ Run (substituir `<NEW_QID>`):
 docker exec -u www-data concertacao-dev-wordpress wp eval '
 $qid = "<NEW_QID>";
 $pid = 26827;
-$fmt = "Mostrando [end-item] de %total% plataformas cadastradas";
+$fmt = "Mostrando [start-item]–[end-item] de %total% plataformas cadastradas";
 $settings = ["query_id"=>$qid, "custom_format"=>$fmt, "count_type"=>"custom_format"];
 $enc = rawurlencode(wp_json_encode($settings));
 $tag = "[elementor-tag id=\"94acaed\" name=\"jet-query-count\" settings=\"".$enc."\"]";
@@ -282,7 +282,7 @@ preg_match("/settings=\"([^\"]+)\"/",$f["settings"]["__dynamic__"]["title"],$m);
 echo "decoded=".rawurldecode($m[1])."\n";
 '
 ```
-Expected: `json_valid=SIM` e `decoded={"query_id":"<NEW_QID>","custom_format":"Mostrando [end-item] de %total% plataformas cadastradas","count_type":"custom_format"}`
+Expected: `json_valid=SIM` e `decoded={"query_id":"<NEW_QID>","custom_format":"Mostrando [start-item]–[end-item] de %total% plataformas cadastradas","count_type":"custom_format"}`
 
 - [ ] **Step 3: Limpar cache da página + flush**
 
@@ -296,7 +296,7 @@ Expected: `ok` + flush concluído.
 - [ ] **Step 4: Verificação no browser (PT)**
 
 Via Playwright MCP ou navegador: abrir `https://cambrasmax.local:8484/conhecimento/mapa-das-plataformas/`.
-Expected: cabeçalho de resultados mostra **"Mostrando 12 de 60 plataformas cadastradas"** (12 itens na 1ª página, 60 total). Listing renderiza cards de plataformas (não estudos).
+Expected: cabeçalho de resultados mostra **"Mostrando 1–12 de 60 plataformas cadastradas"** (intervalo da 1ª página, 60 total). Listing renderiza cards de plataformas (não estudos).
 
 - [ ] **Step 5: Verificação do bug "<12" (PT)**
 
@@ -309,7 +309,7 @@ Expected: a mensagem mostra o número REAL (ex.: "Mostrando 2 de 2 plataformas c
 
 O EN não tem widget de count. Vamos **clonar** o widget `b2d868d` do PT (com novo ID) e inseri-lo no container do EN que contém o active-filters (`91ad0ae`, dentro do container em path `/0/1/1/0`), em inglês.
 
-**Texto alvo EN:** `Showing [end-item] of %total% registered platforms`
+**Texto alvo EN:** `Showing [start-item]–[end-item] of %total% registered platforms`
 
 **Files:** Modify (banco) meta `_elementor_data` de `75718`.
 
@@ -320,7 +320,7 @@ Run (substituir `<NEW_QID>`):
 docker exec -u www-data concertacao-dev-wordpress wp eval '
 $qid = "<NEW_QID>";
 $pid = 75718;
-$fmt = "Showing [end-item] of %total% registered platforms";
+$fmt = "Showing [start-item]–[end-item] of %total% registered platforms";
 $settings = ["query_id"=>$qid,"custom_format"=>$fmt,"count_type"=>"custom_format"];
 $tag = "[elementor-tag id=\"94acaed\" name=\"jet-query-count\" settings=\"".rawurlencode(wp_json_encode($settings))."\"]";
 // novo widget (clone do b2d868d, id novo unico)
@@ -378,7 +378,7 @@ preg_match("/settings=\"([^\"]+)\"/",$f["settings"]["__dynamic__"]["title"],$m);
 echo "decoded=".rawurldecode($m[1])."\n";
 '
 ```
-Expected: `json_valid=SIM` e `decoded={"query_id":"<NEW_QID>","custom_format":"Showing [end-item] of %total% registered platforms","count_type":"custom_format"}`
+Expected: `json_valid=SIM` e `decoded={"query_id":"<NEW_QID>","custom_format":"Showing [start-item]–[end-item] of %total% registered platforms","count_type":"custom_format"}`
 
 - [ ] **Step 3: Limpar cache + flush**
 
@@ -392,7 +392,7 @@ Expected: `ok` + flush.
 - [ ] **Step 4: Verificação no browser (EN)**
 
 Abrir a versão EN (via WPML switcher na página, ou `.../en/...` se aplicável). Confirmar a URL EN real do "Platform Map".
-Expected: aparece **"Showing 12 of 60 registered platforms"**; com busca de poucos resultados, mostra o número real (não 12).
+Expected: aparece **"Showing 1–12 of 60 registered platforms"**; com busca de poucos resultados, mostra o intervalo real (ex. "Showing 1–1 of 1 registered platforms"), nunca "1–12".
 
 ---
 
@@ -446,7 +446,7 @@ Run:
 ```bash
 docker exec -u www-data concertacao-dev-wordpress wp eval '
 $pid=26826;
-$fmt="Mostrando [end-item] de %total% estudos cadastrados";
+$fmt="Mostrando [start-item]–[end-item] de %total% estudos cadastrados";
 $settings=["query_id"=>"12","custom_format"=>$fmt,"count_type"=>"custom_format"];
 $tag="[elementor-tag id=\"94acaed\" name=\"jet-query-count\" settings=\"".rawurlencode(wp_json_encode($settings))."\"]";
 $d=json_decode(get_post_meta($pid,"_elementor_data",true),true);
@@ -466,7 +466,7 @@ Run:
 ```bash
 docker exec -u www-data concertacao-dev-wordpress wp eval '
 $pid=79123;
-$fmt="Showing [end-item] of a total of %total% registered studies.";
+$fmt="Showing [start-item]–[end-item] of a total of %total% registered studies.";
 $settings=["query_id"=>"12","custom_format"=>$fmt,"count_type"=>"custom_format"];
 $tag="[elementor-tag id=\"94acaed\" name=\"jet-query-count\" settings=\"".rawurlencode(wp_json_encode($settings))."\"]";
 $d=json_decode(get_post_meta($pid,"_elementor_data",true),true);
