@@ -53,15 +53,20 @@ itálico** (`font-synthesis: style`, não `weight`), e **apenas** para a Just
 Sans — a Franie continua intacta com `font-synthesis: none` herdado e seus
 arquivos itálicos verdadeiros.
 
-Âncoras de seleção (robustas, casam com como o Elementor aplica a fonte):
+Âncoras de seleção (cobrem os DOIS caminhos de itálico do Elementor):
 
-- Elementos cuja `font-family` resolve para a variável global de texto
-  (`--e-global-typography-text-font-family`).
-- `<em>`, `<i>`, `<cite>` dentro do conteúdo do corpo.
+- `.elementor-widget-container` (e descendentes) — pega tanto o `<em>`/`<i>` do
+  **editor de texto** quanto o `font-style: italic` que o Elementor injeta no
+  seletor do elemento quando se usa **Typography → Style: Italic** no painel de
+  qualquer widget (heading, button, etc.).
+- `.entry-content` (e descendentes) — conteúdo do corpo fora de widgets.
 
-A síntese fica restrita a `style` — fake-bold continua proibido em **ambos** os
-pesos reais da Just Sans (400 e 800). O oblíquo vale para os dois pesos, então
-negrito-itálico (`<strong><em>`) renderiza como negrito inclinado.
+A síntese fica restrita a `style` — **fake-bold continua proibido** em todo
+lugar (`font-synthesis-weight: none` permanece, validado empiricamente), e
+small-caps sintético também segue desligado. O oblíquo vale para os dois pesos
+reais da Just Sans (400 e 800), então negrito-itálico (`<strong><em>`) renderiza
+como negrito inclinado. Medição empírica na página real (Just Sans carregada):
+itálico inclina ~12–14°; fake-bold = 0 (não sintetiza).
 
 ### Camada 2 — Franie Italic para ênfase editorial (premium, opt-in)
 

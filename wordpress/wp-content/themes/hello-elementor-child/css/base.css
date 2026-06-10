@@ -20,6 +20,35 @@
     font-synthesis: none;
 }
 
+/* --- 2.0.1 Itálico (oblíquo sintético) só de itálico, nunca peso ---
+ * A Just Sans NÃO tem itálico desenhado pela fundição (Just Creative oferece
+ * 8 estilos, todos verticais). Como a regra 2.0 acima desliga font-synthesis,
+ * `font-style: italic` era silenciosamente ignorado (texto saía reto) — tanto
+ * no conteúdo (botão itálico do editor → <em>/<i>) quanto no painel de
+ * tipografia do Elementor (Typography → Style: Italic em qualquer widget).
+ *
+ * Reabilitamos APENAS a síntese de itálico (`style`, NUNCA `weight`). Assim:
+ *   - Just Sans em itálico → browser inclina (~13°) os pesos reais 400 e 800,
+ *     funcionando para AMBOS os caminhos do Elementor (conteúdo e painel);
+ *   - fake-bold continua proibido (não habilitamos `weight` → a proteção
+ *     original da regra 2.0 contra pesos sintéticos permanece intacta);
+ *   - Franie/Roboto seguem usando seus arquivos reais quando existem; a síntese
+ *     de itálico só age como fallback quando NÃO há face itálica real, então
+ *     não degrada quem já tem itálico desenhado (Franie Italic/BoldItalic).
+ *
+ * Cobertura: qualquer widget Elementor (`.elementor-widget-container`) e o
+ * conteúdo do corpo (`.entry-content`) — pega tanto o <em>/<i> do editor
+ * quanto o font-style:italic que o Elementor injeta no seletor do elemento.
+ * Para itálico VERDADEIRO em ênfases editoriais escolhidas a dedo, usar a
+ * classe .bit-emphasis-serif (Franie) — ver seção 2.2.
+ */
+.elementor-widget-container,
+.elementor-widget-container *,
+.entry-content,
+.entry-content * {
+    font-synthesis: style;
+}
+
 /* --- 2.1 HTML & Body --- */
 html {
     font-size         : 16px;
@@ -59,6 +88,18 @@ h1, h2, h3, h4, h5, h6 {
 
 #content .tituloPagina {
     margin-top: 5rem;
+}
+
+/* Ênfase editorial em itálico VERDADEIRO (Franie Italic, cursivo desenhado).
+ * Uso opt-in por classe num widget/trecho específico (citações de obras,
+ * epígrafes) onde o oblíquo sintético da Just Sans não basta. Não afeta o
+ * corpo geral. Franie tem arquivos Italic/BoldItalic reais → font-synthesis
+ * herdado (none) é irrelevante aqui. */
+.bit-emphasis-serif,
+.bit-emphasis-serif em,
+.bit-emphasis-serif i {
+    font-family: 'Franie', serif;
+    font-style : italic;
 }
 
 figcaption {
