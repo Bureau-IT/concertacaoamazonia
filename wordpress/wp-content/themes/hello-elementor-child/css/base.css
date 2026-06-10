@@ -36,14 +36,17 @@
  *     de itálico só age como fallback quando NÃO há face itálica real, então
  *     não degrada quem já tem itálico desenhado (Franie Italic/BoldItalic).
  *
- * Cobertura: qualquer widget Elementor (`.elementor-widget-container`) e o
- * conteúdo do corpo (`.entry-content`) — pega tanto o <em>/<i> do editor
- * quanto o font-style:italic que o Elementor injeta no seletor do elemento.
+ * Cobertura: ancorada em `.elementor` (a div raiz presente em TODA página
+ * Elementor) — alcança tanto a estrutura antiga (`.elementor-widget-container`)
+ * quanto a nova Flexbox Container (`.e-con` / `.elementor-element`, que NÃO tem
+ * `.elementor-widget-container`). Mais `.entry-content` para conteúdo fora do
+ * Elementor. Pega tanto o <em>/<i> do editor quanto o font-style:italic que o
+ * Elementor injeta no seletor do elemento via painel Typography.
  * Para itálico VERDADEIRO em ênfases editoriais escolhidas a dedo, usar a
  * classe .bit-emphasis-serif (Franie) — ver seção 2.2.
  */
-.elementor-widget-container,
-.elementor-widget-container *,
+.elementor,
+.elementor *,
 .entry-content,
 .entry-content * {
     font-synthesis: style;
