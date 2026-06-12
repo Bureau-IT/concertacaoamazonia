@@ -1871,6 +1871,19 @@ Detecta o padrão em que WP Rocket `/cache/min/1/wp-content/...post-N.css` refer
 
 **Cobertura:** rodar em home + /cultura/ (subsite). Qualquer outra página pode ser adicionada à lista. Snippet faz `fetch` no client checando o `Content-Type` real de cada `<link rel=stylesheet>` — bypassa preview do navegador.
 
+> **REFORÇO 2026-06-12 (incidente CSS quebrado pós-fix menu mobile):** o `fetch`
+> deste gate pode dar FALSO NEGATIVO — quando um `<link rel=stylesheet>` recebe 404+MIME
+> `text/html`, o Chromium dispara `net::ERR_ABORTED` ANTES de virar response capturável, e
+> um `fetch` manual pode reusar cache/pegar outro PoP. **Validação confiável usa 3 canais
+> via `page.on(...)`:** (1) `response` com status≥400 ou MIME text/html; (2) `requestfailed`
+> (ERR_ABORTED em `.css` = strict-MIME-abort, O CANAL CRÍTICO); (3) `console` error "Refused
+> to apply style". O script `docker-dev/common/scripts/css-mime-check.sh` já implementa os 3
+> canais e roda multi-página — **preferir ele**: `bash common/scripts/css-mime-check.sh --base
+> https://concertacaoamazonia.com.br / /sobre-nos/ /atuacao/ /conhecimento/publicacoes/` (exit
+> 1 se quebrado). Ampliar a lista `paths` abaixo para ≥6 páginas de blogs diferentes — o
+> incidente afetou TODAS as páginas do blog 1, não só home/cultura. Ver
+> [[feedback_gate27_multipop_blindspot]].
+
 ```js
 async (page) => {
   const paths = [
@@ -1937,27 +1950,34 @@ async (page) => {
 }
 ```
 
-**Fix se gate 27 falhar (conservador, sem flush global):**
+**Fix se gate 27 falhar — escolher pela extensão:**
 
+**Caso A — 1-2 posts afetados (cirúrgico):**
 ```bash
-# 1. Identificar post_id afetado pelo path do CSS bloqueado
-#    (ex: /cache/min/1/.../post-2461.css → POST_ID=2461)
-
 WP='sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br --url=https://concertacaoamazonia.com.br'
-
-# 2. Limpar HTML cached do post e regenerar minify CSS
 $WP eval 'rocket_clean_post(<POST_ID>);'
 $WP eval 'rocket_clean_minify("css");'
-
-# 3. (Opcional) regenerar Elementor CSS file
 $WP eval '(new \Elementor\Core\Files\CSS\Post(<POST_ID>))->update();'
-
-# 4. CF invalidate cirúrgico (NUNCA usar /*)
-aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB \
-    --paths '/' --profile Concertação
-
-# 5. Aguardar invalidation (1-3min) e validar com playwright re-rodando gate 27
+# CF invalidate do HTML + elementor-cache do post (NÃO só '/')
+aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --profile Concertação \
+    --paths '/' "/wp-content/elementor-cache/elementor/css/post-<POST_ID>.css*"
 ```
+
+**Caso B — MUITAS páginas afetadas / minify não regenera (incidente 2026-06-12):**
+Se o `css-mime-check.sh` acusa quebra em várias páginas e o minify retorna 404 mesmo no ORIGIN
+(`curl -H Host: ... http://127.0.0.1/wp-content/cache/min/1/...css` → 404 text/html), o WP Rocket
+**parou de regenerar o minify**. NÃO adianta invalidar — o arquivo não existe. **Desligar minify_css:**
+```bash
+$WP eval '$o=get_option("wp_rocket_settings"); file_put_contents(WP_CONTENT_DIR."/uploads/coord-backups/wp_rocket_settings_pre_".gmdate("Ymd-His").".json",json_encode($o)); $o["minify_css"]=0; update_option("wp_rocket_settings",$o); echo "minify_css desligado\n";'
+$WP eval 'rocket_clean_domain(); rocket_clean_minify();'
+aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --profile Concertação --paths '/*'
+# Validar (3 canais, multi-página):
+bash docker-dev/common/scripts/css-mime-check.sh --base https://concertacaoamazonia.com.br / /sobre-nos/ /atuacao/ /conhecimento/publicacoes/ /cultura/ /cultura/linha-do-tempo/
+```
+> **NUNCA `rm -rf wp-content/cache/min/*` em prod** — quebra a regeneração do minify (foi a
+> causa-raiz do incidente). Usar só `rocket_clean_minify()` via API; se travar, desligar minify_css.
+
+Sempre re-rodar o `css-mime-check.sh` (exit 0) ANTES de declarar resolvido.
 
 ### Snippet — Gate 29: emails com `:porta` órfã em `_elementor_data` (incidente 2026-05-18 21:56 BRT)
 
@@ -2103,6 +2123,14 @@ N bad
     do Complianz que reescreve `script src` para `data-cmplz-src` antes do consent).
 
     Reportar cada path em FAIL/ERROR com motivo específico. Sumário final: `pass_count / total_paths` e contagem de FAIL vs ERROR.
+
+49. **Menu MOBILE visual (Gate 49)** — viewport mobile 390px, toggle aberto, `getComputedStyle` do dropdown prod vs dev (snippet dedicado). Severidade **HIGH**. FAIL se:
+    - `49a` — `prod.dropdownBg` é branco/transparente (fundo do menu mobile perdido — `background_color_dropdown_item` ausente no widget; incidente 2026-06-12). **Absoluto** (independe de dev).
+    - `49b` — estado de underline de prod ≠ dev (underline do WP core vazando só em prod). **Relativo a dev.**
+    - `49c` — `subFontSize`/`topFontSize` de prod divergem de dev (tipografia fora de paridade; DEV = source-of-truth)
+
+    Cobre blog 1 (`/atuacao/encontros/`, header 39359) + blog 2 (`/cultura/linha-do-tempo/`, header 89307), widget `58b33f3`. Mede em páginas INTERNAS (homes têm toggle instável).
+    **NÃO** comparar `dropdownBg` contra hex fixo: o verde de prod (#003A26) diverge do dev (#005A42, nova paleta) de propósito. Ver [[feedback_menu_mobile_bg_lost_css_to_widget_handoff]].
 
 14. **Cache health (Fase 7.8) — Object cache drop-in**: `object_cache_dropin.installed === false`.
     Plugin redis-cache pode estar ativo mas drop-in `wp-content/object-cache.php` ausente
@@ -4264,6 +4292,155 @@ async (page) => {
 > nas coordenadas do elemento (clique de ponteiro real). Os IDs dos cards/markers são os
 > dos posts do idioma corrente (EN tem posts próprios via WPML; ver [[feedback_atlas_filter_i18n_glossary_vs_taxonomy]]).
 
+### Snippet — Gate 49 (Menu MOBILE: fundo + tipografia computados, prod vs dev)
+
+Após gate 48, antes do relatório. **Usa Playwright** (viewport mobile 390px + clique real
+no toggle hambúrguer). Origem: incidente 2026-06-12 — o fundo do menu mobile (lista suspensa
+do widget Nav Menu) ficou **branco** em prod (texto branco sobre branco = invisível), e a
+Fase 7.5 **não pegou** porque (a) só compara DOM/altura/headings/erros, nunca `getComputedStyle`
+de cor/tipografia; (b) roda em viewport desktop e nunca abre o dropdown mobile; (c) o defeito
+existia em prod E dev, então não havia divergência de conteúdo. Ver
+[[feedback_menu_mobile_bg_lost_css_to_widget_handoff]].
+
+Este gate fecha a tripla cegueira: mede **estilo computado** do dropdown mobile, em **viewport
+mobile com o toggle aberto**. Cobre os 2 headers: blog 1 raiz (`/`, header 39359) e blog 2 cultura
+(`/cultura/`, header 89307). O widget tem `id=58b33f3` nos dois (seletor `.elementor-element-58b33f3`).
+
+**Duas réguas de comparação:**
+1. **prod × dev** (mesmo blog): tipografia de prod deve espelhar dev (source-of-truth de paridade
+   prod/dev, igual Fase 7.5). NÃO comparar `dropdownBg` contra hex fixo — o verde de prod (#003A26)
+   é INTENCIONALMENTE diferente do dev (nova paleta da virada, #005A42); só `branco/transparente`
+   é bug absoluto.
+2. **blog1 × blog2** (mesmo ambiente): o **menu do `/` (blog1) é o SOURCE-OF-TRUTH de ESTILO** —
+   `/cultura/` (blog2) deve seguir o `/` em underline + font-size. Se divergirem, ALERTAR o usuário
+   (regra explícita Daniel 2026-06-12). Causa típica do drift: o CSS gerado do header blog2
+   (`post-89307.css`) emite `.elementor-item{text-decoration:var(--accent)}` (Accent=underline) que
+   vence `.elementor a{none}`; o header blog1 não emite essa regra. Fix: setar
+   `dropdown_typography_text_decoration=none` explícito no widget do header 89307 (gera `none`
+   literal que vence o Accent). Ver [[feedback_menu_mobile_bg_lost_css_to_widget_handoff]].
+
+```javascript
+// Snippet smoke (browser_run_code_unsafe) — gate 49 — rodar 1x (itera os 2 hosts × 2 blogs)
+async (page) => {
+  const HOSTS = { prod: "https://concertacaoamazonia.com.br", dev: "https://concertacao.bureau-it.com" };
+  const BLOGS = [
+    // Medir em PÁGINAS INTERNAS, não nas homes: na home o toggle do menu mobile
+    // nem sempre abre de forma confiável (links ficam visible:false / estado colapsado),
+    // tornando underline/font-size instáveis. Páginas internas dão leitura estável.
+    { key: "blog1", path: "/atuacao/encontros/" },        // header 39359 (raiz)
+    { key: "blog2", path: "/cultura/linha-do-tempo/" },   // header 89307 (cultura)
+  ];
+
+  // mede o dropdown mobile (fundo) + um sub-item e um top-item (font-size/decoration)
+  const measure = async (host, path) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.context().clearCookies();
+    await page.goto(host + path + "?cb=" + Date.now(), { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForTimeout(1500);
+    // remove banner de cookies que cobre o toggle
+    await page.evaluate(() => document.querySelectorAll('#cmplz-cookiebanner-container,[class*="cmplz-cookiebanner"]').forEach(e => e.remove()));
+    // abre o menu mobile com clique REAL no toggle (JS do SmartMenus depende disso)
+    await page.evaluate(() => {
+      const t = document.querySelector('.elementor-element-58b33f3 .elementor-menu-toggle');
+      if (t) t.click();
+    });
+    await page.waitForTimeout(800);
+    return page.evaluate(() => {
+      const root = document.querySelector('.elementor-element-58b33f3');
+      if (!root) return { rootFound: false };
+      const dd = root.querySelector('.elementor-nav-menu--dropdown');
+      // enumera TODOS os links pela CLASSE correta (nunca `li>a` solto — gera falso underline)
+      const links = [...root.querySelectorAll('a.elementor-sub-item, a.elementor-item')].map(a => {
+        const cs = getComputedStyle(a);
+        return { kind: a.classList.contains('elementor-sub-item') ? 'sub' : 'top', fontSize: cs.fontSize, decoration: cs.textDecorationLine };
+      });
+      const sub = links.find(l => l.kind === 'sub') || {};
+      const top = links.find(l => l.kind === 'top') || {};
+      return {
+        rootFound: true,
+        dropdownBg: dd ? getComputedStyle(dd).backgroundColor : null,
+        topFontSize: top.fontSize || null,
+        subFontSize: sub.fontSize || null,
+        allDecorationsNone: links.length > 0 && links.every(l => l.decoration === 'none'),
+        linkCount: links.length,
+      };
+    });
+  };
+
+  // helper: rgb string -> {r,g,b}; detecta branco/transparente
+  const isWhiteOrTransparent = (rgb) => {
+    if (!rgb) return true;
+    const m = rgb.match(/rgba?\(([^)]+)\)/); if (!m) return true;
+    const [r, g, b, a] = m[1].split(',').map(s => parseFloat(s.trim()));
+    if (a === 0) return true;                        // transparente
+    return (r > 240 && g > 240 && b > 240);          // ~branco
+  };
+
+  // mede os 2 blogs em cada ambiente
+  const m = {
+    prod: { blog1: await measure(HOSTS.prod, BLOGS[0].path), blog2: await measure(HOSTS.prod, BLOGS[1].path) },
+    dev:  { blog1: await measure(HOSTS.dev,  BLOGS[0].path), blog2: await measure(HOSTS.dev,  BLOGS[1].path) },
+  };
+
+  const out = {};
+  for (const env of ['prod', 'dev']) {
+    for (const bk of ['blog1', 'blog2']) {
+      const r = m[env][bk];
+      const peer = m[env === 'prod' ? 'dev' : 'prod'][bk];   // mesmo blog, outro ambiente
+      const b1 = m[env].blog1;                               // source-of-truth de estilo (mesmo ambiente)
+      const fails = [];
+      if (!r.rootFound) { out[`${env}.${bk}`] = { verdict: `FAIL: nav-menu-58b33f3-ausente` }; continue; }
+      // 49a — fundo branco/transparente é bug ABSOLUTO (independe de comparação): menu ilegível.
+      if (isWhiteOrTransparent(r.dropdownBg)) fails.push(`bg-branco/transparente(${r.dropdownBg})`);
+      // 49b/49c — prod × dev (mesmo blog): tipografia espelha o outro ambiente.
+      if (env === 'prod' && peer.rootFound) {
+        if (r.allDecorationsNone !== peer.allDecorationsNone) fails.push(`underline prod=${!r.allDecorationsNone} dev=${!peer.allDecorationsNone}`);
+        if (r.subFontSize && peer.subFontSize && r.subFontSize !== peer.subFontSize) fails.push(`subFont prod=${r.subFontSize} dev=${peer.subFontSize}`);
+        if (r.topFontSize && peer.topFontSize && r.topFontSize !== peer.topFontSize) fails.push(`topFont prod=${r.topFontSize} dev=${peer.topFontSize}`);
+      }
+      // 49d — blog1 × blog2 (mesmo ambiente): /cultura/ DEVE seguir o estilo do / (source-of-truth).
+      if (bk === 'blog2' && b1.rootFound) {
+        if (r.allDecorationsNone !== b1.allDecorationsNone) fails.push(`STYLE-DRIFT underline /cultura/=${!r.allDecorationsNone} vs /=${!b1.allDecorationsNone}`);
+        if (r.subFontSize && b1.subFontSize && r.subFontSize !== b1.subFontSize) fails.push(`STYLE-DRIFT subFont /cultura/=${r.subFontSize} vs /=${b1.subFontSize}`);
+        if (r.topFontSize && b1.topFontSize && r.topFontSize !== b1.topFontSize) fails.push(`STYLE-DRIFT topFont /cultura/=${r.topFontSize} vs /=${b1.topFontSize}`);
+      }
+      out[`${env}.${bk}`] = { path: BLOGS[bk === 'blog1' ? 0 : 1].path, measured: r, verdict: fails.length === 0 ? 'PASS' : `FAIL: ${fails.join(', ')}` };
+    }
+  }
+  return out;
+}
+```
+
+**Gates do snippet (rodar blog1 + blog2):**
+- Gate 49a PASS: `prod.dropdownBg` NÃO é branco/transparente. Se FAIL → `background_color_dropdown_item`
+  ausente no widget Nav Menu (regressão da migração CSS→painel de 2026-05-18). Fix: setar via
+  `__globals__` → Global Color do fundo + literal; regen Elementor CSS + `rm -rf cache/min/{1,2}/*`
+  + `rocket_clean_domain` + CF invalidate `cache/min/*`. Ver [[feedback_menu_mobile_bg_lost_css_to_widget_handoff]].
+- Gate 49b PASS: estado de underline de prod == dev (relativo). Se FAIL → prod tem underline e dev
+  não (ou vice-versa) — regressão do widget (regra `text-decoration` com variável Accent vazia
+  deixa o `a:where(){underline}` do WP core vazar). **Relativo a dev de propósito:** underline pode
+  existir igualmente nos 2 ambientes em certos estados de DOM; só é bug se PROD divergir de DEV.
+- Gate 49c PASS: `subFontSize`/`topFontSize` de prod == dev. Se FAIL → divergência de tipografia
+  (`dropdown_typography_font_size_mobile`); alinhar prod ao dev (source-of-truth prod/dev).
+- **Gate 49d PASS (STYLE-DRIFT): `/cultura/` (blog2) tem o MESMO estilo que `/` (blog1) no MESMO
+  ambiente** — underline + font-size. **`/` é o source-of-truth de estilo de menu.** Se FAIL →
+  ALERTAR o usuário: o menu do `/cultura/` divergiu do `/`. Causa típica: `post-89307.css` emite
+  `text-decoration:var(--accent)` (underline) que o header blog1 não emite. Fix: setar
+  `dropdown_typography_text_decoration=none` no widget do header 89307 + regen + flush.
+  Incidente 2026-06-12 (corrigido em dev).
+
+> **Severidade: HIGH.** Menu de navegação ilegível/divergente é regressão visível ao usuário.
+> **GOTCHA de medição (não repetir o erro de 2026-06-12):** medir SEMPRE via
+> `a.elementor-sub-item, a.elementor-item` enumerando TODOS os links — `li.menu-item > a` solto
+> pega o 1º `<a>` num estado colapsado e reporta `underline` FALSO. Validar no host real do user
+> (tunnel `concertacao.bureau-it.com` p/ dev), não `cambrasmax.local`. Clique REAL no toggle
+> (`.click()` no DOM dispara o SmartMenus; manipular `display:block` manualmente quebra o layout).
+>
+> **TODO (menu desktop):** não há gate visual equivalente para o menu DESKTOP (submenu hover,
+> bug stuck-pink documentado em `css/header-menu.css` §9.5). Um Gate 50 análogo — viewport ≥1024px,
+> hover nos itens com submenu, assertar cor accent do submenu + ausência de `.highlighted` residual
+> pós-mouseleave — fecharia essa lacuna. Ainda não implementado.
+
 ## Relatório Final Pragmático
 
 Após executar todas as fases, gerar **bloco único** com formato decisível:
@@ -4298,6 +4475,7 @@ Fase  Cobertura                    Gates testados   Pass   Fail
 7.8   Cache health (4 camadas)         14-19            X      Y
 8     Menu warm-up                     11-12            X      Y
 9     Leak detection                   20-25            X      Y
+49    Menu mobile visual (prod×dev)    49a-49c          X      Y
 
 ───────────────────────────────────────────────────────────────────
 GATES FALHARAM (ordenados por severidade)
