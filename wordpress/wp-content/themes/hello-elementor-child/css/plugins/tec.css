@@ -686,3 +686,106 @@ body.single-tribe_events {
     color       : var(--e-global-color-text) !important;  /* escuro #392E34 */
     border-color: var(--e-global-color-text) !important;
 }
+
+/* ==========================================================================
+   7. PÁGINA SINGLE DE EVENTO (EPTA — Events Pro Template Addon)
+   ==========================================================================
+   A single de evento (/event/<slug>/) é renderizada pelo plugin EPTA com o
+   template `epta-template-1`, que injeta um <style> inline. Esse CSS inline
+   referencia variáveis LEGADAS `--ucpa-color-offwhite|white|accent` que NÃO
+   existem mais no site (a paleta migrou para os Global Colors do Elementor).
+   Resultado: o fundo BEGE da página, os boxes da sidebar, as células do
+   countdown, o fundo do título de seção e o fundo do botão "Adicionar ao
+   calendário" ficavam sem cor (var indefinida → transparente/herdado),
+   destoando do resto do site.
+
+   Fix (golden rule do site — nunca hex direto, sempre Global Color):
+   definimos esses 3 aliases LEGADOS mapeados para os Global Colors atuais,
+   escopados ao body da single de evento, de modo que o CSS inline do EPTA
+   passe a resolver as cores corretas automaticamente. Se algum dia o EPTA
+   parar de usar essas vars, este bloco vira inócuo (não vaza para fora da
+   single de evento). */
+body.single-tribe_events {
+    --ucpa-color-offwhite: var(--e-global-color-secondary); /* bege   #F8EAD9 */
+    --ucpa-color-white   : var(--e-global-color-f589ade);   /* branco #FFFFFF */
+    --ucpa-color-accent  : var(--e-global-color-accent);    /* rosa   #FE78A9 */
+}
+
+/* 7.1 Reforço do fundo BEGE da página single (paridade com a home e com a
+   view de arquivo da seção 6.1). Cobre o body, o wrapper do EPTA e a área
+   da sidebar — agora que `--ucpa-color-offwhite` resolve, isto apenas
+   garante a paridade caso o inline do EPTA mude de ordem/escopo. */
+body.single-tribe_events,
+body.single-tribe_events #epta-template.epta-template-1 .epta-sidebar-area,
+body.single-tribe_events #tribe-events-pg-template,
+body.single-tribe_events #epta-template .tribe-events-pg-template {
+    background-color: var(--e-global-color-secondary) !important;  /* bege #F8EAD9 */
+}
+
+/* 7.2 Botão "Adicionar ao calendário" — fundo branco, texto/borda na cor de
+   texto escura (#392E34); no HOVER vira ROSA (accent) com texto escuro,
+   alinhado ao padrão de hover dos demais botões/elementos de eventos do site
+   (subscribe-dropdown, datepicker ativo). O EPTA inline tinha um BUG no hover
+   (texto #392E34 escuro sobre fundo #392E34 escuro → some); este override
+   corrige usando accent + texto escuro legível.
+
+   BLINDAGEM DE CASCATA: o EPTA injeta seu CSS inline NO RODAPÉ da página
+   (depois do tec.css no DOM). Como o inline também usa `!important`, num
+   empate de especificidade a ORDEM de origem decidiria a favor do inline.
+   Por isso ancoramos em `html body.single-tribe_events` (id + 4 classes +
+   elemento) — especificidade ESTRITAMENTE MAIOR que a do inline do EPTA
+   (`#epta-template.epta-template-1 .epta-addto-calendar a:hover`), garantindo
+   vitória independente da ordem. Cobrimos também `:active`. */
+html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calendar a {
+    background-color: var(--e-global-color-f589ade) !important;  /* branco #FFFFFF */
+    border          : 2px solid var(--e-global-color-text) !important;
+    color           : var(--e-global-color-text) !important;     /* escuro #392E34 */
+    transition      : background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calendar a:hover,
+html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calendar a:focus,
+html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calendar a:active {
+    background-color: var(--e-global-color-accent) !important;   /* rosa  #FE78A9 */
+    border-color    : var(--e-global-color-accent) !important;
+    color           : var(--e-global-color-text) !important;     /* escuro #392E34 (legível sobre o rosa) */
+    text-decoration : none;
+}
+
+/* 7.2b Links de compartilhamento (.epta-share-area) — base na cor de texto,
+   HOVER em rosa (accent). O EPTA inline já aponta para --ucpa-color-accent;
+   agora que o alias resolve (seção 7), reforçamos o hover de forma explícita
+   para não depender da ordem do inline. */
+html body.single-tribe_events #epta-template.epta-template-1 .epta-share-area a:hover,
+html body.single-tribe_events #epta-template.epta-template-1 .epta-share-area a:focus {
+    color  : var(--e-global-color-accent) !important;  /* rosa #FE78A9 */
+    opacity: 1 !important;
+}
+
+/* 7.3 Caixa de avisos (.tribe-events-notices) — o EPTA inline cravava o
+   greenish-beige LEGADO #D7DCC0 hardcoded. Alinha ao bege global. */
+body.single-tribe_events #epta-template .tribe-events-notices li {
+    background-color: var(--e-global-color-secondary) !important;  /* bege #F8EAD9 */
+}
+
+/* 7.4 Títulos de seção da sidebar ("Detalhes", "Local", "Organizador") — o
+   `epta-style.css` do plugin crava `background: #222222` (caixa preta) com
+   texto branco; a paleta atual usa texto escuro, então o resultado era uma
+   caixa PRETA com texto escuro #392E34 (rótulo ilegível). Alinha ao padrão
+   do site: SEM caixa (fundo transparente) e texto escuro. */
+body.single-tribe_events #epta-template .epta-sidebar-box h2.tribe-events-single-section-title,
+body.single-tribe_events #epta-template.epta-template-1 .epta-sidebar-box h2.tribe-events-single-section-title {
+    background       : transparent !important;
+    background-color : transparent !important;
+    color            : var(--e-global-color-text) !important;  /* escuro #392E34 */
+}
+
+/* 7.5 Overlay "véu" dos cards de EVENTOS RELACIONADOS (.epta-light-bg) — é uma
+   camada absoluta (opacity .88) por cima da thumbnail. O EPTA inline crava
+   `#D7DCC0` (verde-oliva LEGADO) com `!important`, dando o tom esverdeado nas
+   imagens dos eventos relacionados (o "CSS quebrado" relatado). Alinha ao bege
+   global. Mesma âncora elevada (`html body.single-tribe_events`) para vencer o
+   `!important` do inline independente da ordem de cascata. */
+html body.single-tribe_events #epta-template.epta-template-1 .epta-light-bg {
+    background       : var(--e-global-color-secondary) !important;  /* bege #F8EAD9 */
+    background-color : var(--e-global-color-secondary) !important;
+}

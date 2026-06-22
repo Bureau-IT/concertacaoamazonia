@@ -25,10 +25,21 @@ require_once get_stylesheet_directory() . '/inc/page-contato.php';
 /**
  * Enqueue parent and child theme styles + módulos CSS condicionais
  */
+/**
+ * Cache-buster por arquivo: usa filemtime() do CSS/JS para o ?ver=.
+ * Assim cada edicao do arquivo invalida o cache do browser automaticamente,
+ * sem depender de bumpar a versao do tema. Fallback para a versao do tema
+ * se o arquivo nao existir (ex: path errado). $rel e relativo ao child theme.
+ */
+function bureau_it_asset_ver($rel) {
+    $path = get_stylesheet_directory() . '/' . ltrim($rel, '/');
+    $mtime = @filemtime($path);
+    return $mtime ? (string) $mtime : wp_get_theme()->get('Version');
+}
+
 add_action('wp_enqueue_scripts', 'hello_elementor_child_enqueue_scripts');
 function hello_elementor_child_enqueue_scripts() {
     $theme_uri = get_stylesheet_directory_uri();
-    $ver       = wp_get_theme()->get('Version');
 
     // 1. Parent theme
     wp_enqueue_style(
@@ -41,7 +52,7 @@ function hello_elementor_child_enqueue_scripts() {
         'hello-elementor-child',
         get_stylesheet_directory_uri() . '/style.css',
         ['hello-elementor-parent'],
-        $ver
+        bureau_it_asset_ver('style.css')
     );
 
     // 3. Base global (sempre)
@@ -49,7 +60,7 @@ function hello_elementor_child_enqueue_scripts() {
         'conc-base',
         "$theme_uri/css/base.css",
         ['hello-elementor-child'],
-        $ver
+        bureau_it_asset_ver('css/base.css')
     );
 
     // 4. Header & Menu (sempre)
@@ -57,7 +68,7 @@ function hello_elementor_child_enqueue_scripts() {
         'conc-header-menu',
         "$theme_uri/css/header-menu.css",
         ['conc-base'],
-        $ver
+        bureau_it_asset_ver('css/header-menu.css')
     );
 
     // 5. Plugin: The Events Calendar — CSS condicional (só em páginas com TEC)
@@ -66,7 +77,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-tec',
             "$theme_uri/css/plugins/tec.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/plugins/tec.css')
         );
     }
 
@@ -76,7 +87,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-jetengine',
             "$theme_uri/css/plugins/jetengine.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/plugins/jetengine.css')
         );
     }
 
@@ -86,7 +97,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-complianz',
             "$theme_uri/css/plugins/complianz.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/plugins/complianz.css')
         );
     }
 
@@ -96,7 +107,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-page-home',
             "$theme_uri/css/pages/home.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/pages/home.css')
         );
     }
 
@@ -106,7 +117,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-page-artistas',
             "$theme_uri/css/pages/artistas.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/pages/artistas.css')
         );
     }
 
@@ -116,7 +127,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-page-estudos',
             "$theme_uri/css/pages/estudos.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/pages/estudos.css')
         );
     }
 
@@ -126,7 +137,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-page-publicacoes',
             "$theme_uri/css/pages/publicacoes.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/pages/publicacoes.css')
         );
     }
 
@@ -136,7 +147,7 @@ function hello_elementor_child_enqueue_scripts() {
             'conc-page-contato',
             "$theme_uri/css/pages/contato.css",
             ['conc-base'],
-            $ver
+            bureau_it_asset_ver('css/pages/contato.css')
         );
     }
 
@@ -165,6 +176,31 @@ function bureau_it_print_slick_js() {
 
 /**
  * Register @font-face declarations via inline CSS
+ *
+ * ── PENDENTE: Just Sans VARIÁVEL (7 pesos 200–800) — aguardando arquivo licenciado ──
+ * Hoje só temos 2 pesos da Just Sans (Regular 400 + ExBold 800), os únicos cobertos
+ * pela licença gratuita CC BY-ND. O cliente vai adquirir a família completa (variável)
+ * na loja oficial JUST Creative — https://justcreative.com/shop/product/justsans/
+ * (US$ 49, pagamento único, inclui WOFF2 + variável). Quando o arquivo chegar:
+ *
+ *   1. Colocar o variável em fonts/woff2/JustSans-VF.woff2
+ *   2. Na string $css abaixo, SUBSTITUIR os dois @font-face estáticos da Just Sans
+ *      (Regular 400 e ExBold 800) por um único bloco variável:
+ *
+ *        @font-face {
+ *            font-family: 'Just Sans';
+ *            src: url('{$fonts_woff}/JustSans-VF.woff2') format('woff2-variations');
+ *            font-weight: 200 800;   // ExtraLight..ExtraBold — mesmo padrão da Roboto VF
+ *            font-style: normal;
+ *            font-display: swap;
+ *        }
+ *
+ *   3. Atualizar o preload (bureau_it_preload_critical_fonts) para apontar p/ o VF.
+ *   4. Validar em dev e fazer deploy. O picker do Elementor já oferece todos os pesos;
+ *      eles passam a renderizar de verdade automaticamente. A regra font-synthesis:none
+ *      (base.css 2.0) NÃO bloqueia pesos reais do variável — só impede SÍNTESE; como o
+ *      VF cobre 200–800, nenhum peso desse range é sintetizado (igual à Roboto VF atual).
+ *   5. Esta troca também REGULARIZA a base (licença comercial limpa no lugar da CC BY-ND).
  */
 add_action('wp_enqueue_scripts', 'bureau_it_custom_fonts_css');
 function bureau_it_custom_fonts_css() {

@@ -6,7 +6,7 @@
  *
  * @author Daniel Cambría
  * @since 6.4.0
- * @version 6.4.1
+ * @version 6.5.0
  *
  * @var bool            $is_all_day        Whether the event is all day on a single day.
  * @var bool            $is_same_start_end Whether the start and end date and time are the same.
@@ -37,9 +37,9 @@ $edital_text = '';
 if ( $event && $event->ID ) {
     $eh_edital = bureau_it_is_edital( $event );
 
-    if ( $eh_edital ) {
-        $end_date_formatted = tribe_get_end_date( $event, false, 'j \d\e F' );
-        $edital_text = 'Edital disponível até ' . $end_date_formatted;
+    if ( $eh_edital && isset( $event->dates->end ) && function_exists( 'bureau_it_edital_format_until' ) ) {
+        $parts       = bureau_it_edital_format_until( $event->dates->end->getTimestamp() );
+        $edital_text = rtrim( $parts['prefix'], ':' ) . ' ' . $parts['date'];
     }
 }
 

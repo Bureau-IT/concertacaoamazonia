@@ -5,6 +5,58 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.49] - 2026-06-22
+
+### Corrigido
+- `css/plugins/tec.css` — overlay "véu" dos cards de **Eventos relacionados** na
+  single de evento (seção 7.5). O EPTA inline cravava `#D7DCC0` (verde-oliva
+  legado) com `!important` na camada `.epta-light-bg` (overlay absoluto opacity
+  .88 por cima das thumbnails) → as imagens dos eventos relacionados apareciam
+  com tom esverdeado ("CSS quebrado" relatado). Alinhado ao bege global
+  (`--e-global-color-secondary` `#F8EAD9`) com âncora elevada
+  (`html body.single-tribe_events`) para vencer o `!important` do inline.
+  Validado via Playwright: 4 overlays → `#F8EAD9` + screenshot dos cards limpos.
+
+## [2.2.48] - 2026-06-22
+
+### Corrigido
+- `css/plugins/tec.css` — **blindagem de cascata** do hover dos botões da single
+  de evento (seção 7.2). O CSS inline do EPTA é injetado no RODAPÉ da página
+  (depois do `tec.css`), e como ambos usam `!important`, num empate de
+  especificidade a ordem de origem favorecia o inline (hover voltava ao escuro).
+  Âncora elevada para `html body.single-tribe_events #epta-template...` (id + 4
+  classes + elemento → especificidade estritamente maior que a do inline),
+  cobrindo `:hover`, `:focus` e `:active`. Mesma âncora aplicada ao hover dos
+  links de compartilhamento. Validado via Playwright (hover real + screenshot):
+  botão "+ Google Calendar"/"+ iCal Export" → fundo rosa `#FE78A9` + texto
+  escuro `#392E34` no hover.
+
+## [2.2.47] - 2026-06-22
+
+### Corrigido
+- `css/plugins/tec.css` — **página single de evento** (`/event/<slug>/`, renderizada
+  pelo plugin EPTA com `epta-template-1`) — paridade de paleta com o resto do site
+  (seção 7, nova):
+  - **Causa-raiz:** o CSS inline do EPTA referencia variáveis LEGADAS
+    `--ucpa-color-offwhite|white|accent` que não existem mais no site (a paleta
+    migrou para os Global Colors do Elementor) → fundo, boxes da sidebar, células
+    do countdown e botões ficavam sem cor (var indefinida).
+  - **Fix:** definidos os 3 aliases legados mapeados para os Global Colors atuais
+    (`--e-global-color-secondary` bege, `-f589ade` branco, `-accent` rosa),
+    escopados a `body.single-tribe_events`. Assim o inline do EPTA passa a resolver.
+  - **Fundo BEGE** (`#F8EAD9`) reforçado no body/wrapper/sidebar (paridade com a home).
+  - **Botões "+ Google Calendar" / "+ iCal Export":** base branca com texto/borda
+    escuros (`#392E34`); HOVER vira ROSA (`#FE78A9`) com texto escuro legível —
+    corrige bug do EPTA inline que pintava texto escuro sobre fundo escuro (rótulo
+    sumia no hover).
+  - **Links de compartilhamento** (`.epta-share-area`): hover em rosa accent.
+  - **Títulos de seção da sidebar** ("Detalhes"/"Local"/"Organizador"): o
+    `epta-style.css` cravava caixa preta (`#222222`); alinhado para fundo
+    transparente + texto escuro.
+  - **Caixa de avisos** (`.tribe-events-notices`): substituído o `#D7DCC0` legado
+    pelo bege global.
+  - Validado via getComputedStyle (browser real) na single de evento.
+
 ## [2.2.46] - 2026-06-22
 
 ### Corrigido

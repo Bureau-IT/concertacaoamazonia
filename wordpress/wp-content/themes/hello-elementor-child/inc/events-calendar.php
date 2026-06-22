@@ -4,7 +4,7 @@
  *
  * @package HelloElementorChild
  * @since   2.0.0
- * @version 2.4.7
+ * @version 2.5.0
  */
 
 if (!defined('ABSPATH')) {
@@ -236,6 +236,31 @@ function bureau_it_is_edital( $event ) {
 }
 
 /**
+ * Retorna prefixo e formato de data localizados para "edital disponível até".
+ *
+ * PT-BR: "Edital disponível até: 19 de maio"
+ * EN:    "Application open until: May 19"
+ *
+ * Detecta idioma via WPML (`wpml_current_language`) com fallback para `get_locale()`.
+ *
+ * @since 2.5.0
+ * @param int $timestamp Unix timestamp da data final.
+ * @return array{prefix:string,date:string} Prefixo (com ":") e data formatada.
+ */
+function bureau_it_edital_format_until( $timestamp ) {
+    $lang = apply_filters( 'wpml_current_language', null );
+    if ( ! $lang ) {
+        $lang = substr( get_locale(), 0, 2 );
+    }
+    $is_en = ( stripos( $lang, 'en' ) === 0 );
+
+    return [
+        'prefix' => $is_en ? 'Application open until:' : 'Edital disponível até:',
+        'date'   => wp_date( $is_en ? 'F j' : 'j \d\e F', $timestamp ),
+    ];
+}
+
+/**
  * Filtro para modificar a data exibida dos eventos na lista.
  * Usado em views legadas / shortcodes V1.
  *
@@ -258,9 +283,9 @@ function bureau_it_filter_edital_schedule( $schedule, $event_id ) {
         return $schedule;
     }
 
-    $formatted = wp_date( 'j \d\e F', $event->dates->end->getTimestamp() );
+    $parts = bureau_it_edital_format_until( $event->dates->end->getTimestamp() );
 
-    return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html( $formatted ) . '</span>';
+    return '<span class="tribe-event-edital-date">' . esc_html( $parts['prefix'] . ' ' . $parts['date'] ) . '</span>';
 }
 
 /**
@@ -281,9 +306,9 @@ function bureau_it_filter_edital_short_schedule( $schedule, $event_id ) {
         return $schedule;
     }
 
-    $formatted = wp_date( 'j \d\e F', $event->dates->end->getTimestamp() );
+    $parts = bureau_it_edital_format_until( $event->dates->end->getTimestamp() );
 
-    return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html( $formatted ) . '</span>';
+    return '<span class="tribe-event-edital-date">' . esc_html( $parts['prefix'] . ' ' . $parts['date'] ) . '</span>';
 }
 
 /**
@@ -302,9 +327,9 @@ function bureau_it_format_event_date( $event, $add_prefix = true ) {
         if ( ! isset( $event->dates->end ) ) {
             return '';
         }
-        $formatted = wp_date( 'j \d\e F', $event->dates->end->getTimestamp() );
+        $parts = bureau_it_edital_format_until( $event->dates->end->getTimestamp() );
 
-        return '<span class="tribe-event-edital-date">Edital disponível até: ' . esc_html( $formatted ) . '</span>';
+        return '<span class="tribe-event-edital-date">' . esc_html( $parts['prefix'] . ' ' . $parts['date'] ) . '</span>';
     }
 
     // Eventos normais: aplicar correções de formato

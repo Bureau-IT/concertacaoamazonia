@@ -25,6 +25,24 @@ input.jet-search-filter__input:focus-visible {
     outline-offset: 0;
 }
 
+/* --- 5.1b Classe utilitaria .bit-search-icon ---
+ * Why: cada widget JetSmartFilters Search vinha com Custom CSS inline duplicado
+ * apontando para `var(--ucpa-lupa)` com fallback hardcoded (azul #3241AD). Isso
+ * fragmentava a cor da lupa por widget e obrigava editar cada pagina ao mudar.
+ * How to apply: no Elementor, adicionar `bit-search-icon` na CSS class do widget
+ * JetSmartFilters Search (ou em qualquer input que deva exibir a lupa). A cor da
+ * lupa eh controlada centralmente por --ucpa-lupa em style.css (:root). */
+.bit-search-icon.jet-search-filter .jet-search-filter__input,
+.bit-search-icon .jet-search-filter__input,
+input.bit-search-icon {
+    background-image   : var(--ucpa-lupa);
+    background-repeat  : no-repeat;
+    background-position: 10px 12px;
+    background-size    : 16px;
+    background-color   : var(--ucpa-color-white, #FFFFFF);
+    padding-inline-start: 36px !important;
+}
+
 html body.elementor-kit-2553.logged-in input,
 html body.elementor-kit-2553.logged-in .tribe-common input {
     border-color : transparent;
@@ -39,6 +57,17 @@ html :is(.elementor-element-5a1231d, .elementor-element-bec826a) :hover {
 
 html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select:hover {
     border-width: 0 0 1px 0 !important;
+}
+
+/* --- 5.2b Dropdown <option> legibilidade no Windows ---
+ * Why: Elementor define `color:#FFFFFF` no .jet-select__control para casar com o
+ * fundo escuro do hero. No Chrome/Windows o popover nativo herda esse `color` e
+ * desenha texto branco sobre fundo branco do SO (ilegível). No macOS o SO ignora
+ * o color e usa o tema nativo, então não aparece o bug.
+ * How to apply: forçar contraste no <option>, que só afeta o popover aberto. */
+html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select option {
+    color           : #14161F;
+    background-color: #FFFFFF;
 }
 
 /* --- 5.3 Painel Hamburger (Pesquisa Ajax) --- */

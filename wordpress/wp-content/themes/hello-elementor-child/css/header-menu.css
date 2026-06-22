@@ -157,15 +157,19 @@
      * chegou a abrir. CSS gerado pelo Elementor trata .highlighted como
      * sinônimo de :hover e mantém items coloridos como hover indefinidamente.
      *
-     * Fix: forçar cor herdada quando .highlighted está presente mas o item
-     * NÃO está sendo hovered no momento — :hover é o estado real, .highlighted
-     * é resíduo de race condition. O :hover real continua aplicando a cor accent
-     * (vence por especificidade do .elementor-item-active no seletor original).
+     * Fix: forçar a cor PADRÃO do menu (branco — Global Color "header txt"
+     * bcf690c) quando .highlighted está presente mas o item NÃO está sendo
+     * hovered no momento — :hover é o estado real, .highlighted é resíduo de
+     * race condition. O :hover real continua aplicando a cor accent (vence por
+     * especificidade do .elementor-item-active no seletor original).
+     * NOTA (2026-06-22): antes usava --e-global-color-secondary (#F8EAD9 offwhite),
+     * que vazava offwhite nos itens previamente clicados — sobre o header escuro
+     * ficavam quase ilegíveis ("Conhecimento sumindo"). Corrigido para branco.
      * Validar visualmente com Playwright headed após qualquer mudança.
      */
     .elementor-location-header .elementor-nav-menu--main a.elementor-item.highlighted:not(:hover):not(:focus):not(.elementor-item-active) {
-        color: var(--e-global-color-secondary);
-        fill : var(--e-global-color-secondary);
+        color: var(--e-global-color-bcf690c);
+        fill : var(--e-global-color-bcf690c);
     }
 }
 
@@ -218,4 +222,15 @@
     aspect-ratio : 1 / 1;
     flex-shrink  : 0;
     overflow     : hidden;
+}
+
+/* ==========================================================================
+   Footer — item de menu ativo (página atual)
+   Por padrão o widget Elementor capitaliza o .elementor-item-active.
+   No footer o item selecionado deve ficar em NEGRITO + MINÚSCULAS (não capitalize).
+   ========================================================================== */
+.elementor-location-footer .elementor-nav-menu a.elementor-item.elementor-item-active,
+.elementor-location-footer .elementor-nav-menu li.current-menu-item > a.elementor-item {
+    text-transform: lowercase !important;
+    font-weight   : 700 !important;
 }
