@@ -731,11 +731,17 @@ async (page) => {
     await page.context().clearCookies();
     await page.goto(url + '?cb=' + Date.now(), { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3500); // Complianz inicializa via JS — não DOMContentLoaded sync
-    return await page.evaluate(() => {
+    const data = await page.evaluate(() => {
       const banner = document.querySelector('.cmplz-cookiebanner, #cmplz-cookiebanner-container, [class*="cmplz-banner"]');
       const html = document.documentElement.outerHTML;
       const cmplzScripts = Array.from(document.querySelectorAll('script[src]'))
         .filter(s => /cmplz|complianz/i.test(s.src)).length;
+      // css_file da config inline do Complianz (substituir {banner_id}/{type} pelo real)
+      const m = html.match(/css_file"\s*:\s*"([^"]+)"/);
+      let css_file = m ? m[1].replace(/\\\//g, '/') : null;
+      // Custom = serve de uploads/complianz ou uploads/sites/N/complianz. Fallback = plugins/complianz-gdpr/.../defaults/
+      const css_is_custom = !!css_file && /\/uploads\/(?:sites\/\d+\/)?complianz\//.test(css_file);
+      const css_is_fallback = !!css_file && /\/plugins\/complianz-gdpr\//.test(css_file);
       return {
         url: location.href,
         banner_visible: banner ? getComputedStyle(banner).display !== 'none' : false,
@@ -744,8 +750,26 @@ async (page) => {
         cmplz_html_count: (html.match(/cmplz-banner|cmplz-cookiebanner|cmplz-accept|cmplz-deny/gi) || []).length,
         cmplz_scripts_loaded: cmplzScripts,
         window_complianz: typeof window.complianz !== 'undefined',
+        css_file,
+        css_is_custom,
+        css_is_fallback,
       };
     });
+    // Gate 52b: o CSS customizado do banner serve 200? (resolver {banner_id}->1, {type}->optin)
+    if (data.css_file) {
+      const realUrl = data.css_file.replace('{banner_id}', '1').replace('{type}', 'optin');
+      try {
+        const r = await page.evaluate(async (u) => {
+          const resp = await fetch(u, { cache: 'no-store' });
+          const ct = (resp.headers.get('content-type') || '').toLowerCase();
+          const txt = await resp.text();
+          return { status: resp.status, is_css: ct.includes('text/css'), has_cmplz_rules: /cmplz-cookiebanner/.test(txt) };
+        }, realUrl);
+        data.css_http = r.status;
+        data.css_served_ok = r.status === 200 && r.is_css && r.has_cmplz_rules;
+      } catch (e) { data.css_http = 0; data.css_served_ok = false; }
+    }
+    return data;
   };
   return {
     blog1_root:    await audit('https://concertacaoamazonia.com.br/'),
@@ -758,14 +782,31 @@ async (page) => {
 ### Apresentar matriz multisite
 
 ```
-| Local              | banner | accept | deny | scripts | window.complianz | Status |
-|--------------------|--------|--------|------|--------:|------------------|--------|
-| Blog 1 / (raiz)    | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
-| Blog 2 /cultura/   | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
-| Blog 2 Atlas       | ✅     | ✅     | ✅   |   N     | ✅               | ✅     |
+| Local              | banner | accept | deny | scripts | window.complianz | css custom | css 200 | Status |
+|--------------------|--------|--------|------|--------:|------------------|-----------|---------|--------|
+| Blog 1 / (raiz)    | ✅     | ✅     | ✅   |   N     | ✅               | ✅        | ✅      | ✅     |
+| Blog 2 /cultura/   | ✅     | ✅     | ✅   |   N     | ✅               | ✅        | ✅      | ✅     |
+| Blog 2 Atlas       | ✅     | ✅     | ✅   |   N     | ✅               | ✅        | ✅      | ✅     |
 ```
 
 🚨 **FAIL multisite** se qualquer dos blogs mostra `banner_visible === false`. Ação: verificar `wp_options.cmplz_options` (blog 1) E `wp_2_options.cmplz_options` (blog 2). Multisite com Complianz Network Active geralmente exige config por subsite.
+
+🚨 **Gate 52 — CSS customizado do banner (incidente blue-green 2026-06-22)**: o banner aparece VISÍVEL com botões mas SEM estilo (bullets vazios, layout cru) quando o CSS gerado do banner falta e o Complianz cai no fallback default do plugin. `banner_visible` sozinho NÃO pega isso (banner está lá). Sub-gates por blog:
+- **52a** `css_is_fallback === true` (HIGH) — `css_file` aponta para `/plugins/complianz-gdpr/.../defaults/banner-{type}.css` em vez de `/uploads/(sites/N/)?complianz/css/`. O CSS gerado do banner não existe nesse blog. **MULTISITE:** cada blog tem seu CSS próprio — blog 1 em `uploads/complianz/css/`, blog 2 em `uploads/sites/2/complianz/css/`. Corrigir um blog NÃO corrige o outro.
+- **52b** `css_served_ok === false` (HIGH) — o CSS customizado referenciado não serve 200/text/css com regras `.cmplz-cookiebanner`. No padrão CF-OAC valida via CloudFront (uploads vêm do S3; o nginx faz `return 444` p/ uploads do disco → ALB direto dá 502, ESPERADO).
+
+**Fix:** regenerar o CSS no contexto de CADA blog + sync S3 + CF invalidate:
+```bash
+# blog 1
+wp eval '$bs=cmplz_get_cookiebanners(); foreach($bs as $b){ (new cmplz_cookiebanner($b->ID))->generate_css(); }'
+# blog 2 (--url do subsite; criar dir sites/2/complianz/css antes)
+mkdir -p .../uploads/sites/2/complianz/css && chown www-data:www-data ...
+wp --url=https://FQDN/cultura/ eval '$bs=cmplz_get_cookiebanners(); foreach($bs as $b){ (new cmplz_cookiebanner($b->ID))->generate_css(); }'
+aws s3 sync .../uploads/complianz/css/ s3://BUCKET/green/uploads/complianz/css/ --content-type text/css
+aws s3 sync .../uploads/sites/2/complianz/css/ s3://BUCKET/green/uploads/sites/2/complianz/css/ --content-type text/css
+aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --paths '/' '/cultura/' '/wp-content/uploads/*complianz/css/*'
+```
+Memória: [[project_complianz_banner_css_missing_green]].
 
 ### Snippet — Complianz cookie flow
 
@@ -2131,6 +2172,15 @@ N bad
 
     Cobre blog 1 (`/atuacao/encontros/`, header 39359) + blog 2 (`/cultura/linha-do-tempo/`, header 89307), widget `58b33f3`. Mede em páginas INTERNAS (homes têm toggle instável).
     **NÃO** comparar `dropdownBg` contra hex fixo: o verde de prod (#003A26) diverge do dev (#005A42, nova paleta) de propósito. Ver [[feedback_menu_mobile_bg_lost_css_to_widget_handoff]].
+
+50. **Menu DESKTOP — cor dos itens no estado `.highlighted` (Gate 50)** — viewport ≥1024px, simula a classe residual `.highlighted` do SmartMenus nos itens top-level e mede a cor COMPUTADA. Severidade **HIGH**. FAIL se:
+    - `50 offwhite_leak` — algum item do menu desktop fica **offwhite (#F8EAD9)** no estado `.highlighted` (regra header-menu.css §9.5 usando `--e-global-color-secondary` em vez de `--e-global-color-bcf690c` branco). Itens previamente clicados ficam ilegíveis sobre o header escuro ("Conhecimento sumindo"). Incidente 2026-06-22. Fix: regra §9.5 → `var(--e-global-color-bcf690c)` + rsync tema + reload fpm + rocket_clean_minify + CF invalidate.
+
+    Cobre blog 1 (`/sobre-nos/`) + blog 2 (`/cultura/linha-do-tempo/`), `.elementor-nav-menu--main`. Validar pela cor COMPUTADA (não presença da regra); estado `.highlighted` transitório → simular via `classList.add`. Ver [[feedback_css_validation_computed_not_presence]].
+
+51. **Paginação de eventos TEC (Gate 51)** — `fetch` HTTP de `/eventos/lista/?eventDisplay=past` (≥2 páginas garantidas). Severidade **HIGH**. **Prod-only** (dev não tem CloudFront). FAIL se:
+    - `51 stale_cache` — origin gera paginação correta mas o **edge (CloudFront) serve `<button disabled>` / sem link `/página/2/`** (HTML dinâmico cacheado 24h sem diferenciar `eventDisplay`/`tribe-bar-date` na whitelist). Setas "Próximos/Anteriores" não navegam no browser. Fix imediato: invalidar CF `/eventos* /editais* /eventos-calendario* /`. Incidente 2026-06-22.
+    - `51 origin_broken` — o próprio origin não gera paginação (permalink/rewrite `/eventos/lista/página/N/` ou config do widget). Snippet dedicado. Ver [[project_tec_pagination_cf_cache_stale]].
 
 14. **Cache health (Fase 7.8) — Object cache drop-in**: `object_cache_dropin.installed === false`.
     Plugin redis-cache pode estar ativo mas drop-in `wp-content/object-cache.php` ausente
@@ -4436,10 +4486,398 @@ async (page) => {
 > (tunnel `concertacao.bureau-it.com` p/ dev), não `cambrasmax.local`. Clique REAL no toggle
 > (`.click()` no DOM dispara o SmartMenus; manipular `display:block` manualmente quebra o layout).
 >
-> **TODO (menu desktop):** não há gate visual equivalente para o menu DESKTOP (submenu hover,
-> bug stuck-pink documentado em `css/header-menu.css` §9.5). Um Gate 50 análogo — viewport ≥1024px,
-> hover nos itens com submenu, assertar cor accent do submenu + ausência de `.highlighted` residual
-> pós-mouseleave — fecharia essa lacuna. Ainda não implementado.
+### Snippet — Gate 50 (Menu DESKTOP: cor dos itens no estado .highlighted — sem vazamento offwhite)
+
+Após gate 49, antes do gate 51. **Usa Playwright** (viewport desktop ≥1024px + simulação do
+estado `.highlighted` do SmartMenus). Origem: incidente 2026-06-22 — itens do menu header
+previamente clicados ficavam com a classe residual `.highlighted` (SmartMenus injeta no
+hover/click rápido e não remove no mouseleave quando o submenu não abre). A regra do
+`header-menu.css` §9.5 (fix stuck-pink) pintava `.highlighted:not(:hover):not(:focus):not(.elementor-item-active)`
+com `var(--e-global-color-secondary)` = **#F8EAD9 (offwhite)** → sobre o header escuro os itens
+ficavam quase ilegíveis ("Conhecimento sumindo"). Fix: trocar para `var(--e-global-color-bcf690c)`
+= #FFFFFF ("header txt" branco). Ver [[feedback_css_validation_computed_not_presence]].
+
+**Por que o Gate 49 NÃO pega:** o Gate 49 mede o menu MOBILE (viewport 390px, fundo/tipografia
+do dropdown). Este mede o menu DESKTOP no estado `.highlighted` (cor dos itens). Classes distintas.
+
+**Cobre:** blog 1 (`/sobre-nos/`, header 39359) + blog 2 (`/cultura/linha-do-tempo/`, header 89307),
+menu `.elementor-nav-menu--main` (desktop). Mede a cor COMPUTADA (não a presença da regra — ver
+gotcha de [[feedback_css_validation_computed_not_presence]]).
+
+```js
+async (page) => {
+  const ALB_IP_HEADER = HEADER_VAL || {}; // {X-Test-Green:'true'} p/ green; {} p/ prod
+  const targets = [
+    { blog: 'blog1', url: 'https://concertacaoamazonia.com.br/sobre-nos/' },
+    { blog: 'blog2', url: 'https://concertacaoamazonia.com.br/cultura/linha-do-tempo/' },
+  ];
+  const out = {};
+  for (const t of targets) {
+    await page.context().setExtraHTTPHeaders(ALB_IP_HEADER);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.context().clearCookies();
+    await page.goto(t.url + '?nocache=' + Date.now(), { waitUntil: 'networkidle', timeout: 35000 });
+    await page.waitForTimeout(1500);
+    out[t.blog] = await page.evaluate(() => {
+      const items = Array.from(document.querySelectorAll('.elementor-location-header .elementor-nav-menu--main a.elementor-item'));
+      if (!items.length) return { rootFound: false };
+      // simular o resíduo .highlighted do SmartMenus em itens NÃO-ativos
+      const measured = [];
+      const isOff = (rgb) => { // #F8EAD9 ≈ rgb(248,234,217) — offwhite vazando
+        const m = (rgb||'').match(/rgba?\(([^)]+)\)/); if (!m) return false;
+        const [r,g,b] = m[1].split(',').map(x=>parseFloat(x));
+        return r>235 && r<255 && g>225 && g<245 && b>205 && b<230; // faixa offwhite (não branco puro)
+      };
+      items.forEach(a => {
+        if (a.classList.contains('elementor-item-active')) return; // ativo é rosa, ok
+        a.classList.add('highlighted');
+        const c = getComputedStyle(a).color;
+        measured.push({ text: a.innerText.trim().slice(0,20), color: c, offwhite_leak: isOff(c) });
+        a.classList.remove('highlighted');
+      });
+      return {
+        rootFound: true,
+        items: measured.slice(0, 8),
+        leak_count: measured.filter(m => m.offwhite_leak).length,
+      };
+    });
+  }
+  const fails = [];
+  for (const blog of ['blog1','blog2']) {
+    const r = out[blog];
+    if (!r || !r.rootFound) { fails.push(`${blog}:menu-desktop-ausente`); continue; }
+    if (r.leak_count > 0) fails.push(`${blog}:offwhite_leak=${r.leak_count}`);
+  }
+  return { ...out, verdict: fails.length === 0 ? 'PASS' : `FAIL: ${fails.join(', ')}` };
+}
+```
+
+**Gates do snippet (rodar blog1 + blog2; em green passar `HEADER_VAL={'X-Test-Green':'true'}`):**
+- **Gate 50** PASS: nenhum item do menu desktop fica offwhite (#F8EAD9) no estado `.highlighted`.
+  `leak_count === 0` em ambos os blogs.
+- **Gate 50** FAIL `offwhite_leak=N`: a regra `.highlighted` do header-menu.css §9.5 voltou a usar
+  `--e-global-color-secondary` (offwhite) em vez de `--e-global-color-bcf690c` (branco). Itens
+  previamente clicados ficam ilegíveis sobre o header escuro. Fix: editar a regra §9.5 para
+  `color: var(--e-global-color-bcf690c); fill: var(--e-global-color-bcf690c);` + rsync tema +
+  reload php-fpm + rocket_clean_minify('css') + CF invalidate do CSS.
+
+> **Severidade: HIGH.** Menu desktop com itens ilegíveis pós-clique é regressão visível ao usuário.
+> **GOTCHA:** validar pela cor COMPUTADA (`getComputedStyle(a).color`), nunca pela presença da
+> regra no CSS — ver [[feedback_css_validation_computed_not_presence]]. Estado `.highlighted` é
+> transitório (SmartMenus); simular via `classList.add('highlighted')` em vez de tentar reproduzir
+> o hover-race. Cache de disco do Chrome é teimoso (`Cache-Control: immutable`) — medir com
+> `?nocache=Date.now()` + `clearCookies()`.
+
+### Snippet — Gate 51 (Paginação de eventos TEC — Próximos/Anteriores navegam, prod)
+
+Após gate 49, antes do relatório. **Usa fetch HTTP** (leve, determinístico). Origem: incidente
+2026-06-22 — o widget de eventos TEC (List View) das páginas `/`, `/editais/`, `/eventos-calendario/`
+parou de paginar em **prod** (setas "Próximos/Anteriores" não avançavam de página). Causa raiz:
+**CloudFront cacheava o HTML dinâmico de `/eventos/lista/...` por 24h sem diferenciar as query
+strings de navegação** (`eventDisplay`/`tribe-bar-date`/`tribe_paged` NÃO estão na whitelist da
+cache policy `wp-cache-default-hostaware` `8e1062b8`) → colapsava todas as variantes numa entrada
+e servia paginação stale. O **origin gera a paginação correta** (`<a data-js>` ativo para
+`/eventos/lista/página/2/`); o edge servia uma versão velha com `<button disabled>` + links no
+formato antigo `?tribe-bar-date=`. Dev nunca falha (sem CF na frente). Ver
+[[project_tec_pagination_cf_cache_stale]] e [[project_tec_arrows_reload_not_ajax]].
+
+O gate compara o HTML que o **browser recebe via CloudFront** (edge) com o que o **origin gera
+fresco**, no caminho canônico de paginação `/eventos/lista/?eventDisplay=past` (que SEMPRE tem
+≥2 páginas: há 150 eventos past / 20 por página = ~8 páginas). A discrepância edge≠origin no
+botão "Próximos" é a assinatura exata do bug.
+
+```javascript
+// Snippet smoke (browser_run_code_unsafe) — gate 51 — paginação TEC via HTTP
+async (page) => {
+  const PAST = "https://concertacaoamazonia.com.br/eventos/lista/?eventDisplay=past";
+  // Heurística: "Próximos" deve ser <a data-js="tribe-events-view-link"> (ativo),
+  // e o HTML deve conter um link de paginação para /página/2/ (ou /page/2/).
+  // O bug servia <button ... disabled> no lugar do <a> e SEM link /página/2/.
+  const analyze = (html) => {
+    const next_is_anchor   = /<a[^>]*tribe-events-c-nav__next/i.test(html);
+    const next_is_disabled = /tribe-events-c-nav__next[^>]*\bdisabled\b/i.test(html);
+    const has_page2_link   = /eventos\/lista\/(p%c3%a1gina|p[áa]gina|page)\/2\//i.test(html);
+    const event_rows       = (html.match(/tribe-events-calendar-list__event-row/g) || []).length;
+    return { next_is_anchor, next_is_disabled, has_page2_link, event_rows };
+  };
+
+  // (1) EDGE — o que o browser/CloudFront entrega (com header de cache)
+  const edgeResp = await page.request.get(PAST, {
+    headers: { "X-Forwarded-Proto": "https" },
+  });
+  const edgeHtml = await edgeResp.text();
+  const edge = analyze(edgeHtml);
+  edge.x_cache = edgeResp.headers()["x-cache"] || null;
+  edge.age = edgeResp.headers()["age"] || null;
+
+  // (2) ORIGIN — fresco, contornando o cache de página do WP Rocket via ?nowprocket=1
+  //     (NÃO contorna o CloudFront — por isso comparamos os dois; se o CF servir stale,
+  //      o edge diverge mesmo com nowprocket, pois o CF ignora a query string no cache key)
+  const originResp = await page.request.get(PAST + "&nowprocket=1&cb=" + Date.now(), {
+    headers: { "X-Forwarded-Proto": "https" },
+  });
+  const originHtml = await originResp.text();
+  const origin = analyze(originHtml);
+
+  // PASS: edge serve paginação saudável (Próximos = <a> ativo, link página/2 presente,
+  //       e NÃO disabled). Origin é a referência (deve estar sempre saudável).
+  const gate_51_edge_ok =
+    edge.next_is_anchor && edge.has_page2_link && !edge.next_is_disabled && edge.event_rows > 0;
+  const gate_51_origin_ok =
+    origin.next_is_anchor && origin.has_page2_link && !origin.next_is_disabled;
+  // Assinatura do bug de cache stale: origin saudável MAS edge quebrado.
+  const gate_51_stale_cache = gate_51_origin_ok && !gate_51_edge_ok;
+
+  // ── Gate 51b: link "Anteriores" das PÁGINAS com widget TEC não pode ter ?pagename= ──
+  // O widget tec_elementor_widget_events_view em /editais e /eventos-calendario gerava
+  // o link prev como /eventos/lista/?pagename=<slug>&... → 404 (conflito pagename vs
+  // archive post_type=tribe_events). Fix: mu-plugin bit-tec-strip-pagename-nav-url.php.
+  // Validamos que o link gerado NÃO tem pagename E que a URL resolve 200.
+  const WIDGET_PAGES = [
+    "https://concertacaoamazonia.com.br/editais/",
+    "https://concertacaoamazonia.com.br/eventos-calendario/",
+  ];
+  const navurl = [];
+  for (const purl of WIDGET_PAGES) {
+    const r = await page.request.get(purl + "?cb=" + Date.now(), { headers: { "X-Forwarded-Proto": "https" } });
+    const html = await r.text();
+    const m = html.match(/href="([^"]*eventDisplay=past[^"]*)"/);
+    const prevLink = m ? m[1].replace(/&#0?38;/g, "&") : null;
+    const hasPagename = prevLink ? /pagename=/.test(prevLink) : false;
+    let prevStatus = null;
+    if (prevLink) {
+      const pr = await page.request.get(prevLink, { headers: { "X-Forwarded-Proto": "https" }, maxRedirects: 0 }).catch(() => null);
+      prevStatus = pr ? pr.status() : null;
+    }
+    navurl.push({ page: purl, prevLink, hasPagename, prevStatus, ok: !hasPagename && prevStatus === 200 });
+  }
+  const gate_51b_ok = navurl.every(n => n.ok);
+
+  return {
+    url: PAST,
+    edge, origin,
+    gate_51_edge_ok,
+    gate_51_origin_ok,
+    gate_51_stale_cache,
+    gate_51b_navurl_no_pagename: { pass: gate_51b_ok, pages: navurl },
+    pass: gate_51_edge_ok && gate_51b_ok,
+  };
+}
+```
+
+**Gates do snippet:**
+- **Gate 51 PASS:** `edge.next_is_anchor === true` && `edge.has_page2_link === true` &&
+  `edge.next_is_disabled === false` && `edge.event_rows > 0`. Paginação navega no browser real.
+- **Gate 51 FAIL (`gate_51_stale_cache === true`) — CACHE STALE (causa conhecida):** o origin gera
+  paginação correta mas o **edge serve `<button disabled>` / sem link `/página/2/`**. CloudFront
+  está servindo HTML dinâmico velho. **Severidade: HIGH** (paginação de eventos/editais quebrada
+  para o usuário). **Fix imediato:**
+  `aws cloudfront create-invalidation --distribution-id E2F1QD7E7YOYEB --profile Concertação --paths '/eventos*' '/editais*' '/eventos-calendario*' '/'`
+  **Fix definitivo JÁ APLICADO 2026-06-22:** behavior CF dedicado `eventos*`+`eventos-calendario*`+
+  `editais*` com cache policy `WP-Events-ShortTTL-HostAware` (`f24028ef`, TTL 300/900, QS=all). Se
+  este gate FALHAR por stale_cache mesmo com o behavior ativo, investigar: (a) o behavior foi removido
+  num redeploy/drift da distribuição? (rodar `/audit-acl`); (b) multi-PoP transitório (re-rodar);
+  (c) a home `/` (que NÃO tem behavior dedicado — fora do escopo) está sendo testada por engano.
+  Ver [[project_tec_pagination_cf_cache_stale]].
+- **Gate 51 FAIL (`gate_51_origin_ok === false`) — paginação quebrada NA ORIGEM:** o próprio
+  servidor não gera paginação (não é cache). Investigar permalinks do TEC, rewrite rules de
+  `/eventos/lista/página/N/`, ou config do widget. Multi-PoP do CF pode mascarar (curl pega 1 PoP);
+  rodar o gate algumas vezes ou validar via `curl -H 'Host:' http://127.0.0.1` no origin direto
+  (SSH) — ver [[feedback_gate27_multipop_blindspot]].
+- **Gate 51b FAIL (`gate_51b_navurl_no_pagename.pass === false`) — link Anteriores com `?pagename=` → 404:**
+  o widget TEC em `/editais/` ou `/eventos-calendario/` gera o link "Anteriores" como
+  `/eventos/lista/?pagename=<slug>&...` que retorna **404** (conflito `pagename` vs archive
+  `post_type=tribe_events` no WP_Query). **Severidade: HIGH** (navegação de eventos passados quebrada).
+  **Causa:** mu-plugin `bit-tec-strip-pagename-nav-url.php` ausente/inativo, OU `_elementor_element_cache`
+  das páginas 65139/80093 prendendo o link antigo (deletar via `delete_post_meta` + rocket_clean + CF
+  invalidate). Cada item de `pages[]` mostra `prevLink`, `hasPagename`, `prevStatus`. Ver
+  [[project_tec_pagename_404_navurl]] [[feedback_menu_item_header_element_cache]].
+
+> **Nota:** este gate é **prod-only** (dev não tem CloudFront — sempre serve o origin fresco, então
+> nunca reproduz o bug). Não comparar contra green/dev. O caminho `?eventDisplay=past` é escolhido
+> de propósito por ter ≥2 páginas garantidas; a home `/` e `/editais/` mostram só upcoming (poucos
+> eventos → "Próximos" legitimamente disabled), por isso não servem de canário de paginação.
+
+### Snippet — Gate 53 (Imagens só-green servem via _oac-canary — validação de uploads da GREEN)
+
+**GREEN-ONLY** (rodar só na validação da green, não em prod). Origem: incidente blue-green 2026-06-22.
+No padrão CF-OAC, a green grava uploads em `s3://bucket/green/uploads/` mas o CloudFront serve
+`/wp-content/uploads/*` de `assets/uploads/` (prod). Imagens NOVAS que existem só em `green/`
+(entraram no dev recentemente) dão **HTTP 403** na validação da green via URL normal — heros/
+backgrounds aparecem sem imagem. **Isto é by-design** (uploads só promovem para `assets/` no cutover
+atômico da phase7); NÃO é bug a corrigir tocando prod. O mecanismo correto de validação é o
+**`_oac-canary`**: a CF Function `uploads-oac-router` + behaviors `*/wp-content/uploads/_oac-canary/*`
+→ origin `S3-uploads-green` permitem servir as imagens do `green/` sem tocar `assets/`.
+
+**O que o gate valida:** as imagens só-green, quando servidas via `/wp-content/uploads/_oac-canary/<path>`,
+retornam **200** (não 403). Confirma que (a) o `green/uploads/` foi populado pela phase3 (`--uploads-mode=s3-sync`),
+(b) a CF Function + behaviors canary estão funcionais. Se o gate falhar, a validação visual da green
+estará cega (imagens não aparecem nem via canary) — investigar o sync S3 e os behaviors.
+
+**Pré-req:** computar o diff S3 `green/uploads` vs `assets/uploads` (a lista de paths só-green). Via SSH/aws:
+```bash
+# rodar antes do snippet — gera a lista de até N amostras de paths só-green
+AWS_PROFILE=Concertação
+B=concertacaoamazonia-com-br-wp-static-prd-sa
+comm -23 \
+  <(aws s3 ls "s3://$B/green/uploads/" --recursive | awk '{print $4}' | sed 's#^green/uploads/##' | sort) \
+  <(aws s3 ls "s3://$B/assets/uploads/" --recursive | awk '{print $4}' | sed 's#^assets/uploads/##' | sort) \
+  | grep -iE '\.(jpg|jpeg|png|webp)$' | head -20
+```
+
+**Snippet Playwright (recebe a lista `GREEN_ONLY_PATHS` do diff acima):**
+
+```js
+async (page) => {
+  const FQDN = 'https://concertacaoamazonia.com.br';
+  // substituir pela lista do diff S3 (paths relativos a uploads/, ex: '2026/06/Acai-Joao-Ramid1.jpg')
+  const GREEN_ONLY_PATHS = GREEN_ONLY_PATHS_AQUI;
+  if (!GREEN_ONLY_PATHS || !GREEN_ONLY_PATHS.length) {
+    return { gate_53: { skipped: true, reason: 'nenhuma imagem só-green (green ⊆ assets) — nada a validar' } };
+  }
+  const results = [];
+  for (const p of GREEN_ONLY_PATHS.slice(0, 15)) {
+    // via path NORMAL (deve dar 403 — confirma que é só-green) e via CANARY (deve dar 200)
+    const normal = await page.evaluate(async (u) => {
+      try { const r = await fetch(u, { cache: 'no-store' }); return r.status; } catch(e){ return 0; }
+    }, `${FQDN}/wp-content/uploads/${p}?cb=${Date.now()}`);
+    const canary = await page.evaluate(async (u) => {
+      try { const r = await fetch(u, { cache: 'no-store' }); return { status: r.status, ct: (r.headers.get('content-type')||'').slice(0,20) }; } catch(e){ return { status: 0 }; }
+    }, `${FQDN}/wp-content/uploads/_oac-canary/${p}?cb=${Date.now()}`);
+    results.push({ path: p.slice(-45), normal_status: normal, canary_status: canary.status, canary_ct: canary.ct });
+  }
+  const canary_ok = results.every(r => r.canary_status === 200);
+  const normal_403 = results.filter(r => r.normal_status === 403).length;
+  return {
+    gate_53_green_uploads_canary: {
+      pass: canary_ok,
+      total_checked: results.length,
+      canary_serving_200: results.filter(r => r.canary_status === 200).length,
+      normal_path_403: normal_403,  // esperado > 0 (confirma que são só-green, by-design pré-cutover)
+      samples: results.slice(0, 5),
+    },
+  };
+}
+```
+
+**Gates do snippet:**
+- **Gate 53 PASS:** todas as imagens só-green retornam **200 via `_oac-canary`** (`canary_status===200`).
+  O `normal_path_403 > 0` é ESPERADO e benigno (confirma que são imagens só-green — resolverão no cutover).
+- **Gate 53 FAIL (`canary_status !== 200`):** a imagem não serve nem via canary. A validação visual da
+  green está cega. Causas: (a) `green/uploads/` não foi populado — a phase3 não rodou com `--uploads-mode=s3-sync`
+  ou o `aws s3 sync` falhou; (b) a CF Function `uploads-oac-router` ou os behaviors `_oac-canary` foram
+  removidos/quebrados (rodar `/audit-acl`); (c) o objeto realmente não existe no S3. **Severidade: MEDIUM**
+  (não quebra prod — é gap de validação). Fix: re-rodar `phase3 --uploads-mode=s3-sync` e/ou validar a CF Function.
+- **SKIP:** se `green ⊆ assets` (nenhuma imagem só-green), o gate reporta `skipped` — não há o que validar.
+
+> **Nota:** o 403 na URL NORMAL das imagens só-green NÃO é um FAIL — é o comportamento correto do CF-OAC
+> pré-cutover. As imagens "promovem" para `assets/` (e param de dar 403) no cutover atômico (phase7,
+> swap green→assets). Para validação HUMANA ao vivo no browser, o procedimento é reescrever as URLs de
+> uploads para `_oac-canary/` (regra Requestly "Replace String" `/wp-content/uploads/` →
+> `/wp-content/uploads/_oac-canary/`, confiável pois o `s3-sync` faz `green ⊇ assets`), OU revisar os
+> screenshots gerados por `testes/tests/99-green-visual.spec.js` (que faz o rewrite seletivo via diff S3).
+> Ver [[project_oac_canary_strip_pattern]].
+
+### Snippet — Gate 54 (Paridade `bureau_a11y_colors` multisite + prod↔green)
+
+**Severidade: HIGH.** Origem: incidente 2026-06-22 (cores do painel a11y caíam no fallback verde-bandeira `#005A42` em prod). A `option bureau_a11y_colors` é **per-blog** em multisite — blog 1 (raiz) e blog 2 (`/cultura/`) têm chaves separadas, e o admin de cada blog precisa ser configurado independentemente. Regra operacional: **`/cultura/` deve ter sempre as MESMAS cores da raiz** (paleta canônica é a do blog 1) e **green deve refletir prod** (deploy blue-green).
+
+**O que o gate valida** (via SSH+WP-CLI, sem Playwright):
+- (a) `option bureau_a11y_colors` existe nos dois blogs (ausência = painel cai em fallbacks hardcoded).
+- (b) **blog 1 == blog 2** no MESMO ambiente (paridade multisite).
+- (c) **prod blog 1 == green blog 1** (paridade entre ambientes — detecta drift pós-blue-green).
+- (d) Plugin versão ≥ 2.9.9 (versões anteriores tinham bug de escopo CSS `:root` vs `.elementor-kit-N`).
+
+**Snippet (rodar em prod e green; comparar entre si):**
+
+```bash
+# Função reutilizável
+fetch_a11y_state() {
+  local SSH_ALIAS="$1"   # ex: concertacaoamazonia.com.br-prod-sa | -green-sa
+  local LABEL="$2"
+  local WPROOT="/var/www/concertacaoamazonia.com.br"
+  local FQDN="https://concertacaoamazonia.com.br"
+  ssh "$SSH_ALIAS" "sudo -u www-data wp --path=$WPROOT eval '
+    echo \"label=$LABEL\n\";
+    echo \"version=\", defined(\"BUREAU_A11Y_VERSION\") ? BUREAU_A11Y_VERSION : \"undefined\", \"\n\";
+    echo \"blog1=\", (string) get_option(\"bureau_a11y_colors\", \"MISSING\"), \"\n\";
+  ' --url=$FQDN 2>/dev/null
+  ssh \"$SSH_ALIAS\" \"sudo -u www-data wp --path=$WPROOT option get bureau_a11y_colors --format=json --url=$FQDN/cultura/ 2>/dev/null\" | head -1 | sed 's/^/blog2_json=/'
+  "
+}
+
+# Coletar estado
+PROD=$(fetch_a11y_state "concertacaoamazonia.com.br-prod-sa" "prod")
+GREEN=$(fetch_a11y_state "concertacaoamazonia.com.br-green-sa" "green")
+
+# Extrair JSON serialized + serialized-php do blog 1 e converter pra JSON via wp eval (mais simples: pedir o JSON direto)
+read_option_json() {
+  ssh "$1" "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br option get bureau_a11y_colors --format=json --url=$2 2>/dev/null"
+}
+PROD_B1=$(read_option_json "concertacaoamazonia.com.br-prod-sa"  "https://concertacaoamazonia.com.br")
+PROD_B2=$(read_option_json "concertacaoamazonia.com.br-prod-sa"  "https://concertacaoamazonia.com.br/cultura/")
+GREEN_B1=$(read_option_json "concertacaoamazonia.com.br-green-sa" "https://concertacaoamazonia.com.br")
+GREEN_B2=$(read_option_json "concertacaoamazonia.com.br-green-sa" "https://concertacaoamazonia.com.br/cultura/")
+
+VERSION_PROD=$(ssh concertacaoamazonia.com.br-prod-sa  "grep -E 'BUREAU_A11Y_VERSION' /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bureau-a11y.php | head -1 | grep -oE \"[0-9]+\.[0-9]+\.[0-9]+\"")
+VERSION_GREEN=$(ssh concertacaoamazonia.com.br-green-sa "grep -E 'BUREAU_A11Y_VERSION' /var/www/concertacaoamazonia.com.br/wp-content/mu-plugins/bureau-a11y.php | head -1 | grep -oE \"[0-9]+\.[0-9]+\.[0-9]+\"")
+
+# Avaliação
+[ -n "$PROD_B1"  ] && [ "$PROD_B1"  != "[]" ] && OK_PROD_B1=1  || OK_PROD_B1=0
+[ -n "$PROD_B2"  ] && [ "$PROD_B2"  != "[]" ] && OK_PROD_B2=1  || OK_PROD_B2=0
+[ -n "$GREEN_B1" ] && [ "$GREEN_B1" != "[]" ] && OK_GREEN_B1=1 || OK_GREEN_B1=0
+[ -n "$GREEN_B2" ] && [ "$GREEN_B2" != "[]" ] && OK_GREEN_B2=1 || OK_GREEN_B2=0
+
+[ "$PROD_B1"  = "$PROD_B2"  ] && PARITY_PROD_MULTISITE=1  || PARITY_PROD_MULTISITE=0
+[ "$GREEN_B1" = "$GREEN_B2" ] && PARITY_GREEN_MULTISITE=1 || PARITY_GREEN_MULTISITE=0
+[ "$PROD_B1"  = "$GREEN_B1" ] && PARITY_PROD_GREEN=1      || PARITY_PROD_GREEN=0
+
+# Versão ≥ 2.9.9
+ver_ge_299() { [ "$(printf '%s\n2.9.9\n' "$1" | sort -V | head -1)" = "2.9.9" ]; }
+ver_ge_299 "$VERSION_PROD"  && VER_OK_PROD=1  || VER_OK_PROD=0
+ver_ge_299 "$VERSION_GREEN" && VER_OK_GREEN=1 || VER_OK_GREEN=0
+
+cat <<EOF
+gate_54_a11y_colors_parity:
+  option_present:
+    prod_blog1:  $([ "$OK_PROD_B1"  = 1 ] && echo PASS || echo FAIL)
+    prod_blog2:  $([ "$OK_PROD_B2"  = 1 ] && echo PASS || echo FAIL)
+    green_blog1: $([ "$OK_GREEN_B1" = 1 ] && echo PASS || echo FAIL)
+    green_blog2: $([ "$OK_GREEN_B2" = 1 ] && echo PASS || echo FAIL)
+  parity_multisite:
+    prod_blog1_eq_blog2:   $([ "$PARITY_PROD_MULTISITE"  = 1 ] && echo PASS || echo FAIL)
+    green_blog1_eq_blog2:  $([ "$PARITY_GREEN_MULTISITE" = 1 ] && echo PASS || echo FAIL)
+  parity_envs:
+    prod_blog1_eq_green_blog1: $([ "$PARITY_PROD_GREEN" = 1 ] && echo PASS || echo FAIL)
+  plugin_version:
+    prod:  $VERSION_PROD  $([ "$VER_OK_PROD"  = 1 ] && echo "(≥2.9.9 ✓)" || echo "(<2.9.9 ✗)")
+    green: $VERSION_GREEN $([ "$VER_OK_GREEN" = 1 ] && echo "(≥2.9.9 ✓)" || echo "(<2.9.9 ✗)")
+EOF
+```
+
+**Gates do snippet:**
+
+- **Gate 54a `option_missing` (FAIL):** `bureau_a11y_colors` ausente em algum dos 4 contextos (prod/green × blog1/blog2). Painel a11y cai nos **fallbacks hardcoded** em `BUREAU_A11Y_FALLBACK_COLORS` (verde-bandeira `#005A42`, magenta `#B12B79`). Fix: copiar option do blog/ambiente canônico:
+  ```bash
+  # Copiar prod blog 1 → green blog 2 (exemplo):
+  ssh concertacaoamazonia.com.br-prod-sa "sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br option get bureau_a11y_colors --format=json" \
+    | ssh concertacaoamazonia.com.br-green-sa "cat > /tmp/a11y.json && sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br option update bureau_a11y_colors --format=json --url=https://concertacaoamazonia.com.br/cultura/ < /tmp/a11y.json && rm /tmp/a11y.json"
+  ```
+  Depois flush: `sudo -u www-data wp eval 'delete_transient("bureau_a11y_elementor_globals"); rocket_clean_home();'`.
+
+- **Gate 54b `parity_multisite` (FAIL):** blog 1 ≠ blog 2 no mesmo ambiente. Regra operacional: **/cultura é cópia da raiz**. Quem mudou um sem o outro? Auditar quem alterou (admin user de blog 2 que mexeu no painel `BIT A11y Acessibilidade`). Fix: re-copiar do blog 1 (canônico) para blog 2 (mesmo procedimento de 54a).
+
+- **Gate 54c `parity_envs` (FAIL):** prod blog 1 ≠ green blog 1. Drift entre ambientes pós-blue-green. Auditar: o admin foi tocado em só um dos ambientes? Phase3 do blue-green não preserva options? Fix: copiar do prod (verdade pública) pra green. **Atenção:** se a divergência é intencional (em preparação de cutover com nova paleta), suprimir esse gate só na execução com `--allow-paleta-drift` ou similar.
+
+- **Gate 54d `plugin_version_outdated` (FAIL):** versão < 2.9.9. Versões anteriores tinham bugs reais:
+  - **2.9.6**: emit `var(--e-global-color-X, FALLBACK)` em `:root` → fallback ativa (verde) porque `--e-global-color-*` só existe em `.elementor-kit-N` no `<body>`, e `#bureau-a11y-trigger` é movido pra fora do `<body>` pelo JS (filho direto de `<html>`).
+  - **2.9.7**: tentou consertar com seletor `:root, .elementor-kit-N` (não funciona — trigger está em `<html>` mesmo).
+  - **2.9.8**: resolve var() no PHP (hex direto). MAS o `bureau-a11y.css` ainda tinha 70+ hardcodes `#BDF839` (verde-limão) e `#005A42` ignorando `var(--ba-*)`.
+  - **2.9.9 (correto)**: PHP resolve hex + CSS migrado pra `var(--ba-*)` + `color-mix(in srgb, var(--ba-electric) X%, transparent)`.
+
+  Fix: deploy v2.9.9 — scp do `bureau-a11y.php` + `bureau-a11y/bureau-a11y.css` da cópia canônica em `docker-dev/common/mu-plugins/` → reload php-fpm → flush WP Rocket.
+
+Ver: [[project_a11y_multisite_parity_v299]] (memo desta sessão), `feedback_validate_via_real_browser_not_just_cssom.md`.
 
 ## Relatório Final Pragmático
 
@@ -4476,6 +4914,7 @@ Fase  Cobertura                    Gates testados   Pass   Fail
 8     Menu warm-up                     11-12            X      Y
 9     Leak detection                   20-25            X      Y
 49    Menu mobile visual (prod×dev)    49a-49c          X      Y
+54    A11y colors parity (multisite + prod↔green) 54a-d X      Y
 
 ───────────────────────────────────────────────────────────────────
 GATES FALHARAM (ordenados por severidade)
