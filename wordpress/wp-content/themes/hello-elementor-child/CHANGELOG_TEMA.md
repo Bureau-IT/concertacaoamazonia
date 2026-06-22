@@ -5,6 +5,19 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.45] - 2026-06-22
+
+### Modificado
+- `css/plugins/tec.css` — paridade de paleta da página de eventos (TEC) com a home:
+  - **Datepicker:** dia marcado/hoje/hover agora usa o accent global (rosa `#FE78A9`)
+    em vez do verde `#0B4334` do TEC; grid, título do mês e setas com fundo
+    transparente (eliminado o grid preto herdado do botão global do kit Elementor)
+    e texto na cor de texto (`#392E34`).
+  - **Página de eventos:** fundo bege (`#F8EAD9`) igual ao da home; títulos de
+    evento, data do edital e ícones na cor de texto (`#392E34`) em vez de verde;
+    botão "ENCONTRAR EVENTOS" com fundo primário escuro (`#21191B`); caret do
+    botão "Adicionar agenda" na cor de texto.
+
 ## [2.2.0] - 2025-07-16
 
 ### Adicionado

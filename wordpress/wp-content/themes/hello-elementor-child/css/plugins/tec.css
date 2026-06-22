@@ -536,3 +536,141 @@ a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
     outline-offset: 0 !important;
     box-shadow    : none !important;
 }
+
+/* 5. PARIDADE COM A HOME — fundo do datepicker + cor do dia marcado/hover.
+
+   Na página-arquivo de eventos os dias do calendário são <button>, então
+   herdam o fundo escuro global do kit Elementor
+   (post-2553.css → .elementor-kit-N button { background: var(--e-global-color-primary) }
+   = #21191B), virando um grid PRETO — destoa da home, onde os dias ficam
+   transparentes (calendário limpo sobre branco). Forçamos transparente em
+   TODAS as células/dias para replicar a home em ambas as páginas. */
+.tribe-events .datepicker td,
+.tribe-events .datepicker td > button,
+.tribe-events .datepicker .day,
+.tribe-events .datepicker .month,
+.tribe-events .datepicker .year,
+.tribe-events .datepicker .day:hover,
+.tribe-events .datepicker .day:focus,
+.tribe-events .datepicker .day.focused,
+.tribe-events .datepicker td > button:hover,
+.tribe-events .datepicker td > button:focus,
+.tribe-events .datepicker .datepicker-switch,
+.tribe-events .datepicker .datepicker-switch:hover,
+.tribe-events .datepicker .datepicker-switch:focus,
+.tribe-events .datepicker .prev,
+.tribe-events .datepicker .prev:hover,
+.tribe-events .datepicker .prev:focus,
+.tribe-events .datepicker .next,
+.tribe-events .datepicker .next:hover,
+.tribe-events .datepicker .next:focus {
+    background-color: transparent !important;
+    background      : transparent !important;
+}
+
+/* Cor do texto da navegação/título do datepicker = cor de texto escura
+   (no archive, sobre o fundo agora transparente — antes era branco sobre
+   o preto do kit). O .datepicker-switch (mês/ano) vinha #392E34 sobre
+   #21191B = ilegível; as setas .prev/.next vinham brancas sobre preto. */
+.tribe-events .datepicker .datepicker-switch,
+.tribe-events .datepicker .prev,
+.tribe-events .datepicker .next,
+.tribe-events .datepicker thead th {
+    color: var(--e-global-color-text) !important;  /* escuro #392E34 */
+}
+
+/* Dia MARCADO (.active) / HOJE (.current) / HOVER do dia ativo = ROSA accent.
+   Sobrescreve o verde #0B4334 do TEC (views-full.css →
+   .day.active { background: var(--tec-color-accent-primary) }). Texto branco
+   para contraste sobre o rosa. Cobre .active, .current e o estado hover. */
+.tribe-events .datepicker .day.active,
+.tribe-events .datepicker .day.active:hover,
+.tribe-events .datepicker .day.active:focus,
+.tribe-events .datepicker .day.active.focused,
+.tribe-events .datepicker .day.current,
+.tribe-events .datepicker .day.current:hover,
+.tribe-events .datepicker .day.current:focus,
+.tribe-events .datepicker .day.current.focused,
+.tribe-events .datepicker .day.current.active,
+.tribe-events .datepicker td > button.active,
+.tribe-events .datepicker td > button.today.active {
+    background-color: var(--e-global-color-accent) !important;  /* rosa #FE78A9 */
+    background      : var(--e-global-color-accent) !important;
+    color           : #ffffff !important;
+}
+
+/* HOVER de um dia normal (não-marcado) — leve realce rosa translúcido,
+   alinhado ao accent, sem virar bloco sólido. Mantém legibilidade do número. */
+.tribe-events .datepicker .day:hover,
+.tribe-events .datepicker td > button:hover {
+    background-color: color-mix(in srgb, var(--e-global-color-accent) 22%, transparent) !important;
+    color           : var(--e-global-color-text) !important;  /* escuro #392E34 */
+}
+
+/* ==========================================================================
+   6. PARIDADE DE PALETA DA PÁGINA DE EVENTOS COM A HOME
+   ==========================================================================
+   A view-arquivo de eventos (/eventos/lista/, mês, dia) renderizava com:
+   - fundo BRANCO (a home usa bege #F8EAD9 via body.home);
+   - VERDE #0B4334 (--tec-color-text-events-title) nos títulos, datas de
+     edital e ícones — herdado das vars inline do TEC;
+   - botão "ENCONTRAR EVENTOS" com fundo verde #0B4334.
+   Alinhamos tudo à paleta global do site. */
+
+/* 6.1 Fundo BEGE igual ao da home — aplicado em todo o template de arquivo
+   do TEC (cobre lista/mês/dia). Não afeta a home (que tem o próprio bege
+   via body.home) nem outras páginas. */
+body.tribe-events-page-template,
+body.post-type-archive-tribe_events,
+body.single-tribe_events {
+    background-color: var(--e-global-color-secondary) !important;  /* bege #F8EAD9 */
+}
+
+/* 6.2 Títulos de evento + data do edital + textos auxiliares → cor de texto
+   padrão (#392E34), substituindo o verde #0B4334. Carrega também na home,
+   garantindo que os dois ambientes fiquem idênticos. */
+.tribe-events .tribe-events-calendar-list__event-title,
+.tribe-events .tribe-events-calendar-list__event-title-link,
+.tribe-events .tribe-events-calendar-list__event-title-link:hover,
+.tribe-events .tribe-events-calendar-list__event-title-link:focus,
+.tribe-events .tribe-events-calendar-list__event-datetime,
+.tribe-events .tribe-events-calendar-list__event-datetime time,
+.tribe-events .tribe-event-edital-date,
+.tribe-events .tribe-events-calendar-list__event-date-tag-daynum,
+.tribe-events .tribe-events-calendar-list__event-date-tag-weekday {
+    color: var(--e-global-color-text) !important;  /* escuro #392E34 */
+}
+
+/* 6.3 Ícones SVG do TEC (lupa de busca, etc.) que vinham verdes → cor de texto. */
+.tribe-events .tribe-common-svgicon,
+.tribe-events .tribe-events-c-search__button svg,
+.tribe-events .tribe-events-c-search__button .tribe-common-svgicon {
+    color: var(--e-global-color-text) !important;
+    fill : currentColor !important;
+}
+
+/* 6.4 Botão "ENCONTRAR EVENTOS" — fundo ESCURO/primário (#21191B) em vez do
+   verde, texto branco. Cobre estado base + hover/focus. */
+.tribe-events .tribe-events-c-search__button,
+.tribe-common .tribe-events-c-search__button,
+.tribe-events button.tribe-events-c-search__button:hover,
+.tribe-events button.tribe-events-c-search__button:focus,
+.tribe-common .tribe-events-c-search__button:hover,
+.tribe-common .tribe-events-c-search__button:focus {
+    background-color: var(--e-global-color-primary) !important;  /* #21191B */
+    border-color    : var(--e-global-color-primary) !important;
+    color           : #ffffff !important;
+}
+.tribe-events .tribe-events-c-search__button svg,
+.tribe-events .tribe-events-c-search__button .tribe-common-svgicon {
+    color: #ffffff !important;  /* ícone branco sobre o botão escuro, se houver */
+}
+
+/* 6.5 Caret do botão "Adicionar agenda" no estado BASE (fechado) — o <path>
+   vinha verde #0B4334 (fill + stroke). Alinha à cor de texto. Os estados
+   hover/aberto já são tratados na seção do subscribe-dropdown acima. */
+.tribe-events .tribe-events-c-subscribe-dropdown__button-icon-svg path,
+.tribe-events .tribe-events-c-subscribe-dropdown__button svg path {
+    fill  : var(--e-global-color-text) !important;  /* escuro #392E34 */
+    stroke: var(--e-global-color-text) !important;
+}
