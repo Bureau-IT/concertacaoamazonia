@@ -674,3 +674,15 @@ body.single-tribe_events {
     fill  : var(--e-global-color-text) !important;  /* escuro #392E34 */
     stroke: var(--e-global-color-text) !important;
 }
+
+/* 6.6 Botão "Adicionar agenda" no estado BASE (fechado) — texto e BORDA vinham
+   verdes do TEC nativo (common-full.css → .tribe-common-c-btn-border {
+   color: var(--tec-color-button-primary); border: 1px solid
+   var(--tec-color-accent-primary) } = #0B4334). Alinha à cor de texto escura.
+   Hover/aberto continuam tratados na seção do subscribe-dropdown (fundo rosa). */
+.tribe-events .tribe-events-c-subscribe-dropdown__button,
+.tribe-events .tribe-events-c-subscribe-dropdown__button-text,
+.tribe-events .tribe-events-c-subscribe-dropdown__button .tribe-common-c-btn-border {
+    color       : var(--e-global-color-text) !important;  /* escuro #392E34 */
+    border-color: var(--e-global-color-text) !important;
+}

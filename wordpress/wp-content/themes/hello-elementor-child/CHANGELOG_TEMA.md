@@ -5,6 +5,14 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.46] - 2026-06-22
+
+### Corrigido
+- `css/plugins/tec.css` — botão "Adicionar agenda" (subscribe dropdown do TEC)
+  no estado BASE (fechado): texto e borda vinham verdes (`#0B4334`) do TEC
+  nativo (`.tribe-common-c-btn-border`); alinhados à cor de texto (`#392E34`).
+  Estados hover/aberto (fundo rosa) preservados.
+
 ## [2.2.45] - 2026-06-22
 
 ### Modificado
