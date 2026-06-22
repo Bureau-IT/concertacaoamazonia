@@ -53,12 +53,26 @@
 }
 
 /* --- 2.1 HTML & Body --- */
+/* O Elementor define os Global Colors (--e-global-color-accent etc.) APENAS no
+   .elementor-kit-N, que vive DENTRO do <body>. A scrollbar do VIEWPORT é pintada
+   no escopo do <html> (acima do body), onde essas vars NÃO existem → o thumb
+   caía no default do navegador (preto/cinza semitransparente). Para resolver,
+   espelhamos o accent e o track no :root/<html> com fallback aos hexes da
+   paleta atual (sincronizados com os Global Colors do kit). Assim a scrollbar
+   do viewport — e os pseudo-elementos ::-webkit-scrollbar globais — resolvem a
+   cor. Se a paleta mudar no Elementor, atualizar estes 2 fallbacks aqui. */
+:root,
+html {
+    --bit-scrollbar-thumb: var(--e-global-color-accent, #FE78A9);
+    --bit-scrollbar-track: var(--e-global-color-e03d05f, #DEDDD1);
+}
+
 html {
     font-size         : 16px;
     scrollbar-gutter  : stable;
     scroll-behavior   : smooth;
-    scrollbar-color   : var(--e-global-color-bbe749d, #C02975) var(--e-global-color-e03d05f, #DEDDD1);
     scrollbar-width   : thin;
+    scrollbar-color   : var(--bit-scrollbar-thumb) var(--bit-scrollbar-track);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -160,23 +174,26 @@ html body a[href*="mailto"]:hover {
     outline-color: var(--e-global-color-accent);
 }
 
-/* --- 2.6 Scrollbar --- */
+/* --- 2.6 Scrollbar (WebKit/Blink) ---
+   Usam --bit-scrollbar-thumb/track, definidas no :root/<html> acima (com
+   fallback hex), então resolvem tanto no viewport quanto em contêineres
+   internos — sem o problema de var indefinida que pintava o thumb de preto. */
 ::-webkit-scrollbar {
     width : 8px;
     height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--e-global-color-e03d05f, #DEDDD1);
+    background: var(--bit-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-    background   : var(--e-global-color-bbe749d, #C02975);
+    background   : var(--bit-scrollbar-thumb);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in lab, var(--e-global-color-bbe749d, #C02975) 75%, black 25%);
+    background: color-mix(in lab, var(--bit-scrollbar-thumb) 75%, black 25%);
 }
 
 
