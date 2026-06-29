@@ -416,82 +416,51 @@ PROD valida apenas presença/campos/label do submit. GREEN executa submit real c
 
 Compara renderização da MESMA página em PROD (`concertacaoamazonia.com.br`) e DEV (`concertacao.bureau-it.com` via tunnel). Detecta divergências de DOM/heading/imagens/altura que indicam regressão de deploy mesmo quando HTML retornado parece idêntico.
 
-**DEV é a fonte da verdade**: a lista de páginas é descoberta varrendo os menus DEV. Páginas que existem em DEV mas não em PROD = pendência de deploy. Páginas que renderizam diferente = regressão.
+**DEV é a fonte da verdade**: a lista de páginas é descoberta enumerando TODAS as `page` publicadas no DEV via WP-CLI. Páginas que existem em DEV mas não em PROD = pendência de deploy. Páginas que renderizam diferente = regressão.
 
-**Cobertura obrigatória (2026-05-28): TODAS as páginas dos menus/submenus do site.** O Snippet 1 varre o DOM de **duas** homes (blog 1 raiz `/` e blog 2 `/cultura/`), porque cada blog renderiza menus diferentes (`Principal`/`Cultura Principal`) e submenus de hover nem sempre expõem todos os `<a>` no DOM da home do outro blog. Para garantir 100% de cobertura mesmo quando o DOM esconde um submenu, a lista descoberta é **unida** à `MENU_CANONICAL` abaixo — a relação canônica extraída dos menus WP ativos (`Principal` 3 + `Principal - EN` 1628, blog 1; `Cultura Principal` 2462 + `Culture Main` 2463, blog 2). Reextrair via `wp menu item list <id> --fields=url` quando o menu mudar.
+**Cobertura obrigatória (atualizado 2026-06-22): TODAS as `page` publicadas do site, NÃO só as dos menus.** Mudança do Dani: antes o Snippet 1 varria só os menus/submenus (~47 paths). Agora enumera 100% das pages publicadas nos 2 blogs via `wp post list --post_type=page --post_status=publish` (DEV) — ~68 paths (blog1 ~55 + blog2 ~14). Isso pega pages órfãs (fora de menu) que tinham cache CF stale ou CSS quebrado sem ninguém notar (ex: páginas de release/relatório linkadas só por posts). O Snippet 1 é **WP-CLI (Bash), não DOM scrape** — enumeração autoritativa e completa, imune a submenu escondido. Escopo: `post_type=page` (posts/eventos/CPTs têm gates próprios — 40/42-45/48/51).
 
-### Snippet 1 — Descobrir páginas dos menus em DEV (executar 1x)
+### Snippet 1 — Enumerar TODAS as pages publicadas em DEV (executar 1x, via WP-CLI/Bash)
 
-```js
-async (page) => {
-  // MENU_CANONICAL — relação fixa dos itens de menu/submenu ativos (PT+EN, blog1+blog2).
-  // Fonte: `wp menu item list` dos menus com location atribuída (2026-05-28).
-  // Manter sincronizada quando itens forem adicionados/removidos dos menus.
-  const MENU_CANONICAL = [
-    // Blog 1 — Principal (PT)
-    '/sobre-nos/', '/sobre-nos/5-pilares/', '/sobre-nos/4-amazonias/', '/agenda-integradora/',
-    '/atuacao/', '/atuacao/encontros/', '/atuacao/grupos-de-trabalho/', '/atuacao/iniciativas-estruturantes/',
-    '/atuacao/atuacao-internacional/', '/atuacao/faq/',
-    '/conhecimento/', '/conhecimento/publicacoes/', '/conhecimento/espiral-de-conhecimento/',
-    '/conhecimento/mapa-das-plataformas/', '/conhecimento/entrevistas/',
-    '/cultura/', '/cultura/linha-do-tempo/', '/cultura/atlas-cultural-das-amazonias/', '/cultura/galeria/',
-    '/cultura/porosidades/', '/cultura/exposicao-cores-do-futuro/', '/cultura/poeticas-do-possivel/',
-    '/cultura/amazonias-negras/', '/contato/',
-    // Blog 1 — Principal EN
-    '/en/what-we-are/', '/en/what-we-are/5-pillars/', '/en/what-we-are/4-amazons/', '/en/agenda-integradora/',
-    '/en/activities/', '/en/activities/news/', '/en/activities/workgroups/', '/en/activities/projetos-estruturantes/',
-    '/en/activities/international-activities/', '/en/activities/faq/',
-    '/en/knowledge/', '/en/knowledge/publications/', '/en/knowledge/spiral-of-knowledge/',
-    '/en/knowledge/platform-map/', '/en/knowledge/interviews/',
-    '/en/cultura/', '/en/cultura/linha-do-tempo/', '/en/cultura/atlas-cultural-das-amazonias/',
-    '/en/cultura/galeria/', '/en/cultura/porosidades/', '/en/cultura/exposicao-cores-do-futuro/',
-    '/en/cultura/poeticas-do-possivel/', '/en/contact_us/',
-  ];
-  // Páginas críticas fora dos menus (incidentes históricos). Cada entrada referencia o incidente.
-  const REQUIRED_PATHS = [
-    '/cultura/porosidades/', // embed Spotify — CSP regression test (incidente 2026-05-18)
-  ];
+> Rodar via `Bash` (não Playwright). DEV = fonte da verdade. Saída: lista de paths
+> (relativos) de todas as `page` publicadas dos 2 blogs, normalizados com trailing
+> slash, prontos para o Snippet 2.
 
-  const collectFromHome = async (homeUrl) => {
-    await page.context().clearCookies();
-    await page.goto(homeUrl + '?cb=' + Date.now(), { waitUntil: 'domcontentloaded', timeout: 30000 });
-    return page.evaluate(() => {
-      const sels = [
-        'header nav a[href]', '.elementor-nav-menu a[href]', '#site-navigation a[href]',
-        '.main-navigation a[href]', 'nav.elementor-nav-menu--main a[href]',
-        '.elementor-sub-item a[href]', '.sub-menu a[href]', '.menu-item a[href]', // submenus
-        'footer nav a[href]', '.elementor-location-footer a[href]',
-      ];
-      const out = [];
-      sels.forEach(s => document.querySelectorAll(s).forEach(a => {
-        const href = a.href || '';
-        if (!href || /^(javascript:|mailto:|tel:)/.test(href)) return;
-        if (!href.startsWith('https://concertacao.bureau-it.com/')) return;
-        const url = new URL(href);
-        let path = url.pathname;
-        if (!path.endsWith('/')) path += '/';
-        if (path === '/' || path === '/en/') return;
-        if (path.includes('/comments/feed') || path.includes('/feed/')) return;
-        if (path.startsWith('/event/') || path.startsWith('/en/event/')) return;
-        if (path.startsWith('/wp-')) return;
-        out.push(path);
-      }));
-      return out;
-    });
-  };
+```bash
+DEVCT="concertacao-dev-wordpress"
+DEV_HOST="https://cambrasmax.local:8484"     # base do dev (multisite)
+OUT=/tmp/smoke_all_pages.txt
+: > "$OUT"
 
-  const set = new Set(MENU_CANONICAL);          // base canônica obrigatória
-  REQUIRED_PATHS.forEach(p => set.add(p));
-  // varrer DOM das duas homes (blog 1 + blog 2) e unir
-  for (const home of ['https://concertacao.bureau-it.com/', 'https://concertacao.bureau-it.com/cultura/']) {
-    try { (await collectFromHome(home)).forEach(p => set.add(p)); } catch (e) { /* home indisponível, segue com canônica */ }
-  }
-  const urls = [...set].sort();
-  return { discovered_count: urls.length, canonical_count: MENU_CANONICAL.length, urls };
-}
+# Blog 1 (raiz) + Blog 2 (/cultura/) — todas as pages publicadas.
+# Extrai o pathname da permalink (independe do host: dev/tunnel/prod).
+for url_base in "$DEV_HOST" "$DEV_HOST/cultura/"; do
+  docker exec -u www-data "$DEVCT" wp --url="$url_base" \
+    post list --post_type=page --post_status=publish --field=url 2>/dev/null \
+  | grep -E '^https?://' \
+  | sed -E 's#^https?://[^/]+##' \
+  | sed -E 's#([^/])$#\1/#' \
+  >> "$OUT"
+done
+
+# Páginas críticas fora-de-page (incidentes) que devem SEMPRE entrar mesmo se
+# não forem post_type=page no momento (ex: embed Spotify CSP — incidente 2026-05-18):
+printf '%s\n' '/cultura/porosidades/' >> "$OUT"
+
+# Normalizar: únicos, ordenados, sem vazios.
+sort -u "$OUT" | grep -E '^/' > "${OUT}.sorted" && mv "${OUT}.sorted" "$OUT"
+echo "Total pages descobertas: $(wc -l < "$OUT")"
+cat "$OUT"
 ```
 
-Esperado: ~47+ paths PT/EN únicos cobrindo todos os itens de menu/submenu dos dois blogs (`/atuacao/*`, `/conhecimento/*`, `/cultura/*`, `/sobre-nos/*`, `/en/*`). Se `discovered_count < canonical_count`, algo na varredura falhou — a base canônica garante o piso.
+Esperado: ~68 paths (blog1 ~55 + blog2 ~14, PT+EN). Se vier < 50, a enumeração
+falhou (dev fora do ar / multisite mal resolvido) — investigar antes de prosseguir,
+NÃO rodar o Snippet 2 com lista parcial (daria falsos "pendência de deploy").
+O array `urls` para o Snippet 2 = conteúdo de `/tmp/smoke_all_pages.txt`.
+
+> **Nota de mapeamento PT↔EN:** as pages EN do dev têm slug traduzido pelo WPML
+> (ex: `/en/what-we-are/`), então a enumeração já traz os paths EN reais — não
+> precisa hardcodar o mapa de slugs. O Snippet 2 compara cada path dev↔prod 1:1.
 
 ### Snippet 2 — Comparar PROD vs DEV para CADA path descoberto
 
@@ -711,11 +680,19 @@ Ordenar por verdict (FAIL e ERROR primeiro). Truncar paths longos a 40 chars.
 
 ### Cobertura típica esperada
 
-Após varredura no DEV (Snippet 1), espera-se ~15-25 paths:
+Após enumeração no DEV (Snippet 1, WP-CLI), espera-se **~68 paths** = TODAS as
+`page` publicadas dos 2 blogs (não só as do menu):
+- **blog1 (~55):** raiz `/`, `/sobre-nos/*`, `/atuacao/*`, `/conhecimento/*`,
+  `/cultura/*`, `/amazoniapossivel/`, `/agenda-integradora/`, `/agenda-geral/`,
+  `/amazonia-legal-em-dados/`, `/termos-e-condicoes/`, `/aviso-de-privacidade/`,
+  páginas de release/relatório fora-de-menu, e os equivalentes EN (`/en/*`).
+- **blog2 /cultura/ (~14):** `/cultura/`, `/cultura/linha-do-tempo/`,
+  `/cultura/atlas-cultural-das-amazonias/`, `/cultura/galeria/`, `/cultura/porosidades/`,
+  exposições, e EN (`/cultura/en/*`).
 
-**PT (~10):** `/atuacao/`, `/atuacao/iniciativas-estruturantes/`, `/atuacao/grupos-de-trabalho/`, `/atuacao/encontros/`, `/atuacao/atuacao-internacional/`, `/atuacao/faq/`, `/conhecimento/`, `/conhecimento/espiral-de-conhecimento/`, `/conhecimento/mapa-das-plataformas/`, `/conhecimento/publicacoes/`, `/conhecimento/entrevistas/`, `/agenda-integradora/`, `/contato/`, `/cultura/`, `/cultura/atlas-cultural-das-amazonias/`, `/aviso-de-privacidade/`
-
-**EN (~10):** equivalentes WPML em `/en/`
+Se a enumeração trouxer < 50 paths, algo falhou (dev fora do ar / multisite mal
+resolvido) — investigar antes de rodar o Snippet 2 (lista parcial → falsos
+"pendência de deploy"). A contagem exata flutua conforme pages são criadas/despublicadas.
 
 ## Fase 7.6 — Gestão de cookies (Complianz)
 
@@ -1757,9 +1734,16 @@ async (page) => {
 
   const result = await page.evaluate(() => {
     const html = document.documentElement.outerHTML;
-    // O padrão `wp-content/uploads/s3/` é específico do prefix s3-uploads
-    // legado. Outras strings com `/s3/` NÃO devem casar.
-    const stale_refs = (html.match(/wp-content\/uploads\/s3\/[^"')]+/g) || []);
+    // Padrão 1: path-local `wp-content/uploads/s3/<bucket>/assets/` (prefix
+    // s3-uploads legado, CF-OAC). Outras strings com `/s3/` NÃO devem casar.
+    // Padrão 2 (ampliado 2026-06-23): URL S3 DIRETA `s3.<region>.amazonaws.com/
+    // <bucket>/assets/` + bucket legacy us-east-1. O Gate era CEGO a esta forma
+    // (auditoria 3-agentes: 776 refs em prod escaparam por anos). Ambos resolvem
+    // a path morto sob CF-OAC → SVG/img/PDF quebrados. O fix correto reescreve
+    // para `/wp-content/uploads/<resto>` (search_replace_legacy_s3_paths v2).
+    const stale_local  = (html.match(/wp-content\/uploads\/s3\/[^"')]+/g) || []);
+    const stale_direct = (html.match(/s3(?:\.[a-z0-9-]+)?\.amazonaws\.com\/[^"')]*?\/assets\/[^"')]+/g) || []);
+    const stale_refs = [...stale_local, ...stale_direct];
     // Sub-gate diagnóstico: jet-buttons que TEM class --icon-right mas SEM
     // svg child → ícone quebrado (sintoma direto do bug)
     const jetButtons = Array.from(document.querySelectorAll('[data-widget_type="jet-button.default"]'));
@@ -1921,9 +1905,18 @@ Detecta o padrão em que WP Rocket `/cache/min/1/wp-content/...post-N.css` refer
 > to apply style". O script `docker-dev/common/scripts/css-mime-check.sh` já implementa os 3
 > canais e roda multi-página — **preferir ele**: `bash common/scripts/css-mime-check.sh --base
 > https://concertacaoamazonia.com.br / /sobre-nos/ /atuacao/ /conhecimento/publicacoes/` (exit
-> 1 se quebrado). Ampliar a lista `paths` abaixo para ≥6 páginas de blogs diferentes — o
-> incidente afetou TODAS as páginas do blog 1, não só home/cultura. Ver
-> [[feedback_gate27_multipop_blindspot]].
+> 1 se quebrado).
+>
+> **ESCOPO ATUALIZADO 2026-06-22 — rodar em TODAS as pages, não só amostra.** O Gate 27 agora
+> deve cobrir as **~68 pages descobertas pelo Snippet 1 da Fase 7.5** (todas as `page` publicadas
+> dos 2 blogs), não uma lista fixa de 6. Motivo: o efeito colateral de `rocket_clean_minify()` é
+> SITE-WIDE — apaga/regenera TODOS os `cache/min/*.css`; qualquer page com HTML cacheado no CF
+> apontando p/ min antigo quebra (incidente home + agenda + contato + relatório-anual 2026-06-22).
+> Pages órfãs (fora de menu) eram o ponto cego. Forma rápida (curl, ~2-4 min p/ 68 pages, paralelo):
+> para cada page, fetch do HTML + HEAD em cada `/cache/min/*.css` referenciado — FAIL se algum
+> não servir `text/css`. Passar a lista do Snippet 1 ao `css-mime-check.sh` (ele aceita múltiplos
+> paths) OU usar o sweep curl-paralelo. NÃO declarar OK testando só home/cultura. Ver
+> [[feedback_gate27_multipop_blindspot]] e [[project_rucss_collapse_broke_timeline_css_postcutover]].
 
 ```js
 async (page) => {
@@ -2142,7 +2135,7 @@ N bad
     - Outros `submit_reason` (form_not_found / submit_btn_not_found / error_message / timeout_15s): FAIL de submit válido — green respondeu mas form quebrou.
 11. **Menu warm-up (qualquer ambiente)**: `ttfb_ms > 1500` na 2ª visita de qualquer item do menu. Reportar URL, ambiente, ttfb, e header de cache observado. (Header `cf-cache-status: MISS`/`x-wp-rocket-cache: MISS` é informativo — só dispara gate se também ultrapassar 1500ms.)
 12. **Menu warm-up — comparativo prod×green**: green com `ttfb_ms > 2x` o prod do mesmo item, mesmo se < 1500ms absoluto. Indica regressão de cache no green.
-13. **Paridade prod/dev (Fase 7.5)** — DEV é source-of-truth. Para CADA path do menu descoberto em DEV:
+13. **Paridade prod/dev (Fase 7.5)** — DEV é source-of-truth. Para CADA `page` publicada descoberta em DEV (TODAS, ~68 — não só as do menu, atualizado 2026-06-22):
     - `prod_status !== 200` E `dev_status === 200` — página existe em DEV mas falha em PROD (pendência de deploy ou regressão)
     - `headings_match === false` — sequência de H1/H2/H3 diverge
     - `downloads_match === false` — botões de download (texto/quantidade) divergem
@@ -2404,21 +2397,37 @@ N bad
 
     Sub-gates:
     - `gate_28_legacy_s3_path.stale_refs_count > 0` (BLOCKER) — qualquer ocorrência do padrão
-      `/wp-content/uploads/s3/` no HTML rendered. Reportar primeiros 5 samples.
+      `/wp-content/uploads/s3/` (path-local) **OU** `s3.<region>.amazonaws.com/<bucket>/assets/`
+      (URL S3 direta) no HTML rendered. Reportar primeiros 5 samples. **AMPLIADO 2026-06-23**:
+      o gate era CEGO à URL S3 direta — auditoria 3-agentes achou 776 refs em prod que passavam
+      despercebidas (PDFs/imgs que davam 403 só no browser). Formas cobertas: path-local
+      `wp-content/uploads/s3/<bucket>/assets/[uploads/]`, URL direta `s3.<region>.amazonaws.com/
+      <bucket>/assets/[uploads/]`, bucket legacy us-east-1, bucket legacy `<fqdn>` path-style.
     - `gate_28_legacy_s3_path.jet_buttons_missing_svg > 0` (HIGH) — jet-button widgets com classe
       `--icon-right` (que indicam ícone configurado) mas SEM `<svg>` child no DOM. Sintoma direto
       do bug mesmo quando o gate principal não pega o padrão (caso URL stale tenha sido reescrita
       mas FS local ainda não tem o arquivo).
 
     Fix em 2 frentes:
-    - **Dados**: `wp search-replace 'wp-content\/uploads\/s3\/<bucket>\/assets\/' 'wp-content\/uploads\/' --network --skip-columns=guid`
-      (atenção ao escape JSON `\/` — `_elementor_data` armazena com barras escapadas).
-    - **Filesystem**: sync via `aws s3 cp` dos SVGs ausentes do bucket para `wp-content/uploads/`.
+    - **Dados (todas as formas)**: NÃO basta o path-local. Cobrir 2 passes ordenados (`.../assets/uploads/`
+      ANTES de `.../assets/` p/ não duplicar `uploads/`), cada um em 2 escapings (single-slash em image
+      widgets, `\/` escapado em link widgets), para CADA host/bucket: `s3.<region>.amazonaws.com/<bucket>`,
+      `<fqdn>/wp-content/uploads/s3/<bucket>`, bucket legacy `s3.us-east-1.amazonaws.com/<fqdn>` e
+      `<fqdn>/wp-content/uploads/s3/<fqdn>`. Destino sempre `https://<fqdn>/wp-content/uploads/`. A função
+      `search_replace_legacy_s3_paths` (v2, 09-importdatabase.sh) já faz isso automaticamente — usar como
+      referência. **Validar com PHP no conteúdo desescapado** (`str_replace(['\\/','\\\\/'],'/',$mv)` + regex
+      `amazonaws\.com|/uploads/s3/ ... assets/`), NÃO com `grep` no LIKE cru (backslashes geram falso
+      positivo/negativo). Áudio externo `audio_source:external` (ex: `s3.amazonaws.com/<fqdn>/*.mp3` na
+      RAIZ do bucket, sem `/assets/`) NÃO conta — é link deliberado, não ref de mídia WP.
+    - **Filesystem**: na maioria dos casos o arquivo JÁ existe no bucket prod sob `assets/uploads/<resto>`
+      e serve 200 via CloudFront após o replace (validar com `aws s3 ls` antes). Só fazer `aws s3 cp` se
+      o arquivo realmente faltar no bucket prod.
 
-    Fix automatizado em `ec2-deploy/post-deploy/09-importdatabase.sh` v2.6.0+ via função
-    `search_replace_legacy_s3_paths` que roda após `search_replace_tunnel_fqdn`. Dependência:
-    env var `S3_UPLOADS_BUCKET` definida no `.env` raiz. Memos relacionados:
-    `feedback_s3_uploads_off_sync_required.md`, `feedback_preloader_filesystem_local.md`.
+    Fix automatizado em `ec2-deploy/post-deploy/09-importdatabase.sh` v2.8.0+ via função
+    `search_replace_legacy_s3_paths` (ampliada 2026-06-23 p/ cobrir URL direta + buckets legacy) que roda
+    após `search_replace_tunnel_fqdn`. Independe de `S3_UPLOADS_BUCKET` para os buckets legacy. Memos
+    relacionados: `feedback_s3_uploads_off_sync_required.md`, `feedback_preloader_filesystem_local.md`,
+    `feedback_s3_bucket_concertacaoamazonia_us_east_decommission.md`.
 
     Severidade: **BLOCKER** — bug sistêmico (567 ocorrências detectadas) afetando todos os botões
     de call-to-action em prod. Visualmente catastrófico mas silencioso para HTTP probes.
@@ -4982,3 +4991,18 @@ MÉTRICAS DE PERFORMANCE (PROD, sample 10 páginas)
 
 ✅ **SMOKE PASS** — todas as 5 páginas + 2 formulários verdes prontos para cutover.
 🚨 **SMOKE FAIL** — listar gates disparados, sugerir fixes.
+
+---
+
+## Ver também
+
+**`/perfometro`** — complementar, eixo ortogonal. O `/smoke` valida **regressão funcional** ao
+vivo em prod/green (E2E via browser: páginas renderizam, formulários submetem, paginação navega).
+O `/perfometro` mede **performance/qualidade de config** de um site (score 0-100: cache, plugins
+redundantes, CSS Global Colors, memória) e prescreve correções via `std`.
+
+Um site pode passar 100% no `/smoke` (funcional) e ainda ter score baixo no `/perfometro` (lento).
+Sequência típica num ciclo de deploy: `/perfometro` (otimizar antes) → deploy → `/smoke` (validar
+depois). Ponto de tangência: ambos tocam em cache — o `/perfometro` audita se está **configurado**
+certo; o `/smoke` valida se está se **comportando** certo em produção (gates de cache-health,
+edge vs origin).
