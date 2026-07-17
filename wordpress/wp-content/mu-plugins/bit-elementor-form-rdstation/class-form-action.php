@@ -50,6 +50,28 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
         );
 
         $widget->add_control(
+            'bit_rd_name_field',
+            [
+                'label'       => 'Campo Nome (custom_id)',
+                'type'        => \Elementor\Controls_Manager::TEXT,
+                'default'     => '',
+                'placeholder' => 'nome',
+                'description' => 'custom_id do field de nome. Vazio = nao envia name.',
+            ]
+        );
+
+        $widget->add_control(
+            'bit_rd_company_field',
+            [
+                'label'       => 'Campo Organizacao (custom_id)',
+                'type'        => \Elementor\Controls_Manager::TEXT,
+                'default'     => '',
+                'placeholder' => 'organizacao',
+                'description' => 'custom_id do field de organizacao/empresa. Vazio = nao envia company_name.',
+            ]
+        );
+
+        $widget->add_control(
             'bit_rd_uf_field',
             [
                 'label'       => 'Campo UF (custom_id)',
@@ -88,13 +110,17 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             $form_settings = $record->get( 'form_settings' );
             $conversion_id = trim( $form_settings['bit_rd_conversion_identifier'] ?? DEFAULT_CONVERSION_ID );
             $email_field   = trim( $form_settings['bit_rd_email_field'] ?? 'email' );
+            $name_field    = trim( $form_settings['bit_rd_name_field'] ?? '' );
+            $company_field = trim( $form_settings['bit_rd_company_field'] ?? '' );
             $uf_field      = trim( $form_settings['bit_rd_uf_field'] ?? '' );
             $tags_csv      = trim( $form_settings['bit_rd_tags'] ?? '' );
 
             // 3. Pegar fields submetidos
-            $raw_fields = $record->get( 'fields' );
-            $email_raw  = $raw_fields[ $email_field ]['value'] ?? '';
-            $uf_raw     = $uf_field ? ( $raw_fields[ $uf_field ]['value'] ?? '' ) : '';
+            $raw_fields  = $record->get( 'fields' );
+            $email_raw   = $raw_fields[ $email_field ]['value'] ?? '';
+            $name_raw    = $name_field ? ( $raw_fields[ $name_field ]['value'] ?? '' ) : '';
+            $company_raw = $company_field ? ( $raw_fields[ $company_field ]['value'] ?? '' ) : '';
+            $uf_raw      = $uf_field ? ( $raw_fields[ $uf_field ]['value'] ?? '' ) : '';
 
             $email = sanitize_email( $email_raw );
             if ( ! $email ) {
@@ -107,6 +133,15 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
                 'conversion_identifier' => $conversion_id ?: DEFAULT_CONVERSION_ID,
                 'email'                 => $email,
             ];
+
+            // name/company_name: campos padrao da API de conversoes (nao cf_*).
+            // Persistencia validada empiricamente em 2026-07-17 (lead + empresa no painel RD).
+            if ( $name_raw ) {
+                $payload['name'] = sanitize_text_field( $name_raw );
+            }
+            if ( $company_raw ) {
+                $payload['company_name'] = sanitize_text_field( $company_raw );
+            }
 
             // UF: validar contra lista de siglas BR
             if ( $uf_raw ) {

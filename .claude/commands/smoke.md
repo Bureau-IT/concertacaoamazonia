@@ -4888,6 +4888,88 @@ EOF
 
 Ver: [[project_a11y_multisite_parity_v299]] (memo desta sessão), `feedback_validate_via_real_browser_not_just_cssom.md`.
 
+### Snippet — Gate 55 (RD Station — Form Action registrada + wire-up dos 6 forms)
+
+**Severidade: HIGH.** Origem: expansão RD Station 2026-07-17 (Contato PT/EN) + incidente descoberto na mesma
+sessão: o footer evoluiu (ganhou campo Nome reusando o `custom_id` `form_email_desk`) e a action passou meses
+mapeando o campo NOME como email → `sanitize_email()` falhava → **submits do footer nunca chegavam ao RD**,
+silenciados pelo graceful degradation. Este gate detecta exatamente essa classe de regressão.
+
+**O que o gate valida** (WP-CLI headless, sem Playwright):
+- (a) Action `bit_rdstation` registrada no Elementor Pro + `RDSTATION_API_KEY` DEFINED + versão mu-plugin ≥ 1.2.0.
+- (b) Wire-up presente nos **6 forms**: footers 72234 (PT), 72921 (EN) no blog 1; 89361 (PT), 89785 (EN) no
+  **blog 2** (`/cultura/` — split multisite OBRIGATÓRIO: loop único em blog 1 dá FAIL falso nos 2 de /cultura/);
+  Contato 672 e Contact 3626 no blog 1.
+- (c) `conversion_identifier` esperado: `newsletter-footer-concertacao` (footers ×4), `contato-site-concertacao` (contato ×2).
+- (d) **Anti-drift de campos:** o `custom_id` em `bit_rd_email_field` DEVE existir no widget com `field_type=email`;
+  `bit_rd_name_field`/`bit_rd_company_field` (se não-vazios) DEVEM existir no widget.
+- (e) Se o widget tiver `templateID`, os settings valem no TEMPLATE, não no post — o gate acusa e aponta o template.
+
+**Snippet (DEV: docker exec; PROD/GREEN: trocar por `ssh <alias> sudo -u www-data wp --path=/var/www/concertacaoamazonia.com.br`):**
+
+```bash
+GATE55_PHP='
+$targets = [
+  [ 672,  "contato-site-concertacao" ],
+  [ 3626, "contato-site-concertacao" ],
+  [ 72234, "newsletter-footer-concertacao" ],
+  [ 72921, "newsletter-footer-concertacao" ],
+];
+if ( get_current_blog_id() === 2 ) {
+  $targets = [ [ 89361, "newsletter-footer-concertacao" ], [ 89785, "newsletter-footer-concertacao" ] ];
+}
+$m = \ElementorPro\Plugin::instance()->modules_manager->get_modules( "forms" );
+echo "action_registered=" . ( $m->actions_registrar->get( "bit_rdstation" ) ? "PASS" : "FAIL" ) . "\n";
+echo "api_key=" . ( defined( "RDSTATION_API_KEY" ) && RDSTATION_API_KEY ? "DEFINED" : "FAIL" ) . "\n";
+echo "muplugin_version=" . ( version_compare( \BIT\ElementorFormRDStation\VERSION, "1.2.0", ">=" ) ? "PASS" : "FAIL" ) . " (" . \BIT\ElementorFormRDStation\VERSION . ")\n";
+$fails = 0;
+foreach ( $targets as [ $pid, $conv ] ) {
+  $data = json_decode( get_post_meta( $pid, "_elementor_data", true ), true ) ?: [];
+  $stack = $data; $form = null;
+  while ( $stack ) {
+    $el = array_shift( $stack );
+    if ( ( $el["widgetType"] ?? "" ) === "form" && in_array( "bit_rdstation", (array) ( $el["settings"]["submit_actions"] ?? [] ), true ) ) { $form = $el; break; }
+    foreach ( $el["elements"] ?? [] as $c ) { $stack[] = $c; }
+  }
+  if ( ! $form ) { echo "post=$pid FAIL wire-up ausente\n"; $fails++; continue; }
+  if ( isset( $form["templateID"] ) || isset( $form["settings"]["templateID"] ) ) { echo "post=$pid FAIL templateID presente — validar o template\n"; $fails++; continue; }
+  $s = $form["settings"];
+  $types = []; foreach ( $s["form_fields"] ?? [] as $f ) { $types[ $f["custom_id"] ?? "" ] = $f["field_type"] ?? "text"; }
+  $ok = true;
+  if ( ( $s["bit_rd_conversion_identifier"] ?? "" ) !== $conv ) { echo "post=$pid FAIL conv=" . ( $s["bit_rd_conversion_identifier"] ?? "?" ) . " esperado=$conv\n"; $ok = false; }
+  $ef = $s["bit_rd_email_field"] ?? "";
+  if ( ( $types[ $ef ] ?? "" ) !== "email" ) { echo "post=$pid FAIL email_field=$ef nao e field_type=email (drift de custom_id!)\n"; $ok = false; }
+  foreach ( [ "bit_rd_name_field", "bit_rd_company_field" ] as $k ) {
+    $v = trim( $s[ $k ] ?? "" );
+    if ( $v && ! isset( $types[ $v ] ) ) { echo "post=$pid FAIL $k=$v inexistente no widget\n"; $ok = false; }
+  }
+  if ( $ok ) { echo "post=$pid PASS conv=$conv email=$ef\n"; } else { $fails++; }
+}
+echo "gate55_fails=$fails\n";
+'
+# Blog 1 (raiz) — 4 forms
+docker exec -u www-data concertacao-dev-wordpress wp --url="https://cambrasmax.local:8484/" eval "$GATE55_PHP"
+# Blog 2 (/cultura/) — 2 forms
+docker exec -u www-data concertacao-dev-wordpress wp --url="https://cambrasmax.local:8484/cultura/" eval "$GATE55_PHP"
+```
+
+**Esperado (PASS):** `action_registered=PASS`, `api_key=DEFINED`, `muplugin_version=PASS`, 6× `post=N PASS`,
+`gate55_fails=0` nos dois blogs.
+
+**Gates do snippet:**
+
+- **Gate 55a `action_missing` (FAIL):** action não registrada ou `RDSTATION_API_KEY` ausente. Fix: mu-plugin
+  `bit-elementor-form-rdstation` presente/carregado; constante via bootstrap (DEV) ou wp-config (PROD, ver
+  `docs/PROD-RDSTATION-DEPLOY-CHECKLIST.md`).
+- **Gate 55b `wireup_missing` (FAIL):** form sem `bit_rdstation` em `submit_actions` ou conv_id divergente.
+  Fix: reaplicar wire-up (scripts da sessão 2026-07-17: `rdstation-wireup-contato.php` / `rdstation-fix-footers.php`).
+- **Gate 55c `field_drift` (FAIL):** `bit_rd_email_field` não aponta para um field `type=email` (ou name/company
+  apontam para custom_id inexistente). É o bug do footer 2026-07-17: alguém editou os fields do form no Elementor
+  e os `custom_id` mudaram de papel. Fix: re-mapear os settings `bit_rd_*` para os custom_ids atuais.
+  **Sintoma em produção:** log `/var/log/bit-rdstation/` com `[WARN] Email invalido ou vazio` a cada submit.
+- **Gate 55d `template_indirection` (FAIL):** widget com `templateID` — o runtime lê settings do template
+  referenciado (`ajax-handler.php:87-96`), não do post. Validar/aplicar wire-up no template apontado.
+
 ## Relatório Final Pragmático
 
 Após executar todas as fases, gerar **bloco único** com formato decisível:

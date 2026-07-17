@@ -333,3 +333,48 @@ Decisão: validar manualmente com curl + conta sandbox antes de wire-up no form 
 ### Não alterados
 - Tema `hello-elementor-child` (CSS específico continua isolado no mu-plugin).
 - Outros mu-plugins.
+
+---
+
+## Expansão 2026-07-17 — Contato PT/EN (mu-plugin v1.2.0)
+
+> Plano revisado em 3 ciclos adversariais (arquivo de plano da sessão `foamy-noodling-dawn`).
+
+### Escopo entregue
+
+1. **Mu-plugin v1.2.0**: 2 controles novos na Form Action — `bit_rd_name_field` e
+   `bit_rd_company_field` (TEXT, default `''`). O `run()` adiciona `name` e `company_name` ao
+   payload quando mapeados e preenchidos. São **campos padrão** da API `/platform/conversions`
+   (não `cf_*`) — persistência validada empiricamente em 2026-07-17: lead de teste apareceu no
+   painel com Nome e Empresa (empresa inclusive virou entidade vinculada no RD).
+2. **Wire-up Contato (672 PT) / Contact (3626 EN)** — blog 1, widget `ebf1b52`:
+   `conversion_identifier=contato-site-concertacao` nos dois; `email_field=email`,
+   `name_field=nome`, `company_field=organizacao`; tags `contato,concertacao-amazonia`
+   (EN: `+,en`). `assunto`/`mensagem` NÃO vão ao RD (minimização LGPD — conteúdo chega por email).
+3. **BUG corrigido nos 4 footers** (72234 PT, 72921 EN, blog 2: 89361/89785): o form do rodapé
+   evoluiu e o `custom_id` `form_email_desk` passou a ser o campo NOME; a action mapeava esse
+   campo como email → `sanitize_email()` falhava → **nenhum submit do footer chegava ao RD**
+   (silenciado pelo graceful degradation; sintoma no log: `[WARN] Email invalido ou vazio`).
+   Fix: `email_field=field_11a42ad` (o email real), `name_field=form_email_desk` (nome, bônus
+   da v1.2.0), `uf_field=form_regiao_desk` (mantido). O select `setor` (`field_8aee261`) ficou
+   sem mapeamento (exigiria `cf_setor` — futuro).
+4. **Gate 55 no /smoke**: action registrada + KEY + versão ≥1.2.0 + wire-up dos 6 forms com
+   conv_ids esperados + **anti-drift** (`bit_rd_email_field` deve apontar para `field_type=email`)
+   + split multisite (89361/89785 no blog 2).
+
+### Separação de testes no RD (diretriz operacional)
+
+- Testes NUNCA usam os conversion identifiers reais: janela de teste com
+  `teste-bit-contato-site` / `teste-bit-footer-site` + tag `teste-bit`; promoção para os valores
+  reais só depois dos testes verdes (troca de strings, sem submit extra).
+- Emails de teste: `contato-test-bit-<ts>@bit-bpo.com` (filtráveis/deletáveis no painel por
+  domínio). Assunto `[TESTE RD - ignorar]`.
+- Submits de teste em dev disparam a action `email` real (SES ativo): destinatários incluem
+  caixas do cliente (`leticia.diniz@`/`joana.braga@concertacao.org.br`) — ciência prévia obrigatória.
+
+### Pendências (herdadas, continuam abertas)
+
+- Checkbox LGPD / `legal_bases` granted (TODO em `class-form-action.php`).
+- `cf_consent_source`/`cf_consent_timestamp`/`cf_setor` (exigem Bearer OAuth ou criação manual).
+- Deploy PROD (checklist: `docs/PROD-RDSTATION-DEPLOY-CHECKLIST.md`) — o wire-up vive no banco,
+  então chega a PROD via share deploy/blue-green dos posts; o mu-plugin v1.2.0 via rsync+reload FPM.
