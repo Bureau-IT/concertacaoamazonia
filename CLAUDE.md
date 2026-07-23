@@ -267,9 +267,14 @@ em favor do bit-monitoring; só `cpu-credits-low` permanece no CloudWatch — ga
 - **Install automático:** post-deploy `d7-otel-collector.sh` (idempotente) — instala
   o `.deb otelcol-contrib 0.145.0`, config hostmetrics, caps systemd (256M/25%/Nice10),
   aponta para `https://status.bureau-it.com/api/v1/otel`.
-- **Blue-green:** `phase8-postcutover.sh` step 4b (`apply_otel_agent_hostname`) re-aponta
-  `otel_agents.hostname` para a green; `reapoint_cpu_alarms` preserva `ActionsEnabled`
-  (não reverte a consolidação). Ativado via `OTEL_AGENT_NAME=concertacao-prod` no `.env` raiz.
+- **Blue-green:** `phase8-postcutover.sh` step 4a (`ensure_otel_collector`) roda o `d7`
+  na green, garantindo o collector instalado; `reapoint_cpu_alarms` preserva
+  `ActionsEnabled` (não reverte a consolidação CloudWatch→bit-monitoring). Ativado via
+  `OTEL_AGENT_NAME=concertacao-prod` no `.env` raiz.
+- **O `hostname` do agent se auto-corrige** — o receiver do bit-monitoring deriva
+  `otel_agents.hostname` do `host.name` reportado a cada scrape (~60s). Não há mais
+  sync externo: o antigo step 4b (`apply_otel_agent_hostname`, SSH+SQL no Postgres do
+  monitoramento) foi removido no phase8 v1.6.0 por ser redundante.
 - **Validação rápida:** `ssh concertacaoamazonia.com.br-prod-sa "systemctl is-active otelcol-contrib"`
   e checar `last_seen` recente em `otel_agents` id 9 no bit-monitoring.
 
