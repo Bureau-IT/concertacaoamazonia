@@ -5,7 +5,10 @@
     "description": "Bloqueia na borda CF scanners varrendo por dumps SQL e arquivos de backup expostos (/db.sql, /backup.tar.gz, /dump.7z, /admin.rar, etc). Defesa em profundidade: docroot publico nao serve nenhum desses arquivos, mas o WP retorna soft-404 (HTML ~73KB com status 200) consumindo CPU do origin a cada hit. Esta regra responde 403 na borda, poupando origin e dando status correto.",
     "source_incident": "incidente 2026-06-08 concertacaoamazonia.com.br: scanner massivo (~5.000 reqs por extensao) varrendo backups/dumps. nginx access log: /internal/log.sql, /admin/httpsdocs.{zip,sql,tar.gz,tar.bz2,7z,rar,gz}, /db.sql, /backup.sql, /dump.sql, /database.sql, /backup.tar.gz, /backup.zip etc. Block-PHP-Scan (.php), Block-Sensitive-Dotfiles (.git/.env) e AWS-KnownBadInputs (.env) NAO cobriam estas extensoes.",
     "wcu_estimate": 36,
-    "applies_to": ["wordpress", "generic"],
+    "applies_to": [
+      "wordpress",
+      "generic"
+    ],
     "last_reviewed": "2026-06-08",
     "reviewed_by": "Daniel Cambria",
     "notes": [
@@ -21,12 +24,13 @@
       "Priority 19 — slot livre entre Block-Sensitive-Dotfiles (18) e AWS-KnownBadInputs-Count (20). Agrupa com os demais blockers de path-scan.",
       "REVISITAR .zip: se o scanner persistir e nenhum download .zip legitimo for adicionado, considerar promover .zip a esta regra apos auditoria de uploads + content links."
     ],
-    "deploy_command_reference": "READ-ONLY DESIGN — NAO aplicado. Para aplicar via AWS CLI: ver playbook bit-waf (get-web-acl fresco p/ LockToken, update-web-acl com Rules completas + esta regra, priorities unicas, Description omitida quando vazia, custom=.Action / managed=.OverrideAction).",
+    "deploy_command_reference": "APLICADO EM PRODUCAO (priority 19, action Block). Confirmado no waf-check de 2026-07-22: 2.375 blocks em 30d, 12/12 padroes identicos a ACL-WPAdminHML (zero drift). Este template e a fonte de verdade do design/rationale. Para reaplicar: ver playbook bit-waf (get-web-acl fresco p/ LockToken, update-web-acl com Rules completas, priorities unicas, custom=.Action).",
     "false_positive_audit": {
       "uploads_archive_files": "find /var/www/.../wp-content/uploads -name '*.zip' -o -name '*.tar.gz' ... → ZERO resultados (2026-06-08)",
       "served_200_legit_gz": "/sitemap.xml.gz (301) e /sitemap-news.xml.gz (200) — por isso .gz NAO bloqueado",
       "200_responses_to_scanner": "5797 hits status 200 com tamanho consistente ~73865 bytes = soft-404 do WP (HTML), NAO arquivo real vazado. Nenhum backup real exposto."
-    }
+    },
+    "status": "deployed"
   },
   "rule": {
     "Name": "Block-Backup-Dump-Scan",
@@ -38,10 +42,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .sql",
               "SearchString": "LnNxbA==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -50,10 +62,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .sql.gz",
               "SearchString": "LnNxbC5neg==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -62,10 +82,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .sql.bz2",
               "SearchString": "LnNxbC5iejI=",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -74,10 +102,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .bak",
               "SearchString": "LmJhaw==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -86,10 +122,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .dump",
               "SearchString": "LmR1bXA=",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -98,10 +142,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .7z",
               "SearchString": "Ljd6",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -110,10 +162,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .rar",
               "SearchString": "LnJhcg==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -122,10 +182,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .tar",
               "SearchString": "LnRhcg==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -134,10 +202,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .tar.gz",
               "SearchString": "LnRhci5neg==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -146,10 +222,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .tgz",
               "SearchString": "LnRneg==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -158,10 +242,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .tar.bz2",
               "SearchString": "LnRhci5iejI=",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
@@ -170,10 +262,18 @@
             "ByteMatchStatement": {
               "_pattern": "endswith .tar.xz",
               "SearchString": "LnRhci54eg==",
-              "FieldToMatch": {"UriPath": {}},
+              "FieldToMatch": {
+                "UriPath": {}
+              },
               "TextTransformations": [
-                {"Priority": 0, "Type": "URL_DECODE"},
-                {"Priority": 1, "Type": "LOWERCASE"}
+                {
+                  "Priority": 0,
+                  "Type": "URL_DECODE"
+                },
+                {
+                  "Priority": 1,
+                  "Type": "LOWERCASE"
+                }
               ],
               "PositionalConstraint": "ENDS_WITH"
             }
