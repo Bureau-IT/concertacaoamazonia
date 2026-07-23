@@ -1,0 +1,198 @@
+{
+  "_meta": {
+    "name": "block-backup-dump-scan",
+    "version": "1.0.0",
+    "description": "Bloqueia na borda CF scanners varrendo por dumps SQL e arquivos de backup expostos (/db.sql, /backup.tar.gz, /dump.7z, /admin.rar, etc). Defesa em profundidade: docroot publico nao serve nenhum desses arquivos, mas o WP retorna soft-404 (HTML ~73KB com status 200) consumindo CPU do origin a cada hit. Esta regra responde 403 na borda, poupando origin e dando status correto.",
+    "source_incident": "incidente 2026-06-08 concertacaoamazonia.com.br: scanner massivo (~5.000 reqs por extensao) varrendo backups/dumps. nginx access log: /internal/log.sql, /admin/httpsdocs.{zip,sql,tar.gz,tar.bz2,7z,rar,gz}, /db.sql, /backup.sql, /dump.sql, /database.sql, /backup.tar.gz, /backup.zip etc. Block-PHP-Scan (.php), Block-Sensitive-Dotfiles (.git/.env) e AWS-KnownBadInputs (.env) NAO cobriam estas extensoes.",
+    "wcu_estimate": 36,
+    "applies_to": ["wordpress", "generic"],
+    "last_reviewed": "2026-06-08",
+    "reviewed_by": "Daniel Cambria",
+    "notes": [
+      "DECISAO CONSERVADORA: bloqueia SOMENTE extensoes inequivocamente maliciosas (nenhum conteudo publico legitimo as usa). .gz e .zip foram DELIBERADAMENTE EXCLUIDOS por risco de falso-positivo.",
+      "MOTIVO p/ excluir .gz: /sitemap.xml.gz e /sitemap-news.xml.gz sao gzipped sitemaps legitimos (top hit do log com 14x, status 200). Tema/cache tambem geram *.css.gz (gzip_static). Bloquear .gz quebraria sitemaps e pre-compressed assets.",
+      "MOTIVO p/ excluir .zip: WordPress/plugins/temas distribuem .zip legitimamente (export de ferramentas, downloads). Embora hoje uploads nao tenha nenhum .zip publico (verificado via find 2026-06-08), e extensao de uso futuro plausivel — risco > beneficio.",
+      "EXTENSOES BLOQUEADAS (12): .sql, .bak, .dump, .7z, .rar, .tar, .tar.gz, .tgz, .tar.bz2, .tar.xz, .sql.gz, .sql.bz2. Todas confirmadas no log do scanner e ZERO arquivos legitimos no docroot publico com essas extensoes.",
+      "NOTA .sql.gz/.sql.bz2/.tar.gz: terminam em .gz/.bz2 generico, mas ENDS_WITH no sufixo composto (.sql.gz) e seguro pois /sitemap.xml.gz NAO casa (.xml.gz != .sql.gz). Sufixos compostos sao mais precisos que .gz isolado.",
+      "NOTA backups internos do deploy: /var/www/.../.pre-import-backup-*.sql.gz existem no docroot mas comecam com '.' (dotfile) → ja inacessiveis + nao sao request alvo desta regra (regra olha UriPath do request, nao FS).",
+      "TextTransformation LOWERCASE + URL_DECODE — scanners variam capitalizacao (.SQL, .Sql) e usam %2E/%2F encoding. URL_DECODE (priority 0) antes de LOWERCASE (priority 1).",
+      "PositionalConstraint ENDS_WITH na extensao — barato e preciso. Casa /db.sql, /admin/httpsdocs.7z. NAO casa /pagina-sql/ (path interno) pois exige a string no fim do UriPath.",
+      "Action 403 com CustomResponseBodyKey BIT-Recurso-Indisponivel (mesmo padrao de Block-PHP-Scan e Block-Sensitive-Dotfiles).",
+      "Priority 19 — slot livre entre Block-Sensitive-Dotfiles (18) e AWS-KnownBadInputs-Count (20). Agrupa com os demais blockers de path-scan.",
+      "REVISITAR .zip: se o scanner persistir e nenhum download .zip legitimo for adicionado, considerar promover .zip a esta regra apos auditoria de uploads + content links."
+    ],
+    "deploy_command_reference": "READ-ONLY DESIGN — NAO aplicado. Para aplicar via AWS CLI: ver playbook bit-waf (get-web-acl fresco p/ LockToken, update-web-acl com Rules completas + esta regra, priorities unicas, Description omitida quando vazia, custom=.Action / managed=.OverrideAction).",
+    "false_positive_audit": {
+      "uploads_archive_files": "find /var/www/.../wp-content/uploads -name '*.zip' -o -name '*.tar.gz' ... → ZERO resultados (2026-06-08)",
+      "served_200_legit_gz": "/sitemap.xml.gz (301) e /sitemap-news.xml.gz (200) — por isso .gz NAO bloqueado",
+      "200_responses_to_scanner": "5797 hits status 200 com tamanho consistente ~73865 bytes = soft-404 do WP (HTML), NAO arquivo real vazado. Nenhum backup real exposto."
+    }
+  },
+  "rule": {
+    "Name": "Block-Backup-Dump-Scan",
+    "Priority": 19,
+    "Statement": {
+      "OrStatement": {
+        "Statements": [
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .sql",
+              "SearchString": "LnNxbA==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .sql.gz",
+              "SearchString": "LnNxbC5neg==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .sql.bz2",
+              "SearchString": "LnNxbC5iejI=",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .bak",
+              "SearchString": "LmJhaw==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .dump",
+              "SearchString": "LmR1bXA=",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .7z",
+              "SearchString": "Ljd6",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .rar",
+              "SearchString": "LnJhcg==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .tar",
+              "SearchString": "LnRhcg==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .tar.gz",
+              "SearchString": "LnRhci5neg==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .tgz",
+              "SearchString": "LnRneg==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .tar.bz2",
+              "SearchString": "LnRhci5iejI=",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "_pattern": "endswith .tar.xz",
+              "SearchString": "LnRhci54eg==",
+              "FieldToMatch": {"UriPath": {}},
+              "TextTransformations": [
+                {"Priority": 0, "Type": "URL_DECODE"},
+                {"Priority": 1, "Type": "LOWERCASE"}
+              ],
+              "PositionalConstraint": "ENDS_WITH"
+            }
+          }
+        ]
+      }
+    },
+    "Action": {
+      "Block": {
+        "CustomResponse": {
+          "ResponseCode": 403,
+          "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+        }
+      }
+    },
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "Block-Backup-Dump-Scan"
+    }
+  }
+}

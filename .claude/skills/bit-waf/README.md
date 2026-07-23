@@ -31,7 +31,7 @@ do site e commita com mensagem padrão. Use `--no-commit` para skip git.
 
 ### Auditoria trimestral de ACL
 ```
-/audit-acl
+/waf-check
 ```
 Roda em ~1-2min. Detecta dead code, rules duplicadas, IPSets desatualizados,
 capacity warnings, custom response bodies órfãos, rules com 0 utilização,
@@ -40,7 +40,7 @@ anti-patterns conhecidos. Output com classificação por severidade
 
 Recomendado: a cada 90 dias (1º dia útil de fev/mai/ago/nov).
 
-Ver `playbooks/audit-acl.md` para workflow completo.
+Ver `playbooks/waf-check.md` para workflow completo.
 
 ### Aplicar template de rule em produção (com diff + rollback)
 ```bash

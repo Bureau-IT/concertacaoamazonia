@@ -1,5 +1,35 @@
 # bit-waf — CHANGELOG
 
+## 1.5.0 — 2026-07-22 (rename /audit-acl → /waf-check + 2 fixes + gate novo)
+
+### Renomeado
+- `commands/audit-acl.md` → `commands/waf-check.md` (slash command agora é `/waf-check`)
+- `playbooks/audit-acl.md` → `playbooks/waf-check.md`
+- Referências de invocação atualizadas em `README.md` e `SKILL.md`.
+  Entradas antigas deste CHANGELOG preservadas como histórico.
+
+### Corrigido
+- **Gate 3.5 (utilização) devolvia 0 para TODAS as rules.** A query usava a
+  dimensão `Name=Region,Value=CloudFront`, que não é publicada nesta conta — o
+  filtro não casava com nada. Levaria à conclusão falsa de "WAF ocioso, 8 rules
+  candidatas a deprecação" quando `Block-AggressiveBots` tinha 29.265 blocks em
+  30d. Agora usa só `WebACL` + `Rule`, com sanity check explícito: se todas
+  derem 0, é query errada, não WAF ocioso.
+- **Gate 3.14 (S3 legacy) media a coisa errada.** Marcava refs no DB como
+  🔴 CRITICAL, mas em 2026-07-22 optou-se por restaurar os 3 assets no bucket
+  legacy em vez de fazer search-replace — refs no DB passaram a ser esperadas.
+  O gate agora verifica se os 3 assets respondem **200 público**, e alerta para
+  chaves legacy *novas* (≠ das 3 conhecidas). Removida a orientação de deletar
+  o tombstone (é a fonte de recuperação).
+
+### Adicionado
+- **Gate 3.15 — SearchString double-encoded.** Detecta rules silenciosamente
+  inertes: valor codificado 2x em base64 faz a rule procurar a string base64
+  literal no tráfego, casando com nada (métrica 0, sem erro). Achado real:
+  `Block-TikTokSpider` procurava `VGlrVG9rU3BpZGVy` no User-Agent. O check exige
+  que o 2º decode seja ASCII imprimível, evitando falso positivo com nomes como
+  `Baiduspider`/`AhrefsBot` (que são base64-válidos por acaso).
+
 ## 1.4.0 — 2026-05-04 (audit-acl + playbook)
 
 ### Adicionado

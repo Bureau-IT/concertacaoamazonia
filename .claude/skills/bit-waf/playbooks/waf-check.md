@@ -13,18 +13,18 @@
 
 ## Sequência
 
-### 1. Rodar `/audit-acl`
+### 1. Rodar `/waf-check`
 
 ```
-/audit-acl
+/waf-check
 ```
 
 Ou customizado:
 ```
-/audit-acl --site=concertacao --utilization-window=90
+/waf-check --site=concertacao --utilization-window=90
 ```
 
-Output gera relatório em `/tmp/audit-acl-{site}-{ts}/report.md` com 9 áreas
+Output gera relatório em `/tmp/waf-check-{site}-{ts}/report.md` com 9 áreas
 de check.
 
 ### 2. Triagem por severidade
@@ -128,7 +128,7 @@ Ao final da auditoria, copiar relatório para o repo do site:
 ```bash
 SITE_REPO=~/scripts/server-tools/v2/docker-dev/sites/<site>
 mkdir -p "$SITE_REPO/aws/audits"
-cp /tmp/audit-acl-<site>-<ts>/report.md "$SITE_REPO/aws/audits/audit-$(date +%Y-%m-%d).md"
+cp /tmp/waf-check-<site>-<ts>/report.md "$SITE_REPO/aws/audits/audit-$(date +%Y-%m-%d).md"
 git -C "$SITE_REPO" add aws/audits/
 git -C "$SITE_REPO" commit -m "docs(aws): audit ACL $(date +%Y-%m-%d)"
 ```
@@ -166,7 +166,7 @@ Se a auditoria revelar 5+ issues críticas, considerar:
 
 ## Referências
 
-- Slash command: `commands/audit-acl.md`
+- Slash command: `commands/waf-check.md`
 - Template metadata: `templates/manifest.yaml`
 - Anti-templates: `docs/anti-templates.md`
 - Helpers: `apply-rule.sh`, `snapshot-acl.sh`
