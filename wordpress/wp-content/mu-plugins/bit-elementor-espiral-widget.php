@@ -4,7 +4,7 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.1.7
+ * Version:      2.2.0
  * Author:       Bureau IT
  * Network:      true
  */
@@ -209,7 +209,7 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 '--spiral2026-foreignobject-width'         => '130px',
                 '--spiral2026-foreignobject-height'        => '88px',
                 '--spiral2026-foreignobject-fontsize'      => '15px',
-                '--spiral2026-foreignobject-fontfamily'    => '"Just Sans", sans-serif',
+                '--spiral2026-foreignobject-fontfamily'    => '"Rubik", sans-serif',
                 '--spiral2026-foreignobject-fontweight'    => '500',
                 '--spiral2026-foreignobject-lineheight'    => '1.2',
                 '--spiral2026-foreignobject-letterspacing' => '0',
@@ -260,34 +260,37 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
          * exatamente como antes mesmo se o desenvolvedor não tocar no Repeater.
          */
         private function get_default_axes_repeater(): array {
+            // Labels EN extraidos do SVG fonte (themes/hello-elementor-child/svg/espiral-do-conhecimento.svg)
+            // — fonte canonica de traducao, NAO usar traducao automatica.
             $defaults = [
-                [ 'Governança',                                                'Espiral: Governança',                                              172  ],
-                [ 'Instrumentos de financiamento',                             'Espiral: Instrumentos de financiamento',                            174  ],
-                [ 'Planos e políticas públicas',                               'Espiral: Planos e políticas públicas',                              175  ],
-                [ 'Negócios',                                                  'Espiral: Negócios',                                                176  ],
-                [ 'Sociedade civil',                                           'Espiral: Sociedade civil',                                          177  ],
-                [ 'Ciência, tecnologia e inovação',                            'Espiral: Ciência, Tecnologia e Inovação',                           187  ],
-                [ 'Cultura',                                                   'Espiral: Cultura',                                                  178  ],
-                [ 'Mudança do uso do solo',                                    'Espiral: Mudança do Uso do Solo',                                   180  ],
-                [ 'Ordenamento territorial e regularização fundiária',         'Espiral: Ordenamento Territorial e Regularização Fundiária',         2013 ],
-                [ 'Infraestrutura',                                            'Espiral: Infraestrutura',                                           182  ],
-                [ 'Comunicação e mídia',                                       'Espiral: Comunicação e mídia',                                      183  ],
-                [ 'Mudanças Climáticas',                                       'Espiral: Mudanças Climáticas',                                      184  ],
-                [ 'Agenda Internacional',                                      'Espiral: Agenda Internacional',                                     185  ],
-                [ 'Educação',                                                  'Espiral: Educação',                                                 1819 ],
-                [ 'Bioeconomia',                                               'Espiral: Bioeconomia',                                              604  ],
-                [ 'Segurança',                                                 'Espiral: Segurança',                                                598  ],
-                [ 'Saúde',                                                     'Espiral: Saúde',                                                    2479 ],
-                [ 'Cidades',                                                   'Espiral: Cidades',                                                  2360 ],
-                [ 'Biodiversidade',                                            'Espiral: Biodiversidade',                                           2463 ],
-                [ 'Povos indígenas, quilombolas e comunidades tradicionais',   'Espiral: PIQCTs',                                                   2401 ],
-                [ 'Direitos humanos',                                          'Espiral: Direitos humanos',                                         2464 ],
+                [ 'Governança',                                                'Governance',                                            'Espiral: Governança',                                              172  ],
+                [ 'Instrumentos de financiamento',                             'Financing instruments',                                 'Espiral: Instrumentos de financiamento',                            174  ],
+                [ 'Planos e políticas públicas',                               'Plans and public policies',                             'Espiral: Planos e políticas públicas',                              175  ],
+                [ 'Negócios',                                                  'Business',                                              'Espiral: Negócios',                                                176  ],
+                [ 'Sociedade civil',                                           'Civil society',                                         'Espiral: Sociedade civil',                                          177  ],
+                [ 'Ciência, tecnologia e inovação',                            'Science, technology and innovation',                    'Espiral: Ciência, Tecnologia e Inovação',                           187  ],
+                [ 'Cultura',                                                   'Culture',                                               'Espiral: Cultura',                                                  178  ],
+                [ 'Mudança do uso do solo',                                    'Land use change',                                       'Espiral: Mudança do Uso do Solo',                                   180  ],
+                [ 'Ordenamento territorial e regularização fundiária',         'Territorial planning and land tenure regularization',   'Espiral: Ordenamento Territorial e Regularização Fundiária',         2013 ],
+                [ 'Infraestrutura',                                            'Infrastructure',                                        'Espiral: Infraestrutura',                                           182  ],
+                [ 'Comunicação e mídia',                                       'Communication and media',                               'Espiral: Comunicação e mídia',                                      183  ],
+                [ 'Mudanças Climáticas',                                       'Climate change',                                        'Espiral: Mudanças Climáticas',                                      184  ],
+                [ 'Agenda Internacional',                                      'International agenda',                                  'Espiral: Agenda Internacional',                                     185  ],
+                [ 'Educação',                                                  'Education',                                             'Espiral: Educação',                                                 1819 ],
+                [ 'Bioeconomia',                                               'Bioeconomy',                                            'Espiral: Bioeconomia',                                              604  ],
+                [ 'Segurança',                                                 'Security',                                              'Espiral: Segurança',                                                598  ],
+                [ 'Saúde',                                                     'Health',                                                'Espiral: Saúde',                                                    2479 ],
+                [ 'Cidades',                                                   'Cities',                                                'Espiral: Cidades',                                                  2360 ],
+                [ 'Biodiversidade',                                            'Biodiversity',                                          'Espiral: Biodiversidade',                                           2463 ],
+                [ 'Povos indígenas, quilombolas e comunidades tradicionais',   'Indigenous, quilombola and traditional communities',    'Espiral: PIQCTs',                                                   2401 ],
+                [ 'Direitos humanos',                                          'Human rights',                                          'Espiral: Direitos humanos',                                         2464 ],
             ];
             $rows = [];
-            foreach ( $defaults as [ $label, $_term_name, $term_id ] ) {
+            foreach ( $defaults as [ $label, $label_en, $_term_name, $term_id ] ) {
                 $rows[] = [
-                    'segment_label'   => $label,
-                    'segment_term_id' => (string) $term_id,
+                    'segment_label'    => $label,
+                    'segment_label_en' => $label_en,
+                    'segment_term_id'  => (string) $term_id,
                 ];
             }
             return $rows;
@@ -477,10 +480,17 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
             $axes_repeater = new \Elementor\Repeater();
 
             $axes_repeater->add_control( 'segment_label', [
-                'label'       => 'Segmento (referência)',
+                'label'       => 'Segmento (PT)',
                 'type'        => \Elementor\Controls_Manager::TEXT,
                 'placeholder' => 'Governança',
-                'description' => 'Apenas para identificar o segmento no painel.',
+                'description' => 'Texto exibido no segmento em páginas PT.',
+            ] );
+
+            $axes_repeater->add_control( 'segment_label_en', [
+                'label'       => 'Segmento (EN)',
+                'type'        => \Elementor\Controls_Manager::TEXT,
+                'placeholder' => 'Governance',
+                'description' => 'Texto exibido no segmento em páginas EN. Vazio = mantém o valor PT (fallback).',
             ] );
 
             $axes_repeater->add_control( 'segment_term_id', [
@@ -649,7 +659,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             $this->add_control( 'spiral_font_family', [
                 'label'     => 'Família da fonte',
                 'type'      => \Elementor\Controls_Manager::FONT,
-                'default'   => 'Just Sans',
+                'default'   => 'Rubik',
                 'selectors' => [
                     '{{WRAPPER}} .SVGSpiral2026' => "--spiral2026-foreignobject-fontfamily: '{{VALUE}}', sans-serif;",
                 ],
@@ -1107,6 +1117,36 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             //
             // Itens sem term_id (vazio) deixam o segmento inalterado — fallback
             // para segLinks do banco e, se ausente, href estático do SVG.
+            // v2.2.0: deteccao de idioma para escolher segment_label vs segment_label_en.
+            // WPML: apply_filters('wpml_current_language', null) retorna 'en' / 'pt-br' / 'es'.
+            // Fallback: get_locale() (sem WPML ativo em dev).
+            $current_lang = apply_filters( 'wpml_current_language', null );
+            if ( ! is_string( $current_lang ) || $current_lang === '' ) {
+                $current_lang = substr( (string) get_locale(), 0, 2 );
+            }
+            $is_en = ( stripos( (string) $current_lang, 'en' ) === 0 );
+
+            // Mapa default EN por posicao (1..21) — fallback canonico quando o
+            // Repeater salvo no DB nao tem segment_label_en preenchido (cenario
+            // pre-v2.2.0: widget criado antes do campo existir). Permite traduzir
+            // sem exigir edicao manual de cada um dos 21 segmentos no painel.
+            $defaults_for_fallback = $this->get_default_axes_repeater();
+            $default_en_by_position = [];
+            foreach ( $defaults_for_fallback as $i => $r ) {
+                $default_en_by_position[ $i + 1 ] = $r['segment_label_en'] ?? '';
+            }
+
+            // Helper: escolhe label por idioma com fallback em cascata para PT.
+            // $n = posicao (1..21) para resolver default canonico EN.
+            $pick_label = static function( array $row, int $n ) use ( $is_en, $default_en_by_position ) : string {
+                $pt = isset( $row['segment_label'] ) ? trim( (string) $row['segment_label'] ) : '';
+                if ( ! $is_en ) return $pt;
+                $en = isset( $row['segment_label_en'] ) ? trim( (string) $row['segment_label_en'] ) : '';
+                if ( $en !== '' ) return $en;
+                $fallback_en = $default_en_by_position[ $n ] ?? '';
+                return $fallback_en !== '' ? $fallback_en : $pt;
+            };
+
             $repeater_items = $s['axes_repeater'] ?? [];
             if ( ! empty( $repeater_items ) && is_array( $repeater_items ) ) {
                 $synth_links = [];
@@ -1115,10 +1155,24 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     if ( $n > 21 ) break;
                     $term_id = isset( $row['segment_term_id'] ) ? (int) $row['segment_term_id'] : 0;
                     if ( $term_id <= 0 ) continue;
+                    // v2.2.0: traduz term_id via WPML quando idioma corrente
+                    // nao e PT. WPML mantem term_ids separados por idioma na
+                    // taxonomia "eixos" (PT 184 → EN 1646 etc); sem essa
+                    // traducao o filtro JSF do JetEngine recebe id PT em
+                    // contexto EN e nao casa com a query.
+                    if ( $current_lang && stripos( $current_lang, 'pt' ) !== 0 ) {
+                        $translated = apply_filters(
+                            'wpml_object_id',
+                            $term_id,
+                            'eixos',
+                            true,             // return original if no translation
+                            $current_lang
+                        );
+                        if ( $translated ) $term_id = (int) $translated;
+                    }
                     // v1.7.0: anexar _label legivel a partir do segment_label do Repeater.
-                    // Idioma da pagina (PT no PT, EN no EN). Atualiza automaticamente
-                    // quando o segment_label e renomeado no painel Elementor.
-                    $label_raw  = isset( $row['segment_label'] ) ? (string) $row['segment_label'] : '';
+                    // v2.2.0: usa o label do idioma corrente (PT ou EN) — slug bilingue.
+                    $label_raw  = $pick_label( $row, $n );
                     $label_slug = sanitize_title( $label_raw );
                     $synth_links[ $n ] = sprintf(
                         '/conhecimento/espiral-de-conhecimento/?eixo=eixo%d%s&jsf=jet-engine:estudos&tax=eixos:%d#estudos',
@@ -1135,14 +1189,18 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     $stored_config['segLinks'] = $synth_links + $existing;
                 }
 
-                // ── 0.1. Substituir o texto PT do segmento (aria-label, <title>
+                // ── 0.1. Substituir o texto do segmento (aria-label, <title>
                 // e conteúdo do <foreignObject data-language="pt">) com o valor
-                // do campo "Segmento (referência)" do Repeater.
-                // Edição do label no painel reflete imediatamente no segmento.
+                // do Repeater no idioma corrente (segment_label ou segment_label_en).
+                //
+                // O foreignObject `data-language="pt"` e usado como container unico
+                // porque o bloco 1.1 ja converte ambos PT+EN para <text> SVG nativo
+                // (descartando o foreignObject EN). Aqui o texto e escolhido por
+                // idioma e injetado no slot PT, que sobrevive ate a conversao final.
                 foreach ( $repeater_items as $i => $row ) {
                     $n = $i + 1;
                     if ( $n > 21 ) break;
-                    $label = isset( $row['segment_label'] ) ? trim( (string) $row['segment_label'] ) : '';
+                    $label = $pick_label( $row, $n );
                     if ( '' === $label ) continue;
                     $label_attr = esc_attr( $label );
                     $label_text = esc_html( $label );
@@ -1232,6 +1290,29 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             $default_font_size = isset( $s['spiral_font_size']['size'] ) ? (float) $s['spiral_font_size']['size'] : 15.0;
             $default_y_offset  = isset( $s['spiral_text_y_offset']['size'] ) ? (int) $s['spiral_text_y_offset']['size'] : 0;
 
+            // v2.2.0: overrides por posicao quando o idioma EN tem label
+            // significativamente diferente do PT e precisa de ajuste fino.
+            // Vencem o typo_repeater porque o painel ainda nao tem controle por
+            // idioma; o typo_repeater foi calibrado pensando em PT.
+            //
+            // $axis_width_override: largura (px) da caixa de texto por eixo.
+            // Quando setado, sobrescreve o atributo `width` do <foreignObject>
+            // no callback do bloco 1.1 (lookup via $axis_counter).
+            $axis_width_override = [];
+            if ( $is_en ) {
+                // Eixo 8 ("Land use change"): texto curto, sobe demais — descer
+                // ~15px para alinhar ao centro do segmento.
+                $axis_y_offset[ 8 ]      = 15;
+
+                // Eixo 9 ("Territorial planning and land tenure regularization"):
+                // texto longo precisa de fonte menor + caixa mais estreita p/
+                // forcar quebra centralizada. y_offset=2 alinha ao centro do
+                // segmento (rev: 10→2, subiu ~8px apos refinamento visual).
+                $axis_font_size[ 9 ]     = 13.0;
+                $axis_y_offset[ 9 ]      = 2;
+                $axis_width_override[ 9 ] = 110; // estreita caixa de 130→110
+            }
+
             // Word-wrap helper: quebra texto em linhas com até maxChars chars,
             // sem quebrar palavras. maxChars derivado de (width_px / fontSize / 0.55).
             $wrap_text = static function( $text, $max_chars ) {
@@ -1257,7 +1338,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             $axis_counter = 0;
             $svg = preg_replace_callback(
                 '#<foreignObject\b([^>]*)>(.*?)</foreignObject>#s',
-                function ( $m ) use ( &$axis_counter, $axis_font_size, $axis_y_offset, $default_font_size, $default_y_offset, $wrap_text ) {
+                function ( $m ) use ( &$axis_counter, $axis_font_size, $axis_y_offset, $axis_width_override, $default_font_size, $default_y_offset, $wrap_text ) {
                     $attrs = $m[1];
                     $inner = $m[2];
 
@@ -1280,6 +1361,15 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     $w = isset( $mw[1] ) ? (float) $mw[1] : 130;
                     $h = isset( $mh[1] ) ? (float) $mh[1] : 88;
 
+                    // v2.2.0: override de width por eixo (atualmente usado p/
+                    // ajuste fino EN). Mantem o centro horizontal recolocando
+                    // x = x_original + (w_original - w_novo)/2.
+                    if ( isset( $axis_width_override[ $n ] ) ) {
+                        $w_new = (float) $axis_width_override[ $n ];
+                        $x    += ( $w - $w_new ) / 2;
+                        $w     = $w_new;
+                    }
+
                     // Extrai texto (entre <div>...</div> ou direto)
                     $text = '';
                     if ( preg_match( '#<div[^>]*class=["\'][^"\']*bit-espiral-text-inner[^"\']*["\'][^>]*>(.*?)</div>#s', $inner, $md ) ) {
@@ -1297,7 +1387,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     $fs = $axis_font_size[ $n ] ?? $default_font_size;
                     $yo = $axis_y_offset[ $n ] ?? $default_y_offset;
 
-                    // Word-wrap: aprox 0.5 = razão char/fontSize média (font Roboto/Just Sans)
+                    // Word-wrap: aprox 0.5 = razão char/fontSize média (font Roboto/Rubik)
                     $max_chars  = max( 8, (int) floor( $w / ( $fs * 0.5 ) ) );
                     $lines      = $wrap_text( $text, $max_chars );
                     $line_count = count( $lines );
@@ -1496,7 +1586,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         // sobrescreve via controles do widget (fonte da verdade).
                         . '.SVGSpiral2026{'
                         . '--spiral2026-foreignobject-color:#ffffff;'
-                        . '--spiral2026-foreignobject-fontfamily:"Just Sans",Sans-serif;'
+                        . '--spiral2026-foreignobject-fontfamily:"Rubik",Sans-serif;'
                         . '--spiral2026-foreignobject-fontsize:15px;'
                         . '--spiral2026-foreignobject-fontweight:500;'
                         . '--spiral2026-foreignobject-lineheight:1.2;'
@@ -1510,14 +1600,14 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         // font-family/color das CSS vars do mu-plugin.
                         . '.SVGSpiral2026 text.bit-espiral-text-svg{'
                         . 'fill:var(--spiral2026-foreignobject-color,#ffffff);'
-                        . 'font-family:var(--spiral2026-foreignobject-fontfamily,"Just Sans",Sans-serif);'
+                        . 'font-family:var(--spiral2026-foreignobject-fontfamily,"Rubik",Sans-serif);'
                         . 'font-weight:var(--spiral2026-foreignobject-fontweight,500);'
                         . 'pointer-events:none;'
                         . 'paint-order:stroke;'
                         . 'stroke:rgba(0,0,0,0.35);'
                         . 'stroke-width:0.6;}'
                         . '.SVGSpiral2026 foreignObject{'
-                        . 'font-family:var(--spiral2026-foreignobject-fontfamily,"Just Sans",Sans-serif);'
+                        . 'font-family:var(--spiral2026-foreignobject-fontfamily,"Rubik",Sans-serif);'
                         . 'font-size:var(--spiral2026-foreignobject-fontsize,15px);'
                         . 'font-weight:var(--spiral2026-foreignobject-fontweight,500);'
                         . 'line-height:var(--spiral2026-foreignobject-lineheight,1.2);'

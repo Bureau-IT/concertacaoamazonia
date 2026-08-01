@@ -1,12 +1,17 @@
 <?php
 /**
  * Plugin Name: JetElements S3 Downloads Redirect
- * Description: Intercepta downloads do JetElements e redireciona diretamente para S3, evitando sobrecarga do servidor
- * Version: 1.0.0
- * Author: Daniel Cambría + Warp
- * 
- * Este plugin resolve o problema de compatibilidade entre JetElements Download Handler e S3-Uploads
- * fazendo redirect direto para URLs do S3 em vez de processar downloads localmente.
+ * Description: Intercepta downloads do JetElements e redireciona para a URL pública do attachment
+ *              quando o arquivo não existe no FS local (típico em prod com CF-OAC + s3-uploads OFF).
+ * Version: 1.1.1
+ * Author: Daniel Cambría
+ *
+ * v1.1.0: o guard antigo `strpos($url,'s3.') || strpos($url,'amazonaws.com')` falhava em sites com
+ *         CF-OAC (URL fica no domínio do site, sem 's3.'), causando fallthrough silencioso para o
+ *         handler do JetElements que retornava `return;` quando `is_file($path_local)===false` e
+ *         WordPress renderizava template default (home). Agora a decisão é baseada na existência
+ *         do arquivo local: ausente → redirect 302 para a URL pública; presente → deixa JetElements
+ *         processar (streaming chunked).
  */
 
 // Previne acesso direto
@@ -32,9 +37,9 @@ class Jet_S3_Redirect {
         
         $hash = sanitize_text_field($_GET['jet_download']);
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        
-        // Log da requisição para monitoramento
-        error_log("JET-S3-REDIRECT: Interceptando download hash: $hash IP: $ip");
+
+        // Log da requisição para monitoramento (v1.1.1 marker visivel)
+        error_log("JET-S3-REDIRECT[v1.1.1]: INICIO hash=$hash IP=$ip uri=" . ($_SERVER['REQUEST_URI'] ?? '?'));
         
         // Descriptografa o hash para obter o attachment ID (método JetElements)
         $attachment_id = $this->decrypt_jet_download_hash($hash);
@@ -53,39 +58,39 @@ class Jet_S3_Redirect {
             return;
         }
         
-        // Obtém a URL do S3 diretamente
-        $s3_url = wp_get_attachment_url($attachment_id);
-        
-        if (!$s3_url) {
+        // Obtém a URL pública do attachment
+        $public_url = wp_get_attachment_url($attachment_id);
+
+        if (!$public_url) {
             error_log("JET-S3-REDIRECT: URL não encontrada para attachment ID: $attachment_id IP: $ip");
             wp_die('Arquivo não encontrado', 'Erro 404', array('response' => 404));
             return;
         }
-        
-        // Se for URL S3, faz redirect direto
-        if (strpos($s3_url, 's3.') !== false || strpos($s3_url, 'amazonaws.com') !== false) {
-            
-            // Obtém informações do arquivo
-            $filename = basename($s3_url);
+
+        // Decisão: arquivo existe localmente?
+        // - Não existe (típico prod com CF-OAC + s3-uploads OFF): redirect 302 para URL pública
+        //   (CF/S3 servem o binário diretamente, sem onerar o origin com readfile)
+        // - Existe: deixa JetElements processar (streaming chunked, força Content-Disposition)
+        $local_path = get_attached_file($attachment_id);
+
+        if (!$local_path || !is_file($local_path)) {
+            $filename = basename($public_url);
             $filesize = $this->get_s3_filesize($attachment_id);
-            
-            // Log do redirect
-            error_log("JET-S3-REDIRECT: SUCCESS - Redirecionando ID $attachment_id ($filename, {$filesize}MB) para S3 | IP: $ip");
-            
-            // Headers de segurança e cache
+
+            error_log("JET-S3-REDIRECT[v1.1.1]: SUCCESS - Redirecionando ID=$attachment_id ($filename, {$filesize}MB) para $public_url | IP=$ip");
+
             header('X-Robots-Tag: noindex, nofollow', true);
             header('Cache-Control: no-cache, no-store, must-revalidate', true);
             header('Pragma: no-cache', true);
             header('Expires: 0', true);
             header('X-Redirect-Reason: JetElements-S3-Optimization', true);
-            
-            // Redirect 302 (temporário) para o S3
-            wp_redirect($s3_url, 302);
+
+            wp_redirect($public_url, 302);
             exit;
         }
-        
-        // Se não for S3, deixa o JetElements processar normalmente
-        error_log("JET-S3-REDIRECT: URL não é S3, deixando JetElements processar: $s3_url IP: $ip");
+
+        // Arquivo existe localmente — JetElements processa (streaming chunked com Content-Disposition)
+        error_log("JET-S3-REDIRECT[v1.1.1]: arquivo local presente, deixando JetElements processar: $local_path IP=$ip");
     }
     
     /**
@@ -120,6 +125,20 @@ class Jet_S3_Redirect {
 
 // Inicializa o plugin
 new Jet_S3_Redirect();
+
+/**
+ * Impede o WP Rocket de cachear (e servir) qualquer request com ?jet_download=...
+ *
+ * Sem isso, o advanced-cache.php do WP Rocket processa o request ANTES do init prio 5
+ * desta classe — como `jet_download` não está em `cache_query_strings`, ele colapsa a
+ * request para a home e serve o `index-https.html` cacheado. O handler abaixo nunca roda.
+ */
+add_filter('rocket_cache_reject_uri', function($uris) {
+    $uris = is_array($uris) ? $uris : [];
+    // regex (WP Rocket interpreta como pattern); escape de "?" porque é literal
+    $uris[] = '(?:.*)\?(?:.*)jet_download=(?:.*)';
+    return $uris;
+});
 
 /**
  * Log de ativação e estatísticas

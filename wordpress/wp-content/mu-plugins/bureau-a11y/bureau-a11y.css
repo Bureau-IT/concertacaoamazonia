@@ -46,7 +46,7 @@
 }
 
 /* Plus Jakarta Sans — fonte de UI do painel a11y.
- * NÃO é fonte oficial do site (Manual de Marca §3.9 define Franie/Just Sans/Roboto).
+ * NÃO é fonte oficial do site (Manual de Marca §3.9 define Poppins/Rubik/Roboto).
  * Movida do tema para este mu-plugin em 2026-05-18 para evitar preload global
  * de uma fonte usada apenas pelo painel de acessibilidade (auditoria detectou
  * 180 elementos usando Plus Jakarta, TODOS dentro de aside#bureau-a11y-panel).

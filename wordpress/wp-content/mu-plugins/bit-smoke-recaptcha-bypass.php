@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: BIT Smoke reCAPTCHA Bypass
- * Description: Bypassa validacao reCAPTCHA do Elementor Pro Forms quando request traz header X-BIT-Smoke-Token que confere com a constante BIT_SMOKE_BYPASS_TOKEN do wp-config.php. Adiciona campo virtual __bit_smoke_test=1 no record via filter actions_before (chega aos destinos email/webhook). Emite header de resposta X-BIT-Smoke-Bypass=OK|FAILED|NOOP SOMENTE quando o request carrega o header X-BIT-Smoke-Token (qualquer valor) — sem header de entrada, sem header de saida, evitando cache-poisoning e leak de metadado. Audit log incondicional via error_log quando autorizado. No-op se constante ausente ou vazia. Spec: docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md
- * Version: 1.1.1
+ * Description: Bypassa validacao reCAPTCHA do Elementor Pro Forms (server-side + client-side) quando request traz header X-BIT-Smoke-Token que confere com a constante BIT_SMOKE_BYPASS_TOKEN do wp-config.php. v1.3.2 (2026-05-22): nocache_headers emitido em TODA request que carrega header X-BIT-Smoke-Token (autorizado ou nao). Sem isso, responses NOOP iam pro CF cache e contaminavam requests anonimos (validado contra validate-smoke-bypass.sh teste 3/5). v1.3.1: clarifica que `header()` Cache-Control e intencional. v1.3.0: hardening — nocache_headers no send_headers; rate-limit (30/min/IP) no audit_log. v1.2.0: injeta window.grecaptcha stub no <head> que satisfaz onRecaptchaApiReady() do Elementor Pro mesmo quando gstatic.com esta bloqueado por CSP. v1.0.0: remove callbacks server-side de Recaptcha_Handler / Recaptcha_V3_Handler, adiciona __bit_smoke_test=1 no record via filter actions_before, emite X-BIT-Smoke-Bypass=OK|FAILED|NOOP condicional a header de request. Spec: docs/superpowers/specs/2026-05-14-smoke-recaptcha-bypass-design.md
+ * Version: 1.3.2
  * Author: Daniel Cambria (Bureau de Tecnologia)
  */
 
@@ -71,6 +71,18 @@ function audit_log( string $msg ): void {
 	$prefix = isset( $_SERVER[ HEADER_KEY ] ) ? substr( (string) $_SERVER[ HEADER_KEY ], 0, 8 ) . '...' : '(none)';
 	$ip     = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 	$uri    = $_SERVER['REQUEST_URI'] ?? '?';
+
+	// MED 7: rate-limit por IP+minuto. Atacante com token vazado podera floodar
+	// error_log e estourar disco se cada submit emitir 2-3 audit entries.
+	// Limite: 30 entries/min/IP. Excedeu, drop silencioso (telemetria interna
+	// preserva o gate; audit fica documentado pelo primeiro evento).
+	$bucket = 'bit_smoke_audit_' . md5( $ip . '|' . gmdate( 'YmdHi' ) );
+	$count  = (int) get_transient( $bucket );
+	if ( $count >= 30 ) {
+		return;
+	}
+	set_transient( $bucket, $count + 1, 60 );
+
 	error_log( sprintf( '[bit-smoke-recaptcha-bypass AUDIT] %s | token=%s | ip=%s | uri=%s', $msg, $prefix, $ip, substr( $uri, 0, 200 ) ) );
 }
 
@@ -205,6 +217,94 @@ function emit_diagnostic_header(): void {
 	header( RESPONSE_HEADER . ': ' . $GLOBALS['bit_smoke_bypass_state'] );
 }
 
+/**
+ * Injeta `window.grecaptcha` stub no <head> quando request autorizado.
+ *
+ * Por que (v1.2.0):
+ *   Elementor Pro forms com reCAPTCHA invisible chamam, no client-side:
+ *     window.grecaptcha.render(el, settings)  → retorna widgetId
+ *     window.grecaptcha.ready(cb)             → chama cb() imediatamente
+ *     grecaptcha.execute(widgetId, {action})  → Promise<token>
+ *     window.grecaptcha.reset(widgetId)       → no-op
+ *
+ *   Quando a CSP do site nao libera gstatic.com em script-src, o script
+ *   real do Google nunca carrega. O handler Elementor faz polling em
+ *   onRecaptchaApiReady() esperando window.grecaptcha aparecer — e como
+ *   nunca aparece, btn.click() do submit fica preso em e.preventDefault()
+ *   dentro de onV3FormSubmit e nenhum POST chega ao admin-ajax.
+ *
+ *   Isso quebrava `std formtest submit` em qualquer ambiente com CSP
+ *   restritiva (validado 2026-05-19 contra concertacao via tunnel).
+ *
+ *   O stub satisfaz a checagem `window.grecaptcha && window.grecaptcha.render`
+ *   do handler; o execute() resolve um token sintetico que viaja no campo
+ *   g-recaptcha-response do POST; e o server-side bypass (ja existente desde
+ *   v1.0.0) ignora esse token porque a validacao foi removida.
+ *
+ * Como aplicar:
+ *   - Carrega ANTES de qualquer script Elementor (priority 1 em wp_head).
+ *   - Nao requer dependencia (nao usa wp_enqueue_script — injeta inline puro).
+ *   - Zero efeito em requests nao-autorizados (early return).
+ */
+function inject_grecaptcha_stub(): void {
+	if ( ! is_authorized_smoke_request() ) {
+		return;
+	}
+	// HIGH 3: nocache_headers ja foi emitido por emit_nocache_headers_when_authorized()
+	// no hook send_headers (priority 1), antes do template_redirect que dispara o
+	// output buffer. wp_head roda DEPOIS — headers_sent() seria true aqui.
+	// Token sintetico previsivel — server-side ignora porque validacao foi
+	// removida em disable_recaptcha_validation(). Prefixo identificavel em
+	// caso de leak para logs do Google (jamais sera enviado, mas defesa em
+	// profundidade).
+	$token = 'bit-smoke-bypass-' . substr( md5( (string) microtime( true ) ), 0, 16 );
+	?>
+	<script id="bit-smoke-grecaptcha-stub">
+	/* BIT Smoke reCAPTCHA Bypass v1.2.0 — client-side stub.
+	   Token autorizado detectado server-side; substituindo grecaptcha real
+	   para satisfazer handler Elementor Pro quando CSP bloqueia gstatic.com. */
+	(function () {
+		if (window.grecaptcha && window.grecaptcha.render) { return; }
+		var widgetCounter = 0;
+		window.grecaptcha = {
+			ready: function (cb) { if (typeof cb === 'function') { cb(); } },
+			render: function () { return 'bit-smoke-widget-' + (++widgetCounter); },
+			execute: function () { return Promise.resolve('<?php echo esc_js( $token ); ?>'); },
+			reset: function () { /* no-op */ }
+		};
+	})();
+	</script>
+	<?php
+}
+
+/**
+ * HIGH 3 (v1.3.0): forca no-cache no send_headers (antes do output buffer)
+ * quando request autorizado. Sem isto, proxy/CF/WP Rocket podem cachear a
+ * HTML com o stub injetado e servir para anonimos posteriormente.
+ * Roda no mesmo hook que emit_diagnostic_header (priority 1).
+ */
+function emit_nocache_headers_when_authorized(): void {
+	if ( headers_sent() ) {
+		return;
+	}
+	// v1.3.2 (2026-05-22): emitir no-cache em TODA request que CARREGA o
+	// header X-BIT-Smoke-Token (autorizado OU nao). Sem isso, responses
+	// nao-autorizadas (X-BIT-Smoke-Bypass: NOOP) vao pro cache do CF e
+	// contaminam requests subsequentes (incluindo anonimos), revelando
+	// existencia do mecanismo. Validado contra validate-smoke-bypass.sh
+	// teste 3/5 (header AUSENTE em request sem token vazou NOOP via CF).
+	if ( ! request_carries_smoke_header() ) {
+		return;
+	}
+	// nocache_headers() ja emite Cache-Control no-cache, must-revalidate,
+	// max-age=0 + Expires 1984. Adicionamos `private, no-store` mais
+	// restritivos (necessarios contra CF/proxy edge cachear).
+	nocache_headers();
+	header( 'Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0' );
+}
+
 add_action( 'elementor_pro/init', __NAMESPACE__ . '\\disable_recaptcha_validation', 100 );
 add_filter( 'elementor_pro/forms/record/actions_before', __NAMESPACE__ . '\\mark_record_as_smoke_test', 5, 2 );
 add_action( 'send_headers', __NAMESPACE__ . '\\emit_diagnostic_header', 1 );
+add_action( 'send_headers', __NAMESPACE__ . '\\emit_nocache_headers_when_authorized', 1 );
+add_action( 'wp_head', __NAMESPACE__ . '\\inject_grecaptcha_stub', 1 );

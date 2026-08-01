@@ -5,7 +5,7 @@
  *              no widget nav-menu do Elementor Pro. Os menus do blog de origem
  *              são prefixados com "blog{N}:" para identificação, e na renderização
  *              o conteúdo é carregado via switch_to_blog().
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Bureau de Tecnologia
  */
 
@@ -43,11 +43,46 @@ function bit_crossblog_parse_slug( string $slug ) {
 	return false;
 }
 
+/**
+ * Detecta se a requisição atual é do Customizer (customize.php, preview ou AJAX
+ * customize_*). Os menus-proxy cross-blog servem ao editor do Elementor Pro,
+ * NÃO ao Customizer: lá, WP_Customize_Nav_Menus::customize_register() itera
+ * sobre TODOS os menus de wp_get_nav_menus() e chama wp_get_nav_menu_items()
+ * com o term_id de cada um. Para um proxy (term_id do blog 1) no contexto do
+ * blog 2, isso retorna [false] e dispara
+ * "Illegal widget setting ID: nav_menu_item[]" (fatal). Por isso a injeção é
+ * suprimida no Customizer.
+ */
+function bit_crossblog_is_customizer_request(): bool {
+	if ( function_exists( 'is_customize_preview' ) && is_customize_preview() ) {
+		return true;
+	}
+	if ( isset( $GLOBALS['pagenow'] ) && 'customize.php' === $GLOBALS['pagenow'] ) {
+		return true;
+	}
+	if ( isset( $GLOBALS['wp_customize'] ) && $GLOBALS['wp_customize'] instanceof WP_Customize_Manager ) {
+		return true;
+	}
+	if ( ( wp_doing_ajax() || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) )
+		&& isset( $_REQUEST['action'] )
+		&& is_string( $_REQUEST['action'] )
+		&& 0 === strpos( $_REQUEST['action'], 'customize' ) ) {
+		return true;
+	}
+	return false;
+}
+
 // ─── 1. Injetar menus remotos na lista do widget Elementor ───────────────────
 
 add_filter( 'wp_get_nav_menus', function ( array $menus, array $args ) {
 	// Só no admin (Elementor editor carrega isso via AJAX no painel)
 	if ( ! is_admin() && ! wp_doing_ajax() ) {
+		return $menus;
+	}
+
+	// NUNCA no Customizer: os proxies (term_id do blog remoto) quebram
+	// WP_Customize_Nav_Menus::customize_register() no contexto do blog atual.
+	if ( bit_crossblog_is_customizer_request() ) {
 		return $menus;
 	}
 

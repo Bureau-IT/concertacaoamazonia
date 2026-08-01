@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.9.6
+ * Version: 2.9.9
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -12,8 +12,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.9.6' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.7.4' );
+// Totem/kiosk: o painel a11y não faz sentido em touchscreen físico standalone.
+// Quando BIT_KIOSK_MODE está ativo (constante setada no wp-config do totem),
+// o plugin permanece inerte — não registra hooks, não enfileira assets, não
+// adiciona a tela de admin. Bail antes de qualquer require/hook.
+if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
+	return;
+}
+
+define( 'BUREAU_A11Y_VERSION', '2.9.9' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.8.0' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
@@ -246,10 +254,23 @@ function bureau_a11y_get_colors_config() {
  * Emite as overrides de cor inline no <head> (priority 20 — depois do enqueue,
  * antes de qualquer widget Elementor).
  *
- * A cascata definida em bureau-a11y.css espera 2 níveis:
- *   1. --ba-override-X (esta função emite só se mode=custom)
- *   2. var(--e-global-color-Y) (mapeamento — atualizado dinamicamente se
- *      admin trocou o global_id default)
+ * Resolve `mode=global` para o VALOR HEX REAL do kit Elementor no PHP (não
+ * deixa `var(--e-global-color-N, fallback)` na cascata). Motivo:
+ *
+ *   `#bureau-a11y-trigger`, `#bureau-a11y-panel` e `#bureau-a11y-back-to-top`
+ *   são MOVIDOS pelo bureau-a11y.js para fora do `<body>` (filhos diretos
+ *   de `<html>` — ver bureau-a11y.js:180-186). É proposital: isola-os dos
+ *   filtros CSS (grayscale, daltonismo, alto-contraste) que o painel
+ *   aplica ao body. Consequência: NENHUM seletor que dependa de `.elementor-
+ *   kit-N` (que vive no body) os alcança. E `--e-global-color-N` só existe
+ *   no escopo `.elementor-kit-N`, não em `:root`. Resultado anterior:
+ *   `var()` resolvia no `:root` → cai no FALLBACK hardcoded → painel
+ *   pintado com paleta antiga.
+ *
+ * Por isso resolvemos no PHP: emitimos `--ba-forest:#21191B` direto em
+ * `:root`, sem var(). Trade-off conhecido: mudar a paleta no Elementor não
+ * reflete em realtime — precisa flush do transient `bureau_a11y_elementor_
+ * globals` (invalida em `elementor/core/files/clear_cache`).
  */
 add_action( 'wp_head', 'bureau_a11y_emit_color_overrides', 20 );
 function bureau_a11y_emit_color_overrides() {
@@ -257,8 +278,9 @@ function bureau_a11y_emit_color_overrides() {
 		return;
 	}
 
-	$config = bureau_a11y_get_colors_config();
-	$lines  = [];
+	$config  = bureau_a11y_get_colors_config();
+	$globals = bureau_a11y_get_global_colors();
+	$lines   = [];
 
 	foreach ( $config as $slot => $cfg ) {
 		$var_main     = bureau_a11y_slot_to_var( $slot );             // ex: --ba-forest
@@ -273,23 +295,22 @@ function bureau_a11y_emit_color_overrides() {
 			continue;
 		}
 
-		// mode=global — sobrescreve toda a cascata pra apontar pro global_id
-		// escolhido pelo admin (pode ser diferente do default hardcoded no CSS).
+		// mode=global — resolver no PHP para hex literal (ver docblock).
+		// Cascata de resolução:
+		//   1. Valor real do Global Color no kit ativo (via transient cacheado).
+		//   2. Fallback hardcoded (Elementor off, ou global_id deletado do kit).
 		$gid      = isset( $cfg['global_id'] ) ? $cfg['global_id'] : '';
 		$fallback = isset( BUREAU_A11Y_FALLBACK_COLORS[ $slot ] ) ? BUREAU_A11Y_FALLBACK_COLORS[ $slot ] : 'inherit';
-		if ( $gid !== '' ) {
-			$lines[] = sprintf(
-				'%s:var(--e-global-color-%s, %s);',
-				$var_main,
-				esc_attr( $gid ),
-				esc_attr( $fallback )
-			);
-		}
+		$resolved = ( $gid !== '' && isset( $globals[ $gid ]['value'] ) && '' !== $globals[ $gid ]['value'] )
+			? $globals[ $gid ]['value']
+			: $fallback;
+		$lines[]  = sprintf( '%s:%s;', $var_main, esc_attr( $resolved ) );
 	}
 
 	if ( ! $lines ) {
 		return;
 	}
+
 	echo "<style id='bureau-a11y-color-overrides'>:root{" . implode( '', $lines ) . "}</style>\n";
 }
 

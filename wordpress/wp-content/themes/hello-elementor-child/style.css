@@ -242,7 +242,7 @@ Template: hello-elementor
 
 /* =============================================================================
    Footer — Formulário de inscrição (ambos os subsites)
-   Garante herança de Franie Bold do kit global para labels.
+   Garante herança de Poppins Bold do kit global para labels.
    Cancela text-transform: uppercase que o kit Primary herda para labels
    (Primary é para headings; labels de form não devem ser uppercase).
    ============================================================================= */

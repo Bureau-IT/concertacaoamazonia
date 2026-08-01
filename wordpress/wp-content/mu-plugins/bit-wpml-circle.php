@@ -29,7 +29,7 @@ add_action( 'wp_enqueue_scripts', function () {
 .ucpa-header-icons .wpml-ls-bracket,
 .ucpa-header-icons .wpml-ls-flag{display:none !important}
 .ucpa-header-icons .wpml-ls-link .wpml-ls-native{font-size:0;line-height:0;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid rgba(255,255,255,0.73);border-radius:50%;transition:background 200ms,color 200ms;cursor:pointer}
-.ucpa-header-icons .wpml-ls-link .wpml-ls-native::after{font-size:10px;font-weight:500;font-family:"Just Sans",sans-serif;line-height:1;color:#ffffff;text-transform:uppercase}
+.ucpa-header-icons .wpml-ls-link .wpml-ls-native::after{font-size:10px;font-weight:500;font-family:"Rubik",sans-serif;line-height:1;color:#ffffff;text-transform:uppercase}
 .ucpa-header-icons .wpml-ls-item-en .wpml-ls-link .wpml-ls-native::after{content:"EN"}
 .ucpa-header-icons .wpml-ls-item-pt-br .wpml-ls-link .wpml-ls-native::after{content:"PT"}
 .ucpa-header-icons .wpml-ls-link:hover .wpml-ls-native{background:white}

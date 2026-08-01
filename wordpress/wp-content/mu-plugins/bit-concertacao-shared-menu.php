@@ -9,7 +9,7 @@
  *              Itens com path /cultura/* permanecem como custom links no menu
  *              do blog 1 — pertencem ao blog 2 mas devem aparecer no menu de
  *              ambos os blogs.
- * Version:     2.0.0
+ * Version:     2.1.4
  * Author:      Bureau IT
  * Author URI:  https://bureaudetecnologia.com.br
  */
@@ -101,16 +101,24 @@ function concertacao_resolve_url( string $path, int $blog = 1 ): string {
         $switched = true;
     }
 
-    $path = trim( $path, '/' );
-    if ( $path === '' ) {
-        $url = trailingslashit( home_url( '/' ) );
-    } else {
-        $page = get_page_by_path( $path );
-        $url  = $page ? get_permalink( $page->ID ) : trailingslashit( home_url( '/' . $path ) );
-    }
-
-    if ( $switched ) {
-        restore_current_blog();
+    // try/finally garante restore_current_blog mesmo se hook em get_page_by_path/
+    // get_permalink lançar exception. Sem isso, blog stack fica corrompido
+    // pelo resto do request (todas as queries vão para o blog errado).
+    try {
+        $path = trim( $path, '/' );
+        if ( $path === '' ) {
+            $url = trailingslashit( home_url( '/' ) );
+        } else {
+            $page = get_page_by_path( $path );
+            $url  = ( $page instanceof WP_Post ) ? get_permalink( $page->ID ) : trailingslashit( home_url( '/' . $path ) );
+            if ( $url === false ) {
+                $url = trailingslashit( home_url( '/' . $path ) );
+            }
+        }
+    } finally {
+        if ( $switched ) {
+            restore_current_blog();
+        }
     }
     return $url;
 }
@@ -126,17 +134,70 @@ function concertacao_footer_menu_items(): array {
         return $items;
     }
 
+    // v2.1.2: usar concertacao_t() em vez de __() inerte. WPML intercepta gettext
+    // apenas se um .mo file carregar o domain — mu-plugin não chama
+    // load_*_textdomain, então __() é no-op puro. concertacao_t() chama o
+    // filter wpml_translate_single_string que é o caminho real do WPML String
+    // Translation (mesmo que icl_t() interno).
     $def = [
-        [ 'Sobre nós',    concertacao_resolve_url( 'sobre-nos' )    ],
-        [ 'Atuação',      concertacao_resolve_url( 'atuacao' )      ],
-        [ 'Conhecimento', concertacao_resolve_url( 'conhecimento' ) ],
-        [ 'Cultura',      concertacao_resolve_url( '', 2 )          ],
-        [ 'Contato',      concertacao_resolve_url( 'contato' )      ],
+        [ concertacao_t( 'Sobre nós'    ), concertacao_resolve_url( 'sobre-nos' )    ],
+        [ concertacao_t( 'Atuação'      ), concertacao_resolve_url( 'atuacao' )      ],
+        [ concertacao_t( 'Conhecimento' ), concertacao_resolve_url( 'conhecimento' ) ],
+        [ concertacao_t( 'Cultura'      ), concertacao_resolve_url( '', 2 )          ],
+        [ concertacao_t( 'Contato'      ), concertacao_resolve_url( 'contato' )      ],
     ];
 
     $items = concertacao_build_menu_items( $def, 91000 );
     return $items;
 }
+
+/**
+ * Traduz uma string registrada em WPML String Translation (context "concertacao-footer").
+ *
+ * v2.1.2: substitui __() inerte. __() só funciona quando há um .mo file carregado
+ * para o domain — mu-plugins não chamam load_textdomain, então __() retorna sempre
+ * o original PT. WPML expõe wpml_translate_single_string para resolver strings
+ * registradas via icl_register_string (caminho que SEMPRE funciona se a string
+ * estiver no painel String Translation).
+ *
+ * Fallback: se WPML inativo ou string não registrada, retorna o original PT — mesmo
+ * comportamento do __() anterior.
+ *
+ * @param string $label String original em PT (também é a key de registro)
+ * @return string Texto traduzido no idioma atual, ou original PT
+ */
+function concertacao_t( string $label ): string {
+    if ( ! function_exists( 'apply_filters' ) ) {
+        return $label;
+    }
+    $name = 'footer:' . sanitize_title( $label );
+    $tr   = apply_filters( 'wpml_translate_single_string', $label, 'concertacao', $name );
+    return ( is_string( $tr ) && $tr !== '' ) ? $tr : $label;
+}
+
+/**
+ * Registra strings do footer para WPML String Translation, idempotente via transient.
+ *
+ * v2.1.2: transient guard evita SELECT/UPDATE em wp_icl_strings a CADA request
+ * (era custo médio em init priority 20). Re-registra automaticamente 1x por dia
+ * ou quando transient é invalidado por edit de option no admin.
+ *
+ * Hook em after_setup_theme (mais cedo que init priority 20, mas após WPML
+ * carregado) evita corrida com outros plugins.
+ */
+add_action( 'after_setup_theme', function () {
+    if ( ! function_exists( 'icl_register_string' ) ) {
+        return;
+    }
+    // Versionar o transient: bump quando adicionar/remover strings do footer.
+    if ( get_transient( 'concertacao_wpml_strings_registered_v1' ) ) {
+        return;
+    }
+    foreach ( [ 'Sobre nós', 'Atuação', 'Conhecimento', 'Cultura', 'Contato' ] as $label ) {
+        icl_register_string( 'concertacao', 'footer:' . sanitize_title( $label ), $label );
+    }
+    set_transient( 'concertacao_wpml_strings_registered_v1', 1, DAY_IN_SECONDS );
+}, 20 );
 
 /**
  * Espelha um menu do blog 1 para o blog atual (>1) via switch_to_blog().
@@ -163,8 +224,19 @@ function concertacao_footer_menu_items(): array {
  */
 function concertacao_pull_menu_from_blog1( string $slug ) {
     static $cache = [];
-    if ( isset( $cache[ $slug ] ) ) {
-        return $cache[ $slug ];
+
+    // Cache key composto: protege contra contaminação cross-context em workers
+    // long-running (WP-CLI multi-blog, cron-control loops) onde o mesmo PHP
+    // process serve requests com blog_id/lang diferentes. Sem isso, 1ª chamada
+    // poderia poisonar entradas subsequentes. Chave $slug sozinha era frágil.
+    $lang = function_exists( 'apply_filters' ) ? apply_filters( 'wpml_current_language', 'pt-br' ) : 'pt-br';
+    if ( ! is_string( $lang ) || $lang === '' ) {
+        $lang = 'pt-br';
+    }
+    $key = $slug . '|' . get_current_blog_id() . '|' . $lang;
+
+    if ( isset( $cache[ $key ] ) ) {
+        return $cache[ $key ];
     }
 
     if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
@@ -172,33 +244,80 @@ function concertacao_pull_menu_from_blog1( string $slug ) {
     }
 
     switch_to_blog( 1 );
-    // Pegar items SEM disparar o nosso próprio filtro (para evitar recursão).
+
+    // v2.1.2: remover filter ANTES do try; re-adicionar dentro do finally garante
+    // que mesmo se wp_get_nav_menu_items() lançar exception, o filter é re-registrado
+    // (bug latente v2.1.1: linha add_filter ficava fora do try-finally → request
+    // perdia o filter pelo resto do ciclo se exception).
+    //
+    // try/finally também garante restore_current_blog mesmo se walker terceiro
+    // (Mega Menu, JetMenu, theme custom) lançar exception. Sem isso, request
+    // inteiro fica preso no blog 1 (todas as queries subsequentes erradas).
     remove_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10 );
-    $items = wp_get_nav_menu_items( $slug );
-    add_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10, 3 );
+    try {
+        $items = wp_get_nav_menu_items( $slug );
 
-    // Congelar title/url resolvidos no contexto blog 1 e neutralizar object_id
-    // para evitar cross-blog ID collision em re-resoluções subsequentes.
-    if ( is_array( $items ) ) {
-        foreach ( $items as $item ) {
-            if ( ! is_object( $item ) ) continue;
-            // Snapshot da URL (já resolvida pelo nav walker do blog 1)
-            if ( empty( $item->url ) || strpos( $item->url, 'http' ) !== 0 ) {
-                // wp_setup_nav_menu_item já preencheu — fallback seguro
-                $item->url = $item->url ?: '#';
+        // Congelar title/url resolvidos no contexto blog 1 e neutralizar object_id
+        // para evitar cross-blog ID collision em re-resoluções subsequentes.
+        if ( is_array( $items ) ) {
+            foreach ( $items as $item ) {
+                if ( ! is_object( $item ) ) continue;
+                // Snapshot da URL (já resolvida pelo nav walker do blog 1)
+                if ( empty( $item->url ) || ! is_string( $item->url ) || strpos( $item->url, 'http' ) !== 0 ) {
+                    // wp_setup_nav_menu_item já preencheu — fallback seguro
+                    $item->url = ! empty( $item->url ) ? (string) $item->url : '#';
+                }
+                // Title só é re-resolvido pelo walker quando type=post_type/taxonomy.
+                // Forçar custom: hooks posteriores respeitam $item->title literal.
+                $item->type        = 'custom';
+                $item->object      = 'custom';
+                $item->object_id   = (string) $item->ID;  // Self-ref evita lookup cross-blog
+                $item->type_label  = 'Link';
             }
-            // Title só é re-resolvido pelo walker quando type=post_type/taxonomy.
-            // Forçar custom: hooks posteriores respeitam $item->title literal.
-            $item->type        = 'custom';
-            $item->object      = 'custom';
-            $item->object_id   = (string) $item->ID;  // Self-ref evita lookup cross-blog
-            $item->type_label  = 'Link';
         }
+    } finally {
+        add_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10, 3 );
+        restore_current_blog();
     }
-    restore_current_blog();
 
-    $cache[ $slug ] = $items;
+    $cache[ $key ] = $items;
     return $items;
+}
+
+/**
+ * Detecta se a requisição atual é do Customizer (carregamento de customize.php
+ * ou AJAX do Customizer como customize_save).
+ *
+ * Motivo: o Customizer cria um WP_Customize_Nav_Menu_Item_Setting para CADA
+ * item retornado por wp_get_nav_menu_items() e valida cada ID contra o blog
+ * atual. Os itens injetados por este mu-plugin (reais do blog 1 ou fake, IDs
+ * 90000+) não existem como posts no blog 2, disparando
+ * "Illegal widget setting ID: nav_menu_item[]" (fatal). No Customizer, então,
+ * devolvemos os itens reais do blog atual (sem interceptar).
+ *
+ * @return bool
+ */
+function concertacao_is_customizer_request(): bool {
+    // 1. Iframe de preview do Customizer.
+    if ( function_exists( 'is_customize_preview' ) && is_customize_preview() ) {
+        return true;
+    }
+    // 2. Carregamento da tela customize.php (admin).
+    if ( isset( $GLOBALS['pagenow'] ) && 'customize.php' === $GLOBALS['pagenow'] ) {
+        return true;
+    }
+    // 3. AJAX do Customizer (customize_save, customize_*).
+    if ( ( wp_doing_ajax() || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) )
+        && isset( $_REQUEST['action'] )
+        && is_string( $_REQUEST['action'] )
+        && 0 === strpos( $_REQUEST['action'], 'customize' ) ) {
+        return true;
+    }
+    // 4. Objeto global do Customizer já instanciado neste request.
+    if ( isset( $GLOBALS['wp_customize'] ) && $GLOBALS['wp_customize'] instanceof WP_Customize_Manager ) {
+        return true;
+    }
+    return false;
 }
 
 /**
@@ -223,8 +342,26 @@ function concertacao_shared_menu_filter( $items, $menu, $args ) {
     if ( get_current_blog_id() === 1 ) {
         return $items;
     }
+    // No Customizer, devolver os itens REAIS do blog atual — itens cross-blog
+    // ou fake quebram WP_Customize_Nav_Menu_Item_Setting (fatal).
+    if ( concertacao_is_customizer_request() ) {
+        return $items;
+    }
     if ( in_array( $menu->slug, [ 'principal', 'principal-en', 'concertacao-lp' ], true ) ) {
-        $blog1_items = concertacao_pull_menu_from_blog1( $menu->slug );
+        // WPML não troca o slug do menu automaticamente em subsites (blog > 1)
+        // quando o widget Elementor pede 'principal' num contexto EN.
+        // Mapear manualmente: se idioma EN e slug é 'principal', usar 'principal-en'.
+        $slug = $menu->slug;
+        if ( $slug === 'principal' && function_exists( 'apply_filters' ) ) {
+            $current_lang = apply_filters( 'wpml_current_language', null );
+            if ( $current_lang && $current_lang !== 'pt-br' ) {
+                $candidate = 'principal-' . $current_lang;
+                if ( wp_get_nav_menu_object( $candidate ) ) {
+                    $slug = $candidate;
+                }
+            }
+        }
+        $blog1_items = concertacao_pull_menu_from_blog1( $slug );
         return $blog1_items ?: $items;
     }
     if ( $menu->slug === 'footer' ) {
@@ -233,6 +370,45 @@ function concertacao_shared_menu_filter( $items, $menu, $args ) {
     return $items;
 }
 add_filter( 'wp_get_nav_menu_items', 'concertacao_shared_menu_filter', 10, 3 );
+
+/**
+ * Sanitizador universal para o contexto do Customizer (prioridade máxima).
+ *
+ * O Customizer (WP_Customize_Nav_Menus::customize_register) cria um
+ * WP_Customize_Nav_Menu_Item_Setting por item retornado por
+ * wp_get_nav_menu_items() e valida cada ID contra o blog atual. QUALQUER item
+ * injetado por mu-plugins cross-blog (itens reais do blog 1 ou fake, IDs
+ * 90000/91000+) que não exista como post 'nav_menu_item' no blog corrente
+ * dispara "Illegal widget setting ID: nav_menu_item[]" (fatal).
+ *
+ * A guarda dentro de concertacao_shared_menu_filter() resolve apenas a própria
+ * injeção deste plugin; outros injetores (bit-crossblog-*) podem persistir.
+ * Este filtro roda DEPOIS de todos (PHP_INT_MAX) e, somente no Customizer,
+ * descarta itens fantasma — devolvendo ao Customizer apenas itens reais do blog
+ * atual. Frontend e wp-admin não são afetados (early-return).
+ *
+ * @param mixed           $items Lista de itens (array de objetos) ou false.
+ * @param WP_Term|object  $menu  Objeto do menu.
+ * @return mixed
+ */
+function concertacao_customizer_sanitize_menu_items( $items, $menu, $args ) {
+    if ( ! concertacao_is_customizer_request() || ! is_array( $items ) ) {
+        return $items;
+    }
+    $clean = [];
+    foreach ( $items as $item ) {
+        if ( ! is_object( $item ) || empty( $item->ID ) || ! is_numeric( $item->ID ) ) {
+            continue; // item sem ID válido (fake/cross-blog)
+        }
+        $post = get_post( (int) $item->ID );
+        if ( $post instanceof WP_Post && 'nav_menu_item' === $post->post_type ) {
+            $clean[] = $item; // item real persistido no blog atual
+        }
+        // itens cujo post não existe no blog atual são descartados
+    }
+    return $clean;
+}
+add_filter( 'wp_get_nav_menu_items', 'concertacao_customizer_sanitize_menu_items', PHP_INT_MAX, 3 );
 
 /**
  * WPML: substitui nome por extenso pelo código de 2 letras no switcher.

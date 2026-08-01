@@ -26,7 +26,7 @@
                 --spiral2026-foreignobject-width: 130px;
                 --spiral2026-foreignobject-height: 88px;
                 --spiral2026-foreignobject-fontsize: 15px;
-                --spiral2026-foreignobject-fontfamily: "Just Sans", Sans-serif;
+                --spiral2026-foreignobject-fontfamily: "Rubik", Sans-serif;
                 --spiral2026-foreignobject-fontweight: 500;
                 --spiral2026-foreignobject-lineheight: 1.2;
                 --spiral2026-foreignobject-letterspacing: 0;
@@ -157,7 +157,7 @@
           }
 
           .SVGSpiral2026 foreignObject {
-                font-family: var(--spiral2026-foreignobject-fontfamily, "Just Sans", Sans-serif);
+                font-family: var(--spiral2026-foreignobject-fontfamily, "Rubik", Sans-serif);
                 font-size  : var(--spiral2026-foreignobject-fontsize, 15px);
                 font-weight: var(--spiral2026-foreignobject-fontweight, 500);
                 line-height: var(--spiral2026-foreignobject-lineheight, 1.2);

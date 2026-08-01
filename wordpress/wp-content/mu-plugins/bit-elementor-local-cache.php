@@ -2,8 +2,36 @@
 /**
  * Plugin Name: BIT — Elementor Local Cache (bypass S3-Uploads)
  * Description: Mantem o cache CSS do Elementor no filesystem local, fora do S3.
- * Version: 2.1.2
+ * Version: 2.2.0
  * Author: Daniel Cambria / Bureau de Tecnologia
+ *
+ * v2.2.0: filtro `rocket_exclude_css` ensinando o WP Rocket sobre o path
+ * redirecionado (/wp-content/elementor-cache/...). O compat nativo do WP
+ * Rocket com Elementor (wp-content/plugins/wp-rocket/inc/ThirdParty/Plugins/
+ * PageBuilder/Elementor.php::exclude_post_css) calcula o path de exclusao via
+ * wp_get_upload_dir()['baseurl'] + '/elementor/css/(.*).css' — isso resolve
+ * para /wp-content/uploads/elementor/css/, que NUNCA bate com o path real
+ * deste mu-plugin. Resultado: o WP Rocket nao reconhecia o CSS por-post do
+ * Elementor como "gerenciado externamente" e criava sua PROPRIA copia
+ * minificada em wp-content/cache/min/1/wp-content/elementor-cache/elementor/
+ * css/post-N.css — copia que so e invalidada em eventos globais do Elementor
+ * (Tools > Regenerate CSS, dispara a action elementor/core/files/clear_cache,
+ * unico gatilho que o compat nativo escuta), NAO em saves normais de post/
+ * widget via o botao Atualizar do editor. Sintoma: usuario troca a fonte de
+ * um widget no Elementor, salva, o CSS por-post real (elementor-cache/.../
+ * post-N.css) fica correto imediatamente, mas o front continua servindo a
+ * fonte antiga por tempo indeterminado (ate o proximo full-cache-clear do WP
+ * Rocket regenerar o min por coincidencia) — sem QUALQUER erro visivel.
+ * Incidente relatado 2026-07-29 (post 3777, widget heading 16a2ca0, Poppins
+ * nao propagava). Fix: excluir explicitamente o path redirecionado da
+ * minificacao/combine do WP Rocket, restaurando a intencao original do
+ * compat nativo — o Elementor gerencia o proprio versionamento via `?ver=`
+ * baseado em mtime, entao excluir do WP Rocket e sempre seguro e correto.
+ * Pattern calculado via bit_elc_get_local_paths() (nao hardcoded) — cobre o
+ * prefixo de subsite multisite (ex: /cultura/wp-content/... no blog 2), que
+ * um pattern fixo "/wp-content/..." nunca bateria contra o match ancorado
+ * (^...$) que o WP Rocket usa. Bug pego e corrigido na mesma sessao: primeira
+ * versao do filtro funcionou no blog 1 mas nao no blog 2 exatamente por isso.
  *
  * v2.1.2: micro-otimizacao de performance — cache estatico por request nas
  * funcoes `bit_elc_caller_is_elementor_files()` e `bit_elc_caller_is_elementor_css_render()`.
@@ -437,6 +465,33 @@ add_filter( 'wp_get_attachment_image_src', function ( $image ) {
 	$image[0] = bit_elc_make_relative( $image[0] );
 	return $image;
 }, 99 );
+
+/**
+ * Exclui o CSS por-post do Elementor (path redirecionado por este mu-plugin)
+ * da minificacao/combine do WP Rocket. Ver changelog v2.2.0 no cabecalho do
+ * arquivo para o incidente completo que motivou este fix.
+ *
+ * Mesma logica do compat nativo do WP Rocket
+ * (ThirdParty/Plugins/PageBuilder/Elementor.php::exclude_post_css), so que
+ * calculando o path REAL (redirecionado) via bit_elc_get_local_paths() em vez
+ * de wp_get_upload_dir(). NAO hardcodear "/wp-content/..." — multisite
+ * subdirectory prefixa o path com o slug do blog (ex: /cultura/wp-content/...
+ * no blog 2), e um pattern fixo sem esse prefixo nunca bate no
+ * preg_match('#^(...)$#', $file_path) ancorado que o WP Rocket usa
+ * (AbstractCSSOptimization::is_minify_excluded_file). Bug real: v2.2.0 sem
+ * prefixo dinamico excluiu corretamente no blog 1 mas nao no blog 2.
+ */
+add_filter( 'rocket_exclude_css', function ( $excluded ) {
+	if ( 'internal' === get_option( 'elementor_css_print_method' ) ) {
+		return $excluded;
+	}
+	$path = wp_parse_url( bit_elc_get_local_paths()['baseurl'], PHP_URL_PATH );
+	if ( ! is_string( $path ) || $path === '' ) {
+		return $excluded;
+	}
+	$excluded[] = preg_quote( $path, '#' ) . '/elementor/css/(.*)\.css';
+	return $excluded;
+} );
 
 /**
  * Helper CLI: wp bit-elementor-cache flush|status|info|reset-static

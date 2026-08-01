@@ -7,7 +7,7 @@
  *               sticky + fade) e tabs por linha em mobile (com setas). Cores
  *               configuraveis via Global Colors. WPML-compatible: textos PT/EN
  *               hardcoded com troca por ICL_LANGUAGE_CODE.
- * Version:      1.0.0
+ * Version:      1.1.1
  * Author:       Bureau IT
  * Network:      false
  */

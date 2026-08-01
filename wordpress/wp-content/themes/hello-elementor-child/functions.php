@@ -167,7 +167,9 @@ function bureau_it_print_slick_js() {
 
 /**
  * ============================================================================
- * CUSTOM FONTS: Franie, Just Sans, Roboto (local, no Google Fonts)
+ * CUSTOM FONTS: Roboto (local, self-hosted). Poppins/Rubik via Google Fonts
+ * nativas do Elementor (self-hosted local, elementor_local_google_fonts=1).
+ * Franie/Just Sans removidas em favor de Poppins/Rubik em 2026-07-23.
  * Roboto: subset Latin, wght 100-900 (42 KB vs 204 KB Variable Font original)
  * ============================================================================
  *
@@ -176,85 +178,12 @@ function bureau_it_print_slick_js() {
 
 /**
  * Register @font-face declarations via inline CSS
- *
- * ── PENDENTE: Just Sans VARIÁVEL (7 pesos 200–800) — aguardando arquivo licenciado ──
- * Hoje só temos 2 pesos da Just Sans (Regular 400 + ExBold 800), os únicos cobertos
- * pela licença gratuita CC BY-ND. O cliente vai adquirir a família completa (variável)
- * na loja oficial JUST Creative — https://justcreative.com/shop/product/justsans/
- * (US$ 49, pagamento único, inclui WOFF2 + variável). Quando o arquivo chegar:
- *
- *   1. Colocar o variável em fonts/woff2/JustSans-VF.woff2
- *   2. Na string $css abaixo, SUBSTITUIR os dois @font-face estáticos da Just Sans
- *      (Regular 400 e ExBold 800) por um único bloco variável:
- *
- *        @font-face {
- *            font-family: 'Just Sans';
- *            src: url('{$fonts_woff}/JustSans-VF.woff2') format('woff2-variations');
- *            font-weight: 200 800;   // ExtraLight..ExtraBold — mesmo padrão da Roboto VF
- *            font-style: normal;
- *            font-display: swap;
- *        }
- *
- *   3. Atualizar o preload (bureau_it_preload_critical_fonts) para apontar p/ o VF.
- *   4. Validar em dev e fazer deploy. O picker do Elementor já oferece todos os pesos;
- *      eles passam a renderizar de verdade automaticamente. A regra font-synthesis:none
- *      (base.css 2.0) NÃO bloqueia pesos reais do variável — só impede SÍNTESE; como o
- *      VF cobre 200–800, nenhum peso desse range é sintetizado (igual à Roboto VF atual).
- *   5. Esta troca também REGULARIZA a base (licença comercial limpa no lugar da CC BY-ND).
  */
 add_action('wp_enqueue_scripts', 'bureau_it_custom_fonts_css');
 function bureau_it_custom_fonts_css() {
     $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
 
     $css = "
-@font-face {
-    font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-Italic.woff2') format('woff2');
-    font-weight: 400;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-Bold.woff2') format('woff2');
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'Franie';
-    src: url('{$fonts_woff}/Franie-BoldItalic.woff2') format('woff2');
-    font-weight: 700;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'Just Sans';
-    src: url('{$fonts_woff}/JustSans-Regular.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'Just Sans';
-    src: url('{$fonts_woff}/JustSans-ExBold.woff2') format('woff2');
-    font-weight: 800;
-    font-style: normal;
-    font-display: swap;
-}
-
 @font-face {
     font-family: 'Roboto';
     src: url('{$fonts_woff}/Roboto-latin-w100-900.woff2') format('woff2');
@@ -275,20 +204,20 @@ function bureau_it_custom_fonts_css() {
 }
 
 /**
- * Preload critical fonts (Franie-Regular + JustSans-Regular + Roboto na espiral)
+ * Preload critical fonts (Roboto na espiral)
  *
  * Roboto é usada exclusivamente no SVG da espiral (--spiral2026-foreignobject-fontfamily).
  * Sem preload, o browser só descobre a necessidade da fonte ao renderizar o foreignObject,
  * causando FOUT que desloca os textos e gera CLS. O preload condicional evita carregar
- * Roboto em páginas que não exibem a espiral.
+ * Roboto em páginas que não exibem a espiral. Poppins/Rubik não são preloaded aqui —
+ * são self-hosted nativamente pelo Elementor com nomes de arquivo hasheados em
+ * build-time (uploads/elementor/google-fonts/fonts/), sem caminho estático conhecido.
  *
  * @since 2.2.1
  */
 add_action('wp_head', 'bureau_it_preload_critical_fonts', 2);
 function bureau_it_preload_critical_fonts() {
     $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
-    echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/Franie-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
-    echo '<link rel="preload" href="' . esc_url( $fonts_woff . '/JustSans-Regular.woff2' ) . '" as="font" type="font/woff2" crossorigin="anonymous">' . "\n";
     // Plus Jakarta NÃO é preloaded — só carrega quando o painel bureau-a11y é
     // ativado pelo usuário (regra @font-face vive no mu-plugin bureau-a11y desde 2026-05-18).
 
@@ -359,26 +288,57 @@ function bureau_it_preload_homepage_lcp() {
  */
 add_filter('elementor/fonts/additional_fonts', 'bureau_it_elementor_additional_fonts');
 function bureau_it_elementor_additional_fonts($additional_fonts) {
-    $additional_fonts['Franie']    = 'custom';
-    $additional_fonts['Just Sans'] = 'custom';
-    $additional_fonts['Roboto']    = 'custom';
+    $additional_fonts['Roboto'] = 'custom';
     return $additional_fonts;
 }
 
 /**
- * Remove Google/system/earlyaccess font groups from Elementor — keep only custom
+ * Font groups disponíveis no picker do Elementor — mantém os grupos nativos
+ * (System + Google/Early Access, já condicionados por elementor_google_font
+ * dentro do próprio core) e apenas ACRESCENTA o grupo Custom (Roboto).
+ *
+ * NUNCA substituir o array recebido: Fonts::GOOGLE = 'googlefonts' (não
+ * 'google') — um replace com a chave errada derruba silenciosamente o grupo
+ * Google inteiro do seletor, mesmo com Poppins/Rubik carregando normalmente
+ * no frontend (o filtro deste picker é independente do carregamento real).
  */
 add_filter('elementor/fonts/groups', 'bureau_it_elementor_font_groups');
 function bureau_it_elementor_font_groups($groups) {
-    return [
-        'custom' => esc_html__('Custom', 'elementor'),
-    ];
+    $groups['custom'] = esc_html__('Custom', 'elementor');
+    return $groups;
 }
 
 /**
- * Disable Google Fonts loading from Elementor
+ * Força o enqueue de Poppins/Rubik (self-hosted local via Elementor) em
+ * TODAS as páginas do frontend, mesmo as que não são construídas com
+ * Elementor (ex: templates nativos do TEC — widget/página "Agenda").
+ *
+ * O Kit Global do Elementor imprime a CSS custom property
+ * --e-global-typography-primary-font-family site-wide (via wp_head), mas o
+ * @font-face REAL da fonte só é enfileirado nas páginas onde o Elementor
+ * detecta uso ativo de um controle de tipografia durante o render — páginas
+ * nativas do TEC nunca disparam essa detecção, então herdam só o NOME da
+ * fonte na variável CSS, sem o arquivo, e o browser cai no serif padrão.
+ *
+ * Franie/Just Sans eram carregadas via @font-face manual e incondicional
+ * (sem essa limitação de detecção por página); esta função replica o mesmo
+ * comportamento incondicional para Poppins/Rubik, reaproveitando a própria
+ * pipeline self-hosted do Elementor (mesmo cache, mesma geração de arquivo).
+ *
+ * @since 2.3.0
  */
-add_filter('elementor/frontend/print_google_fonts', '__return_false');
+add_action('wp_enqueue_scripts', 'bureau_it_force_enqueue_global_fonts');
+function bureau_it_force_enqueue_global_fonts() {
+    if ( is_admin() || ! class_exists( '\Elementor\Plugin' ) ) {
+        return;
+    }
+    $frontend = \Elementor\Plugin::$instance->frontend ?? null;
+    if ( ! $frontend ) {
+        return;
+    }
+    $frontend->enqueue_font( 'Poppins' );
+    $frontend->enqueue_font( 'Rubik' );
+}
 
 /**
  * ============================================================================

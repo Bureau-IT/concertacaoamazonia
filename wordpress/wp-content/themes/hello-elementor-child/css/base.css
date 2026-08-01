@@ -9,32 +9,32 @@
    ========================================================================== */
 
 /* --- 2.0 Proibir síntese de pesos/itálicos (fake-bold / fake-italic) ---
- * Just Sans só tem fonts reais para 400 e 800. Franie só para 400/700.
- * Sem essa regra, o browser sintetiza algoritmicamente pesos como 300, 500,
- * 600, 700 (Just Sans) ou 900 (Just Sans) — degrada legibilidade e quebra a
- * identidade tipográfica oficial (Manual de Marca §3.9). Com font-synthesis:none,
- * o browser cai no peso real mais próximo. Widgets Elementor que solicitam
- * pesos inexistentes precisam ser ajustados para valores reais (400/700/800).
+ * Poppins (títulos) e Rubik (texto/UI) são Google Fonts self-hosted nativamente
+ * pelo Elementor, com pesos reais para os valores usados no site. Sem essa regra,
+ * o browser sintetiza algoritmicamente qualquer peso não baixado — degrada
+ * legibilidade e quebra a identidade tipográfica oficial (Manual de Marca §3.9).
+ * Com font-synthesis:none, o browser cai no peso real mais próximo. Widgets
+ * Elementor que solicitam pesos não baixados precisam ser ajustados para
+ * valores reais.
  */
 * {
     font-synthesis: none;
 }
 
 /* --- 2.0.1 Itálico (oblíquo sintético) só de itálico, nunca peso ---
- * A Just Sans NÃO tem itálico desenhado pela fundição (Just Creative oferece
- * 8 estilos, todos verticais). Como a regra 2.0 acima desliga font-synthesis,
- * `font-style: italic` era silenciosamente ignorado (texto saía reto) — tanto
- * no conteúdo (botão itálico do editor → <em>/<i>) quanto no painel de
- * tipografia do Elementor (Typography → Style: Italic em qualquer widget).
+ * Fallback para qualquer widget que peça `font-style: italic` sem uma face
+ * itálica real carregada para o peso solicitado (Rubik/Poppins trazem itálicos
+ * reais no Google Fonts, mas nem todo peso/variante fica necessariamente
+ * baixado — a regra 2.0 acima desliga font-synthesis por completo, o que
+ * silenciaria o itálico nesses casos). Tanto no conteúdo (botão itálico do
+ * editor → <em>/<i>) quanto no painel de tipografia do Elementor
+ * (Typography → Style: Italic em qualquer widget).
  *
  * Reabilitamos APENAS a síntese de itálico (`style`, NUNCA `weight`). Assim:
- *   - Just Sans em itálico → browser inclina (~13°) os pesos reais 400 e 800,
- *     funcionando para AMBOS os caminhos do Elementor (conteúdo e painel);
  *   - fake-bold continua proibido (não habilitamos `weight` → a proteção
  *     original da regra 2.0 contra pesos sintéticos permanece intacta);
- *   - Franie/Roboto seguem usando seus arquivos reais quando existem; a síntese
- *     de itálico só age como fallback quando NÃO há face itálica real, então
- *     não degrada quem já tem itálico desenhado (Franie Italic/BoldItalic).
+ *   - qualquer fonte com face itálica real baixada usa o arquivo real; a
+ *     síntese só age como fallback quando NÃO há face itálica carregada.
  *
  * Cobertura: ancorada em `.elementor` (a div raiz presente em TODA página
  * Elementor) — alcança tanto a estrutura antiga (`.elementor-widget-container`)
@@ -43,7 +43,7 @@
  * Elementor. Pega tanto o <em>/<i> do editor quanto o font-style:italic que o
  * Elementor injeta no seletor do elemento via painel Typography.
  * Para itálico VERDADEIRO em ênfases editoriais escolhidas a dedo, usar a
- * classe .bit-emphasis-serif (Franie) — ver seção 2.2.
+ * classe .bit-emphasis-serif (Poppins) — ver seção 2.2.
  */
 .elementor,
 .elementor *,
@@ -107,15 +107,15 @@ h1, h2, h3, h4, h5, h6 {
     margin-top: 5rem;
 }
 
-/* Ênfase editorial em itálico VERDADEIRO (Franie Italic, cursivo desenhado).
+/* Ênfase editorial em itálico VERDADEIRO (Poppins Italic).
  * Uso opt-in por classe num widget/trecho específico (citações de obras,
- * epígrafes) onde o oblíquo sintético da Just Sans não basta. Não afeta o
- * corpo geral. Franie tem arquivos Italic/BoldItalic reais → font-synthesis
+ * epígrafes) onde o oblíquo sintético padrão não basta. Não afeta o
+ * corpo geral. Poppins tem itálico real no Google Fonts → font-synthesis
  * herdado (none) é irrelevante aqui. */
 .bit-emphasis-serif,
 .bit-emphasis-serif em,
 .bit-emphasis-serif i {
-    font-family: 'Franie', serif;
+    font-family: 'Poppins', serif;
     font-style : italic;
 }
 
