@@ -20,7 +20,7 @@
  *              Diretorio criado pelo bootstrap.sh (DEV) ou Task 3.5 + tmpfiles.d (PROD).
  *
  *              Spec: docs/superpowers/specs/2026-05-19-formulario-rodape-rdstation-design.md
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      Daniel Cambría / Bureau de Tecnologia Ltda.
  * Network:     true
  */
@@ -29,7 +29,7 @@ namespace BIT\ElementorFormRDStation;
 
 defined( 'ABSPATH' ) || exit;
 
-const VERSION               = '1.2.0';
+const VERSION               = '1.3.0';
 const ACTION_NAME           = 'bit_rdstation';
 const RD_API_ENDPOINT       = 'https://api.rd.services/platform/conversions';
 const RD_TIMEOUT_SEC        = 8;
@@ -45,6 +45,7 @@ add_action( 'plugins_loaded', function () {
         return;
     }
 
+    require_once __DIR__ . '/bit-elementor-form-rdstation/class-sector-normalizer.php';
     require_once __DIR__ . '/bit-elementor-form-rdstation/class-form-action.php';
 
     add_action( 'elementor_pro/forms/actions/register', function ( $registrar ) {

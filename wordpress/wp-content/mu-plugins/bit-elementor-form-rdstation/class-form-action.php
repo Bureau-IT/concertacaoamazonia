@@ -83,6 +83,17 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
         );
 
         $widget->add_control(
+            'bit_rd_sector_field',
+            [
+                'label'       => 'Campo Setor (custom_id)',
+                'type'        => \Elementor\Controls_Manager::TEXT,
+                'default'     => '',
+                'placeholder' => 'field_8aee261',
+                'description' => 'custom_id do field select de setor. Vazio = nao envia cf_setor.',
+            ]
+        );
+
+        $widget->add_control(
             'bit_rd_tags',
             [
                 'label'       => 'Tags (CSV)',
@@ -113,6 +124,7 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             $name_field    = trim( $form_settings['bit_rd_name_field'] ?? '' );
             $company_field = trim( $form_settings['bit_rd_company_field'] ?? '' );
             $uf_field      = trim( $form_settings['bit_rd_uf_field'] ?? '' );
+            $sector_field  = trim( $form_settings['bit_rd_sector_field'] ?? '' );
             $tags_csv      = trim( $form_settings['bit_rd_tags'] ?? '' );
 
             // 3. Pegar fields submetidos
@@ -121,6 +133,7 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             $name_raw    = $name_field ? ( $raw_fields[ $name_field ]['value'] ?? '' ) : '';
             $company_raw = $company_field ? ( $raw_fields[ $company_field ]['value'] ?? '' ) : '';
             $uf_raw      = $uf_field ? ( $raw_fields[ $uf_field ]['value'] ?? '' ) : '';
+            $sector_raw  = $sector_field ? ( $raw_fields[ $sector_field ]['value'] ?? '' ) : '';
 
             $email = sanitize_email( $email_raw );
             if ( ! $email ) {
@@ -155,6 +168,22 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
                     $payload['cf_uf'] = $uf_clean;
                 } else {
                     log( 'warn', 'cf_uf valor invalido (nao e sigla BR) — ignorado', [ 'raw' => $uf_raw ] );
+                }
+            }
+
+            // Setor: normaliza PT/EN para o canonico PT. Diferente do cf_uf, valor
+            // desconhecido NAO e descartado — vai cru + warn. O cf_uf tem contrato
+            // semantico (as 27 siglas BR); o cf_setor e texto livre por decisao, e
+            // descartar aqui jogaria fora a resposta de um campo OBRIGATORIO so
+            // porque o nosso mapa ficou velho. Drift visivel > perda silenciosa.
+            if ( $sector_raw ) {
+                $sector_canonical = Sector_Normalizer::normalize( (string) $sector_raw );
+
+                if ( $sector_canonical ) {
+                    $payload['cf_setor'] = $sector_canonical;
+                } else {
+                    $payload['cf_setor'] = sanitize_text_field( $sector_raw );
+                    log( 'warn', 'cf_setor fora do SECTOR_MAP — enviado cru (atualizar o mapa)', [ 'raw' => $sector_raw ] );
                 }
             }
 
