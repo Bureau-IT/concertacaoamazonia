@@ -313,9 +313,9 @@ function bureau_it_scrollbar_global_colors() {
 
     // var CSS => [ _id do Global Color, fallback se ausente/inválido ]
     $map = [
-        '--bit-scrollbar-thumb'       => [ '5c0117b', '#FE78A9' ],
-        '--bit-scrollbar-track'       => [ 'f1d8cc9', '#DEDDD1' ],
-        '--bit-scrollbar-thumb-hover' => [ '44d5626', '#B85A7C' ],
+        '--bit-scrollbar-thumb'       => [ '5c0117b', '#474747' ],
+        '--bit-scrollbar-track'       => [ 'f1d8cc9', '#DADADA' ],
+        '--bit-scrollbar-thumb-hover' => [ '44d5626', '#1C1C1C' ],
     ];
 
     $decls = '';

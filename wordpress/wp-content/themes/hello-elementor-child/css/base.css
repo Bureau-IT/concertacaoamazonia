@@ -72,9 +72,9 @@
    Cores globais. Não editar os hexes abaixo. */
 :root,
 html {
-    --bit-scrollbar-thumb: #FE78A9;
-    --bit-scrollbar-track: #DEDDD1;
-    --bit-scrollbar-thumb-hover: #B85A7C;
+    --bit-scrollbar-thumb: #474747;
+    --bit-scrollbar-track: #DADADA;
+    --bit-scrollbar-thumb-hover: #1C1C1C;
 }
 
 html {

@@ -13,12 +13,15 @@
  * tinha efeito nenhum. O tema agora imprime as cores no <html> lendo o kit
  * (ver bureau_it_scrollbar_global_colors() em functions.php).
  *
- * Este script prepara os Global Colors correspondentes, preservando EXATAMENTE
- * a aparência atual:
- *   - scroll [handle]        (novo)     #FE78A9  — cor renderizada hoje
- *   - scroll [track]         (existia)  #DEDDD1  — estava #000000, nunca usado
- *   - scroll [handle:hover]  (existia)  #B85A7C  — sRGB medido do
- *                                        color-mix(in lab, #FE78A9 75%, black 25%)
+ * Este script prepara os Global Colors correspondentes, alinhados aos cinzas da
+ * paleta do site:
+ *   - scroll [handle]        (novo)     #474747  — Accent color (cinza da paleta)
+ *   - scroll [track]         (existia)  #DADADA  — Offwhite (estava #000000)
+ *   - scroll [handle:hover]  (existia)  #1C1C1C  — Main color (mais escuro)
+ *
+ * Histórico: até 03/08/2026 a barra renderizava #FE78A9 / #DEDDD1 (hex cravado
+ * no base.css, sem relação com a paleta). A v1.0.0 deste script criou as cores
+ * preservando esses valores; em seguida foram trocadas para os cinzas acima.
  *
  * Idempotente: só escreve o que estiver divergente.
  *
@@ -29,7 +32,7 @@
  * Aplica em TODOS os blogs da rede (kit ativo de cada um).
  *
  * @author  Daniel Cambría
- * @version 1.0.0
+ * @version 1.1.0
  * @date    2026-08-02
  */
 
@@ -41,9 +44,9 @@ const SCROLL_HANDLE_ID = '5c0117b';
 
 /** _id => [title, color] */
 $targets = [
-	SCROLL_HANDLE_ID => [ 'scroll [handle]', '#FE78A9' ],
-	'f1d8cc9'        => [ 'scroll [track]', '#DEDDD1' ],
-	'44d5626'        => [ 'scroll [handle:hover]', '#B85A7C' ],
+	SCROLL_HANDLE_ID => [ 'scroll [handle]', '#474747' ],
+	'f1d8cc9'        => [ 'scroll [track]', '#DADADA' ],
+	'44d5626'        => [ 'scroll [handle:hover]', '#1C1C1C' ],
 ];
 
 $blog_ids = is_multisite()
