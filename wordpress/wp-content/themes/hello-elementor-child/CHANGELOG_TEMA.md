@@ -5,6 +5,45 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2026-08-03
+
+### Alterado
+- `css/plugins/complianz.css` — o **painel do plugin volta a ser a fonte da
+  verdade das cores do cookie banner**. O arquivo tinha 21 declarações com
+  `!important` que sobrepunham tudo que estivesse configurado em
+  *Complianz → Cookie Banner → Aparência*: mudar cor no admin não surtia
+  efeito. Passou de 117 para 55 linhas e não tem mais **nenhum hex literal**.
+  - **Onde as cores ficam agora:** `wp_cmplz_cookiebanners` (painel), de onde o
+    plugin gera `uploads/complianz/css/banner-N-optin.css` com as variáveis
+    `--cmplz_*` no `:root`. Paleta da marca aplicada nos 2 blogs por
+    `scripts/set-complianz-palette.php` (novo, idempotente, com dry-run):
+    fundo `#F8EAD9`, texto/links `#21191B`, Aceitar sólido `#21191B` sobre
+    `#F8EAD9`, Rejeitar/Personalizar/Salvar em outline, toggles
+    `#21191B`/`#F8EAD9`/`#B8AA9B` (eram azul `#1e73be` e laranja `#F56E28`
+    de fábrica).
+  - **Isso resolve na raiz** o motivo pelo qual o v2.3.1 cravou literais: o
+    banner era o componente que dependia 100% dos Global Colors, e os kits de
+    DEV/HML estão na paleta default de fábrica. Ligado ao painel do Complianz,
+    o banner deixa de depender do kit — a divergência de paleta do kit
+    continua aberta, mas não afeta mais o banner.
+  - **O que sobrou no tema:** só os estados de `:hover`, que o painel não
+    expõe. Derivados das próprias `--cmplz_*` via `color-mix()`/inversão, então
+    seguem o painel automaticamente. Sem `!important`: `:hover` já tem
+    especificidade maior que a regra-base do plugin.
+  - **Removido:** bloco morto do `#cn-accept-cookie` (plugin legado
+    *cookie-notice*, não instalado) e a regra de `fill` do X de fechar (o SVG
+    usa `fill="currentColor"`, já herda `--cmplz_text_color`).
+  - Validado com `getComputedStyle` em browser real nos 2 blogs (incluindo
+    hover real e a view de categorias): fundo `rgb(248,234,217)`, textos e
+    bordas `rgb(33,25,27)`, Aceitar `rgb(33,25,27)`/`rgb(248,234,217)`,
+    Rejeitar e Salvar em outline, toggles na paleta. Nenhum texto do banner
+    herda cor de fora.
+
+### Pendente
+- A cor do rótulo "Sempre ativo" (`--cmplz_category_header_always_active_color`)
+  é o literal `green` do próprio plugin e não está no painel — é a única cor
+  fora da paleta que restou no banner.
+
 ## [2.2.49] - 2026-06-22
 
 ### Corrigido
