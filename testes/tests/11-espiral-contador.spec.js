@@ -22,6 +22,7 @@
  * Uso:
  *   BASE_URL=https://cambrasmax.local:8484 npx playwright test 11-espiral-contador.spec.js
  *   BASE_URL=https://concertacaoamazonia.com.br npx playwright test 11-espiral-contador.spec.js
+ *   TEST_GREEN=1 BASE_URL=https://concertacaoamazonia.com.br npx playwright test 11-espiral-contador.spec.js
  *
  * Autor: Daniel Cambría — Bureau de Tecnologia
  */
@@ -31,8 +32,20 @@ const { test, expect } = require('@playwright/test');
 const BASE = process.env.BASE_URL || 'https://cambrasmax.local:8484';
 const PATH = '/conhecimento/espiral-de-conhecimento/';
 const EIXO_LABEL = /instrumentos de financiamento/i;
+const TEST_GREEN = process.env.TEST_GREEN === '1';
 
 test.use({ viewport: { width: 1440, height: 1200 }, ignoreHTTPSErrors: true });
+
+// Green (blue/green): injeta X-Test-Green SÓ em requests same-origin. Header
+// global (extraHTTPHeaders) vazaria para cross-origin (reCAPTCHA, fonts, gtag)
+// e quebraria o preflight CORS.
+test.beforeEach(async ({ page }) => {
+  if (!TEST_GREEN) return;
+  const origin = new URL(BASE).origin;
+  await page.route(`${origin}/**`, (route) => {
+    route.continue({ headers: { ...route.request().headers(), 'X-Test-Green': 'true' } });
+  });
+});
 
 // Lê o estado do contador e do grid.
 async function readState(page) {

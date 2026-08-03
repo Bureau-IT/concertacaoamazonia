@@ -19,39 +19,59 @@ html body #cn-accept-cookie,
 
 /* ============================================================================
    COMPLIANZ - Cookie Banner
-   Cores pareadas com Global Colors do Elementor (nova paleta — fonte da verdade):
-     --e-global-color-primary   = #21191B (Main color / escuro)   ← era #174538 (verde legado)
-     --e-global-color-text      = #392E34 (Text / escuro hover)   ← era #0F4C5C (petróleo legado)
-     --e-global-color-secondary = #F8EAD9 (Offwhite / fundo)      ← era #FFFCF7/#EFEDE0 (bege legado)
+
+   EXCEÇÃO CONSCIENTE à regra "sempre var(--e-global-color-*)": as 3 cores do
+   banner são literais aqui, declaradas como --bit-cmplz-* no container.
+
+   Por quê: em 2026-08-03 os kits do Elementor de DEV e HML (blogs 1 e 2)
+   estavam com a paleta DEFAULT de fábrica (primary #1C1C1C, secondary #DADADA,
+   text #000000), enquanto PROD tem a paleta da marca. O banner é um dos poucos
+   componentes cujas cores vêm 100% dos Global Colors, então em dev/HML ele
+   renderizava cinza (fundo #DADADA) em vez de offwhite. Fallback em var() NÃO
+   resolve: as --e-global-color-* estão definidas (com o valor errado), então o
+   fallback nunca entra.
+
+   Os valores abaixo espelham os Global Colors de PROD:
+     --bit-cmplz-offwhite   = #F8EAD9  (Offwhite / fundo)     = secondary em prod
+     --bit-cmplz-dark       = #21191B  (Main color / escuro)  = primary em prod
+     --bit-cmplz-dark-hover = #392E34  (Text / escuro hover)  = text em prod
+
+   Quando a paleta do kit for reconciliada entre dev/HML e prod, reverter é
+   trocar estas 3 declarações de volta para var(--e-global-color-secondary
+   /primary/text) — os seletores abaixo não mudam.
    ============================================================================ */
 
-/* Container */
+/* Container — declara as cores do banner (herdadas por todos os seletores abaixo) */
 .cmplz-cookiebanner {
-  background-color: var(--e-global-color-secondary) !important;
-  border: 1px solid var(--e-global-color-secondary) !important;
-  color: var(--e-global-color-primary) !important;
+  --bit-cmplz-offwhite: #F8EAD9;
+  --bit-cmplz-dark: #21191B;
+  --bit-cmplz-dark-hover: #392E34;
+
+  background-color: var(--bit-cmplz-offwhite) !important;
+  border: 1px solid var(--bit-cmplz-offwhite) !important;
+  color: var(--bit-cmplz-dark) !important;
 }
 
 /* Título */
 .cmplz-cookiebanner .cmplz-header .cmplz-title {
-  color: var(--e-global-color-primary) !important;
+  color: var(--bit-cmplz-dark) !important;
 }
 
 /* Texto */
 .cmplz-cookiebanner .cmplz-body,
 .cmplz-cookiebanner .cmplz-message {
-  color: var(--e-global-color-primary) !important;
+  color: var(--bit-cmplz-dark) !important;
 }
 
 /* Botão Aceitar — fundo sólido */
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-accept {
-  background-color: var(--e-global-color-primary) !important;
-  color: var(--e-global-color-secondary) !important;
-  border-color: var(--e-global-color-primary) !important;
+  background-color: var(--bit-cmplz-dark) !important;
+  color: var(--bit-cmplz-offwhite) !important;
+  border-color: var(--bit-cmplz-dark) !important;
 }
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-accept:hover {
-  background-color: var(--e-global-color-text) !important;
-  border-color: var(--e-global-color-text) !important;
+  background-color: var(--bit-cmplz-dark-hover) !important;
+  border-color: var(--bit-cmplz-dark-hover) !important;
 }
 
 /* Botões outline — Rejeitar, Personalizar, Salvar */
@@ -60,38 +80,38 @@ html body #cn-accept-cookie,
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-view-preferences,
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-save-preferences {
   background-color: transparent !important;
-  color: var(--e-global-color-primary) !important;
-  border-color: var(--e-global-color-primary) !important;
+  color: var(--bit-cmplz-dark) !important;
+  border-color: var(--bit-cmplz-dark) !important;
 }
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-deny:hover,
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-manage-options:hover,
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-view-preferences:hover,
 .cmplz-cookiebanner .cmplz-buttons .cmplz-btn.cmplz-save-preferences:hover {
-  background-color: var(--e-global-color-primary) !important;
-  color: var(--e-global-color-secondary) !important;
+  background-color: var(--bit-cmplz-dark) !important;
+  color: var(--bit-cmplz-offwhite) !important;
 }
 
 /* Links (Aviso de Privacidade) */
 .cmplz-cookiebanner .cmplz-links .cmplz-link {
-  color: var(--e-global-color-primary) !important;
-  text-decoration-color: var(--e-global-color-primary) !important;
+  color: var(--bit-cmplz-dark) !important;
+  text-decoration-color: var(--bit-cmplz-dark) !important;
 }
 .cmplz-cookiebanner .cmplz-links .cmplz-link:hover {
-  color: var(--e-global-color-text) !important;
+  color: var(--bit-cmplz-dark-hover) !important;
 }
 
 /* Botão fechar (X) */
 .cmplz-cookiebanner .cmplz-close svg {
-  fill: var(--e-global-color-primary) !important;
+  fill: var(--bit-cmplz-dark) !important;
 }
 .cmplz-cookiebanner .cmplz-close:hover svg {
-  fill: var(--e-global-color-text) !important;
+  fill: var(--bit-cmplz-dark-hover) !important;
 }
 
 /* Scrollbar */
 .cmplz-cookiebanner .cmplz-body::-webkit-scrollbar-thumb {
-  background-color: var(--e-global-color-primary) !important;
+  background-color: var(--bit-cmplz-dark) !important;
 }
 .cmplz-cookiebanner .cmplz-body::-webkit-scrollbar-track {
-  background-color: var(--e-global-color-secondary) !important;
+  background-color: var(--bit-cmplz-offwhite) !important;
 }
