@@ -183,6 +183,10 @@ add_action('wp_enqueue_scripts', 'bureau_it_custom_fonts_css');
 function bureau_it_custom_fonts_css() {
     $fonts_woff = get_stylesheet_directory_uri() . '/fonts/woff2';
 
+    // Range latin (Google Fonts): cobre PT-BR completo (acentos e cedilha vivem
+    // em U+0000-00FF). Mesmo range servido pela API v2 para as 3 famílias.
+    $latin = 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD';
+
     $css = "
 @font-face {
     font-family: 'Roboto';
@@ -191,6 +195,37 @@ function bureau_it_custom_fonts_css() {
     font-style: normal;
     font-display: swap;
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Rubik (corpo) — variável 300..900 num único arquivo. Cobre todos os pesos em
+   uso no site: 300 no kit, 400/500/600/700/800/900 nos widgets. */
+@font-face {
+    font-family: 'Rubik';
+    src: url('{$fonts_woff}/Rubik-latin-w300-900.woff2') format('woff2');
+    font-weight: 300 900;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: {$latin};
+}
+
+/* Poppins (títulos) — não existe versão variável no Google Fonts, então vão os
+   pesos realmente usados: 700 (kit + widgets) e 400 como base de herança. */
+@font-face {
+    font-family: 'Poppins';
+    src: url('{$fonts_woff}/Poppins-latin-w400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: {$latin};
+}
+
+@font-face {
+    font-family: 'Poppins';
+    src: url('{$fonts_woff}/Poppins-latin-w700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: {$latin};
 }
 
 ";
@@ -209,9 +244,10 @@ function bureau_it_custom_fonts_css() {
  * Roboto é usada exclusivamente no SVG da espiral (--spiral2026-foreignobject-fontfamily).
  * Sem preload, o browser só descobre a necessidade da fonte ao renderizar o foreignObject,
  * causando FOUT que desloca os textos e gera CLS. O preload condicional evita carregar
- * Roboto em páginas que não exibem a espiral. Poppins/Rubik não são preloaded aqui —
- * são self-hosted nativamente pelo Elementor com nomes de arquivo hasheados em
- * build-time (uploads/elementor/google-fonts/fonts/), sem caminho estático conhecido.
+ * Roboto em páginas que não exibem a espiral. Poppins/Rubik seguem sem preload — desde
+ * a v2.3.2 têm caminho estático no tema (fonts/woff2/), então preloadá-las passou a ser
+ * possível e é otimização candidata de LCP (Rubik é a fonte de corpo), mas fica de fora
+ * deste escopo para não adicionar 2 requests bloqueantes em toda página sem medir antes.
  *
  * @since 2.2.1
  */
@@ -393,37 +429,41 @@ function bureau_it_elementor_font_groups($groups) {
     return $groups;
 }
 
-/**
- * Força o enqueue de Poppins/Rubik (self-hosted local via Elementor) em
- * TODAS as páginas do frontend, mesmo as que não são construídas com
- * Elementor (ex: templates nativos do TEC — widget/página "Agenda").
+/*
+ * Poppins/Rubik em TODAS as páginas — resolvido por @font-face do tema (v2.3.2)
+ * ============================================================================
  *
- * O Kit Global do Elementor imprime a CSS custom property
- * --e-global-typography-primary-font-family site-wide (via wp_head), mas o
- * @font-face REAL da fonte só é enfileirado nas páginas onde o Elementor
- * detecta uso ativo de um controle de tipografia durante o render — páginas
- * nativas do TEC nunca disparam essa detecção, então herdam só o NOME da
- * fonte na variável CSS, sem o arquivo, e o browser cai no serif padrão.
+ * O problema original (v2.3.0): o Kit Global imprime a custom property
+ * --e-global-typography-primary-font-family site-wide, mas o @font-face REAL só
+ * é enfileirado nas páginas onde o Elementor detecta uso ativo de um controle de
+ * tipografia durante o render. Páginas nativas do TEC (widget/página "Agenda")
+ * nunca disparam essa detecção: herdam o NOME da fonte sem o arquivo e caem no
+ * serif padrão. A v2.3.0 resolveu com bureau_it_force_enqueue_global_fonts(),
+ * que chamava $frontend->enqueue_font() para as duas famílias em todo request,
+ * reaproveitando a pipeline self-hosted do Elementor.
  *
- * Franie/Just Sans eram carregadas via @font-face manual e incondicional
- * (sem essa limitação de detecção por página); esta função replica o mesmo
- * comportamento incondicional para Poppins/Rubik, reaproveitando a própria
- * pipeline self-hosted do Elementor (mesmo cache, mesma geração de arquivo).
+ * Por que mudou: aquela pipeline grava em wp-content/uploads/elementor/
+ * google-fonts/ (CSS + woff2 com hash no nome). Em dev isso funciona porque
+ * uploads sai do disco local — mas em HML/PROD uploads é servido do S3 via
+ * CloudFront (CF-OAC), e esses arquivos existem só no disco da instância. Medido
+ * em 03/08/2026 na HML: HTTP 403 em css/poppins.css e css/rubik.css, e o browser
+ * carregava apenas Plus Jakarta Sans e Roboto — a tipografia do site inteiro
+ * caía no fallback. Pior: os nomes têm hash de conteúdo e são REGERADOS a cada
+ * flush de cache do Elementor, então sincronizar para o S3 é alvo móvel.
  *
- * @since 2.3.0
+ * Solução: as duas famílias passam a ser servidas pelo próprio tema, como já
+ * era o caso de Roboto (ver bureau_it_custom_fonts_css()). Arquivo do tema é
+ * servido pela instância, não por uploads/S3 — imune a CF-OAC, a sync e a flush
+ * de cache, e versionado no git. Rubik entra como fonte variável (300..900, um
+ * arquivo cobre os 7 pesos em uso); Poppins não tem versão variável, então vão
+ * 400 e 700. Total: ~51 KB.
+ *
+ * Consequência: o enqueue forçado deixou de ser necessário e foi removido — o
+ * @font-face do tema é incondicional por natureza, exatamente o comportamento
+ * que Franie/Just Sans tinham antes da migração.
+ *
+ * @since 2.3.2
  */
-add_action('wp_enqueue_scripts', 'bureau_it_force_enqueue_global_fonts');
-function bureau_it_force_enqueue_global_fonts() {
-    if ( is_admin() || ! class_exists( '\Elementor\Plugin' ) ) {
-        return;
-    }
-    $frontend = \Elementor\Plugin::$instance->frontend ?? null;
-    if ( ! $frontend ) {
-        return;
-    }
-    $frontend->enqueue_font( 'Poppins' );
-    $frontend->enqueue_font( 'Rubik' );
-}
 
 /**
  * ============================================================================
