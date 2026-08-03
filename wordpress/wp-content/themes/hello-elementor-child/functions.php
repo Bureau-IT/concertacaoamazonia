@@ -239,6 +239,41 @@ function bureau_it_custom_fonts_css() {
 }
 
 /**
+ * Desliga o enqueue de Google Fonts do Elementor — completa a v2.3.3
+ *
+ * A v2.3.3 passou Poppins/Rubik/Roboto para @font-face do tema (arquivos woff2
+ * versionados em fonts/woff2/) e removeu o enqueue_font() forcado. Mas o
+ * Elementor continua, por conta propria, enfileirando o CSS self-hosted das
+ * familias usadas na tipografia do kit/widgets:
+ *
+ *   /wp-content/uploads/elementor/google-fonts/css/{poppins,rubik}.css
+ *   /cultura/wp-content/uploads/sites/2/elementor/google-fonts/css/{poppins,rubik}.css
+ *
+ * Sob CloudFront-OAC esses arquivos NAO existem no bucket (o Elementor os gera
+ * em runtime no filesystem; os uploads publicos vem do S3) — resultado medido
+ * em 2026-08-03: HTTP 403 nos 4 paths, em TODA pagina dos DOIS blogs, ou seja
+ * 2 requests falhando por pageview. Nao quebra a tipografia (o @font-face do
+ * tema ja cobre as 3 familias), mas e ruido em console e nas metricas 4xx do
+ * edge.
+ *
+ * Fix pela porta da frente: o filtro publico do proprio Elementor
+ * (`elementor/frontend/print_google_fonts`, frontend.php:1030). O que ele
+ * remove sao exatamente os 2 arquivos que hoje retornam 403 — nada que
+ * funcione e perdido.
+ *
+ * NAO resolver isto gerando os arquivos no S3: reintroduziria a dependencia de
+ * uploads/ que a v2.3.3 eliminou de proposito (e que volta a quebrar a cada
+ * cutover blue-green, quando o prefixo alterna green/ <-> assets/).
+ *
+ * Se um dia o site adotar uma familia que o tema NAO serve, ela precisa entrar
+ * aqui em fonts/woff2/ + @font-face (bureau_it_custom_fonts_css) — nao basta
+ * escolher no painel do Elementor.
+ *
+ * @since 2.3.4
+ */
+add_filter('elementor/frontend/print_google_fonts', '__return_false');
+
+/**
  * Preload critical fonts (Roboto na espiral)
  *
  * Roboto é usada exclusivamente no SVG da espiral (--spiral2026-foreignobject-fontfamily).
