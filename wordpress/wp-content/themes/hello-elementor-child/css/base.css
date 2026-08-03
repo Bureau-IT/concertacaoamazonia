@@ -53,18 +53,28 @@
 }
 
 /* --- 2.1 HTML & Body --- */
-/* O Elementor define os Global Colors (--e-global-color-accent etc.) APENAS no
+/* O Elementor define os Global Colors (--e-global-color-*) APENAS no
    .elementor-kit-N, que vive DENTRO do <body>. A scrollbar do VIEWPORT é pintada
-   no escopo do <html> (acima do body), onde essas vars NÃO existem → o thumb
-   caía no default do navegador (preto/cinza semitransparente). Para resolver,
-   espelhamos o accent e o track no :root/<html> com fallback aos hexes da
-   paleta atual (sincronizados com os Global Colors do kit). Assim a scrollbar
-   do viewport — e os pseudo-elementos ::-webkit-scrollbar globais — resolvem a
-   cor. Se a paleta mudar no Elementor, atualizar estes 2 fallbacks aqui. */
+   no escopo do <html> (acima do body), onde essas vars NÃO existem — então
+   referenciá-las aqui nunca funcionou: o var() caía sempre no fallback, e como
+   custom properties herdam já computadas, o hex literal descia para a página
+   toda. Resultado (até 2026-08-02): mudar a paleta no Elementor não alterava a
+   scrollbar.
+
+   Estes três valores agora são a FONTE DA VERDADE apenas como fallback de
+   emergência. Os valores reais são impressos no <html> logo depois deste
+   arquivo por bureau_it_scrollbar_global_colors() (functions.php), que lê os
+   Global Colors do kit ativo do blog:
+       scroll [handle]        5c0117b
+       scroll [track]         f1d8cc9
+       scroll [handle:hover]  44d5626
+   Para trocar a cor da barra, editar em Elementor → Configurações do site →
+   Cores globais. Não editar os hexes abaixo. */
 :root,
 html {
-    --bit-scrollbar-thumb: var(--e-global-color-accent, #FE78A9);
-    --bit-scrollbar-track: var(--e-global-color-e03d05f, #DEDDD1);
+    --bit-scrollbar-thumb: #FE78A9;
+    --bit-scrollbar-track: #DEDDD1;
+    --bit-scrollbar-thumb-hover: #B85A7C;
 }
 
 html {
@@ -193,7 +203,7 @@ html body a[href*="mailto"]:hover {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in lab, var(--bit-scrollbar-thumb) 75%, black 25%);
+    background: var(--bit-scrollbar-thumb-hover);
 }
 
 

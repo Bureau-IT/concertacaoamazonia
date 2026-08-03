@@ -284,6 +284,91 @@ function bureau_it_preload_homepage_lcp() {
 }
 
 /**
+ * ============================================================================
+ * SCROLLBAR: cores governadas pelos Global Colors do Elementor
+ * ============================================================================
+ *
+ * O Elementor declara as --e-global-color-* APENAS dentro de .elementor-kit-N,
+ * que vive no <body>. A scrollbar do viewport é pintada no escopo do <html> —
+ * acima do body. Por isso um `var(--e-global-color-accent, #hex)` escrito no
+ * :root NUNCA resolvia: caía sempre no fallback, e como custom properties
+ * herdam já computadas, o hex literal descia para a página inteira. Efeito
+ * prático até 2026-08-02: mudar a paleta no painel não alterava a scrollbar
+ * (o kit tinha Acento #474747 enquanto a barra renderizava #FE78A9).
+ *
+ * Solução: ler os Global Colors direto do kit ativo do blog e imprimir os
+ * valores JÁ RESOLVIDOS no <html>, logo depois do css/base.css (mesma
+ * especificidade, fonte posterior → vence os fallbacks de lá).
+ *
+ * Editável em Elementor → Configurações do site → Cores globais:
+ *   scroll [handle]        5c0117b
+ *   scroll [track]         f1d8cc9
+ *   scroll [handle:hover]  44d5626
+ *
+ * @since 2.3.0
+ */
+add_action( 'wp_enqueue_scripts', 'bureau_it_scrollbar_global_colors', 20 );
+function bureau_it_scrollbar_global_colors() {
+    $colors = bureau_it_kit_custom_colors();
+
+    // var CSS => [ _id do Global Color, fallback se ausente/inválido ]
+    $map = [
+        '--bit-scrollbar-thumb'       => [ '5c0117b', '#FE78A9' ],
+        '--bit-scrollbar-track'       => [ 'f1d8cc9', '#DEDDD1' ],
+        '--bit-scrollbar-thumb-hover' => [ '44d5626', '#B85A7C' ],
+    ];
+
+    $decls = '';
+    foreach ( $map as $var => list( $id, $fallback ) ) {
+        $value = $colors[ $id ] ?? '';
+        // Só aceita hex — o valor vai direto para CSS sem escaping possível.
+        if ( ! preg_match( '/^#[0-9a-fA-F]{3,8}$/', $value ) ) {
+            $value = $fallback;
+        }
+        $decls .= $var . ':' . $value . ';';
+    }
+
+    wp_add_inline_style( 'conc-base', ':root,html{' . $decls . '}' );
+}
+
+/**
+ * Custom colors do kit Elementor ativo do blog atual, indexados por _id.
+ *
+ * Cache por blog: em multisite um mesmo request pode alternar de blog
+ * (switch_to_blog), e o kit é outro em cada um.
+ *
+ * @since 2.3.0
+ * @return array<string,string> _id => hex
+ */
+function bureau_it_kit_custom_colors(): array {
+    static $cache = [];
+
+    $blog_id = get_current_blog_id();
+    if ( isset( $cache[ $blog_id ] ) ) {
+        return $cache[ $blog_id ];
+    }
+    $cache[ $blog_id ] = [];
+
+    $kit_id = (int) get_option( 'elementor_active_kit' );
+    if ( ! $kit_id ) {
+        return $cache[ $blog_id ];
+    }
+
+    $settings = get_post_meta( $kit_id, '_elementor_page_settings', true );
+    if ( ! is_array( $settings ) || empty( $settings['custom_colors'] ) || ! is_array( $settings['custom_colors'] ) ) {
+        return $cache[ $blog_id ];
+    }
+
+    foreach ( $settings['custom_colors'] as $entry ) {
+        if ( ! empty( $entry['_id'] ) && ! empty( $entry['color'] ) ) {
+            $cache[ $blog_id ][ $entry['_id'] ] = $entry['color'];
+        }
+    }
+
+    return $cache[ $blog_id ];
+}
+
+/**
  * Register custom fonts in Elementor font picker
  */
 add_filter('elementor/fonts/additional_fonts', 'bureau_it_elementor_additional_fonts');

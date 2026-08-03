@@ -4,9 +4,17 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.2.0
+ * Version:      2.3.0
  * Author:       Bureau IT
  * Network:      true
+ *
+ * Changelog:
+ * 2.3.0 — Os controles "Clique nos eixos" passam a governar TAMBÉM a camada de
+ *         overlay SVG do glow. Antes, a cor (#ec4899) e as durações do glow e do
+ *         pulso estavam cravadas no JS, então "Cor do glow" e "Velocidade do
+ *         pulso" só afetavam a camada CSS — as duas camadas divergiam. Agora
+ *         viajam como data-* no <svg> (por instância; o script de clique é
+ *         singleton por página) e navDelay é derivado da duração do glow.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -1553,9 +1561,17 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
             // (evita disparar o estado loading se o usuário desligar via Elementor).
             $svg = preg_replace_callback(
                 '/(<svg\b)([^>]*)(>)/s',
-                static function ( $m ) use ( $fx_enabled, $loading_enabled ) {
+                static function ( $m ) use ( $fx_enabled, $loading_enabled, $glow_color, $glow_duration, $loading_speed ) {
+                    // Cor e durações viajam como data-* no <svg> — e NÃO interpoladas
+                    // no #bit-espiral-click-glow — porque aquele script é singleton
+                    // por página (guard window.__bitEspiralClickGlow). Interpolar
+                    // fixaria os valores do PRIMEIRO widget renderizado para todos.
+                    // O handler de clique lê estes atributos por instância.
                     $attrs = ' data-bit-fx-click="' . ( $fx_enabled ? '1' : '0' ) . '"'
-                           . ' data-bit-fx-loading="' . ( $loading_enabled ? '1' : '0' ) . '"';
+                           . ' data-bit-fx-loading="' . ( $loading_enabled ? '1' : '0' ) . '"'
+                           . ' data-bit-fx-glow="' . esc_attr( $glow_color ) . '"'
+                           . ' data-bit-fx-duration="' . (int) $glow_duration . '"'
+                           . ' data-bit-fx-loading-speed="' . (int) $loading_speed . '"';
                     return $m[1] . $m[2] . $attrs . $m[3];
                 },
                 $svg,
@@ -1796,17 +1812,24 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                   if (window.__bitEspiralClickGlow) return;
                   window.__bitEspiralClickGlow = true;
 
+                  // Fallbacks — só usados se o <svg> não trouxer os data-* (ex.:
+                  // SVG antigo em cache). Espelham os defaults dos controles do
+                  // Elementor: "Duração do glow" 400ms e "Velocidade do pulso" 600ms.
                   var FX_DURATION       = 400;
-                  // Sequência temporal:
-                  //   0ms          — click; glow one-shot inicia (overlay path animate)
-                  //   FX_DURATION  (400ms) — glow termina, pulse loading inicia (600ms loop)
-                  //   NAV_DELAY    (800ms) — navegação inicia; pulse já completou 1+ ciclo
+                  var PULSE_SPEED       = 600;
+                  // Folga entre o fim do glow e a navegação. Somada à duração do
+                  // glow, dá o antigo NAV_DELAY fixo de 800ms (400 + 400) quando os
+                  // controles estão no default — comportamento preservado.
+                  var NAV_GRACE         = 400;
+                  // Sequência temporal (fxDur/fxPulse lidos por instância no click):
+                  //   0ms                    — click; glow one-shot inicia (overlay path animate)
+                  //   fxDur                  — glow termina, pulse loading inicia (fxPulse por ciclo)
+                  //   fxDur + NAV_GRACE      — navegação inicia
                   //   Pulse continua até o browser começar a pintar a próxima página
                   //   (na prática 1-2s a mais conforme servidor responde)
                   //
-                  // NAV_DELAY > FX_DURATION + 1 ciclo de pulse (400 + 400 = 800ms)
-                  // garante feedback visual sólido antes do browser começar request.
-                  var NAV_DELAY         = 800;
+                  // Derivar navDelay da duração do glow garante que aumentar
+                  // "Duração do glow" no Elementor não corte o feedback visual.
                   var LOADING_SAFETY_MS = 8000; // safety net se navegação for cancelada
                   // Respeita: preferência do SO (prefers-reduced-motion) +
                   // toggle "Sem animações" do BIT A11y (.ba-stop-animations no <html>).
@@ -1829,6 +1852,14 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                       return; // Efeito desligado neste widget via Elementor
                     }
                     var loadingEnabled = !svgRoot || svgRoot.getAttribute('data-bit-fx-loading') !== '0';
+
+                    // Cor e durações por INSTÂNCIA (data-* no <svg>), não constantes
+                    // do script — que é singleton por página. Vêm dos controles
+                    // "Clique nos eixos" do Elementor, já sanitizados no PHP.
+                    var fxGlow  = (svgRoot && svgRoot.getAttribute('data-bit-fx-glow')) || '#ec4899';
+                    var fxDur   = parseInt(svgRoot && svgRoot.getAttribute('data-bit-fx-duration'), 10) || FX_DURATION;
+                    var fxPulse = parseInt(svgRoot && svgRoot.getAttribute('data-bit-fx-loading-speed'), 10) || PULSE_SPEED;
+                    var navDelay = fxDur + NAV_GRACE;
 
                     var group = link.parentNode;
                     if (!group) return;
@@ -1885,7 +1916,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         overlayPath.removeAttribute('id');
                         overlayPath.setAttribute('class', 'bit-fx-overlay');
                         overlayPath.setAttribute('pointer-events', 'none');
-                        overlayPath.setAttribute('fill', '#ec4899');
+                        overlayPath.setAttribute('fill', fxGlow);
                         // Blend mode "screen" cria efeito de BRILHO (não pinta sólido).
                         // Combinado com opacity animado, dá o glow suave esperado.
                         overlayPath.setAttribute('style', 'mix-blend-mode:screen;');
@@ -1895,7 +1926,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         anim.setAttribute('class', 'bit-fx-anim');
                         anim.setAttribute('attributeName', 'opacity');
                         anim.setAttribute('values', '0;0.65;0');
-                        anim.setAttribute('dur', '400ms');
+                        anim.setAttribute('dur', fxDur + 'ms');
                         anim.setAttribute('repeatCount', '1');
                         anim.setAttribute('fill', 'remove');
                         overlayPath.appendChild(anim);
@@ -1934,14 +1965,14 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                           pulseAnim.setAttribute('class', 'bit-fx-anim');
                           pulseAnim.setAttribute('attributeName', 'opacity');
                           pulseAnim.setAttribute('values', '0;0.45;0');
-                          pulseAnim.setAttribute('dur', '600ms');
+                          pulseAnim.setAttribute('dur', fxPulse + 'ms');
                           pulseAnim.setAttribute('repeatCount', 'indefinite');
                           overlayPath.appendChild(pulseAnim);
                           if (typeof pulseAnim.beginElement === 'function') {
                             try { pulseAnim.beginElement(); } catch(e) {}
                           }
                         }
-                      }, FX_DURATION);
+                      }, fxDur);
                     }
 
                     setTimeout(function(){
@@ -1962,14 +1993,14 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                       } catch (e) {
                         window.location.href = href;
                       }
-                    }, NAV_DELAY);
+                    }, navDelay);
 
                     // Cleanup do glow one-shot (não toca em .bit-loading)
                     setTimeout(function(){
                       link.classList.remove('bit-clicked');
                       group.classList.remove('bit-has-clicked');
                       if (svgRoot) svgRoot.classList.remove('bit-clicked-svg');
-                    }, FX_DURATION + 50);
+                    }, fxDur + 50);
 
                     // Safety net: se navegação for cancelada (back, mesma página, etc.),
                     // remove o estado loading depois de N segundos
