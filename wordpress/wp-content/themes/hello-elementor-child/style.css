@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.3.4
+Version: 2.3.5
 Template: hello-elementor
 */
 
@@ -253,6 +253,48 @@ Template: hello-elementor
     font-family: var(--e-global-typography-primary-font-family), sans-serif;
     font-weight: var(--e-global-typography-primary-font-weight);
     text-transform: none;
+}
+
+/* =============================================================================
+   Consentimento LGPD — tipografia (todos os contextos)
+   O label do campo `acceptance` é o ÚNICO label de formulário visível no site:
+   todos os outros saem como .elementor-screen-only. Sem esta regra ele herda
+   `.elementor-kit-2553 label`, que aplica a tipografia Primary — ou seja, de
+   HEADING: uppercase e 33,6px. O aceite vira um grito de três linhas na página
+   de Contato. Aqui normaliza para texto corrido em qualquer contexto (rodapé,
+   Contato e qualquer form futuro); a cor fica na regra seguinte, que é a única
+   dependente de contexto.
+   ============================================================================= */
+.elementor-field-type-acceptance label:not(.elementor-field-label) {
+    text-transform: none;
+    font-family: var(--e-global-typography-text-font-family, "Rubik"), sans-serif;
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+/* =============================================================================
+   Footer — Consentimento LGPD (campo `acceptance` do Elementor Pro)
+   O rodapé tem fundo preto e o label do acceptance herda cor escura do tema:
+   rgb(28,28,28) sobre #000 = contraste 1,2:1 — o texto simplesmente some.
+   Espelha o branco já usado no resto do rodapé (mesma var do "Cadastre-se").
+   O link fica underline porque, com texto e link na mesma cor, não haveria
+   como distinguir um do outro. Vale para os 2 subsites — ambos renderizam o
+   rodapé dentro de .elementor-location-footer (verificado em dev, 04/08/2026).
+
+   !important é necessário: o CSS por-página do Elementor (post-72234.css /
+   post-89361.css) traz
+   `.elementor-72234 .elementor-element-520a235 .elementor-field-group > label`,
+   especificidade (0,4,1), que ganha de qualquer seletor razoável daqui. Mesmo
+   motivo e mesmo padrão da regra do "Cadastre-se" logo abaixo.
+   ============================================================================= */
+.elementor-location-footer .elementor-field-type-acceptance label,
+.elementor-location-footer .elementor-field-type-acceptance label a {
+    color: var(--txt-invertido, #FFFFFF) !important;
+}
+
+.elementor-location-footer .elementor-field-type-acceptance label a {
+    text-decoration: underline;
 }
 
 /* Footer — "Cadastre-se para receber novidades" deve ser branco em ambos os subsites */

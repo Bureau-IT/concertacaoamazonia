@@ -94,6 +94,19 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
         );
 
         $widget->add_control(
+            'bit_rd_consent_field',
+            [
+                'label'       => 'Campo Consentimento (custom_id)',
+                'type'        => \Elementor\Controls_Manager::TEXT,
+                'default'     => '',
+                'placeholder' => 'consentimento',
+                'description' => 'custom_id do field tipo <b>Acceptance</b> (checkbox LGPD). '
+                    . 'Marcado = <code>granted</code>, desmarcado = <code>declined</code>. '
+                    . 'Vazio = envia <code>declined</code> sempre (conservador).',
+            ]
+        );
+
+        $widget->add_control(
             'bit_rd_tags',
             [
                 'label'       => 'Tags (CSV)',
@@ -127,6 +140,7 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             $company_field = trim( $form_settings['bit_rd_company_field'] ?? '' );
             $uf_field      = trim( $form_settings['bit_rd_uf_field'] ?? '' );
             $sector_field  = trim( $form_settings['bit_rd_sector_field'] ?? '' );
+            $consent_field = trim( $form_settings['bit_rd_consent_field'] ?? '' );
             $tags_csv      = trim( $form_settings['bit_rd_tags'] ?? '' );
 
             // 3. Pegar fields submetidos
@@ -193,11 +207,14 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             // presente, mesmo com CSV vazio: a tag do plugin nao e opcional.
             $payload['tags'] = Tag_Builder::build( $tags_csv, $this->resolve_language( $form_settings ) );
 
-            // legal_bases: "declined" por default — sem checkbox LGPD ainda.
-            // TODO: quando checkbox LGPD for implementado, ler $form_settings['bit_rd_consent_field']
-            $payload['legal_bases'] = [
-                [ 'category' => 'communications', 'type' => 'consent', 'status' => 'declined' ],
-            ];
+            // legal_bases a partir do checkbox de consentimento do proprio form.
+            // Sem campo configurado (form legado), segue `declined` — nunca
+            // afirmar consentimento que nao foi dado.
+            $consent_status = $consent_field
+                ? Consent_Resolver::status( $raw_fields[ $consent_field ]['value'] ?? '' )
+                : Consent_Resolver::DECLINED;
+
+            $payload['legal_bases'] = Consent_Resolver::legal_bases( $consent_status );
 
             $body = [
                 'event_type'   => 'CONVERSION',
@@ -228,10 +245,13 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             $resp_body = wp_remote_retrieve_body( $response );
 
             if ( $code >= 200 && $code < 300 ) {
+                // `consent` no log e proposital: e o registro de que status
+                // juridico foi declarado ao RD para aquele lead, com data/hora.
                 log( 'info', "OK $code", [
-                    'email' => $email,
-                    'cid'   => $conversion_id,
-                    'tags'  => $payload['tags'],
+                    'email'   => $email,
+                    'cid'     => $conversion_id,
+                    'tags'    => $payload['tags'],
+                    'consent' => $consent_status,
                 ] );
             } else {
                 log( 'error', "RD respondeu $code", [
