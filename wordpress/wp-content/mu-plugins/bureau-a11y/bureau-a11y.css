@@ -639,8 +639,12 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 /* Tooltip fixo (position: fixed via JS — não clipado pelo panel overflow) */
 #ba-tooltip-tip {
     position: fixed;
-    background: rgba(0,0,0,0.88);
-    color: #fff;
+    /* Antes era rgba(0,0,0,0.88) + #fff fixos. Agora vem dos slots. O fundo
+     * sozinho fundiria com o painel (que tambem e --ba-forest), por isso a
+     * borda de --ba-border faz a separacao — nao a diferenca de cor. */
+    background: var(--ba-forest);
+    color: var(--ba-text);
+    border: 1px solid var(--ba-border);
     padding: 0.4rem 0.75rem;
     border-radius: 6px;
     font-size: 12px;
@@ -1005,9 +1009,9 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     height: 24px;
     padding: 0;
     border-radius: 50%;
-    background: rgba(0, 90, 66, 0.40);
+    background: color-mix(in srgb, var(--ba-trigger-bg) 40%, transparent);
     border: 1.5px solid var(--ba-text);
-    box-shadow: 0 0 0 1px rgba(0, 90, 66, 0.6);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ba-trigger-bg) 60%, transparent);
     color: var(--ba-text);
     cursor: pointer;
     z-index: 2147483646;
@@ -1022,12 +1026,12 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     opacity: 1;
     transform: scale(1.15);
     background: var(--ba-trigger-bg);
-    box-shadow: 0 0 0 1px rgba(0, 90, 66, 1);
+    box-shadow: 0 0 0 1px var(--ba-trigger-bg);
     outline: none;
 }
 
 #bureau-a11y-restore-pill:focus-visible {
-    box-shadow: 0 0 0 1px rgba(0, 90, 66, 1), 0 0 0 4px rgba(189, 248, 57, 0.4);
+    box-shadow: 0 0 0 1px var(--ba-trigger-bg), 0 0 0 4px color-mix(in srgb, var(--ba-electric) 40%, transparent);
 }
 
 /* Estado oculto — ativado pelo <html class="ba-buttons-hidden"> */
@@ -1059,7 +1063,7 @@ html.ba-buttons-hidden #bureau-a11y-restore-pill {
 .ba-modal {
     position: absolute;
     inset: 0;
-    background: rgba(9, 28, 16, 0.94);
+    background: color-mix(in srgb, var(--ba-forest) 94%, transparent);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     display: flex;
@@ -1103,15 +1107,15 @@ html.ba-buttons-hidden #bureau-a11y-restore-pill {
 }
 
 .ba-btn-ghost {
-    background: rgba(240, 237, 225, 0.1) !important;
+    background: color-mix(in srgb, var(--ba-text) 10%, transparent) !important;
     color: var(--ba-text) !important;
 }
 
-.ba-btn-ghost:hover { background: rgba(240, 237, 225, 0.18) !important; }
+.ba-btn-ghost:hover { background: color-mix(in srgb, var(--ba-text) 18%, transparent) !important; }
 
 .ba-btn-confirm {
     background: var(--ba-electric) !important;
-    color: var(--ba-forest, #091c10) !important;
+    color: var(--ba-forest) !important;
 }
 
 .ba-btn-confirm:hover { opacity: 0.85; }
@@ -1173,7 +1177,7 @@ html.ba-reading-ruler #bureau-a11y-ruler { display: block; }
     min-height: 0 !important;
     padding: 0 !important;
     border-radius: 12px !important;
-    background: var(--ba-forest, #091c10) !important;
+    background: var(--ba-forest) !important;
     border: 1px solid color-mix(in srgb, var(--ba-electric) 25%, transparent) !important;
     overflow: hidden !important;
     cursor: pointer !important;
@@ -1300,7 +1304,7 @@ html.ba-magnifier body { transition: none !important; overflow: hidden; }
     left: 50%;
     transform: translateX(-50%);
     z-index: 2147483647;
-    background: rgba(9,28,16,0.93);
+    background: color-mix(in srgb, var(--ba-forest) 93%, transparent);
     border: 1.5px solid color-mix(in srgb, var(--ba-electric) 55%, transparent);
     color: var(--ba-electric);
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -1329,7 +1333,7 @@ html.ba-magnifier body { transition: none !important; overflow: hidden; }
     bottom: 2.5rem;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(9,28,16,0.92);
+    background: color-mix(in srgb, var(--ba-forest) 92%, transparent);
     color: var(--ba-electric);
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-size: 1.15rem;
