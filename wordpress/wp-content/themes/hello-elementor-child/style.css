@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.3.5
+Version: 2.3.8
 Template: hello-elementor
 */
 
@@ -290,11 +290,54 @@ Template: hello-elementor
    ============================================================================= */
 .elementor-location-footer .elementor-field-type-acceptance label,
 .elementor-location-footer .elementor-field-type-acceptance label a {
-    color: var(--txt-invertido, #FFFFFF) !important;
+    color: var(--e-global-color-d06d81a, #FFFFFF) !important;
 }
 
 .elementor-location-footer .elementor-field-type-acceptance label a {
     text-decoration: underline;
+}
+
+/* Alinhamento: no rodapé o aceite fica centralizado, acompanhando o botão
+   ENVIAR/SEND logo abaixo — encostado à esquerda ele ficava órfão no layout.
+   O centro vai no .elementor-field-option (bloco que ocupa a largura toda),
+   e não no grupo: assim o checkbox e o texto centralizam JUNTOS, e quando o
+   texto quebra em duas linhas — o caso do EN, mais longo — as duas linhas
+   ficam centradas. Só no rodapé: a página de Contato é alinhada à esquerda,
+   botão inclusive. */
+.elementor-location-footer .elementor-field-type-acceptance .elementor-field-subgroup {
+    justify-content: center;
+    /* width:100% é o que realmente centraliza. Sem ele o subgrupo nasce com
+       654px dentro de um grupo de 739 e encostado à esquerda — o text-align
+       abaixo então centraliza dentro de uma caixa que já está deslocada, e o
+       texto (longo) mal se move. Com a largura cheia, o centro do aceite bate
+       com o do botão ENVIAR/SEND (595 x 594 px, medido em dev). */
+    width: 100%;
+}
+
+.elementor-location-footer .elementor-field-type-acceptance .elementor-field-option {
+    text-align: center;
+}
+
+/* =============================================================================
+   Consentimento LGPD — cor da caixa (paleta, não o azul do browser)
+   `accent-color` é o que pinta o checkbox nativo quando marcado. Sem ele o
+   browser usa o próprio azul de sistema, que não é da marca e destoa do resto.
+
+   As vars vêm de `--e-global-color-*` DIRETAS, e não dos aliases `--txt-invertido`
+   / `--main-color` do topo deste arquivo: esses aliases são declarados em `:root`,
+   onde as globais do Elementor não existem (elas vivem em `.elementor-kit-N`, que
+   é classe do <body>), então resolvem VAZIO e só o fallback pinta. Medido em
+   browser real, dev e prod. Aqui a cor é de paleta de verdade.
+
+   Rodapé preto -> "txt invertido" (#FFFFFF), a mesma do texto e da borda do botão.
+   Contato, fundo claro -> "Main color" (#1C1C1C); branco ali seria invisível.
+   ============================================================================= */
+.elementor-field-type-acceptance input[type="checkbox"] {
+    accent-color: var(--e-global-color-96a86ed, #1C1C1C);
+}
+
+.elementor-location-footer .elementor-field-type-acceptance input[type="checkbox"] {
+    accent-color: var(--e-global-color-d06d81a, #FFFFFF);
 }
 
 /* Footer — "Cadastre-se para receber novidades" deve ser branco em ambos os subsites */
