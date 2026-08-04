@@ -390,9 +390,9 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     font-size: inherit;
 }
 
-.ba-panel__close:hover,
-.ba-hints-btn:hover,
-.ba-hide-btn--header:hover {
+#bureau-a11y-panel .ba-panel__close:hover,
+#bureau-a11y-panel .ba-hints-btn:hover,
+#bureau-a11y-panel .ba-hide-btn--header:hover {
     color: var(--ba-text);
     background: color-mix(in srgb, var(--ba-text) 8%, transparent);
 }
@@ -418,7 +418,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 .ba-hints-btn--footer[aria-pressed="false"] { opacity: 1; }
 
 /* Ativo: fundo verde suave + ponto indicador no canto */
-.ba-hints-btn[aria-pressed="true"] {
+#bureau-a11y-panel .ba-hints-btn[aria-pressed="true"] {
     color: var(--ba-electric);
     background: color-mix(in srgb, var(--ba-electric) 12%, transparent);
     border-radius: 8px;
@@ -486,7 +486,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
      * rebaixado. Dois canais de diferenciacao, nao so cor (WCAG 1.4.1). */
 }
 
-.ba-tab-btn:hover {
+#bureau-a11y-panel .ba-tab-btn:hover {
     color: var(--ba-text);
     background: color-mix(in srgb, var(--ba-text) 4%, transparent);
 }
@@ -589,7 +589,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     will-change: transform;
 }
 
-.ba-toggle:hover {
+#bureau-a11y-panel .ba-toggle:hover {
     background: color-mix(in srgb, var(--ba-text) 8%, transparent);
     border-color: color-mix(in srgb, var(--ba-text) 15%, transparent);
     color: var(--ba-text);
@@ -626,8 +626,8 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 }
 
 /* Estado ativo — Concertação-inspired: color blocking limpo, sem glows */
-.ba-toggle[aria-pressed="true"],
-.ba-toggle.ba-toggle--active {
+#bureau-a11y-panel .ba-toggle[aria-pressed="true"],
+#bureau-a11y-panel .ba-toggle.ba-toggle--active {
     background: color-mix(in srgb, var(--ba-electric) 15%, var(--ba-forest));
     border-color: color-mix(in srgb, var(--ba-electric) 50%, transparent);
     color: var(--ba-text);
@@ -862,7 +862,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     word-spacing: 0.35em;
 }
 
-.ba-pill-group .ba-pill:hover {
+#bureau-a11y-panel .ba-pill-group .ba-pill:hover {
     background: color-mix(in srgb, var(--ba-text) 10%, transparent);
     color: var(--ba-text);
 }
@@ -892,7 +892,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     gap: 0.4rem;
 }
 
-.ba-cb-group .ba-toggle {
+#bureau-a11y-panel .ba-cb-group .ba-toggle {
     min-height: 52px;
     font-size: 10px;
     padding: 0.5rem 0.3rem;
@@ -966,7 +966,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     line-height: 1;
 }
 
-.ba-reset-btn:hover { color: var(--ba-electric); }
+#bureau-a11y-panel .ba-reset-btn:hover { color: var(--ba-electric); }
 
 .ba-reset-label {
     font-size: 10px;
@@ -997,7 +997,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     line-height: 1;
 }
 
-.ba-hide-btn:hover { color: var(--ba-electric); }
+#bureau-a11y-panel .ba-hide-btn:hover { color: var(--ba-electric); }
 
 .ba-hide-btn:focus-visible {
     outline: 2px solid var(--ba-electric);
@@ -1430,8 +1430,8 @@ html.ba-magnifier body { transition: none !important; overflow: hidden; }
    LANGUAGE: ocultar Leitura (TTS/Libras) em páginas em inglês
    ========================================================================== */
 
-html[lang*="en"] .ba-tab-content[data-tab="leitura"],
-html[lang*="en"] .ba-tab-btn[data-tab="leitura"] {
+html[lang*="en"] #bureau-a11y-panel .ba-tab-content[data-tab="leitura"],
+html[lang*="en"] #bureau-a11y-panel .ba-tab-btn[data-tab="leitura"] {
     display: none;
 }
 

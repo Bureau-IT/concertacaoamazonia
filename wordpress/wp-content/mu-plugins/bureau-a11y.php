@@ -21,7 +21,7 @@ if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
 }
 
 define( 'BUREAU_A11Y_VERSION', '2.9.9' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.9.3' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.9.4' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
