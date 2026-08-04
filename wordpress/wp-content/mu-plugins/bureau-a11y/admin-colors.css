@@ -204,3 +204,36 @@
 .bureau-a11y-admin .notice.bureau-a11y-reset-notice {
     margin: 15px 0;
 }
+
+/* ==========================================================================
+   Agrupamento dos slots (BUREAU_A11Y_SLOT_GROUPS)
+   Separa "Painel", "Recursos que pintam a página" e "Modo Alto Contraste".
+   ========================================================================== */
+.bureau-a11y-group {
+    margin: 28px 0 12px;
+    padding: 14px 16px;
+    background: #f0f0f1;
+    border-left: 4px solid #2271b1;
+    border-radius: 2px;
+}
+
+.bureau-a11y-group:first-child { margin-top: 0; }
+
+.bureau-a11y-group__titulo {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.bureau-a11y-group__desc {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #50575e;
+}
+
+/* O grupo do Alto Contraste tem piso de contraste obrigatório — sinaliza. */
+.bureau-a11y-group:has(+ .bureau-a11y-slot[data-slot="hc_bg"]) {
+    border-left-color: #d63638;
+}

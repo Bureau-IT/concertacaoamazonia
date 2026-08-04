@@ -30,6 +30,24 @@
     --ba-muted:         var(--ba-override-muted, rgba(246,239,234,0.65));
     --ba-border:        var(--ba-override-border, rgba(246,239,234,0.12));
     --ba-trigger-bg:    var(--ba-override-trigger-bg, var(--e-global-color-primary, #005A42));
+
+    /* Recursos que pintam a PÁGINA do usuário. Só aparecem quando a pessoa liga
+     * o recurso, então não afetam a identidade visual do site. Convenção de
+     * acessibilidade: amarelo marca-texto para auxílios de leitura, azul para
+     * foco de teclado — precisam ser visíveis sobre conteúdo claro E escuro,
+     * o que um tom da paleta do site não garantiria. */
+    --ba-highlight-links: var(--ba-override-highlight-links, #FFD400);
+    --ba-reading-ruler:   var(--ba-override-reading-ruler, #FFD400);
+    --ba-tts-selection:   var(--ba-override-tts-selection, #FFD400);
+    --ba-focus-guide:     var(--ba-override-focus-guide, #0060DF);
+    --ba-warn:            var(--ba-override-warn, #FFC800);
+
+    /* Modo Alto Contraste — piso de contraste validado no admin
+     * (bureau_a11y_enforce_contrast_floor): fundo×texto ≥ 7:1, fundo×link ≥ 4.5:1 */
+    --ba-hc-bg:           var(--ba-override-hc-bg, #000000);
+    --ba-hc-text:         var(--ba-override-hc-text, #FFFFFF);
+    --ba-hc-link:         var(--ba-override-hc-link, #FFFF00);
+
     --ba-radius-card:   12px;
     --ba-radius-panel:  16px;
 }
@@ -94,11 +112,11 @@ html.ba-dark-mode--invert :is(img,video,canvas,svg:not(#bureau-a11y-color-filter
 /* Página JÁ ESCURA → brilho suave */
 html.ba-dark-mode--dim body { filter: brightness(1.2) contrast(1.1); }
 
-html.ba-high-contrast body { background: #000 !important; color: #fff !important; }
-html.ba-high-contrast a { color: #ffff00 !important; text-decoration: underline !important; }
+html.ba-high-contrast body { background: var(--ba-hc-bg) !important; color: var(--ba-hc-text) !important; }
+html.ba-high-contrast a { color: var(--ba-hc-link) !important; text-decoration: underline !important; }
 html.ba-high-contrast :is(button,input,select,textarea),
 html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) {
-    background: #000 !important; color: #fff !important; border: 2px solid #fff !important;
+    background: var(--ba-hc-bg) !important; color: var(--ba-hc-text) !important; border: 2px solid var(--ba-hc-text) !important;
 }
 
 /* Forçar inversão nos descendentes de botões — Elementor/TEC envolvem o
@@ -107,8 +125,8 @@ html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) {
 html.ba-high-contrast :is(button,input,select,textarea) *,
 html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) * {
     background: transparent !important;
-    color: #fff !important;
-    fill: #fff !important;
+    color: var(--ba-hc-text) !important;
+    fill: var(--ba-hc-text) !important;
 }
 
 /* Apenas no body — painel/trigger em <html> ficam sem filtro */
@@ -121,15 +139,15 @@ html.ba-cb-deuteranopia body { filter: url(#ba-filter-deuteranopia); }
 html.ba-cb-tritanopia body { filter: url(#ba-filter-tritanopia); }
 
 html.ba-highlight-links a {
-    outline: 2px solid #BDF839 !important;
+    outline: 2px solid var(--ba-highlight-links) !important;
     outline-offset: 2px !important;
-    background: rgba(189,248,57,0.18) !important;
+    background: color-mix(in srgb, var(--ba-highlight-links) 18%, transparent) !important;
 }
 
 html.ba-focus-guide :focus-visible {
-    outline: 3px solid #0060df !important;
+    outline: 3px solid var(--ba-focus-guide) !important;
     outline-offset: 3px !important;
-    box-shadow: 0 0 0 6px rgba(0,96,223,0.25) !important;
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--ba-focus-guide) 25%, transparent) !important;
 }
 
 
@@ -663,8 +681,8 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 
 /* TTS: feedback quando nenhum texto selecionado */
 @keyframes ba-warn-pulse {
-    0%,100% { border-color: rgba(255,200,0,0.15); }
-    50%      { border-color: rgba(255,200,0,0.6); box-shadow: 0 0 0 3px rgba(255,200,0,0.15); }
+    0%,100% { border-color: color-mix(in srgb, var(--ba-warn) 15%, transparent); }
+    50%      { border-color: color-mix(in srgb, var(--ba-warn) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ba-warn) 15%, transparent); }
 }
 
 .ba-toggle--warn {
@@ -1131,8 +1149,8 @@ html.ba-buttons-hidden #bureau-a11y-restore-pill {
     width: 100%;
     height: 80px;
     background: transparent;
-    border-top: 2px solid rgba(189,248,57,0.6);
-    border-bottom: 2px solid rgba(189,248,57,0.6);
+    border-top: 2px solid color-mix(in srgb, var(--ba-reading-ruler) 60%, transparent);
+    border-bottom: 2px solid color-mix(in srgb, var(--ba-reading-ruler) 60%, transparent);
     pointer-events: none;
     z-index: 9999997;
     display: none;
@@ -1434,7 +1452,7 @@ html.ba-tts-reading *:not(#bureau-a11y-panel):not(#bureau-a11y-panel *):not(#bur
 /* Seleção de texto visível durante leitura TTS — apenas quando TTS ativo */
 html.ba-tts-hover-active ::selection,
 html.ba-tts-reading ::selection {
-    background: rgba(189,248,57,0.35) !important;
+    background: color-mix(in srgb, var(--ba-tts-selection) 35%, transparent) !important;
     color: inherit !important;
 }
 html.ba-tts-hover-active p,

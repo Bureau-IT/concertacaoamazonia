@@ -21,7 +21,7 @@ if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
 }
 
 define( 'BUREAU_A11Y_VERSION', '2.9.9' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.9.2' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.9.3' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
@@ -169,6 +169,26 @@ const BUREAU_A11Y_DEFAULT_COLORS = [
 	'muted'          => [ 'mode' => 'custom', 'custom'    => 'rgba(246,239,234,0.65)' ],
 	'border'         => [ 'mode' => 'custom', 'custom'    => 'rgba(246,239,234,0.12)' ],
 	'trigger_bg'     => [ 'mode' => 'global', 'global_id' => 'primary' ],   // verde-bandeira
+
+	// --- Recursos que pintam a PÁGINA do usuário (não o chrome do painel) ---
+	// Só aparecem quando a pessoa liga o recurso, então NÃO afetam a identidade
+	// visual do site. Defaults seguem a convenção de acessibilidade: amarelo
+	// marca-texto para auxílios de leitura, azul para foco de teclado. Ambos
+	// legíveis sobre conteúdo claro E escuro — um tom da paleta do site não
+	// serviria (num site monocromático o destaque desapareceria no fundo).
+	'highlight_links' => [ 'mode' => 'custom', 'custom' => '#FFD400' ],
+	'reading_ruler'   => [ 'mode' => 'custom', 'custom' => '#FFD400' ],
+	'tts_selection'   => [ 'mode' => 'custom', 'custom' => '#FFD400' ],
+	'focus_guide'     => [ 'mode' => 'custom', 'custom' => '#0060DF' ],
+	'warn'            => [ 'mode' => 'custom', 'custom' => '#FFC800' ],
+
+	// --- Modo Alto Contraste ---
+	// Remediação WCAG acionada pelo usuário. Configurável, mas com piso de
+	// contraste validado em bureau_a11y_sanitize_colors(): fundo×texto ≥ 7:1
+	// (AAA) e fundo×link ≥ 4.5:1. Valores abaixo disso são rejeitados.
+	'hc_bg'           => [ 'mode' => 'custom', 'custom' => '#000000' ],
+	'hc_text'         => [ 'mode' => 'custom', 'custom' => '#FFFFFF' ],
+	'hc_link'         => [ 'mode' => 'custom', 'custom' => '#FFFF00' ],
 ];
 
 // Fallback final hardcoded (se Elementor off OU Global Color deletada).
@@ -181,7 +201,50 @@ const BUREAU_A11Y_FALLBACK_COLORS = [
 	'muted'          => 'rgba(246,239,234,0.65)',
 	'border'         => 'rgba(246,239,234,0.12)',
 	'trigger_bg'     => '#005A42',
+	'highlight_links' => '#FFD400',
+	'reading_ruler'   => '#FFD400',
+	'tts_selection'   => '#FFD400',
+	'focus_guide'     => '#0060DF',
+	'warn'            => '#FFC800',
+	'hc_bg'           => '#000000',
+	'hc_text'         => '#FFFFFF',
+	'hc_link'         => '#FFFF00',
 ];
+
+/**
+ * Luminância relativa de uma cor (WCAG 2.x). Aceita #RGB/#RRGGBB.
+ * Retorna null se não for hex sólido (rgba não faz sentido para o piso do
+ * Alto Contraste, que precisa ser opaco).
+ */
+function bureau_a11y_luminance( $hex ) {
+	if ( ! preg_match( '/^#([a-f0-9]{3}|[a-f0-9]{6})$/i', $hex ) ) {
+		return null;
+	}
+	$h = ltrim( $hex, '#' );
+	if ( 3 === strlen( $h ) ) {
+		$h = $h[0] . $h[0] . $h[1] . $h[1] . $h[2] . $h[2];
+	}
+	$lin = [];
+	foreach ( [ 0, 2, 4 ] as $i ) {
+		$c     = hexdec( substr( $h, $i, 2 ) ) / 255;
+		$lin[] = $c <= 0.03928 ? $c / 12.92 : pow( ( $c + 0.055 ) / 1.055, 2.4 );
+	}
+	return 0.2126 * $lin[0] + 0.7152 * $lin[1] + 0.0722 * $lin[2];
+}
+
+/**
+ * Razão de contraste WCAG entre duas cores hex. Null se alguma não for hex sólido.
+ */
+function bureau_a11y_contrast_ratio( $a, $b ) {
+	$la = bureau_a11y_luminance( $a );
+	$lb = bureau_a11y_luminance( $b );
+	if ( null === $la || null === $lb ) {
+		return null;
+	}
+	$hi = max( $la, $lb );
+	$lo = min( $la, $lb );
+	return ( $hi + 0.05 ) / ( $lo + 0.05 );
+}
 
 // Mapa slot → nome da CSS var (--ba-*). Underscore vira hífen.
 function bureau_a11y_slot_to_var( $slot ) {
@@ -653,7 +716,7 @@ function bureau_a11y_render_buttons() {
 				<!-- Destacar links -->
 				<button class="ba-toggle" id="ba-toggle-highlightLinks" data-feature="highlightLinks"
 					data-tooltip="<?php esc_attr_e( 'Destaca todos os links da página', 'bureau-a11y' ); ?>"
-					data-desc="<?php esc_attr_e( 'Contorna todos os links da página com uma borda verde e fundo suave, facilitando sua identificação e distinção do texto comum.', 'bureau-a11y' ); ?>"
+					data-desc="<?php esc_attr_e( 'Contorna todos os links da página com uma borda destacada e fundo suave, facilitando sua identificação e distinção do texto comum.', 'bureau-a11y' ); ?>"
 					aria-pressed="false">
 					<span class="ba-toggle__icon">
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -667,7 +730,7 @@ function bureau_a11y_render_buttons() {
 				<!-- Guia de foco -->
 				<button class="ba-toggle" id="ba-toggle-focusGuide" data-feature="focusGuide"
 					data-tooltip="<?php esc_attr_e( 'Indicador visual de foco por teclado', 'bureau-a11y' ); ?>"
-					data-desc="<?php esc_attr_e( 'Realça com contorno azul vibrante o elemento atualmente focado pelo teclado. Essencial para quem navega sem mouse, usando Tab e setas.', 'bureau-a11y' ); ?>"
+					data-desc="<?php esc_attr_e( 'Realça com um contorno de alto contraste o elemento atualmente focado pelo teclado. Essencial para quem navega sem mouse, usando Tab e setas.', 'bureau-a11y' ); ?>"
 					aria-pressed="false">
 					<span class="ba-toggle__icon">
 						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

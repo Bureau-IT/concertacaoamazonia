@@ -28,6 +28,32 @@ const BUREAU_A11Y_SLOT_LABELS = [
 	'muted'          => [ 'label' => 'Texto secundário',         'hint' => 'Labels, descrições, texto auxiliar' ],
 	'border'         => [ 'label' => 'Bordas e divisórias',      'hint' => 'Linhas internas do painel' ],
 	'trigger_bg'     => [ 'label' => 'Fundo do botão flutuante', 'hint' => 'Cor do botão a11y e back-to-top ancorados na lateral' ],
+
+	'highlight_links' => [ 'label' => 'Destacar links',        'hint' => 'Contorno e fundo aplicados a todo link da página quando o recurso está ligado' ],
+	'reading_ruler'   => [ 'label' => 'Régua de leitura',      'hint' => 'Faixa horizontal que acompanha o cursor' ],
+	'tts_selection'   => [ 'label' => 'Seleção da leitura',    'hint' => 'Realce do texto sendo lido em voz alta' ],
+	'focus_guide'     => [ 'label' => 'Guia de foco',          'hint' => 'Contorno do elemento focado pelo teclado' ],
+	'warn'            => [ 'label' => 'Aviso de atenção',      'hint' => 'Pulso de alerta, ex: nenhum texto selecionado para ler' ],
+
+	'hc_bg'           => [ 'label' => 'Alto Contraste — fundo', 'hint' => 'Precisa ter 7:1 contra o texto (WCAG AAA)' ],
+	'hc_text'         => [ 'label' => 'Alto Contraste — texto', 'hint' => 'Precisa ter 7:1 contra o fundo (WCAG AAA)' ],
+	'hc_link'         => [ 'label' => 'Alto Contraste — links', 'hint' => 'Precisa ter 4.5:1 contra o fundo (WCAG AA)' ],
+];
+
+// Agrupamento visual da tela. A chave é o slot inicial de cada grupo.
+const BUREAU_A11Y_SLOT_GROUPS = [
+	'forest'          => [
+		'titulo' => 'Painel de acessibilidade',
+		'desc'   => 'Cores do próprio painel e dos botões flutuantes. Referenciam Global Colors do Elementor por padrão, então mudar a paleta do site reflete aqui.',
+	],
+	'highlight_links' => [
+		'titulo' => 'Recursos que pintam a página',
+		'desc'   => 'Só aparecem quando a pessoa liga o recurso no painel — não afetam a identidade visual do site. Os padrões seguem a convenção de acessibilidade (amarelo marca-texto para leitura, azul para foco) porque precisam ser visíveis sobre conteúdo claro e escuro.',
+	],
+	'hc_bg'           => [
+		'titulo' => 'Modo Alto Contraste',
+		'desc'   => 'Remediação para baixa visão. Estes três valores têm piso de contraste obrigatório: o formulário rejeita combinações abaixo de 7:1 (fundo × texto) e 4.5:1 (fundo × links). Use cores sólidas (hex), não rgba.',
+	],
 ];
 
 /**
@@ -93,6 +119,90 @@ function bureau_a11y_sanitize_colors( $input ) {
 			$raw = isset( $cfg['custom'] ) ? trim( (string) $cfg['custom'] ) : '';
 			if ( bureau_a11y_is_valid_color( $raw ) ) {
 				$clean[ $slot ] = [ 'mode' => 'custom', 'custom' => $raw ];
+			}
+		}
+	}
+
+	return bureau_a11y_enforce_contrast_floor( $clean, $globals );
+}
+
+/**
+ * Piso de contraste do modo Alto Contraste.
+ *
+ * O Alto Contraste é remediação para baixa visão: existe justamente para
+ * ignorar a paleta do site. Deixá-lo livre permitiria salvar dois tons de
+ * cinza e degradar o recurso em silêncio, exatamente para quem mais depende
+ * dele. Aqui os três valores são resolvidos para hex e verificados:
+ *
+ *   fundo × texto  >= 7.0  (WCAG AAA, texto normal)
+ *   fundo × links  >= 4.5  (WCAG AA)
+ *
+ * Se reprovar, os slots reprovados voltam ao valor salvo anteriormente (ou ao
+ * default) e o admin recebe um erro explicando o motivo.
+ */
+function bureau_a11y_enforce_contrast_floor( $clean, $globals ) {
+	$anterior = get_option( 'bureau_a11y_colors', [] );
+	if ( ! is_array( $anterior ) ) {
+		$anterior = [];
+	}
+
+	// Resolve um slot para hex sólido, seja custom ou global.
+	$resolver = function ( $slot ) use ( $clean, $globals ) {
+		$cfg = isset( $clean[ $slot ] ) ? $clean[ $slot ] : BUREAU_A11Y_DEFAULT_COLORS[ $slot ];
+		if ( 'custom' === $cfg['mode'] ) {
+			return isset( $cfg['custom'] ) ? $cfg['custom'] : '';
+		}
+		$gid = isset( $cfg['global_id'] ) ? $cfg['global_id'] : '';
+		return isset( $globals[ $gid ]['value'] ) ? $globals[ $gid ]['value'] : '';
+	};
+
+	// Os 3 slots formam UMA combinação: se qualquer par reprova, a combinação
+	// inteira é rejeitada. Reverter só o texto deixaria um fundo ruim salvo, e a
+	// próxima verificação passaria a medir contra ele.
+	$bg    = $resolver( 'hc_bg' );
+	$pares = [
+		'hc_text' => [ 'min' => 7.0, 'rotulo' => 'texto' ],
+		'hc_link' => [ 'min' => 4.5, 'rotulo' => 'links' ],
+	];
+
+	$problemas = [];
+	foreach ( $pares as $slot => $regra ) {
+		$ratio = bureau_a11y_contrast_ratio( $bg, $resolver( $slot ) );
+
+		if ( null === $ratio ) {
+			$problemas[] = sprintf(
+				/* translators: %s: rótulo do slot (texto/links) */
+				__( '%s: use cor sólida (hex) — transparência não permite verificar contraste', 'bureau-a11y' ),
+				$regra['rotulo']
+			);
+			continue;
+		}
+		if ( $ratio < $regra['min'] ) {
+			$problemas[] = sprintf(
+				/* translators: 1: rótulo, 2: razão obtida, 3: razão mínima */
+				__( '%1$s: %2$s:1 contra o fundo, mínimo %3$s:1', 'bureau-a11y' ),
+				$regra['rotulo'],
+				number_format_i18n( round( $ratio, 2 ), 2 ),
+				number_format_i18n( $regra['min'], 1 )
+			);
+		}
+	}
+
+	if ( $problemas ) {
+		add_settings_error(
+			'bureau_a11y_colors',
+			'hc_piso_contraste',
+			sprintf(
+				/* translators: %s: lista de problemas encontrados */
+				__( 'Modo Alto Contraste não foi alterado — %s. O Alto Contraste é o recurso de quem não consegue ler o site normalmente; um valor abaixo do piso o inutilizaria em silêncio. As outras cores foram salvas normalmente.', 'bureau-a11y' ),
+				implode( '; ', $problemas )
+			)
+		);
+
+		foreach ( [ 'hc_bg', 'hc_text', 'hc_link' ] as $slot ) {
+			unset( $clean[ $slot ] );
+			if ( isset( $anterior[ $slot ] ) ) {
+				$clean[ $slot ] = $anterior[ $slot ];
 			}
 		}
 	}
@@ -187,6 +297,12 @@ function bureau_a11y_render_admin_page() {
 			<div class="bureau-a11y-admin-grid">
 				<div class="bureau-a11y-admin-col">
 					<?php foreach ( BUREAU_A11Y_SLOT_LABELS as $slot => $meta ) : ?>
+						<?php if ( isset( BUREAU_A11Y_SLOT_GROUPS[ $slot ] ) ) : ?>
+							<div class="bureau-a11y-group">
+								<h2 class="bureau-a11y-group__titulo"><?php echo esc_html( BUREAU_A11Y_SLOT_GROUPS[ $slot ]['titulo'] ); ?></h2>
+								<p class="bureau-a11y-group__desc"><?php echo esc_html( BUREAU_A11Y_SLOT_GROUPS[ $slot ]['desc'] ); ?></p>
+							</div>
+						<?php endif; ?>
 						<?php bureau_a11y_render_slot_field( $slot, $meta, $config[ $slot ], $globals ); ?>
 					<?php endforeach; ?>
 
