@@ -388,7 +388,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     min-height: auto;
     padding: 0.25rem 0.5rem;
     background: transparent !important;
-    color: color-mix(in srgb, var(--ba-text) 28%, transparent);
+    color: var(--ba-muted);
     border-radius: 4px;
 }
 .ba-hints-btn--footer:hover { color: var(--ba-electric) !important; background: transparent !important; }
@@ -416,9 +416,13 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     background: var(--ba-electric);
     border-radius: 50%;
 }
-/* Inativo: levemente apagado (dicas ocultas) */
+/* Inativo: levemente apagado (dicas ocultas).
+ * 0.65 e nao 0.45: compoe com o alpha de --ba-muted, e a 0.45 o icone caia
+ * para 2.40:1 sobre o fundo do painel — abaixo do minimo 3:1 do WCAG 1.4.11
+ * para o que identifica um controle (este botao e so-icone). A 0.65 da 3.54:1
+ * e continua legivel como "apagado". */
 .ba-hints-btn[aria-pressed="false"] {
-    opacity: 0.45;
+    opacity: 0.65;
 }
 
 .ba-hints-btn:focus-visible,
@@ -457,13 +461,16 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     transition: color 0.2s, border-color 0.2s, background 0.2s, opacity 0.2s;
     line-height: 1;
     flex: 1;
-    opacity: 0.45;
+    /* Sem opacity: a 0.45 o rotulo da aba inativa compunha com o alpha de
+     * --ba-muted e caia para 2.39:1 — reprovado no WCAG 1.4.3 (texto exige
+     * 4.5:1). A hierarquia aba-inativa x aba-ativa nao depende de opacidade:
+     * inativa = --ba-muted, ativa = --ba-electric + borda inferior + fundo
+     * rebaixado. Dois canais de diferenciacao, nao so cor (WCAG 1.4.1). */
 }
 
 .ba-tab-btn:hover {
     color: var(--ba-text);
     background: color-mix(in srgb, var(--ba-text) 4%, transparent);
-    opacity: 0.75;
 }
 
 #bureau-a11y-panel .ba-tab-btn[aria-selected="true"] {
@@ -897,11 +904,15 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
     display: flex;
     align-items: center;
     text-decoration: none;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    /* O SVG do logo usa fill="currentColor" (bureau-a11y.php), entao herda daqui.
+     * Sem opacity: a 0.7 ela compunha com o alpha de --ba-muted e o texto da
+     * versao caia para 3.92:1 — reprovado no WCAG 1.4.3. O tom apagado ja vem
+     * de --ba-muted (6.60:1), que o admin controla. */
+    color: var(--ba-muted);
+    transition: color 0.2s;
 }
 
-.ba-footer-logo:hover { opacity: 1; }
+.ba-footer-logo:hover { color: var(--ba-text); }
 
 .ba-footer-logo:focus-visible {
     outline: 2px solid var(--ba-electric);
@@ -912,7 +923,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 .ba-footer-version {
     font-size: 9px;
     font-weight: 500;
-    color: color-mix(in srgb, var(--ba-text) 35%, transparent);
+    color: var(--ba-muted);
     letter-spacing: 0.04em;
     margin-left: 0.4rem;
     align-self: center;
@@ -922,7 +933,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 .ba-reset-btn {
     background: transparent;
     border: 0;
-    color: color-mix(in srgb, var(--ba-text) 28%, transparent);
+    color: var(--ba-muted);
     cursor: pointer;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
@@ -953,7 +964,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 .ba-hide-btn {
     background: transparent;
     border: 0;
-    color: color-mix(in srgb, var(--ba-text) 28%, transparent);
+    color: var(--ba-muted);
     cursor: pointer;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;

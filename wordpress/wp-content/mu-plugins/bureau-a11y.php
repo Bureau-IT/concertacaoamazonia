@@ -21,7 +21,7 @@ if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
 }
 
 define( 'BUREAU_A11Y_VERSION', '2.9.9' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.9.0' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.9.1' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
@@ -713,14 +713,14 @@ function bureau_a11y_render_buttons() {
 				aria-label="Bureau de Tecnologia Ltda.">
 				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 123.81 123.81"
 					height="34" aria-hidden="true">
-					<polygon fill="rgba(240,237,225,0.65)"
+					<polygon fill="currentColor"
 						points="16.59 44.68 16.59 87.58 28.69 71.86 45.68 71.86 16.59 44.68"/>
-					<path fill="rgba(240,237,225,0.65)"
+					<path fill="currentColor"
 						d="M67.86,72.32q-5,0-7.55-2.33c-1.72-1.55-2.58-3.95-2.58-7.22v-9.2H54.59V45h3.14V38.29H68.89V45h6.17v8.57H68.89v6.72a2.73,2.73,0,0,0,.69,2.12,2.93,2.93,0,0,0,2,.61A8.43,8.43,0,0,0,75,62.23V70.8a12.7,12.7,0,0,1-3.18,1.1A17.78,17.78,0,0,1,67.86,72.32Z"/>
-					<rect fill="rgba(240,237,225,0.65)" x="41.13" y="36.23" width="11.16" height="6.86"/>
-					<polygon fill="rgba(240,237,225,0.65)"
+					<rect fill="currentColor" x="41.13" y="36.23" width="11.16" height="6.86"/>
+					<polygon fill="currentColor"
 						points="41.13 45 41.13 64.03 49.44 71.73 52.29 71.73 52.29 45 41.13 45"/>
-					<path fill="rgba(240,237,225,0.65)" d="M78.18,73.48h29v5.58h-29Z"/>
+					<path fill="currentColor" d="M78.18,73.48h29v5.58h-29Z"/>
 				</svg>
 				<span class="ba-footer-version">BIT A11y v<?php echo esc_html( BUREAU_A11Y_VERSION ); ?></span>
 			</a>
