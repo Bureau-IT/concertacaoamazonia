@@ -99,7 +99,9 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
                 'label'       => 'Tags (CSV)',
                 'type'        => \Elementor\Controls_Manager::TEXT,
                 'default'     => 'newsletter,concertacao-amazonia,footer-form',
-                'description' => 'Tags aplicadas ao contato no RD Station, separadas por virgula.',
+                'description' => 'Tags aplicadas ao contato no RD Station, separadas por virgula. '
+                    . 'O plugin acrescenta sozinho a tag de idioma (pt/en, pelo WPML) e a tag '
+                    . '<code>' . Tag_Builder::PLUGIN_TAG . '</code> — nao precisa escrever nenhuma das duas aqui.',
             ]
         );
 
@@ -187,11 +189,9 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
                 }
             }
 
-            if ( $tags_csv ) {
-                $payload['tags'] = array_values(
-                    array_filter( array_map( 'trim', explode( ',', $tags_csv ) ) )
-                );
-            }
+            // Tags = CSV do form + idioma (WPML) + tag fixa do plugin. Sempre
+            // presente, mesmo com CSV vazio: a tag do plugin nao e opcional.
+            $payload['tags'] = Tag_Builder::build( $tags_csv, $this->resolve_language( $form_settings ) );
 
             // legal_bases: "declined" por default — sem checkbox LGPD ainda.
             // TODO: quando checkbox LGPD for implementado, ler $form_settings['bit_rd_consent_field']
@@ -228,7 +228,11 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             $resp_body = wp_remote_retrieve_body( $response );
 
             if ( $code >= 200 && $code < 300 ) {
-                log( 'info', "OK $code", [ 'email' => $email, 'cid' => $conversion_id ] );
+                log( 'info', "OK $code", [
+                    'email' => $email,
+                    'cid'   => $conversion_id,
+                    'tags'  => $payload['tags'],
+                ] );
             } else {
                 log( 'error', "RD respondeu $code", [
                     'email' => $email,
@@ -244,6 +248,45 @@ class Form_Action extends \ElementorPro\Modules\Forms\Classes\Action_Base {
             ] );
             return;
         }
+    }
+
+    /**
+     * Idioma WPML do post que HOSPEDA o form.
+     *
+     * Por que nao `wpml_current_language`: o submit chega em admin-ajax.php, onde
+     * o WPML nao tem contexto de idioma confiavel — nao ha post consultado e a
+     * resolucao por referrer nao e garantida. Devolveria o idioma padrao e
+     * carimbaria lead do site EN como `pt`, silenciosamente.
+     *
+     * O `form_post_id` que o Elementor Pro injeta em form_settings aponta para o
+     * template/pagina TRADUZIDO (footer PT 72234 x footer EN 72921), que tem
+     * idioma proprio no WPML. Deterministico e independente do request.
+     *
+     * @return string|null Codigo WPML (ex: 'pt-br', 'en') ou null se indisponivel.
+     */
+    private function resolve_language( array $form_settings ): ?string {
+        $post_id = absint( $form_settings['form_post_id'] ?? $form_settings['edit_post_id'] ?? 0 );
+        if ( ! $post_id ) {
+            return null;
+        }
+
+        $post_type = get_post_type( $post_id );
+        if ( ! $post_type ) {
+            return null;
+        }
+
+        // Sem WPML o filtro nao existe e o valor volta como veio (null) — o
+        // Tag_Builder simplesmente nao acrescenta tag de idioma.
+        $lang = apply_filters(
+            'wpml_element_language_code',
+            null,
+            [
+                'element_id'   => $post_id,
+                'element_type' => 'post_' . $post_type,
+            ]
+        );
+
+        return ( is_string( $lang ) && $lang !== '' ) ? $lang : null;
     }
 
     /**
