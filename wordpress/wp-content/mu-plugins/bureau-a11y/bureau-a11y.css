@@ -1,5 +1,5 @@
 /* Bureau A11y - Accessibility Styles
- * Version: 2.10.0
+ * Version: 2.10.2
  * Author: Bureau de Tecnologia Ltda.
  *
  * Dark Forest Luxury — mini-app design system
@@ -113,17 +113,73 @@ html.ba-dark-mode--invert :is(img,video,canvas,svg:not(#bureau-a11y-color-filter
 html.ba-dark-mode--dim body { filter: brightness(1.2) contrast(1.1); }
 
 html.ba-high-contrast body { background: var(--ba-hc-bg) !important; color: var(--ba-hc-text) !important; }
-html.ba-high-contrast a { color: var(--ba-hc-link) !important; text-decoration: underline !important; }
-html.ba-high-contrast :is(button,input,select,textarea),
-html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) {
+
+/* --------------------------------------------------------------------------
+   Reset de superfície — o que faz o Alto Contraste funcionar com QUALQUER paleta
+   --------------------------------------------------------------------------
+   `color` não é herdado quando o descendente declara o seu: Elementor, TEC e
+   JetEngine escrevem `color` widget a widget (quase sempre com !important),
+   então pintar só o <body> deixava o texto na cor do KIT. Enquanto o kit foi
+   claro isso passou despercebido; com a paleta escura atual (text #000000,
+   primary #1C1C1C) o texto virou preto sobre preto — 91 de 141 textos da
+   página de editais mediam 1:1, ou seja, invisíveis.
+
+   Por isso a cor é forçada em TODO o conteúdo, não só no body. Assim o
+   recurso não depende de a paleta do site ser clara — vale para a atual e
+   para as próximas.
+
+   Decisões desta regra:
+   - `background-color` vai para --ba-hc-bg OPACO (não `transparent`): menus
+     suspensos, headers sticky e modais continuam com fundo sólido; com
+     transparente o conteúdo de baixo apareceria através deles.
+   - Mídia fica de fora (img/svg/video/canvas/iframe/picture): um PNG de logo
+     com fundo transparente ficaria preto-sobre-preto se recebesse a cor.
+   - As exclusões usam `:where()`, que tem especificidade ZERO — não inflam o
+     seletor, então a escada de especificidade abaixo continua previsível.
+   - Escopo `body ...`: o painel, o trigger e o back-to-top do BIT A11y são
+     filhos diretos de <html>, então mantêm o próprio design intacto.
+
+   POR QUE `.ba-high-contrast` APARECE 3x (não é typo)
+   ---------------------------------------------------
+   `!important` não basta: entre duas declarações !important vence a de maior
+   especificidade. O TEC/Elementor pintam texto com seletores de classe, e
+   medindo em browser real na página de editais:
+
+       html.ba-high-contrast body *            (0,1,2)  -> PERDE
+       html.ba-high-contrast body .classe-tec  (0,2,2)  -> vence
+       html.ba-high-contrast × 3 + body *      (0,3,2)  -> vence
+
+   Repetir a classe é a forma padrão de subir especificidade sem depender de
+   nomes de classe de terceiros (que mudam a cada update do plugin). Fica em
+   (0,3,2); as regras de link/botão/banner abaixo somam +1 elemento ou +1
+   classe e por isso continuam vencendo o reset.
+   -------------------------------------------------------------------------- */
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body :not(:where(svg, svg *, img, picture, video, canvas, iframe, object, embed)) {
+    background-color: var(--ba-hc-bg) !important;
+    color: var(--ba-hc-text) !important;
+    border-color: var(--ba-hc-text) !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+}
+
+/* Ícones de fonte e SVG inline que herdam a cor do texto. */
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body :where(svg, svg *) { fill: currentColor !important; }
+
+/* (0,3,3) — vence o reset acima, que é (0,3,2). */
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body a {
+    color: var(--ba-hc-link) !important; text-decoration: underline !important;
+}
+
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body :is(button,input,select,textarea),
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body a:is([role="button"],[class*="btn"],[class*="button"]) {
     background: var(--ba-hc-bg) !important; color: var(--ba-hc-text) !important; border: 2px solid var(--ba-hc-text) !important;
 }
 
 /* Forçar inversão nos descendentes de botões — Elementor/TEC envolvem o
    texto em <span> filhos (elementor-button-text, tribe-common-c-btn--*) com
    color próprio !important que sobrescreve o color do pai. */
-html.ba-high-contrast :is(button,input,select,textarea) *,
-html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) * {
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body :is(button,input,select,textarea) *,
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body a:is([role="button"],[class*="btn"],[class*="button"]) * {
     background: transparent !important;
     color: var(--ba-hc-text) !important;
     fill: var(--ba-hc-text) !important;
@@ -145,7 +201,7 @@ html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) * {
    Fora do Alto Contraste nada disso existe — o painel do Complianz continua
    sendo a fonte da verdade das cores.
    -------------------------------------------------------------------------- */
-html.ba-high-contrast :is(.cmplz-cookiebanner, #cmplz-manage-consent .cmplz-manage-consent) {
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast :is(.cmplz-cookiebanner, #cmplz-manage-consent .cmplz-manage-consent) {
     --cmplz_banner_background_color:          var(--ba-hc-bg);
     --cmplz_banner_border_color:              var(--ba-hc-text);
     --cmplz_text_color:                       var(--ba-hc-text);
@@ -171,17 +227,17 @@ html.ba-high-contrast :is(.cmplz-cookiebanner, #cmplz-manage-consent .cmplz-mana
 
 /* O plugin fixa este cinza em literal (não usa variável) — sobre fundo preto
    viraria uma faixa clara ilegível. */
-html.ba-high-contrast .cmplz-cookiebanner .cmplz-categories .cmplz-category {
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body .cmplz-cookiebanner .cmplz-categories .cmplz-category {
     background-color: transparent !important;
     border: 1px solid var(--ba-hc-text) !important;
 }
 
 /* O X de fechar é um SVG com fill=currentColor. */
-html.ba-high-contrast .cmplz-cookiebanner .cmplz-close svg { fill: var(--ba-hc-text) !important; }
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body .cmplz-cookiebanner .cmplz-close svg { fill: var(--ba-hc-text) !important; }
 
 /* Os links do banner ficam sublinhados como no resto da página (regra do <a>
    acima), mas precisam da cor de link sobre o fundo já invertido. */
-html.ba-high-contrast .cmplz-cookiebanner :is(.cmplz-link, .cmplz-message a) {
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body .cmplz-cookiebanner :is(.cmplz-link, .cmplz-message a) {
     color: var(--ba-hc-link) !important;
 }
 
