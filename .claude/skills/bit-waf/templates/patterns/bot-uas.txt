@@ -6,7 +6,7 @@
 #
 # Formato: regex case-insensitive (PositionalConstraint=CONTAINS).
 #
-# Last reviewed: 2026-05-25
+# Last reviewed: 2026-08-04
 # Source incidents:
 #   - feedback_meta_crawler_block (meta-externalagent satura FPM)
 #   - feedback_referer_literal_bot_block (fake-Firefox/142, Chrome/147)
@@ -39,13 +39,24 @@ AliyunSecBot               # Alibaba security scanner
 # Google-Extended          # Google AI training - PERMITIR
 
 bytespider                 # ByteDance/TikTok, nao respeita robots
-Amazonbot                  # Amazon training, nao agrega valor
+Amazonbot                  # APLICADO 2026-08-04 (787 reqs/dia, 3.1%). Constava aqui como
+                           # candidato desde antes, mas nunca estava na ACL — drift entre
+                           # esta lista (candidatos) e o template (aplicado).
 cohere-ai                  # Cohere training
 Claude-Web                 # Distinto de ClaudeBot - nao verificado
 
 # === Social media crawlers que saturam ===
 meta-externalagent         # Facebook, ignora robots, satura FPM (incidente 2026-05-01)
 # facebookexternalhit      # MANTER - usado por share buttons legitimos
+# meta-webindexer          # MANTER - alimenta preview de link no Facebook/WhatsApp (mesma
+#                          # logica do facebookexternalhit). Avaliado em 2026-08-04: 253
+#                          # reqs/dia (1.0%), NAO justifica o custo de quebrar preview.
+#
+# NOTA 2026-08-04 — bloquear crawler NAO resolve saturacao de FPM. Os 3 candidatos
+# avaliados (Scrapy+Amazonbot+meta-webindexer) somavam 5.6% do trafego; o Googlebot
+# sozinho e 10.6% e e intocavel. A saturacao era falta de slot de worker (workers em
+# estado S esperando Aurora, CPU 36-89% idle) — resolvida com FPM_MAX_CHILDREN_PROD=20.
+# Ver project_concertacao_prod_infra.
 
 # === Brand monitoring / social listening ===
 AwarioBot                  # Awario social listening, 8.4k reqs/dia (incidente 2026-05-22)
@@ -56,6 +67,9 @@ GPTBot                     # OpenAI scraper - ATIVO em prod desde antes
 
 # === Spider/scanner generico identificavel ===
 TikTokSpider               # ByteDance scanning
+Scrapy                     # APLICADO 2026-08-04. Biblioteca de scraping — nenhum crawler
+                           # legitimo se identifica como Scrapy. 373 reqs/dia (1.5%), 158
+                           # delas 301 (segue redirect a esmo); gerou o unico 502 do log.
 DataForSeoBot              # SEO data collection
 Sogou                      # Sogou search (China), agressivo
 

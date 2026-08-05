@@ -1,7 +1,7 @@
 {
   "_meta": {
     "name": "block-aggressive-bots",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "description": "Block User-Agents de bots conhecidos por saturar FPM ou ignorar robots.txt. Lista expandida em 2026-05-22 (AwarioBot), 2026-06-08 (scraper fake-Chrome). Re-sincronizado com a ACL prod em 2026-06-08 (19 statements).",
     "source_incidents": [
       "feedback_meta_crawler_block",
@@ -9,12 +9,13 @@
       "feedback_awariobot_blocked",
       "incident-504-fakechrome-t3-credits"
     ],
-    "wcu_estimate": 26,
+    "wcu_estimate": 28,
     "applies_to": [
       "wordpress"
     ],
-    "last_reviewed": "2026-06-08",
+    "last_reviewed": "2026-08-04",
     "notes": [
+      "v1.4.0 (2026-08-04): + scrapy (biblioteca de scraping, 373 reqs/dia, 158 delas 301; gerou o unico 502 do log) e + amazonbot (787 reqs/dia; ja constava em patterns/bot-uas.txt como candidato 'nao agrega valor', nunca aplicado). Ambos com TT=LOWERCASE (case-insensitive). meta-webindexer NAO incluido de proposito: alimenta preview de link em Facebook/WhatsApp, mesma logica que mantem facebookexternalhit liberado. NOTA: nenhum dos tres explica a saturacao de FPM (somam 5.6% do trafego); o fix real foi FPM_MAX_CHILDREN_PROD=20.",
       "v1.3.0 (2026-06-08): RE-SINCRONIZADO com a ACL prod (fonte da verdade). Drift resolvido: (a) adicionados 4 Yandex bots que estavam na ACL mas faltavam no template (YandexBot, YandexAccessibilityBot, YandexMobileBot, YandexImageResizer); (b) o fake-Chrome virou AndStatement ENDURECIDO [CONTAINS 'chrome/' LOWERCASE + NOT CONTAINS 'khtml, like gecko' LOWERCASE] em vez do literal 'Chrome/124.0' — resiste a evasão de versão e NÃO pega Googlebot/bingbot (que usam 'KHTML, like Gecko;' com ponto-e-vírgula, não ')'). Total: 19 statements.",
       "v1.2.0 (2026-06-08): adicionado scraper fake-Chrome após incidente 504 — 60k reqs/dia afogaram a CPU e zeraram os créditos t3.large.",
       "v1.1.0 (2026-05-22): adicionados AwarioBot, BacklinksExtendedBot, meta-externalagent após 8.4k reqs/dia detectados em logs nginx prod.",
@@ -331,6 +332,40 @@
                 {
                   "Priority": 0,
                   "Type": "NONE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "c2NyYXB5",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "LOWERCASE"
+                }
+              ],
+              "PositionalConstraint": "CONTAINS"
+            }
+          },
+          {
+            "ByteMatchStatement": {
+              "SearchString": "YW1hem9uYm90",
+              "FieldToMatch": {
+                "SingleHeader": {
+                  "Name": "user-agent"
+                }
+              },
+              "TextTransformations": [
+                {
+                  "Priority": 0,
+                  "Type": "LOWERCASE"
                 }
               ],
               "PositionalConstraint": "CONTAINS"
