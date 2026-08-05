@@ -4,7 +4,7 @@
  *
  * Autor : Daniel Cambría — Bureau de Tecnologia
  * Data  : 2026-08-05
- * Versão: 1.2.0
+ * Versão: 1.2.1
  *
  * CONTEXTO
  *   A tradução EN da página (post 94330, trid 2412039) foi criada com o nome
@@ -89,9 +89,11 @@ if ( $apply && ( $en->post_title !== $NOVO_TITULO || $en->post_name !== $NOVO_SL
 		WP_CLI::error( 'wp_update_post: ' . $r->get_error_message() );
 	}
 	WP_CLI::success( 'título e slug gravados.' );
-	// O 301 do slug antigo vive no mu-plugin bit-en-404-redirects.php (v1.1.0),
-	// que já é o mecanismo do site para isso — não duplicar aqui.
-	WP_CLI::log( sprintf( '    301 /en/%s/ -> /en/%s/ vem do mu-plugin bit-en-404-redirects',
+	// O 301 do slug antigo é criado pelo próprio plugin Redirection (ativo em
+	// rede), que monitora mudança de slug. Não duplicar em mu-plugin: eles
+	// carregam ANTES dos plugins e a cópia hardcoded venceria a regra visível
+	// no admin, deixando quem editasse pelo painel sem entender o efeito.
+	WP_CLI::log( sprintf( '    301 /en/%s/ -> /en/%s/ fica a cargo do plugin Redirection',
 		$SLUG_ANTIGO, $NOVO_SLUG ) );
 }
 
