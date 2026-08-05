@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.11.1
+ * Version: 2.11.2
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -20,7 +20,7 @@ if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
 	return;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.11.1' );
+define( 'BUREAU_A11Y_VERSION', '2.11.2' );
 define( 'BUREAU_A11Y_CSS_VERSION', '2.10.2' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
@@ -255,7 +255,23 @@ function bureau_a11y_slot_to_var( $slot ) {
  * Lê as Global Colors do kit Elementor ativo, com cache transient 1h.
  *
  * Retorna [ 'id' => [ 'title' => string, 'value' => '#hex' ], ... ].
- * Array vazio se Elementor não está disponível.
+ *
+ * REDE DE SEGURANÇA (2.11.2): último valor bom em `option`
+ * --------------------------------------------------------
+ * O resultado desta função é resolvido em PHP e emitido como
+ * `<style id="bureau-a11y-color-overrides">` no wp_head — ou seja, vai para
+ * DENTRO do HTML, que o WP Rocket e o CloudFront cacheiam por horas.
+ *
+ * Se a resolução falhasse (Elementor indisponível naquele request, kit não
+ * resolvido), a função devolvia `[]`, o emissor caía no fallback hardcoded e
+ * o painel saía VERDE (#003A26 / #005A42 / rosa #B12B79) — e esse HTML ficava
+ * cacheado. Um único request degradado envenenava a página para todo mundo.
+ * Aconteceu em prod em 05/08/2026, logo após um purge em massa.
+ *
+ * Por isso guardamos o último resultado bem-sucedido numa option (autoload
+ * off) e o usamos quando a resolução falha. O fallback hardcoded do CSS passa
+ * a valer só para uma instalação que NUNCA conseguiu ler o kit — que é o caso
+ * para o qual ele foi pensado.
  */
 function bureau_a11y_get_global_colors() {
 	$cached = get_transient( 'bureau_a11y_elementor_globals' );
@@ -263,13 +279,15 @@ function bureau_a11y_get_global_colors() {
 		return $cached;
 	}
 
+	$last_good = get_option( 'bureau_a11y_globals_last_good', [] );
+
 	if ( ! class_exists( '\Elementor\Plugin' ) ) {
-		return [];
+		return $last_good;
 	}
 
 	$kit = \Elementor\Plugin::$instance->kits_manager->get_active_kit();
 	if ( ! $kit ) {
-		return [];
+		return $last_good;
 	}
 
 	$settings = $kit->get_settings_for_display();
@@ -287,7 +305,15 @@ function bureau_a11y_get_global_colors() {
 		];
 	}
 
+	// Resultado vazio = kit sem cores ou leitura degradada: não sobrescreve o
+	// último valor bom nem cacheia (para tentar de novo no próximo request).
+	if ( ! $result ) {
+		return $last_good;
+	}
+
 	set_transient( 'bureau_a11y_elementor_globals', $result, HOUR_IN_SECONDS );
+	update_option( 'bureau_a11y_globals_last_good', $result, false );
+
 	return $result;
 }
 
