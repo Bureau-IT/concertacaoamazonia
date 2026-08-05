@@ -1,0 +1,13 @@
+{
+  "format_version": "1.0",
+  "site": "Uma Concertação pela Amazônia",
+  "source_url": "https://cambrasmax.local:8484",
+  "exported_at": "2026-03-06T00:42:16-03:00",
+  "elementor_version": "3.33.4",
+  "template": {
+    "id": 57548,
+    "type": "page",
+    "title": "Atlas Cultural das Amazônias"
+  },
+  "images": ["images/filtro.svg", "images/lupa.svg"]
+}

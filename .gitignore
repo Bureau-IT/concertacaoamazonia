@@ -208,3 +208,17 @@ gsc-bulk-pdf-removal.user.js
 gsc-removal-progress.txt
 pdfs-para-remover.txt
 Importar
+
+# -----------------------------------------------------------------------------
+# Playground local (não versionar)
+# -----------------------------------------------------------------------------
+playground/
+
+# -----------------------------------------------------------------------------
+# Exports Elementor: versionar o JSON, NUNCA o .zip
+# -----------------------------------------------------------------------------
+# São 898 pacotes, ~1,7 GB — 8 deles passam de 100 MB, o limite por arquivo do
+# GitHub (o push seria recusado). E o Git guarda binário para sempre, então
+# incharia o repositório de forma irreversível. Os .zip são regeneráveis via
+# `std export-elementor`; o que descreve o estado é o manifest/JSON.
+templates/elementor/**/*.zip

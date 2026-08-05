@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Autostart do Openbox — kiosk do totem Concertacao.
+#
+# - Bloqueia descanso/blank de tela (cinto-e-suspensorio com loop keep-alive)
+# - Abre o Chrome em kiosk na pagina de capa (/home/)
+# - Apos 5 min de inatividade, volta para a capa
+#
+# Mantido em sync com: sites/concertacao/totem/openbox-autostart-totem
+
+KIOSK_URL="https://localhost/home/"          # pagina de capa (tela inicial)
+WP_READY_URL="https://localhost/"             # exercita PHP-FPM (espera de boot)
+IDLE_LIMIT_MS=300000                          # 5 minutos em milissegundos
+PROFILE="$HOME/.config/chrome-kiosk"
+
+# ---------------------------------------------------------------------------
+# Anti-descanso (X11) — aplicado ja, e reforcado por loop abaixo
+# ---------------------------------------------------------------------------
+xset -dpms
+xset s off
+xset s noblank
+
+# Resolucao 1920x1080
+xrandr --output Virtual1 --mode 1920x1080 2>/dev/null || xrandr -s 1920x1080 2>/dev/null || true
+
+# Esconde o cursor apos 0.5s parado
+unclutter -idle 0.5 -root &
+
+# Loop keep-alive: reaplica anti-blank a cada 60s. Mesmo que algo reative o
+# DPMS, ele e desligado de novo. A tela do totem NUNCA pode apagar.
+(
+    while true; do
+        xset -dpms 2>/dev/null
+        xset s off 2>/dev/null
+        xset s noblank 2>/dev/null
+        sleep 60
+    done
+) &
+
+# ---------------------------------------------------------------------------
+# Espera o WordPress (PHP-FPM) responder 200 — evita abrir no 502 do boot.
+# A capa /home/ e estatica; aqui validamos a home do WP que o usuario acessa
+# ao tocar na capa. Exige 2 leituras 200 seguidas.
+# ---------------------------------------------------------------------------
+ok=0
+while [ "$ok" -lt 2 ]; do
+    code=$(curl -k -s -o /dev/null -w '%{http_code}' "$WP_READY_URL" 2>/dev/null)
+    if [ "$code" = "200" ]; then ok=$((ok+1)); else ok=0; fi
+    sleep 2
+done
+
+# ---------------------------------------------------------------------------
+# Espera o PipeWire ter um sink default valido antes de abrir o Chrome.
+# Sem isso o Chrome sobe antes do backend de audio e fica mudo (wpctl sem
+# streams ao tocar). A linha do sink default vem marcada com "*" em
+# "wpctl status". Timeout de ~30s (15 x 2s) para nunca travar o boot.
+# ---------------------------------------------------------------------------
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+audio_tries=0
+until wpctl status 2>/dev/null | grep -qE '^\s*\|?\s*\*\s+[0-9]+\.'; do
+    audio_tries=$((audio_tries+1))
+    [ "$audio_tries" -ge 15 ] && break
+    sleep 2
+done
+
+# ---------------------------------------------------------------------------
+# Limpeza do perfil do Chrome — garante abrir SEMPRE na capa, sem restaurar
+# a ultima sessao (ex: o Atlas) nem mostrar o popup "restaurar paginas".
+# ---------------------------------------------------------------------------
+mkdir -p "$PROFILE/Default"
+PREF="$PROFILE/Default/Preferences"
+if [ -f "$PREF" ]; then
+    sed -i 's/"exited_cleanly":false/"exited_cleanly":true/; s/"exit_type":"[^"]\+"/"exit_type":"Normal"/' "$PREF" 2>/dev/null || true
+fi
+# Remove qualquer estado de sessao/abas salvas (forca abrir a URL passada)
+rm -f "$PROFILE/Default/Current Session" "$PROFILE/Default/Current Tabs" \
+      "$PROFILE/Default/Last Session" "$PROFILE/Default/Last Tabs" 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# Monitor de inatividade: apos IDLE_LIMIT_MS sem teclado/mouse, volta para a
+# capa. No modo --kiosk a barra de endereco fica oculta (xdotool ctrl+l nao
+# funciona), entao a forma confiavel de "voltar" e MATAR o Chrome — o watchdog
+# abaixo o reabre automaticamente na capa (KIOSK_URL). So age se NAO estiver
+# ja na capa, para nao reiniciar o Chrome a toa.
+# ---------------------------------------------------------------------------
+(
+    while true; do
+        idle=$(xprintidle 2>/dev/null || echo 0)
+        if [ "$idle" -ge "$IDLE_LIMIT_MS" ]; then
+            WID=$(xdotool search --onlyvisible --class google-chrome 2>/dev/null | head -1)
+            if [ -n "$WID" ]; then
+                TITLE=$(xdotool getwindowname "$WID" 2>/dev/null)
+                # "Concertação Logo" e o <title> da capa; so volta se NAO estiver nela
+                case "$TITLE" in
+                    *"Concertação Logo"*) : ;;   # ja esta na capa, nao faz nada
+                    *)
+                        pkill -f "google-chrome.*kiosk" 2>/dev/null
+                        sleep 8   # da tempo do watchdog reabrir na capa antes de reavaliar
+                        ;;
+                esac
+            fi
+        fi
+        sleep 5
+    done
+) &
+
+# ---------------------------------------------------------------------------
+# Watchdog do Chrome: abre na capa; reabre se cair.
+# Limpa o estado de sessao ANTES de cada abertura — sem isso o Chrome restaura
+# a ultima pagina (ex: o Atlas) ao reabrir, em vez de ir para a capa.
+# ---------------------------------------------------------------------------
+while true; do
+    # Forca abrir SEMPRE na capa, nunca restaurar a ultima sessao (ex: Atlas).
+    # O Chrome guarda sessao na pasta Default/Sessions/ E marca exit_type=Crashed
+    # quando e morto (pkill) — ambos causam restauracao. Limpamos os dois:
+    rm -rf "$PROFILE/Default/Sessions" 2>/dev/null || true
+    rm -f  "$PROFILE/Default/Current Session" "$PROFILE/Default/Current Tabs" \
+           "$PROFILE/Default/Last Session"    "$PROFILE/Default/Last Tabs" 2>/dev/null || true
+    # Forca exit_type=Normal/exited_cleanly=true (Python e mais confiavel que sed)
+    if [ -f "$PROFILE/Default/Preferences" ]; then
+        python3 - "$PROFILE/Default/Preferences" <<'PYEOF' 2>/dev/null || true
+import json,sys
+p=sys.argv[1]
+try:
+    d=json.load(open(p))
+    d.setdefault("profile",{})["exit_type"]="Normal"
+    d["profile"]["exited_cleanly"]=True
+    json.dump(d,open(p,"w"))
+except Exception:
+    pass
+PYEOF
+    fi
+
+    google-chrome-stable \
+        --kiosk \
+        --start-fullscreen \
+        --user-data-dir="$PROFILE" \
+        --no-first-run \
+        --no-default-browser-check \
+        --disable-translate \
+        --disable-features=Translate,TranslateUI \
+        --disable-infobars \
+        --disable-session-crashed-bubble \
+        --disable-pinch \
+        --overscroll-history-navigation=0 \
+        --check-for-update-interval=31536000 \
+        --noerrdialogs \
+        --disable-session-crashed-bubble \
+        --hide-crash-restore-bubble \
+        --ignore-certificate-errors \
+        --password-store=basic \
+        "$KIOSK_URL"
+    sleep 2
+done

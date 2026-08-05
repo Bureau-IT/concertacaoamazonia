@@ -1,0 +1,14 @@
+{
+  "site": "Uma Concertação pela Amazônia",
+  "url": "https://cambrasmax.local:8484",
+  "elementor_version": "3.35.8",
+  "last_export": "2026-05-05T00:44:21-03:00",
+  "templates": [
+    {
+      "id": 90735,
+      "type": "container",
+      "title": "header 2026",
+      "file": "templates/container_90735_header-2026.zip"
+    }
+  ]
+}

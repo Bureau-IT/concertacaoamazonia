@@ -1,0 +1,21 @@
+{
+  "_doc": "Catalogo de patches de heading tags em widgets Elementor. Lido por fix_outline_widget_tags() em ec2-deploy/post-deploy/09-importdatabase.sh apos cada share import / blue-green deploy. Idempotente: walker so altera se valor atual difere do alvo.",
+  "_versioned": "2026-05-22",
+  "patches": [
+    { "post_id": 4499,  "widget_id": "f5bb467",  "setting": "header_size",     "value": "h2", "note": "Single Noticias PT: 'Compartilhe nas redes sociais' h3 -> h2" },
+    { "post_id": 4499,  "widget_id": "536f778",  "setting": "header_size",     "value": "h2", "note": "Single Noticias PT: 'Leia tambem' h3 -> h2" },
+    { "post_id": 4493,  "widget_id": "f5bb467",  "setting": "header_size",     "value": "h2", "note": "Single Articles and News EN (WPML translation de 4499): 'Share' h3 -> h2" },
+    { "post_id": 4493,  "widget_id": "536f778",  "setting": "header_size",     "value": "h2", "note": "Single Articles and News EN (WPML translation de 4499): 'Read also' h3 -> h2" },
+    { "post_id": 16509, "widget_id": "10ad35f7", "setting": "header_size",     "value": "h2", "note": "Single Webinarios PT: 'Noticias similares' h3 -> h2" },
+    { "post_id": 40470, "widget_id": "10ad35f7", "setting": "header_size",     "value": "h2", "note": "Single Webinarios EN (WPML translation de 16509): 'Related News' h3 -> h2" },
+    { "post_id": 31995, "widget_id": "c86a9c2",  "setting": "item_title_size", "value": "h3", "note": "Single 100 dias PT: jet-horizontal-timeline default h5 -> h3" },
+    { "post_id": 32466, "widget_id": "c86a9c2",  "setting": "item_title_size", "value": "h3", "note": "Single 100 dias EN: jet-horizontal-timeline default h5 -> h3" },
+    { "post_id": 672,   "widget_id": "5c5eff6",  "setting": "header_size",     "value": "h2", "note": "Page Contato PT: titulo principal h4 -> h2" },
+    { "post_id": 3626,  "widget_id": "5c5eff6",  "setting": "header_size",     "value": "h2", "note": "Page Contact EN: titulo principal h4 -> h2" },
+    { "post_id": 56769, "widget_id": "d7c3b34",  "setting": "title_tag",       "value": "h2", "note": "Listing flip conhecimento 3: flip-box default h3 -> h2" },
+    { "post_id": 92840, "widget_id": "9420915",  "setting": "header_size",     "value": "h2", "note": "Instituto de Apoio PT: secao 'Governanca' h1 -> h2 (era 5 h1s na pagina)" },
+    { "post_id": 92840, "widget_id": "ad5a894",  "setting": "header_size",     "value": "h2", "note": "Instituto de Apoio PT: secao 'Etica e Protecao de Dados' h1 -> h2" },
+    { "post_id": 92840, "widget_id": "7d43088",  "setting": "header_size",     "value": "h2", "note": "Instituto de Apoio PT: secao 'Contato' h1 -> h2" },
+    { "post_id": 92840, "widget_id": "bb624d4",  "setting": "header_size",     "value": "h2", "note": "Instituto de Apoio PT: secao 'Relatorios Anuais' h1 -> h2" }
+  ]
+}
