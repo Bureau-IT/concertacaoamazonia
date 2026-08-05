@@ -3,8 +3,8 @@
  * set-complianz-palette.php — aplica a paleta da marca no PAINEL do Complianz
  *
  * Autor : Daniel Cambría — Bureau de Tecnologia
- * Data  : 2026-08-03
- * Versão: 1.0.0
+ * Data  : 2026-08-05
+ * Versão: 1.1.0
  *
  * CONTEXTO
  *   Até 2026-08-03 as cores do cookie banner vinham do child theme
@@ -14,9 +14,22 @@
  *   estados de hover (que o painel não expõe) e os deriva das próprias
  *   variáveis --cmplz_* geradas pelo plugin.
  *
- *   Este script grava no painel a paleta da marca (Global Colors de PROD) e
- *   dispara a regeneração do CSS do plugin. É idempotente: rodar duas vezes
- *   não muda nada além de incrementar banner_version.
+ *   Este script grava no painel a paleta da marca e dispara a regeneração do
+ *   CSS do plugin. É idempotente: rodar duas vezes não muda nada além de
+ *   incrementar banner_version.
+ *
+ * POR QUE A PALETA É LIDA DO KIT (v1.1.0 — 2026-08-05)
+ *   A v1.0.0 tinha a paleta HARDCODED (#21191B / #F8EAD9 / #392E34 / #FE78A9),
+ *   copiada de uma versão antiga do kit. Quando os Global Colors migraram da
+ *   paleta quente para a neutra (#1C1C1C / #DADADA / #474747 / #000000), o
+ *   tema acompanhou sozinho — ele usa var(--e-global-color-*) — mas o banner
+ *   NÃO, porque o Complianz grava hex LITERAL no banco. Resultado: o banner
+ *   ficou bege num site preto-e-cinza, sem nenhuma cor bege na paleta.
+ *
+ *   Para não repetir, a paleta agora é DERIVADA em runtime dos system_colors
+ *   do kit Elementor ativo do blog atual. Rodar este script após qualquer
+ *   mudança de Global Colors é o que mantém o banner em dia — ver a regra
+ *   "Fonte da verdade: Global Colors do Elementor" em wordpress/CLAUDE.md.
  *
  * USO (um blog por execução — o Complianz lê $wpdb->prefix do blog atual)
  *   Dev, blog 1:
@@ -42,15 +55,62 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 $apply = (bool) getenv( 'CMPLZ_PALETTE_APPLY' );
 
 /* ---------------------------------------------------------------------------
- * Paleta da marca — espelha os Global Colors do kit de PROD
- *   primary   #21191B  (quase-preto)
- *   secondary #F8EAD9  (offwhite / bege)
- *   text      #392E34  (escuro suave)
- *   accent    #FE78A9  (rosa — não usado no banner)
+ * Paleta — LIDA do kit Elementor ativo do blog atual (não hardcode).
+ *
+ * Mapeamento: primary -> fundo sólido do Aceitar e bordas
+ *             secondary ("Offwhite") -> fundo do banner
+ *             text -> mensagem, título, links
  * ------------------------------------------------------------------------ */
-$dark     = '#21191B';
-$offwhite = '#F8EAD9';
-$inactive = '#B8AA9B'; // bege escurecido — toggle desligado
+$kit_id = (int) get_option( 'elementor_active_kit' );
+if ( ! $kit_id ) {
+	WP_CLI::error( 'Kit Elementor ativo não encontrado neste blog (option elementor_active_kit).' );
+}
+
+$kit_settings = get_post_meta( $kit_id, '_elementor_page_settings', true );
+if ( empty( $kit_settings['system_colors'] ) || ! is_array( $kit_settings['system_colors'] ) ) {
+	WP_CLI::error( sprintf( 'Kit #%d não tem system_colors — paleta indisponível.', $kit_id ) );
+}
+
+$kit_colors = array();
+foreach ( $kit_settings['system_colors'] as $c ) {
+	if ( isset( $c['_id'], $c['color'] ) ) {
+		$kit_colors[ $c['_id'] ] = strtoupper( $c['color'] );
+	}
+}
+
+foreach ( array( 'primary', 'secondary', 'text' ) as $slot ) {
+	if ( empty( $kit_colors[ $slot ] ) ) {
+		WP_CLI::error( sprintf( 'Kit #%d não define o Global Color "%s".', $kit_id, $slot ) );
+	}
+}
+
+/**
+ * Escurece um hex por um percentual — usado só no toggle desligado, que não
+ * tem slot próprio no kit. Mantém a relação da paleta anterior (~22% abaixo
+ * do fundo do banner), então o "off" continua legível sem virar quase-preto.
+ */
+$darken = static function ( $hex, $pct ) {
+	$hex = ltrim( (string) $hex, '#' );
+	if ( strlen( $hex ) !== 6 ) {
+		return '#' . $hex;
+	}
+	$out = '#';
+	foreach ( array( 0, 2, 4 ) as $i ) {
+		$v    = (int) round( hexdec( substr( $hex, $i, 2 ) ) * ( 1 - $pct ) );
+		$out .= str_pad( dechex( max( 0, min( 255, $v ) ) ), 2, '0', STR_PAD_LEFT );
+	}
+	return strtoupper( $out );
+};
+
+$dark     = $kit_colors['primary'];    // Main color
+$offwhite = $kit_colors['secondary'];  // Offwhite
+$text     = $kit_colors['text'];       // Text
+$inactive = $darken( $offwhite, 0.22 ); // toggle desligado — sem slot no kit
+
+WP_CLI::log( sprintf(
+	"Paleta lida do kit #%d: primary=%s secondary=%s text=%s (toggle off derivado=%s)",
+	$kit_id, $dark, $offwhite, $text, $inactive
+) );
 
 $palette = array(
 	// Fundo do banner. border_width é 0 no painel, então a borda acompanha o fundo.
@@ -60,8 +120,8 @@ $palette = array(
 	),
 	// Título, mensagem, categorias, X de fechar (fill=currentColor) e links.
 	'colorpalette_text'            => array(
-		'color'     => $dark,
-		'hyperlink' => $dark,
+		'color'     => $text,
+		'hyperlink' => $text,
 	),
 	// Toggles das categorias (só aparecem em "Personalizar").
 	'colorpalette_toggles'         => array(
@@ -79,13 +139,13 @@ $palette = array(
 	'colorpalette_button_deny'     => array(
 		'background' => $offwhite,
 		'border'     => $dark,
-		'text'       => $dark,
+		'text'       => $text,
 	),
 	// Personalizar / Salvar preferências — outline.
 	'colorpalette_button_settings' => array(
 		'background' => $offwhite,
 		'border'     => $dark,
-		'text'       => $dark,
+		'text'       => $text,
 	),
 );
 
