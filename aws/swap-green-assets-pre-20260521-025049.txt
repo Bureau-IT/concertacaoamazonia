@@ -1,0 +1,11 @@
+=== Snapshot pré-swap ===
+WP_CONFIG_S3_BUCKET:
+concertacaoamazonia-com-br-wp-static-prd-sa/green
+S3_GREEN_COUNT (2026/05):
+236
+S3_ASSETS_COUNT (2026/05):
+8
+S3_GREEN_COUNT (total):
+164964
+S3_ASSETS_COUNT (total):
+164342

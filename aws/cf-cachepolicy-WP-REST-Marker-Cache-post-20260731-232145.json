@@ -1,0 +1,33 @@
+{
+    "ETag": "ETVPDKIKX0DER",
+    "CachePolicy": {
+        "Id": "42079db3-06d7-4f73-9713-02f49559eb75",
+        "LastModifiedTime": "2026-08-01T02:21:38.305000+00:00",
+        "CachePolicyConfig": {
+            "Comment": "JetEngine get-map-marker-info: qs=all cookies=none, X-Test-Green na chave (blue-green). 2026-07-31",
+            "Name": "WP-REST-Marker-Cache",
+            "DefaultTTL": 3600,
+            "MaxTTL": 86400,
+            "MinTTL": 0,
+            "ParametersInCacheKeyAndForwardedToOrigin": {
+                "EnableAcceptEncodingGzip": true,
+                "EnableAcceptEncodingBrotli": true,
+                "HeadersConfig": {
+                    "HeaderBehavior": "whitelist",
+                    "Headers": {
+                        "Quantity": 1,
+                        "Items": [
+                            "X-Test-Green"
+                        ]
+                    }
+                },
+                "CookiesConfig": {
+                    "CookieBehavior": "none"
+                },
+                "QueryStringsConfig": {
+                    "QueryStringBehavior": "all"
+                }
+            }
+        }
+    }
+}

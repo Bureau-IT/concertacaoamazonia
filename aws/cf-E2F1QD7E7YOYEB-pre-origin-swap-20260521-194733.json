@@ -1,5 +1,5 @@
 {
-    "ETag": "E695KZDT89G8A",
+    "ETag": "E3UL9AJ0EBIH1O",
     "DistributionConfig": {
         "CallerReference": "b76bcdd3-4568-4b99-a9b0-8a269547430c",
         "Aliases": {
@@ -155,194 +155,8 @@
             }
         },
         "CacheBehaviors": {
-            "Quantity": 19,
+            "Quantity": 15,
             "Items": [
-                {
-                    "PathPattern": "eventos*",
-                    "TargetOriginId": "Application Load Balancer",
-                    "TrustedSigners": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "TrustedKeyGroups": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "ViewerProtocolPolicy": "redirect-to-https",
-                    "AllowedMethods": {
-                        "Quantity": 2,
-                        "Items": [
-                            "HEAD",
-                            "GET"
-                        ],
-                        "CachedMethods": {
-                            "Quantity": 2,
-                            "Items": [
-                                "HEAD",
-                                "GET"
-                            ]
-                        }
-                    },
-                    "SmoothStreaming": false,
-                    "Compress": true,
-                    "LambdaFunctionAssociations": {
-                        "Quantity": 0
-                    },
-                    "FunctionAssociations": {
-                        "Quantity": 1,
-                        "Items": [
-                            {
-                                "FunctionARN": "arn:aws:cloudfront::379590274801:function/concertacao-cross-host-redirect",
-                                "EventType": "viewer-request"
-                            }
-                        ]
-                    },
-                    "FieldLevelEncryptionId": "",
-                    "CachePolicyId": "f24028ef-ae48-446e-b0be-7789e04acba4",
-                    "OriginRequestPolicyId": "216adef6-5c7f-47e4-b989-5492eafa07d3",
-                    "ResponseHeadersPolicyId": "eefbfc9b-11bd-4c03-8b70-f0eb0e36bd80",
-                    "GrpcConfig": {
-                        "Enabled": false
-                    }
-                },
-                {
-                    "PathPattern": "eventos-calendario*",
-                    "TargetOriginId": "Application Load Balancer",
-                    "TrustedSigners": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "TrustedKeyGroups": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "ViewerProtocolPolicy": "redirect-to-https",
-                    "AllowedMethods": {
-                        "Quantity": 2,
-                        "Items": [
-                            "HEAD",
-                            "GET"
-                        ],
-                        "CachedMethods": {
-                            "Quantity": 2,
-                            "Items": [
-                                "HEAD",
-                                "GET"
-                            ]
-                        }
-                    },
-                    "SmoothStreaming": false,
-                    "Compress": true,
-                    "LambdaFunctionAssociations": {
-                        "Quantity": 0
-                    },
-                    "FunctionAssociations": {
-                        "Quantity": 1,
-                        "Items": [
-                            {
-                                "FunctionARN": "arn:aws:cloudfront::379590274801:function/concertacao-cross-host-redirect",
-                                "EventType": "viewer-request"
-                            }
-                        ]
-                    },
-                    "FieldLevelEncryptionId": "",
-                    "CachePolicyId": "f24028ef-ae48-446e-b0be-7789e04acba4",
-                    "OriginRequestPolicyId": "216adef6-5c7f-47e4-b989-5492eafa07d3",
-                    "ResponseHeadersPolicyId": "eefbfc9b-11bd-4c03-8b70-f0eb0e36bd80",
-                    "GrpcConfig": {
-                        "Enabled": false
-                    }
-                },
-                {
-                    "PathPattern": "editais*",
-                    "TargetOriginId": "Application Load Balancer",
-                    "TrustedSigners": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "TrustedKeyGroups": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "ViewerProtocolPolicy": "redirect-to-https",
-                    "AllowedMethods": {
-                        "Quantity": 2,
-                        "Items": [
-                            "HEAD",
-                            "GET"
-                        ],
-                        "CachedMethods": {
-                            "Quantity": 2,
-                            "Items": [
-                                "HEAD",
-                                "GET"
-                            ]
-                        }
-                    },
-                    "SmoothStreaming": false,
-                    "Compress": true,
-                    "LambdaFunctionAssociations": {
-                        "Quantity": 0
-                    },
-                    "FunctionAssociations": {
-                        "Quantity": 1,
-                        "Items": [
-                            {
-                                "FunctionARN": "arn:aws:cloudfront::379590274801:function/concertacao-cross-host-redirect",
-                                "EventType": "viewer-request"
-                            }
-                        ]
-                    },
-                    "FieldLevelEncryptionId": "",
-                    "CachePolicyId": "f24028ef-ae48-446e-b0be-7789e04acba4",
-                    "OriginRequestPolicyId": "216adef6-5c7f-47e4-b989-5492eafa07d3",
-                    "ResponseHeadersPolicyId": "eefbfc9b-11bd-4c03-8b70-f0eb0e36bd80",
-                    "GrpcConfig": {
-                        "Enabled": false
-                    }
-                },
-                {
-                    "PathPattern": "*/jet-engine/v2/get-map-marker-info*",
-                    "TargetOriginId": "Application Load Balancer",
-                    "TrustedSigners": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "TrustedKeyGroups": {
-                        "Enabled": false,
-                        "Quantity": 0
-                    },
-                    "ViewerProtocolPolicy": "redirect-to-https",
-                    "AllowedMethods": {
-                        "Quantity": 2,
-                        "Items": [
-                            "HEAD",
-                            "GET"
-                        ],
-                        "CachedMethods": {
-                            "Quantity": 2,
-                            "Items": [
-                                "HEAD",
-                                "GET"
-                            ]
-                        }
-                    },
-                    "SmoothStreaming": false,
-                    "Compress": true,
-                    "LambdaFunctionAssociations": {
-                        "Quantity": 0
-                    },
-                    "FunctionAssociations": {
-                        "Quantity": 0
-                    },
-                    "FieldLevelEncryptionId": "",
-                    "CachePolicyId": "42079db3-06d7-4f73-9713-02f49559eb75",
-                    "OriginRequestPolicyId": "216adef6-5c7f-47e4-b989-5492eafa07d3",
-                    "ResponseHeadersPolicyId": "eefbfc9b-11bd-4c03-8b70-f0eb0e36bd80",
-                    "GrpcConfig": {
-                        "Enabled": false
-                    }
-                },
                 {
                     "PathPattern": "*/wp-content/uploads/_oac-canary/*",
                     "TargetOriginId": "S3-uploads-green",
@@ -479,7 +293,7 @@
                 },
                 {
                     "PathPattern": "/cultura/wp-content/uploads/*",
-                    "TargetOriginId": "S3-uploads-prod",
+                    "TargetOriginId": "S3-uploads-green",
                     "TrustedSigners": {
                         "Enabled": false,
                         "Quantity": 0
@@ -526,7 +340,7 @@
                 },
                 {
                     "PathPattern": "wp-content/uploads/*",
-                    "TargetOriginId": "S3-uploads-prod",
+                    "TargetOriginId": "S3-uploads-green",
                     "TrustedSigners": {
                         "Enabled": false,
                         "Quantity": 0

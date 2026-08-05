@@ -1,0 +1,14 @@
+{
+    "IPSet": {
+        "Name": "NordBrazil90CIDR",
+        "Id": "d7cc6d47-dc0d-4dc5-8b9b-854097c34b14",
+        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14",
+        "Description": "",
+        "IPAddressVersion": "IPV4",
+        "Addresses": [
+            "185.153.176.0/24",
+            "45.11.82.0/24"
+        ]
+    },
+    "LockToken": "bddf9d35-259c-4052-8f10-32a70336b055"
+}

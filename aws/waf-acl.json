@@ -9,241 +9,41 @@
         "Description": "",
         "Rules": [
             {
-                "Name": "Allow-DevTeam-WPAdmin",
-                "Priority": 0,
-                "Statement": {
-                    "AndStatement": {
-                        "Statements": [
-                            {
-                                "IPSetReferenceStatement": {
-                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
-                                }
-                            },
-                            {
-                                "ByteMatchStatement": {
-                                    "SearchString": "L3dwLWFkbWluLw==",
-                                    "FieldToMatch": {
-                                        "UriPath": {}
-                                    },
-                                    "TextTransformations": [
-                                        {
-                                            "Priority": 0,
-                                            "Type": "NONE"
-                                        }
-                                    ],
-                                    "PositionalConstraint": "STARTS_WITH"
-                                }
-                            },
-                            {
-                                "ByteMatchStatement": {
-                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
-                                    "FieldToMatch": {
-                                        "SingleHeader": {
-                                            "Name": "host"
-                                        }
-                                    },
-                                    "TextTransformations": [
-                                        {
-                                            "Priority": 0,
-                                            "Type": "NONE"
-                                        }
-                                    ],
-                                    "PositionalConstraint": "EXACTLY"
-                                }
-                            }
-                        ]
-                    }
-                },
-                "Action": {
-                    "Allow": {}
-                },
-                "VisibilityConfig": {
-                    "SampledRequestsEnabled": true,
-                    "CloudWatchMetricsEnabled": true,
-                    "MetricName": "Allow-DevTeam-WPAdmin"
-                }
-            },
-            {
-                "Name": "Allow-DevTeam-WPLogin",
-                "Priority": 1,
-                "Statement": {
-                    "AndStatement": {
-                        "Statements": [
-                            {
-                                "IPSetReferenceStatement": {
-                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
-                                }
-                            },
-                            {
-                                "ByteMatchStatement": {
-                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
-                                    "FieldToMatch": {
-                                        "SingleHeader": {
-                                            "Name": "host"
-                                        }
-                                    },
-                                    "TextTransformations": [
-                                        {
-                                            "Priority": 0,
-                                            "Type": "NONE"
-                                        }
-                                    ],
-                                    "PositionalConstraint": "EXACTLY"
-                                }
-                            },
-                            {
-                                "ByteMatchStatement": {
-                                    "SearchString": "L3dwLWxvZ2luLnBocA==",
-                                    "FieldToMatch": {
-                                        "UriPath": {}
-                                    },
-                                    "TextTransformations": [
-                                        {
-                                            "Priority": 0,
-                                            "Type": "NONE"
-                                        }
-                                    ],
-                                    "PositionalConstraint": "STARTS_WITH"
-                                }
-                            }
-                        ]
-                    }
-                },
-                "Action": {
-                    "Allow": {}
-                },
-                "VisibilityConfig": {
-                    "SampledRequestsEnabled": true,
-                    "CloudWatchMetricsEnabled": true,
-                    "MetricName": "Allow-DevTeam-WPLogin"
-                }
-            },
-            {
-                "Name": "Block-NonDev-WPAdmin",
-                "Priority": 2,
-                "Statement": {
-                    "AndStatement": {
-                        "Statements": [
-                            {
-                                "NotStatement": {
-                                    "Statement": {
-                                        "IPSetReferenceStatement": {
-                                            "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
-                                        }
-                                    }
-                                }
-                            },
-                            {
-                                "ByteMatchStatement": {
-                                    "SearchString": "L3dwLWFkbWluLw==",
-                                    "FieldToMatch": {
-                                        "UriPath": {}
-                                    },
-                                    "TextTransformations": [
-                                        {
-                                            "Priority": 0,
-                                            "Type": "NONE"
-                                        }
-                                    ],
-                                    "PositionalConstraint": "STARTS_WITH"
-                                }
-                            },
-                            {
-                                "ByteMatchStatement": {
-                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
-                                    "FieldToMatch": {
-                                        "SingleHeader": {
-                                            "Name": "host"
-                                        }
-                                    },
-                                    "TextTransformations": [
-                                        {
-                                            "Priority": 0,
-                                            "Type": "NONE"
-                                        }
-                                    ],
-                                    "PositionalConstraint": "EXACTLY"
-                                }
-                            }
-                        ]
-                    }
-                },
-                "Action": {
-                    "Block": {
-                        "CustomResponse": {
-                            "ResponseCode": 403,
-                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
-                        }
-                    }
-                },
-                "VisibilityConfig": {
-                    "SampledRequestsEnabled": true,
-                    "CloudWatchMetricsEnabled": true,
-                    "MetricName": "Block-NonDev-WPAdmin"
-                }
-            },
-            {
-                "Name": "Block-NonDev-WPLogin",
+                "Name": "Allow-CheckEC2-FromNordVPN",
                 "Priority": 3,
                 "Statement": {
                     "AndStatement": {
                         "Statements": [
                             {
-                                "NotStatement": {
-                                    "Statement": {
-                                        "IPSetReferenceStatement": {
-                                            "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
-                                        }
-                                    }
-                                }
-                            },
-                            {
                                 "ByteMatchStatement": {
-                                    "SearchString": "aG1sLmNvbmNlcnRhY2FvYW1hem9uaWEuY29tLmJy",
-                                    "FieldToMatch": {
-                                        "SingleHeader": {
-                                            "Name": "host"
-                                        }
-                                    },
-                                    "TextTransformations": [
-                                        {
-                                            "Priority": 0,
-                                            "Type": "NONE"
-                                        }
-                                    ],
-                                    "PositionalConstraint": "EXACTLY"
-                                }
-                            },
-                            {
-                                "ByteMatchStatement": {
-                                    "SearchString": "L3dwLWxvZ2luLnBocA==",
+                                    "SearchString": "L2NoZWNrLWVjMi5waHA=",
                                     "FieldToMatch": {
                                         "UriPath": {}
                                     },
                                     "TextTransformations": [
                                         {
                                             "Priority": 0,
-                                            "Type": "NONE"
+                                            "Type": "LOWERCASE"
                                         }
                                     ],
                                     "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "IPSetReferenceStatement": {
+                                    "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14"
                                 }
                             }
                         ]
                     }
                 },
                 "Action": {
-                    "Block": {
-                        "CustomResponse": {
-                            "ResponseCode": 403,
-                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
-                        }
-                    }
+                    "Allow": {}
                 },
                 "VisibilityConfig": {
                     "SampledRequestsEnabled": true,
                     "CloudWatchMetricsEnabled": true,
-                    "MetricName": "Block-NonDev-WPLogin"
+                    "MetricName": "AllowCheckEC2FromNordVPN"
                 }
             },
             {
@@ -251,7 +51,7 @@
                 "Priority": 4,
                 "Statement": {
                     "ByteMatchStatement": {
-                        "SearchString": "VkdsclZHOXJVM0JwWkdWeQ==",
+                        "SearchString": "VGlrVG9rU3BpZGVy",
                         "FieldToMatch": {
                             "SingleHeader": {
                                 "Name": "user-agent"
@@ -269,7 +69,8 @@
                 "Action": {
                     "Block": {
                         "CustomResponse": {
-                            "ResponseCode": 429
+                            "ResponseCode": 429,
+                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
                         }
                     }
                 },
@@ -454,6 +255,203 @@
                                     ],
                                     "PositionalConstraint": "CONTAINS"
                                 }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "YXdhcmlvYm90",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "YmFja2xpbmtzZXh0ZW5kZWRib3Q=",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "bWV0YS1leHRlcm5hbGFnZW50",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "SWJvdUJvdA==",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "QWxpeXVuU2VjQm90",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "WWFuZGV4Qm90",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "WWFuZGV4QWNjZXNzaWJpbGl0eUJvdA==",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "WWFuZGV4TW9iaWxlQm90",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "WWFuZGV4SW1hZ2VSZXNpemVy",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "NONE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "AndStatement": {
+                                    "Statements": [
+                                        {
+                                            "ByteMatchStatement": {
+                                                "SearchString": "Y2hyb21lLw==",
+                                                "FieldToMatch": {
+                                                    "SingleHeader": {
+                                                        "Name": "user-agent"
+                                                    }
+                                                },
+                                                "TextTransformations": [
+                                                    {
+                                                        "Priority": 0,
+                                                        "Type": "LOWERCASE"
+                                                    }
+                                                ],
+                                                "PositionalConstraint": "CONTAINS"
+                                            }
+                                        },
+                                        {
+                                            "NotStatement": {
+                                                "Statement": {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "a2h0bWwsIGxpa2UgZ2Vja28=",
+                                                        "FieldToMatch": {
+                                                            "SingleHeader": {
+                                                                "Name": "user-agent"
+                                                            }
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "CONTAINS"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
                             }
                         ]
                     }
@@ -461,7 +459,8 @@
                 "Action": {
                     "Block": {
                         "CustomResponse": {
-                            "ResponseCode": 403
+                            "ResponseCode": 403,
+                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
                         }
                     }
                 },
@@ -472,7 +471,7 @@
                 }
             },
             {
-                "Name": "RateLimit-300-Block",
+                "Name": "RateLimit-600-Block",
                 "Priority": 7,
                 "Statement": {
                     "RateBasedStatement": {
@@ -557,7 +556,7 @@
                 "VisibilityConfig": {
                     "SampledRequestsEnabled": true,
                     "CloudWatchMetricsEnabled": true,
-                    "MetricName": "RateLimit-300-Block"
+                    "MetricName": "RateLimit-600-Block"
                 }
             },
             {
@@ -925,11 +924,390 @@
                 }
             },
             {
-                "Name": "Block-AttackerRanges-2026-03-31",
+                "Name": "Block-PHP-Scan",
                 "Priority": 15,
                 "Statement": {
-                    "IPSetReferenceStatement": {
-                        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/AttackerRanges-2026-03-31/d84444a2-8020-4c42-b20f-9c18060a9b42"
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnBocA==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "NORMALIZE_PATH"
+                                        },
+                                        {
+                                            "Priority": 2,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "NotStatement": {
+                                    "Statement": {
+                                        "OrStatement": {
+                                            "Statements": [
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWFkbWluL2FkbWluLWFqYXgucGhw",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L2N1bHR1cmEvd3AtYWRtaW4vYWRtaW4tYWpheC5waHA=",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWxvZ2luLnBocA==",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L2N1bHR1cmEvd3AtbG9naW4ucGhw",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWNyb24ucGhw",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3htbHJwYy5waHA=",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWNvbW1lbnRzLXBvc3QucGhw",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLXRyYWNrYmFjay5waHA=",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLXNpZ251cC5waHA=",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWFjdGl2YXRlLnBocA==",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWJsb2ctaGVhZGVyLnBocA==",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "EXACTLY"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWFkbWluLw==",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "STARTS_WITH"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L2N1bHR1cmEvd3AtYWRtaW4v",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "STARTS_WITH"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWNvbnRlbnQvcGx1Z2lucy8=",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "STARTS_WITH"
+                                                    }
+                                                },
+                                                {
+                                                    "ByteMatchStatement": {
+                                                        "SearchString": "L3dwLWNvbnRlbnQvdGhlbWVzLw==",
+                                                        "FieldToMatch": {
+                                                            "UriPath": {}
+                                                        },
+                                                        "TextTransformations": [
+                                                            {
+                                                                "Priority": 0,
+                                                                "Type": "URL_DECODE"
+                                                            },
+                                                            {
+                                                                "Priority": 1,
+                                                                "Type": "NORMALIZE_PATH"
+                                                            },
+                                                            {
+                                                                "Priority": 2,
+                                                                "Type": "LOWERCASE"
+                                                            }
+                                                        ],
+                                                        "PositionalConstraint": "STARTS_WITH"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        ]
                     }
                 },
                 "Action": {
@@ -938,7 +1316,7 @@
                 "VisibilityConfig": {
                     "SampledRequestsEnabled": true,
                     "CloudWatchMetricsEnabled": true,
-                    "MetricName": "Block-AttackerRanges-2026-03-31"
+                    "MetricName": "Block-PHP-Scan"
                 }
             },
             {
@@ -1017,6 +1395,418 @@
                     "CloudWatchMetricsEnabled": true,
                     "MetricName": "RateLimit-WPLogin-POST"
                 }
+            },
+            {
+                "Name": "Block-Sensitive-Dotfiles",
+                "Priority": 18,
+                "Statement": {
+                    "OrStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5naXQ=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5zdm4=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5oZy8=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5ienI=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5hd3Mv",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "STARTS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5naXQv",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5zdm4v",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ly5kc19zdG9yZQ==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 403,
+                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-Sensitive-Dotfiles"
+                }
+            },
+            {
+                "Name": "Block-Backup-Dump-Scan",
+                "Priority": 19,
+                "Statement": {
+                    "OrStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnNxbA==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LmJhaw==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LmR1bXA=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "Ljd6",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnJhcg==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnRhcg==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnRhci5neg==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnRneg==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnNxbC5neg==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnNxbC5iejI=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnRhci5iejI=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "LnRhci54eg==",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "URL_DECODE"
+                                        },
+                                        {
+                                            "Priority": 1,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {
+                        "CustomResponse": {
+                            "ResponseCode": 403,
+                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+                        }
+                    }
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "Block-Backup-Dump-Scan"
+                }
+            },
+            {
+                "Name": "AWS-KnownBadInputs-Block",
+                "Priority": 20,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesKnownBadInputsRuleSet"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWS-KnownBadInputs-Block"
+                }
             }
         ],
         "VisibilityConfig": {
@@ -1024,7 +1814,7 @@
             "CloudWatchMetricsEnabled": true,
             "MetricName": "ACL-WPAdminHML"
         },
-        "Capacity": 322,
+        "Capacity": 770,
         "ManagedByFirewallManager": false,
         "LabelNamespace": "awswaf:379590274801:webacl:ACL-WPAdminHML:",
         "CustomResponseBodies": {
@@ -1038,5 +1828,5 @@
             "ALBLowReputationMode": "ACTIVE_UNDER_DDOS"
         }
     },
-    "LockToken": "fc293feb-df26-455e-86aa-28a227bec3df"
+    "LockToken": "90fd09d4-f906-4ad7-a6d0-b07e74cd00fd"
 }
