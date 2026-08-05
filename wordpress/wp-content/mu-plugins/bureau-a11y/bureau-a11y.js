@@ -584,19 +584,24 @@
             // O Elementor põe a imagem numa camada position:absolute (parallax,
             // motion effects) e o CONTEÚDO num ramo IRMÃO, que fica por cima.
             // Marcar só a camada e seus filhos não basta: o irmão opaco cobre.
-            // Então subimos ao elemento que ancora a camada (o containing block,
-            // = offsetParent) e tratamos a subárvore inteira.
-            var pos  = window.getComputedStyle(alvo).position;
-            var raiz = alvo;
-            if (pos === 'absolute' || pos === 'fixed') {
-                raiz = alvo.offsetParent || alvo.parentElement || alvo;
-                // Guarda: nunca subir até o body/html — deixaria a página toda
-                // transparente e o texto sem fundo garantido.
-                if (raiz === document.body || raiz === document.documentElement) {
-                    raiz = alvo.parentElement || alvo;
+            //
+            // Precisamos do container que a imagem preenche visualmente — o
+            // ancestral comum dos dois ramos. `offsetParent` NÃO serve: em prod
+            // ele parou no pai imediato e o ramo irmão seguiu opaco (medido).
+            // Critério que funciona nos dois ambientes: subir enquanto o
+            // ancestral tiver praticamente a MESMA altura da camada; quando
+            // cresce, saímos do hero e paramos.
+            var raiz   = alvo;
+            var altura = alvo.getBoundingClientRect().height;
+            if (altura > 0) {
+                var p = raiz.parentElement;
+                while (p && p !== document.body && p !== document.documentElement) {
+                    if (p.getBoundingClientRect().height > altura * 1.25) break;
+                    raiz = p;
+                    p = p.parentElement;
                 }
-                raiz.classList.add('ba-bg-keep');
             }
+            raiz.classList.add('ba-bg-keep');
 
             var filhos = raiz.getElementsByTagName('*');
             for (var k = 0; k < filhos.length; k++) {
