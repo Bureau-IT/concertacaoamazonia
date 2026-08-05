@@ -1,5 +1,5 @@
 /* Bureau A11y - Accessibility Styles
- * Version: 2.9.4
+ * Version: 2.10.0
  * Author: Bureau de Tecnologia Ltda.
  *
  * Dark Forest Luxury — mini-app design system
@@ -127,6 +127,62 @@ html.ba-high-contrast a:is([role="button"],[class*="btn"],[class*="button"]) * {
     background: transparent !important;
     color: var(--ba-hc-text) !important;
     fill: var(--ba-hc-text) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Alto Contraste no cookie banner (Complianz)
+   --------------------------------------------------------------------------
+   O banner é uma <div> que se pinta com as variáveis --cmplz_* geradas pelo
+   plugin em uploads/complianz/css/. As regras acima só alcançam body, <a> e
+   botões — o CONTAINER ficava com a cor da marca enquanto a página virava
+   preto-e-branco. Pior que não cobrir: o <a> era recolorido para --ba-hc-link
+   (amarelo, pensado para fundo preto) sobre o fundo claro do banner que não
+   mudava — 1.1:1, ilegível.
+
+   Reescrevemos as VARIÁVEIS no escopo do banner, em vez de duplicar seletores:
+   o CSS do plugin as consome em todos os seus componentes, então título,
+   mensagem, categorias, toggles e o X de fechar acompanham sozinhos.
+   Fora do Alto Contraste nada disso existe — o painel do Complianz continua
+   sendo a fonte da verdade das cores.
+   -------------------------------------------------------------------------- */
+html.ba-high-contrast :is(.cmplz-cookiebanner, #cmplz-manage-consent .cmplz-manage-consent) {
+    --cmplz_banner_background_color:          var(--ba-hc-bg);
+    --cmplz_banner_border_color:              var(--ba-hc-text);
+    --cmplz_text_color:                       var(--ba-hc-text);
+    --cmplz_hyperlink_color:                  var(--ba-hc-link);
+    --cmplz_button_accept_background_color:   var(--ba-hc-bg);
+    --cmplz_button_accept_border_color:       var(--ba-hc-text);
+    --cmplz_button_accept_text_color:         var(--ba-hc-text);
+    --cmplz_button_deny_background_color:     var(--ba-hc-bg);
+    --cmplz_button_deny_border_color:         var(--ba-hc-text);
+    --cmplz_button_deny_text_color:           var(--ba-hc-text);
+    --cmplz_button_settings_background_color: var(--ba-hc-bg);
+    --cmplz_button_settings_border_color:     var(--ba-hc-text);
+    --cmplz_button_settings_text_color:       var(--ba-hc-text);
+    --cmplz_slider_active_color:              var(--ba-hc-text);
+    --cmplz_slider_inactive_color:            var(--ba-hc-bg);
+    --cmplz_slider_bullet_color:              var(--ba-hc-text);
+    --cmplz_category_header_always_active_color: var(--ba-hc-text);
+    /* o plugin declara `background` sem !important — a borda garante o recorte
+       do banner contra a página, que agora tem a mesma cor de fundo */
+    background: var(--ba-hc-bg) !important;
+    border: 2px solid var(--ba-hc-text) !important;
+}
+
+/* O plugin fixa este cinza em literal (não usa variável) — sobre fundo preto
+   viraria uma faixa clara ilegível. */
+html.ba-high-contrast .cmplz-cookiebanner .cmplz-categories .cmplz-category {
+    background-color: transparent !important;
+    border: 1px solid var(--ba-hc-text) !important;
+}
+
+/* O X de fechar é um SVG com fill=currentColor. */
+html.ba-high-contrast .cmplz-cookiebanner .cmplz-close svg { fill: var(--ba-hc-text) !important; }
+
+/* Os links do banner ficam sublinhados como no resto da página (regra do <a>
+   acima), mas precisam da cor de link sobre o fundo já invertido. */
+html.ba-high-contrast .cmplz-cookiebanner :is(.cmplz-link, .cmplz-message a) {
+    color: var(--ba-hc-link) !important;
 }
 
 /* Apenas no body — painel/trigger em <html> ficam sem filtro */

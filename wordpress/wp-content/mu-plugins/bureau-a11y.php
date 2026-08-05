@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.10.0
+ * Version: 2.11.0
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -20,8 +20,8 @@ if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
 	return;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.10.0' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.9.4' );
+define( 'BUREAU_A11Y_VERSION', '2.11.0' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.10.0' );
 define( 'BUREAU_A11Y_JS_VERSION', '2.8.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
