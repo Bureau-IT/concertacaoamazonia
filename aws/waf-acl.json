@@ -410,6 +410,40 @@
                                 }
                             },
                             {
+                                "ByteMatchStatement": {
+                                    "SearchString": "c2NyYXB5",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "YW1hem9uYm90",
+                                    "FieldToMatch": {
+                                        "SingleHeader": {
+                                            "Name": "user-agent"
+                                        }
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "CONTAINS"
+                                }
+                            },
+                            {
                                 "AndStatement": {
                                     "Statements": [
                                         {
@@ -459,8 +493,7 @@
                 "Action": {
                     "Block": {
                         "CustomResponse": {
-                            "ResponseCode": 403,
-                            "CustomResponseBodyKey": "BIT-Recurso-Indisponivel"
+                            "ResponseCode": 403
                         }
                     }
                 },
@@ -1814,7 +1847,7 @@
             "CloudWatchMetricsEnabled": true,
             "MetricName": "ACL-WPAdminHML"
         },
-        "Capacity": 770,
+        "Capacity": 790,
         "ManagedByFirewallManager": false,
         "LabelNamespace": "awswaf:379590274801:webacl:ACL-WPAdminHML:",
         "CustomResponseBodies": {
@@ -1828,5 +1861,5 @@
             "ALBLowReputationMode": "ACTIVE_UNDER_DDOS"
         }
     },
-    "LockToken": "90fd09d4-f906-4ad7-a6d0-b07e74cd00fd"
+    "LockToken": "f58ac994-5eee-4d1f-8195-89edf08ec909"
 }
