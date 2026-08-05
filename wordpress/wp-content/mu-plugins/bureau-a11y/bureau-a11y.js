@@ -535,6 +535,109 @@
     }
 
     /* ======================================================================
+       ALTO CONTRASTE — preservar imagens de fundo
+       ----------------------------------------------------------------------
+       O CSS do Alto Contraste força background-color OPACO em todo o conteúdo
+       para garantir legibilidade. O efeito colateral: quando um container do
+       Elementor tem background-image, o container INTERNO (que fica por cima)
+       também recebe o fundo opaco e ESCONDE a imagem — um hero vira um bloco
+       preto. Medido na página /editais/: a ilustração sumia atrás do
+       .elementor-element que a cobria.
+
+       Não dá para resolver só em CSS: quem cobre é um irmão/descendente sem
+       imagem própria, e o seletor precisaria conhecer o ancestral pintado.
+
+       Estratégia: ao ligar o perfil, marcar com `ba-bg-keep`
+         (a) o elemento que tem a background-image, e
+         (b) seus descendentes SEM texto direto — que só existem para
+             posicionar, então podem ficar transparentes sem prejuízo.
+       Descendente COM texto continua opaco: assim a imagem aparece e o texto
+       sobre ela permanece legível. As classes saem ao desligar o perfil.
+       ====================================================================== */
+    function _hasDirectText(el) {
+        for (var i = 0; i < el.childNodes.length; i++) {
+            var n = el.childNodes[i];
+            if (n.nodeType === 3 && n.textContent.trim() !== '') return true;
+        }
+        return false;
+    }
+
+    function _markBackgroundLayers() {
+        if (!document.body) return;
+        var t0 = (window.performance && performance.now) ? performance.now() : 0;
+        var todos = document.body.getElementsByTagName('*');
+        var comImagem = [];
+
+        for (var i = 0; i < todos.length; i++) {
+            var el = todos[i];
+            // getComputedStyle é caro; só pagamos ao ativar o perfil.
+            var bi = window.getComputedStyle(el).backgroundImage;
+            if (bi && bi !== 'none' && bi.indexOf('url(') !== -1) {
+                comImagem.push(el);
+            }
+        }
+
+        for (var j = 0; j < comImagem.length; j++) {
+            var alvo = comImagem[j];
+            alvo.classList.add('ba-bg-keep');
+
+            // O Elementor põe a imagem numa camada position:absolute (parallax,
+            // motion effects) e o CONTEÚDO num ramo IRMÃO, que fica por cima.
+            // Marcar só a camada e seus filhos não basta: o irmão opaco cobre.
+            // Então subimos ao elemento que ancora a camada (o containing block,
+            // = offsetParent) e tratamos a subárvore inteira.
+            var pos  = window.getComputedStyle(alvo).position;
+            var raiz = alvo;
+            if (pos === 'absolute' || pos === 'fixed') {
+                raiz = alvo.offsetParent || alvo.parentElement || alvo;
+                // Guarda: nunca subir até o body/html — deixaria a página toda
+                // transparente e o texto sem fundo garantido.
+                if (raiz === document.body || raiz === document.documentElement) {
+                    raiz = alvo.parentElement || alvo;
+                }
+                raiz.classList.add('ba-bg-keep');
+            }
+
+            var filhos = raiz.getElementsByTagName('*');
+            for (var k = 0; k < filhos.length; k++) {
+                if (!_hasDirectText(filhos[k])) filhos[k].classList.add('ba-bg-keep');
+            }
+        }
+
+        if (t0 && window.console && console.debug) {
+            console.debug('[bit-a11y] ' + comImagem.length + ' camada(s) com imagem preservada(s) em '
+                + Math.round(performance.now() - t0) + 'ms');
+        }
+    }
+
+    function _unmarkBackgroundLayers() {
+        var marcados = document.querySelectorAll('.ba-bg-keep');
+        for (var i = 0; i < marcados.length; i++) marcados[i].classList.remove('ba-bg-keep');
+    }
+
+    /**
+     * O Elementor cria as camadas de parallax (.elementor-motion-effects-layer)
+     * por JS, DEPOIS do nosso init — marcar uma vez só deixaria essas camadas
+     * de fora e a imagem seguiria coberta. Como classList.add é idempotente,
+     * repetir a varredura é seguro; fazemos isso nos marcos em que o Elementor
+     * já montou. Só roda com o perfil ligado.
+     */
+    function _scheduleBackgroundMarking() {
+        var reMark = function () {
+            if (document.documentElement.classList.contains('ba-high-contrast')) {
+                _markBackgroundLayers();
+            }
+        };
+        if (document.readyState === 'complete') {
+            setTimeout(reMark, 400);
+        } else {
+            window.addEventListener('load', function () { setTimeout(reMark, 400); }, { once: true });
+        }
+        // 2ª passada para efeitos que só montam no primeiro scroll/resize
+        setTimeout(reMark, 1500);
+    }
+
+    /* ======================================================================
        FEATURES: individual feature handlers
        ====================================================================== */
     var Features = {
@@ -765,6 +868,15 @@
             init: function () {
                 var active = Store.get('highContrast');
                 var btn = document.getElementById('ba-toggle-highContrast');
+
+                // Perfil já vinha ligado do localStorage: a classe foi aplicada
+                // cedo (applyEarlyClasses), mas a marcação depende do DOM pronto
+                // — e das camadas que o Elementor só cria depois.
+                if (active) {
+                    _markBackgroundLayers();
+                    _scheduleBackgroundMarking();
+                }
+
                 if (btn) {
                     _updateToggleUI(btn, active);
                     _addInteraction(btn, function () {
@@ -773,6 +885,12 @@
                         document.documentElement.classList.toggle('ba-high-contrast', active);
                         // Retrocompat
                         document.documentElement.classList.toggle('a11y', active);
+                        if (active) {
+                            _markBackgroundLayers();
+                            _scheduleBackgroundMarking();
+                        } else {
+                            _unmarkBackgroundLayers();
+                        }
                         _updateToggleUI(btn, active);
                     });
                 }

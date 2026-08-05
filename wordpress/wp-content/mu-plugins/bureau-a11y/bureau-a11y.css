@@ -1,5 +1,5 @@
 /* Bureau A11y - Accessibility Styles
- * Version: 2.10.2
+ * Version: 2.10.3
  * Author: Bureau de Tecnologia Ltda.
  *
  * Dark Forest Luxury — mini-app design system
@@ -160,6 +160,22 @@ html.ba-high-contrast.ba-high-contrast.ba-high-contrast body :not(:where(svg, sv
     border-color: var(--ba-hc-text) !important;
     text-shadow: none !important;
     box-shadow: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Exceção: camadas de imagem de fundo
+   --------------------------------------------------------------------------
+   `.ba-bg-keep` é aplicada pelo JS (_markBackgroundLayers) ao ligar o perfil:
+   marca quem tem background-image e os descendentes SEM texto direto. Sem
+   isto, o container interno de um hero recebe fundo opaco e esconde a
+   ilustração — o hero vira um bloco preto (medido em /editais/).
+
+   Só o `background-color` é liberado: a cor do texto e a borda continuam
+   forçadas, então descendente COM texto (que não recebe a classe) mantém
+   fundo sólido e permanece legível por cima da imagem.
+   -------------------------------------------------------------------------- */
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body .ba-bg-keep {
+    background-color: transparent !important;
 }
 
 /* Ícones de fonte e SVG inline que herdam a cor do texto. */
