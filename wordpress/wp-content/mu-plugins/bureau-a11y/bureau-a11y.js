@@ -609,6 +609,8 @@
             }
         }
 
+        _markDarkSvgs();
+
         if (t0 && window.console && console.debug) {
             console.debug('[bit-a11y] ' + comImagem.length + ' camada(s) com imagem preservada(s) em '
                 + Math.round(performance.now() - t0) + 'ms');
@@ -616,8 +618,61 @@
     }
 
     function _unmarkBackgroundLayers() {
-        var marcados = document.querySelectorAll('.ba-bg-keep');
-        for (var i = 0; i < marcados.length; i++) marcados[i].classList.remove('ba-bg-keep');
+        var marcados = document.querySelectorAll('.ba-bg-keep, .ba-svg-invert');
+        for (var i = 0; i < marcados.length; i++) {
+            marcados[i].classList.remove('ba-bg-keep');
+            marcados[i].classList.remove('ba-svg-invert');
+        }
+    }
+
+    /**
+     * SVG de arte ESCURA sobre o fundo preto do Alto Contraste = invisível.
+     * É o caso da espiral da home e da logo BIT do rodapé — arte preta feita
+     * para fundo claro.
+     *
+     * Não dá para resolver forçando `fill`: isso achata a arte numa cor só
+     * (foi o erro da v2.10.2/2.10.3, que deixou a espiral um disco amarelo).
+     * Invertendo, a arte inteira é preservada — só troca de polaridade.
+     *
+     * Inverte apenas quando TODAS as cores amostradas são escuras, ou seja,
+     * arte monocromática escura. SVG claro ou colorido fica intocado.
+     */
+    function _luminancia(cor) {
+        var m = cor.match(/(\d+(?:\.\d+)?)/g);
+        if (!m || m.length < 3) return null;
+        return (0.2126 * +m[0] + 0.7152 * +m[1] + 0.0722 * +m[2]) / 255;
+    }
+
+    function _markDarkSvgs() {
+        if (!document.body) return;
+        var svgs = document.body.getElementsByTagName('svg');
+        for (var i = 0; i < svgs.length; i++) {
+            var svg = svgs[i];
+            if (svg.classList.contains('ba-svg-invert')) continue;
+
+            var formas = svg.querySelectorAll('path, circle, ellipse, polygon, rect, line, polyline');
+            if (!formas.length) continue;
+
+            var escuras = 0, avaliadas = 0;
+            var limite = Math.min(formas.length, 12); // amostra: SVG grande pode ter centenas
+            for (var j = 0; j < limite; j++) {
+                var cs = window.getComputedStyle(formas[j]);
+                var cores = [cs.fill, cs.stroke];
+                for (var c = 0; c < cores.length; c++) {
+                    if (!cores[c] || cores[c] === 'none') continue;
+                    // ignora totalmente transparente
+                    if (/rgba\([^)]*,\s*0\s*\)$/.test(cores[c])) continue;
+                    var L = _luminancia(cores[c]);
+                    if (L === null) continue;
+                    avaliadas++;
+                    if (L < 0.35) escuras++;
+                }
+            }
+            // só inverte arte inteiramente escura (evita achatar SVG colorido)
+            if (avaliadas > 0 && escuras === avaliadas) {
+                svg.classList.add('ba-svg-invert');
+            }
+        }
     }
 
     /**

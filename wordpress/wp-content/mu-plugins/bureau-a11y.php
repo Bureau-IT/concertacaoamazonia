@@ -21,8 +21,8 @@ if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
 }
 
 define( 'BUREAU_A11Y_VERSION', '2.12.0' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.10.3' );
-define( 'BUREAU_A11Y_JS_VERSION', '2.9.3' );
+define( 'BUREAU_A11Y_CSS_VERSION', '2.10.5' );
+define( 'BUREAU_A11Y_JS_VERSION', '2.10.0' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
 define( 'BUREAU_A11Y_URL', plugin_dir_url( __FILE__ ) . 'bureau-a11y/' );

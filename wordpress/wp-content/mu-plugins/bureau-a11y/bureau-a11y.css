@@ -1,5 +1,5 @@
 /* Bureau A11y - Accessibility Styles
- * Version: 2.10.3
+ * Version: 2.10.5
  * Author: Bureau de Tecnologia Ltda.
  *
  * Dark Forest Luxury — mini-app design system
@@ -178,8 +178,39 @@ html.ba-high-contrast.ba-high-contrast.ba-high-contrast body .ba-bg-keep {
     background-color: transparent !important;
 }
 
-/* Ícones de fonte e SVG inline que herdam a cor do texto. */
-html.ba-high-contrast.ba-high-contrast.ba-high-contrast body :where(svg, svg *) { fill: currentColor !important; }
+/* --------------------------------------------------------------------------
+   SVG de arte escura — inverter, não repintar
+   --------------------------------------------------------------------------
+   `.ba-svg-invert` é aplicada pelo JS (_markDarkSvgs) só quando TODAS as cores
+   amostradas do SVG são escuras: arte monocromática feita para fundo claro,
+   que sobre o preto do perfil sumiria. A espiral da home e a logo BIT do
+   rodapé são exatamente isso.
+
+   Inverter preserva o desenho inteiro (setores, vazados, pesos de traço);
+   forçar `fill` achataria tudo numa cor só. SVG claro ou colorido não recebe
+   a classe e fica intocado.
+   -------------------------------------------------------------------------- */
+html.ba-high-contrast.ba-high-contrast.ba-high-contrast body svg.ba-svg-invert {
+    filter: invert(1);
+}
+
+/* --------------------------------------------------------------------------
+   SVG: NÃO forçar fill
+   --------------------------------------------------------------------------
+   Havia aqui um `:where(svg, svg *) { fill: currentColor !important }` para
+   fazer ícones herdarem a cor do texto. Era um erro de alcance: SVG que já usa
+   `fill="currentColor"` herda sozinho, sem precisar de !important — a regra só
+   alcançava os que têm arte PRÓPRIA, achatando-os numa cor só.
+
+   O estrago foi visível justamente nos dois SVGs mais importantes, ambos
+   dentro de <a> (logo currentColor = --ba-hc-link, amarelo):
+     - a ESPIRAL da home virou um disco amarelo chapado, sem setores nem labels;
+     - a logo BIT do rodapé virou um quadrado amarelo.
+
+   Sem a regra, cada SVG mantém sua arte. Ícones que dependem de currentColor
+   continuam funcionando porque a herança é o comportamento nativo deles.
+   Exceção pontual permanece no X do banner Complianz, mais abaixo.
+   -------------------------------------------------------------------------- */
 
 /* (0,3,3) — vence o reset acima, que é (0,3,2). */
 html.ba-high-contrast.ba-high-contrast.ba-high-contrast body a {
