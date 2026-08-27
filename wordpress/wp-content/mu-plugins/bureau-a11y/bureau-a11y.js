@@ -1,6 +1,6 @@
 /**
  * Bureau A11y - Accessibility Module
- * Version: 2.5.25
+ * Version: 2.11.0
  * Author: Bureau de Tecnologia Ltda.
  *
  * v2.5.25 (2026-05-04): substituido aria-hidden por inert no Panel.
@@ -22,24 +22,6 @@
 (function () {
     'use strict';
 
-    /* ======================================================================
-       VLIBRAS CLICK BYPASS — registrado ANTES do VLibras (que é lazy-loaded)
-       para interceptar clicks no painel e bloqueá-los antes que o VLibras
-       os capture via seu próprio document capture listener. Despacha
-       'ba:click' (custom event que VLibras desconhece) no target original,
-       permitindo que os handlers do painel respondam normalmente.
-       ====================================================================== */
-    var _baInterceptActive = false;
-    document.addEventListener('click', function (e) {
-        if (_baInterceptActive) return;
-        if (!document.querySelector('[vp]')) return; // VLibras não carregado
-        var panel = document.getElementById('bureau-a11y-panel');
-        if (!panel || !panel.contains(e.target)) return;
-        e.stopImmediatePropagation();
-        _baInterceptActive = true;
-        e.target.dispatchEvent(new CustomEvent('ba:click', { bubbles: true, cancelable: false }));
-        _baInterceptActive = false;
-    }, true);
 
     /* ======================================================================
        STORE: localStorage persistence for all preferences
@@ -216,10 +198,6 @@
 
             // Delegação de fallback — garante que X sempre funcione
             this.el.addEventListener('click', function (e) {
-                var btn = e.target.closest('#bureau-a11y-close');
-                if (btn) self.close();
-            });
-            this.el.addEventListener('ba:click', function (e) {
                 var btn = e.target.closest('#bureau-a11y-close');
                 if (btn) self.close();
             });
@@ -503,36 +481,6 @@
         }
     };
 
-    /* ======================================================================
-       VLIBRAS HELPERS
-       ====================================================================== */
-
-    /**
-     * Ativa a legenda do VLibras por padrão ao abrir o widget.
-     * VLibras não persiste preferência de legenda em localStorage, então
-     * aguardamos o widget carregar e clicamos no botão se ainda não estiver ativo.
-     */
-    function _enableVLibrasSubtitles() {
-        var attempts = 0;
-        var timer = setInterval(function () {
-            attempts++;
-            if (attempts > 20) { clearInterval(timer); return; } // timeout 5s
-            // Cancela se VLibras foi fechado enquanto aguardávamos — evita click
-            // em estado fechado que pode reabrir o widget acidentalmente.
-            var vwWrapper = document.querySelector('[vw-plugin-wrapper]');
-            if (vwWrapper && !vwWrapper.classList.contains('active')) {
-                clearInterval(timer);
-                return;
-            }
-            var subtitlesBtn = document.querySelector('.vpw-controls-subtitles');
-            if (!subtitlesBtn) return;
-            clearInterval(timer);
-            var controls = document.querySelector('.vpw-controls');
-            if (controls && !controls.classList.contains('vpw-subtitles')) {
-                subtitlesBtn.click();
-            }
-        }, 250);
-    }
 
     /* ======================================================================
        ALTO CONTRASTE — preservar imagens de fundo
@@ -1421,69 +1369,78 @@
             }
         },
 
-        // ---- LIBRAS ----
+        // ---- LIBRAS (VLibras portal v7.8.0+ — widget em shadow DOM) ----
+        // O botão nativo fica escondido pelo CSS (#vlibras-access-wrapper) e o
+        // acesso é só por aqui. Não é toggle de estado: o widget não expõe
+        // "aberto/fechado" — data-active vira "true" no primeiro open e nunca
+        // volta —, e o estado real só existe dentro do shadow do terceiro, que
+        // não espiamos por decisão. Então este card é um botão de AÇÃO: abre, e
+        // reabre se a pessoa tiver fechado no X do próprio widget.
         Libras: {
             init: function () {
                 var btn = document.getElementById('ba-toggle-libras');
-                var active = false;
-                Store.set('libras', false);  // nunca restaura ao recarregar
+                if (!btn) return;
 
-                if (btn) {
-                    _updateToggleUI(btn, active);
-                    _addInteraction(btn, function () {
-                        active = !active;
-                        Store.set('libras', active);
-                        _updateToggleUI(btn, active);
-                        // VLibras é controlado pelo click handler interno em [vw-access-button].
-                        // Apenas toggle de classe [vw].active NÃO inicializa o iframe — o click é obrigatório.
-                        var vwBtn = document.querySelector('[vw-access-button]');
-                        if (!vwBtn) return;
-                        var vwWrapper = document.querySelector('[vw-plugin-wrapper]');
-                        var isOpen = vwWrapper && vwWrapper.classList.contains('active');
-                        if (!active) {
-                            // Ao desativar: sai do modo selectText (cursor de tradução)
-                            // antes de fechar o widget para não deixar o cursor ativo na página.
-                            var selectTextControls = document.querySelector('[vp] .vpw-controls.vpw-selectText');
-                            if (selectTextControls) {
-                                var ctrlBtn = selectTextControls.querySelector('.vpw-controls-button');
-                                if (ctrlBtn) ctrlBtn.click();
-                            }
-                            // Remove classes que o VLibras injeta no body/html
-                            document.body.classList.remove('vp-selected', 'vp-text-selected', 'vp-activated');
-                            document.documentElement.classList.remove('vp-activated');
-                            // Fecha o widget apenas se estiver aberto
-                            if (vwWrapper && vwWrapper.classList.contains('active')) {
-                                vwBtn.click();
-                            }
-                        } else {
-                            // Abre o widget apenas se estiver fechado
-                            if (vwWrapper && !vwWrapper.classList.contains('active')) {
-                                vwBtn.click();
-                            }
-                        }
-                        // Ativar legenda por padrão ao abrir VLibras
-                        if (active) {
-                            _enableVLibrasSubtitles();
-                        }
-                    });
+                Store.set('libras', false); // não há estado a restaurar
 
-                    // Observa quando VLibras abre/fecha pelo botão nativo e sincroniza o toggle do a11y.
-                    var vwWrapper = document.querySelector('[vw-plugin-wrapper]');
-                    if (vwWrapper && window.MutationObserver) {
-                        new MutationObserver(function () {
-                            var isOpen = vwWrapper.classList.contains('active');
-                            if (active !== isOpen) {
-                                active = isOpen;
-                                Store.set('libras', active);
-                                _updateToggleUI(btn, active);
-                                // Garante legenda ao abrir pelo botão nativo também
-                                if (active) {
-                                    _enableVLibrasSubtitles();
-                                }
-                            }
-                        }).observe(vwWrapper, { attributes: true, attributeFilter: ['class'] });
+                function apiPronta() {
+                    return !!(window.VLibrasWidget &&
+                              typeof window.VLibrasWidget.open === 'function');
+                }
+
+                // Enquanto o loader do VLibras não chegar (ou se nunca chegar —
+                // rede, CSP, portal fora do ar), o card fica desabilitado. Um
+                // painel de acessibilidade que finge ter recurso é pior que um
+                // que assume não ter.
+                function setDisponivel(ok) {
+                    btn.disabled = !ok;
+                    if (ok) {
+                        btn.removeAttribute('aria-disabled');
+                    } else {
+                        btn.setAttribute('aria-disabled', 'true');
                     }
                 }
+
+                setDisponivel(apiPronta());
+
+                if (!apiPronta()) {
+                    var tentativas = 0;
+                    var espera = setInterval(function () {
+                        tentativas++;
+                        if (apiPronta()) {
+                            clearInterval(espera);
+                            setDisponivel(true);
+                        } else if (tentativas > 60) { // 15s
+                            clearInterval(espera);
+                        }
+                    }, 250);
+                }
+
+                // Sincroniza html.ba-vlibras-open com a visibilidade real do
+                // widget. Precisa LER #vlibras-app dentro do shadow porque o
+                // VLibras não expõe estado no light DOM: data-active vira "true"
+                // no primeiro open e não volta ao fechar. É a única dependência
+                // de detalhe interno do projeto — contida aqui, e se o id sumir
+                // o pior caso é o nosso gatilho ficar deslocado até o reload.
+                var vigia = null;
+                function sincronizaClasse() {
+                    var root = document.getElementById('vlibras-app-root');
+                    var app  = root && root.shadowRoot &&
+                               root.shadowRoot.getElementById('vlibras-app');
+                    if (!app) return; // ainda montando — mantém como está
+                    var aberto = getComputedStyle(app).opacity !== '0';
+                    document.documentElement.classList.toggle('ba-vlibras-open', aberto);
+                }
+
+                _addInteraction(btn, function () {
+                    if (!apiPronta()) return;
+                    window.VLibrasWidget.open();
+                    document.documentElement.classList.add('ba-vlibras-open');
+                    Store.set('libras', true);
+                    if (!vigia) {
+                        vigia = setInterval(sincronizaClasse, 500);
+                    }
+                });
             }
         }
     };
@@ -1642,15 +1599,13 @@
     }
 
     /**
-     * Registra handler para click (mouse/teclado) E ba:click (custom event
-     * despachado pelo bypass do VLibras quando este intercepta o click nativo).
-     * Com VLibras inativo: apenas 'click' dispara. Com VLibras ativo: capture
-     * listener acima bloqueia o click e despacha 'ba:click' no target.
+     * Registra handler de click. Até 2.10.0 registrava também 'ba:click', evento
+     * do bypass que existia porque o VLibras antigo capturava clicks no document
+     * inteiro. O widget v7.8.0+ vive em shadow DOM e não intercepta mais nada.
      */
     function _addInteraction(el, fn) {
         if (!el) return;
         el.addEventListener('click', fn);
-        el.addEventListener('ba:click', fn);
     }
 
     function _refreshFilterButtons() {
@@ -1851,66 +1806,6 @@
             document.documentElement.classList.add('a11y', 'ba-high-contrast');
         }
 
-        /* ==================================================================
-           VLIBRAS HOVER SHIELD — MutationObserver
-           VLibras percorre o DOM e adiciona vw-text--hover em elementos,
-           ativando seu tooltip de tradução mesmo com Libras desativado.
-           Remove a classe em tempo real do painel e do trigger para que
-           o hover do VLibras nunca interaja com a UI de acessibilidade.
-           ================================================================== */
-        if (window.MutationObserver) {
-            var _baVLibrasShieldNodes = [
-                document.getElementById('bureau-a11y-panel'),
-                document.getElementById('bureau-a11y-trigger')
-            ].filter(Boolean);
-
-            if (_baVLibrasShieldNodes.length) {
-                var _baVLibrasShieldObs = new MutationObserver(function (mutations) {
-                    mutations.forEach(function (m) {
-                        if (m.type === 'attributes' && m.attributeName === 'class') {
-                            var el = m.target;
-                            if (el.classList.contains('vw-text--hover')) {
-                                el.classList.remove('vw-text--hover');
-                            }
-                        }
-                    });
-                });
-                _baVLibrasShieldNodes.forEach(function (root) {
-                    _baVLibrasShieldObs.observe(root, {
-                        attributes: true,
-                        attributeFilter: ['class'],
-                        subtree: true
-                    });
-                });
-            }
-        }
-
-        /* ==================================================================
-           VLIBRAS CONTAINER STYLE SHIELD — MutationObserver
-           O SDK VLibras injeta style="left:initial;right:0px;top:50%;
-           bottom:initial;transform:translateY(calc(-50% - 10px))" no
-           #bureau-vlibras-container após o carregamento, sobrescrevendo
-           o posicionamento CSS (left:11px;bottom:11px) e causando CLS 0.304.
-           Este observer reverte o atributo style ao detectar a injeção.
-           ================================================================== */
-        var _baVLibrasContainer = document.getElementById('bureau-vlibras-container');
-        if (_baVLibrasContainer && window.MutationObserver) {
-            var _baContainerStyleObs = new MutationObserver(function (mutations) {
-                mutations.forEach(function (m) {
-                    if (m.attributeName === 'style') {
-                        var el = m.target;
-                        /* SDK sempre injeta right:0px — é o sinal de que ele tomou o controle */
-                        if (el.style.right === '0px') {
-                            el.style.cssText = '';
-                        }
-                    }
-                });
-            });
-            _baContainerStyleObs.observe(_baVLibrasContainer, {
-                attributes: true,
-                attributeFilter: ['style']
-            });
-        }
     });
 
 })();

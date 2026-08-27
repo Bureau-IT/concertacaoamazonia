@@ -1,5 +1,5 @@
 /* Bureau A11y - Accessibility Styles
- * Version: 2.10.5
+ * Version: 2.11.0
  * Author: Bureau de Tecnologia Ltda.
  *
  * Dark Forest Luxury — mini-app design system
@@ -1214,8 +1214,7 @@ html:is(.ba-dyslexic,.ba-text-spacing,.ba-hide-images,.ba-stop-animations,
 /* Estado oculto — ativado pelo <html class="ba-buttons-hidden"> */
 html.ba-buttons-hidden #bureau-a11y-trigger,
 html.ba-buttons-hidden #bureau-a11y-back-to-top,
-html.ba-buttons-hidden #bureau-vlibras-container,
-html.ba-buttons-hidden div[vw].enabled {
+html.ba-buttons-hidden #vlibras-access-wrapper {
     display: none !important;
 }
 
@@ -1325,133 +1324,50 @@ html.ba-reading-ruler #bureau-a11y-ruler { display: block; }
    ========================================================================== */
 
 /* ==========================================================================
-   VLIBRAS WIDGET: override posição/tamanho para alinhar com o trigger a11y
+   VLIBRAS WIDGET (portal v7.8.0+, 25/08/2026)
+   --------------------------------------------------------------------------
+   O widget virou um componente em shadow DOM: o loader cria
+   #vlibras-access-wrapper no body e desenha o botão lá dentro. CSS de página
+   não atravessa shadow root, então o botão nativo não é estilizável — só
+   escondível pelo host, que é elemento normal do light DOM.
+
+   O acesso ao VLibras passa a ser exclusivamente o card "Libras" do painel,
+   que chama window.VLibrasWidget.open() (ver Features.Libras no JS).
+
+   NÃO estilizar por dentro do shadow: foi o acoplamento com o markup interno
+   ([vw-access-button], [vw-plugin-wrapper], [vp]) que quebrou em 25/08/2026,
+   silenciosamente, sem ninguém tocar no nosso código.
    ========================================================================== */
 
-/* Container VLibras [vw]: ancorado na ESQUERDA para nunca sobrepor o painel A11y (direita).
-   bottom:88px ancora pelo rodapé — painel cresce para cima ao ativar .active.
-   margin:0 previne o margin-top:-285px que o SDK injeta na classe .active. */
-#bureau-vlibras-container {
-    position: fixed !important;
-    bottom: 11px !important;
-    left: 11px !important;
-    right: auto !important;
-    z-index: 9998 !important;
-    transform: none !important;
-    margin: 0 !important;
-}
-
-/* Botão VLibras: invisível — controlado exclusivamente pelo toggle dentro do painel A11y. */
-[vw-access-button] {
-    position: fixed !important;
-    left: -9999px !important;
-    right: auto !important;
-    bottom: 11px !important;
-    top: auto !important;
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-    border-radius: 12px !important;
-    background: var(--ba-forest) !important;
-    border: 1px solid color-mix(in srgb, var(--ba-electric) 25%, transparent) !important;
-    overflow: hidden !important;
-    cursor: pointer !important;
-    /* z-index propositalmente ausente: o painel [vw-plugin-wrapper] vem depois
-       no DOM e deve ficar acima do botão no contexto de stacking do container */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-sizing: border-box !important;
-    transition: box-shadow 0.2s !important;
-}
-
-[vw-access-button]:hover {
-    box-shadow: 0 0 0 1px var(--ba-electric), 0 0 16px var(--ba-electric-glow) !important;
-}
-
-
-/* Ícone das mãos (access_icon.svg): preencher o container 44×44 */
-[vw-access-button] img.vp-access-button {
-    width: 100% !important;
-    height: 100% !important;
-    max-height: 100% !important;
-    object-fit: contain !important;
-}
-
-/* Popup de personagens: oculto — só relevante no hover expandido */
-[vw-access-button] img.vp-pop-up {
+#vlibras-access-wrapper {
     display: none !important;
 }
 
-/* Nosso SVG de mãos — preenche o botão */
-[vw-access-button] svg.a11y-button--SVG-hands {
-    width: 100% !important;
-    height: 100% !important;
+/* Widget aberto: ele se ancora à direita (300px de largura) e cobriria o nosso
+   gatilho. Deslocamos o NOSSO elemento — nunca o dele. */
+html.ba-vlibras-open #bureau-a11y-trigger,
+html.ba-vlibras-open #bureau-a11y-back-to-top {
+    transform: translateX(-320px);
+    transition: transform 0.25s ease;
 }
 
-/* ==========================================================================
-   VLIBRAS — ISOLAMENTO DE CSS DO SITE
-   Remove interferências do reset do tema (hello-elementor) e do Elementor kit
-   nos elementos internos do widget VLibras. O VLibras injeta seus próprios
-   estilos via <style> dinâmico ([vp] .vpw-*) com maior especificidade (0,2,0)
-   que sobrepõem este reset (0,1,1). Cascade: reset.css < bureau-a11y.css < VLibras.
-   ========================================================================== */
-/* Estado normal: especificidade (0,1,1) — suficiente para superar hello-elementor reset
-   (carregado antes). Estado normal é correto porque VLibras (inline, idx 63+) sobrepõe
-   com suas próprias regras de cor após este revert. */
-[vp] button,
-[vp] input[type="button"],
-[vp] input[type="submit"],
-[vp] input[type="reset"],
-[vp] input[type="range"],
-[vp] input {
-    all: revert;
+@media (max-width: 640px) {
+    /* Em telas estreitas o widget ocupa a largura toda: deslocar para o lado
+       não resolve. Escondemos o gatilho enquanto o widget estiver aberto —
+       a mini-pill de restaurar continua disponível. */
+    html.ba-vlibras-open #bureau-a11y-trigger,
+    html.ba-vlibras-open #bureau-a11y-back-to-top {
+        transform: none;
+        display: none;
+    }
 }
 
-/* Estados interativos: especificidade (0,3,1) via [vw][vp] para superar
-   .elementor-kit-2553 button:hover (0,2,1) que é INLINE e carregado depois
-   do nosso CSS externo. [vw] é o container raiz do VLibras widget.
-   Usamos APENAS color:revert (não all:revert) para não causar glitch visual
-   nos botões internos do VLibras (ex: "Pular introdução"). */
-[vw] [vp] button:hover,
-[vw] [vp] button:focus,
-[vw] [vp] button:active,
-[vw] [vp] input[type="button"]:hover,
-[vw] [vp] input[type="button"]:focus,
-[vw] [vp] input[type="submit"]:hover,
-[vw] [vp] input[type="submit"]:focus {
-    color: revert;
-}
-
-/* ==========================================================================
-   VLIBRAS — ISOLAMENTO DO PAINEL
-   VLibras percorre o DOM e adiciona vw-text--hover em elementos do painel,
-   ativando seu cursor e highlights visuais. Esses overrides neutralizam
-   qualquer estilo que o VLibras injete dentro de #bureau-a11y-panel.
-   ========================================================================== */
-
-/* Neutraliza cursor e highlight do VLibras em qualquer elemento do painel e trigger.
-   CSS bloqueia os efeitos visuais; MutationObserver no JS remove a classe em tempo real. */
-#bureau-a11y-panel .vw-text--hover,
-#bureau-a11y-panel *[class*="vw-"],
-#bureau-a11y-trigger.vw-text--hover,
-#bureau-a11y-trigger *[class*="vw-"] {
-    cursor: inherit !important;
-    outline: none !important;
-    box-shadow: inherit !important;
-    border-color: inherit !important;
-    background-color: inherit !important;
-    color: inherit !important;
-}
 /* Evita que VLibras exiba o ponteiro de tradução sobre o trigger */
 #bureau-a11y-trigger {
     pointer-events: auto !important; /* mantém clicável */
 }
 
-/* TTS controls — especificidade reforçada para sobrepor herança do Elementor Kit
-   quando VLibras marca elementos com vw-text--hover e altera o contexto */
+/* TTS controls — especificidade reforçada para sobrepor herança do Elementor Kit */
 #bureau-a11y-panel .ba-label {
     color: var(--ba-muted) !important;
     background: transparent !important;

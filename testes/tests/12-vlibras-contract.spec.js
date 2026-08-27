@@ -116,7 +116,13 @@ test.describe('VLibras × BIT A11y', () => {
       null,
       { timeout: 20000 }
     );
-    await page.evaluate(() => window.VLibrasWidget.open());
+    // Abre pelo card, e não por window.VLibrasWidget.open() direto: com o botão
+    // nativo escondido, o card é a única porta que o visitante tem, e é o
+    // handler dele que aplica html.ba-vlibras-open. Chamar a API por fora mede
+    // um caminho que ninguém percorre.
+    await page.locator('#bureau-a11y-trigger').click();
+    await page.locator('#ba-tab-btn-leitura').click();
+    await page.locator('#ba-toggle-libras').click();
     await page.waitForFunction(
       () => {
         const root = document.getElementById('vlibras-app-root');
