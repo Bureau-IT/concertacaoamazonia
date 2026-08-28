@@ -1440,6 +1440,15 @@
                     if (!vigia) {
                         vigia = setInterval(sincronizaClasse, 500);
                     }
+                    // Fecha o painel: o widget do VLibras abre na MESMA faixa de
+                    // 300px à direita e nasceria atrás dele, dando a impressão de
+                    // que o card não fez nada — o mesmo sintoma que esta versão
+                    // existe para corrigir. Este card é ação, não toggle: a
+                    // resposta a ele é o tradutor à vista, não o painel. Panel.close()
+                    // devolve o foco ao gatilho, que fica visível na posição deslocada.
+                    if (typeof Panel !== 'undefined' && Panel.close) {
+                        Panel.close();
+                    }
                 });
             }
         }

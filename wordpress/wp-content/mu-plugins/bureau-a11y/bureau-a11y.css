@@ -1352,13 +1352,21 @@ html.ba-vlibras-open #bureau-a11y-back-to-top {
 }
 
 @media (max-width: 640px) {
-    /* Em telas estreitas o widget ocupa a largura toda: deslocar para o lado
-       não resolve. Escondemos o gatilho enquanto o widget estiver aberto —
-       a mini-pill de restaurar continua disponível. */
+    /* Em tela estreita não há 320px à esquerda para deslocar, então trocamos a
+       âncora: o gatilho vai para a borda ESQUERDA, do lado oposto ao widget.
+
+       Esconder o gatilho aqui seria o caminho curto e está errado. A mini-pill
+       de restaurar só aparece sob html.ba-buttons-hidden, que é outro estado —
+       com ba-vlibras-open ela continua oculta. Medido em 500px: o gatilho, a
+       mini-pill e o back-to-top ficavam todos ocultos ao mesmo tempo e não
+       sobrava nenhum elemento focável de volta ao painel. Ou seja: usar um
+       recurso do painel de acessibilidade fazia o painel sumir sem volta, e o
+       foco caía no <body> porque .focus() não pega em display:none. */
     html.ba-vlibras-open #bureau-a11y-trigger,
     html.ba-vlibras-open #bureau-a11y-back-to-top {
         transform: none;
-        display: none;
+        right: auto;
+        left: 11px;
     }
 }
 
