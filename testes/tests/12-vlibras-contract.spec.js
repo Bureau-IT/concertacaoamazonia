@@ -17,7 +17,10 @@
 const { test, expect } = require('@playwright/test');
 const { BASE_URL } = require('./helpers');
 
-const PAGINA = '/contato/';
+// Página onde o painel A11y aparece. Parametrizável porque o mesmo contrato
+// vale para os outros sites BIT que embutem VLibras — o www-concertacao não
+// tem /contato/ e sua raiz redireciona para o apex.
+const PAGINA = process.env.VLIBRAS_PATH || '/contato/';
 
 // Viewport fixo: o deslocamento do gatilho tem uma variante ≤640px (o gatilho
 // some em vez de deslocar), então o teste D só é determinístico com a largura
