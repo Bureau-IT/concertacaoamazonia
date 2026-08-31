@@ -2,9 +2,14 @@
 /**
  * Plugin Name: JetElements S3 Downloads Redirect
  * Description: Intercepta downloads do JetElements e redireciona para a URL pública do attachment
- *              quando o arquivo não existe no FS local (típico em prod com CF-OAC + s3-uploads OFF).
- * Version: 1.1.1
+ *              quando o binário não está num disco local — ausente, ou num stream remoto (s3://).
+ * Version: 1.2.0
  * Author: Daniel Cambría
+ *
+ * v1.2.0: decide pelo ESQUEMA do caminho, não só pela existência. Com s3-uploads ATIVO,
+ *         get_attached_file() devolve s3://... e is_file() dá true pelo stream wrapper — o
+ *         v1.1.1 cairia no streaming e mandaria cada PDF pelo PHP do origin. Agora qualquer
+ *         caminho com esquema (s3://, gs://) conta como remoto e vai para o 302.
  *
  * v1.1.0: o guard antigo `strpos($url,'s3.') || strpos($url,'amazonaws.com')` falhava em sites com
  *         CF-OAC (URL fica no domínio do site, sem 's3.'), causando fallthrough silencioso para o
@@ -38,8 +43,8 @@ class Jet_S3_Redirect {
         $hash = sanitize_text_field($_GET['jet_download']);
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
-        // Log da requisição para monitoramento (v1.1.1 marker visivel)
-        error_log("JET-S3-REDIRECT[v1.1.1]: INICIO hash=$hash IP=$ip uri=" . ($_SERVER['REQUEST_URI'] ?? '?'));
+        // Log da requisição para monitoramento (marker de versão visível)
+        error_log("JET-S3-REDIRECT[v1.2.0]: INICIO hash=$hash IP=$ip uri=" . ($_SERVER['REQUEST_URI'] ?? '?'));
         
         // Descriptografa o hash para obter o attachment ID (método JetElements)
         $attachment_id = $this->decrypt_jet_download_hash($hash);
@@ -67,17 +72,26 @@ class Jet_S3_Redirect {
             return;
         }
 
-        // Decisão: arquivo existe localmente?
-        // - Não existe (típico prod com CF-OAC + s3-uploads OFF): redirect 302 para URL pública
-        //   (CF/S3 servem o binário diretamente, sem onerar o origin com readfile)
-        // - Existe: deixa JetElements processar (streaming chunked, força Content-Disposition)
+        // Decisão: o binário está num disco local que o PHP possa servir barato?
+        // - Não está — ausente, ou num stream remoto como s3:// — : redirect 302 para a URL
+        //   pública (CF/S3 servem o binário direto, sem onerar o origin com readfile)
+        // - Está: deixa JetElements processar (streaming chunked, força Content-Disposition)
+        //
+        // O teste do esquema é o que sustenta a decisão nos DOIS estados do s3-uploads.
+        // Com o plugin ativo, get_attached_file() devolve s3://... e is_file() responde
+        // verdadeiro pelo stream wrapper — sem este guard o plugin cairia no caminho de
+        // streaming e transmitiria cada PDF pelo PHP, que é exatamente a carga que ele
+        // existe para evitar. É a terceira encarnação do mesmo sinal: v1.0 olhava a URL,
+        // v1.1 olhou a existência do arquivo, e as duas quebraram quando a infra mudou
+        // embaixo. Esta olha de ONDE o arquivo viria.
         $local_path = get_attached_file($attachment_id);
+        $is_stream  = $local_path && preg_match('#^[a-zA-Z0-9.+-]+://#', $local_path);
 
-        if (!$local_path || !is_file($local_path)) {
+        if (!$local_path || $is_stream || !is_file($local_path)) {
             $filename = basename($public_url);
             $filesize = $this->get_s3_filesize($attachment_id);
 
-            error_log("JET-S3-REDIRECT[v1.1.1]: SUCCESS - Redirecionando ID=$attachment_id ($filename, {$filesize}MB) para $public_url | IP=$ip");
+            error_log("JET-S3-REDIRECT[v1.2.0]: SUCCESS - Redirecionando ID=$attachment_id ($filename, {$filesize}MB) para $public_url | IP=$ip");
 
             header('X-Robots-Tag: noindex, nofollow', true);
             header('Cache-Control: no-cache, no-store, must-revalidate', true);
@@ -90,7 +104,7 @@ class Jet_S3_Redirect {
         }
 
         // Arquivo existe localmente — JetElements processa (streaming chunked com Content-Disposition)
-        error_log("JET-S3-REDIRECT[v1.1.1]: arquivo local presente, deixando JetElements processar: $local_path IP=$ip");
+        error_log("JET-S3-REDIRECT[v1.2.0]: arquivo local presente, deixando JetElements processar: $local_path IP=$ip");
     }
     
     /**
