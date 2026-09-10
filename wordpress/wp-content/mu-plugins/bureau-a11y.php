@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bureau A11y
  * Description: Acessibilidade profissional: mini-app com tabs, grid de cards, lupa, libras, modo dislexia, filtros de cor, régua de leitura, TTS e logo Bureau IT.
- * Version: 2.13.0
+ * Version: 2.13.1
  * Author: Bureau de Tecnologia Ltda.
  *
  * @package BureauA11y
@@ -20,12 +20,18 @@ if ( defined( 'BIT_KIOSK_MODE' ) && true === BIT_KIOSK_MODE ) {
 	return;
 }
 
-define( 'BUREAU_A11Y_VERSION', '2.13.0' );
-define( 'BUREAU_A11Y_CSS_VERSION', '2.11.0' );
-define( 'BUREAU_A11Y_JS_VERSION', '2.11.0' );
+define( 'BUREAU_A11Y_VERSION', '2.13.1' );
 define( 'BUREAU_A11Y_RV_KEY', 'rS4GfS4a' );
 define( 'BUREAU_A11Y_DIR', __DIR__ . '/bureau-a11y/' );
 define( 'BUREAU_A11Y_URL', plugin_dir_url( __FILE__ ) . 'bureau-a11y/' );
+
+// Cache-bust por filemtime, nunca versão fixa: o nginx serve mu-plugins com
+// `Cache-Control: immutable`, então a mesma query string prende browser E
+// CloudFront ao arquivo antigo para sempre. Medido em 10/09/2026: /cultura/
+// (URL com prefixo de subsite, chave de cache própria) recebia CSS de 05/08 e
+// JS de 18/05 com `?ver=2.11.0`, e o botão nativo do VLibras voltou a aparecer.
+define( 'BUREAU_A11Y_CSS_VERSION', BUREAU_A11Y_VERSION . '.' . ( file_exists( BUREAU_A11Y_DIR . 'bureau-a11y.css' ) ? filemtime( BUREAU_A11Y_DIR . 'bureau-a11y.css' ) : '0' ) );
+define( 'BUREAU_A11Y_JS_VERSION',  BUREAU_A11Y_VERSION . '.' . ( file_exists( BUREAU_A11Y_DIR . 'bureau-a11y.js' )  ? filemtime( BUREAU_A11Y_DIR . 'bureau-a11y.js' )  : '0' ) );
 
 // Tela de admin de cores (Aparência → Acessibilidade)
 require_once BUREAU_A11Y_DIR . 'admin-colors.php';
