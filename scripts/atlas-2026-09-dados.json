@@ -1,0 +1,477 @@
+{
+ "gerado_em": "2026-09-15",
+ "fonte": "2026_Atlas Cultural_Versao Trabalho_MB_CP - ATUALIZAÇÃO.csv",
+ "artistas": [
+  {
+   "nome": "Aaron Koblin",
+   "id_dev": 91676,
+   "linha_csv": 3,
+   "cidade": "Los Angeles",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "34.0537,-118.2428"
+  },
+  {
+   "nome": "Aline Soterroni",
+   "id_dev": 91846,
+   "linha_csv": 26,
+   "cidade": "Oxford",
+   "estado": "",
+   "pais": "Inglaterra",
+   "coordenada": "51.752,-1.2578"
+  },
+  {
+   "nome": "Benito Beno Juarez",
+   "id_dev": 91867,
+   "linha_csv": 75,
+   "cidade": "Satipo",
+   "estado": "",
+   "pais": "Peru",
+   "coordenada": "-11.5538,-74.1182"
+  },
+  {
+   "nome": "Bernardo Toro",
+   "id_dev": 91656,
+   "linha_csv": 77,
+   "cidade": "Bogotá",
+   "estado": "",
+   "pais": "Colômbia",
+   "coordenada": "4.6534,-74.0836"
+  },
+  {
+   "nome": "Bustar Maitar",
+   "id_dev": 91876,
+   "linha_csv": 92,
+   "cidade": "Jayapura",
+   "estado": "",
+   "pais": "Indonésia",
+   "coordenada": "-2.5388,140.7037"
+  },
+  {
+   "nome": "Carlos Carvalho",
+   "id_dev": 89296,
+   "linha_csv": 99,
+   "cidade": "Rio de Janeiro",
+   "estado": "Rio de Janeiro",
+   "pais": "Brasil",
+   "coordenada": "-22.9205547,-43.2573175"
+  },
+  {
+   "nome": "Cecile Ndjebet",
+   "id_dev": 91877,
+   "linha_csv": 107,
+   "cidade": "Edéa",
+   "estado": "",
+   "pais": "Camarões",
+   "coordenada": "3.799,10.1266"
+  },
+  {
+   "nome": "Chris Carlsson",
+   "id_dev": 91704,
+   "linha_csv": 113,
+   "cidade": "São Francisco",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "37.7879,-122.4075"
+  },
+  {
+   "nome": "Demos Helsinki",
+   "id_dev": 91739,
+   "linha_csv": 142,
+   "cidade": "Helsinki",
+   "estado": "",
+   "pais": "Finlândia",
+   "coordenada": "60.1666,24.9435"
+  },
+  {
+   "nome": "Enrique Leff",
+   "id_dev": 91661,
+   "linha_csv": 201,
+   "cidade": "Cidade do México",
+   "estado": "",
+   "pais": "México",
+   "coordenada": "19.3208,-99.1515"
+  },
+  {
+   "nome": "Federico Pardo",
+   "id_dev": 91787,
+   "linha_csv": 215,
+   "cidade": "Bogotá",
+   "estado": "",
+   "pais": "Colômbia",
+   "coordenada": "4.7040044,-74.1390228"
+  },
+  {
+   "nome": "Flavya Mutran",
+   "id_dev": 88795,
+   "linha_csv": 224,
+   "cidade": "Porto Alegre",
+   "estado": "Rio Grande do Sul",
+   "pais": "Brasil",
+   "coordenada": "-30.0008637,-51.2602387"
+  },
+  {
+   "nome": "Gordon Hempton",
+   "id_dev": 91670,
+   "linha_csv": 260,
+   "cidade": "Seattle",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "47.6038,-122.3301"
+  },
+  {
+   "nome": "Hortensia Caballero",
+   "id_dev": 91891,
+   "linha_csv": 274,
+   "cidade": "Caracas",
+   "estado": "",
+   "pais": "Venezuela",
+   "coordenada": "10.5061,-66.9146"
+  },
+  {
+   "nome": "Instituto Catitu",
+   "id_dev": 88793,
+   "linha_csv": 283,
+   "cidade": "São Paulo",
+   "estado": "São Paulo",
+   "pais": "Brasil",
+   "coordenada": "-23.5716778,-46.5282177"
+  },
+  {
+   "nome": "Joan Roughgarden",
+   "id_dev": 91657,
+   "linha_csv": 300,
+   "cidade": "Kapaa",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "22.0747,-159.3192"
+  },
+  {
+   "nome": "João Felipe Scarpelini",
+   "id_dev": 91691,
+   "linha_csv": 305,
+   "cidade": "Nova York",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "40.7127,-74.006"
+  },
+  {
+   "nome": "Julio Chang",
+   "id_dev": 91737,
+   "linha_csv": 322,
+   "cidade": "Lima",
+   "estado": "",
+   "pais": "Peru",
+   "coordenada": "-12.1325733,-77.035067"
+  },
+  {
+   "nome": "Ken Goddard",
+   "id_dev": 91718,
+   "linha_csv": 342,
+   "cidade": "Oregon",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "43.9793,-120.7373"
+  },
+  {
+   "nome": "Luciana Gatti",
+   "id_dev": 91935,
+   "linha_csv": 374,
+   "cidade": "São Paulo",
+   "estado": "São Paulo",
+   "pais": "Brasil",
+   "coordenada": "-23.4667684,-46.6975151"
+  },
+  {
+   "nome": "Marcos Téran",
+   "id_dev": 91895,
+   "linha_csv": 411,
+   "cidade": "La Paz",
+   "estado": "",
+   "pais": "Bolívia",
+   "coordenada": "-16.4955,-68.1336"
+  },
+  {
+   "nome": "Maria Barcellos",
+   "id_dev": 91938,
+   "linha_csv": 414,
+   "cidade": "Cacoal",
+   "estado": "Rondônia",
+   "pais": "Brasil",
+   "coordenada": "-11.4333,-61.4421"
+  },
+  {
+   "nome": "Mauricio Serna",
+   "id_dev": 91906,
+   "linha_csv": 432,
+   "cidade": "Medellín",
+   "estado": "",
+   "pais": "Colômbia",
+   "coordenada": "6.2697,-75.6026"
+  },
+  {
+   "nome": "Michael Braungart",
+   "id_dev": 91660,
+   "linha_csv": 441,
+   "cidade": "Hamburgo",
+   "estado": "",
+   "pais": "Alemanha",
+   "coordenada": "53.5502,10.0013"
+  },
+  {
+   "nome": "Miguel Pinheiro",
+   "id_dev": 86793,
+   "linha_csv": 448,
+   "cidade": "Altamira",
+   "estado": "Pará",
+   "pais": "Brasil",
+   "coordenada": "-3.1546571,-52.1691248"
+  },
+  {
+   "nome": "Nelida Silva",
+   "id_dev": 91755,
+   "linha_csv": 470,
+   "cidade": "Llamellín",
+   "estado": "",
+   "pais": "Peru",
+   "coordenada": "-9.0708,-76.9949"
+  },
+  {
+   "nome": "Paul Bennett",
+   "id_dev": 91705,
+   "linha_csv": 499,
+   "cidade": "Londres",
+   "estado": "",
+   "pais": "Inglaterra",
+   "coordenada": "51.5074,-0.1278"
+  },
+  {
+   "nome": "Sarah Campelo",
+   "id_dev": 92170,
+   "linha_csv": 579,
+   "cidade": "Manaus",
+   "estado": "Amazonas",
+   "pais": "Brasil",
+   "coordenada": null
+  },
+  {
+   "nome": "Stef Van Dongen",
+   "id_dev": 91703,
+   "linha_csv": 595,
+   "cidade": "Rotterdam",
+   "estado": "",
+   "pais": "Holanda",
+   "coordenada": "51.9244,4.4778"
+  },
+  {
+   "nome": "Tanja Lieuw",
+   "id_dev": 91910,
+   "linha_csv": 608,
+   "cidade": "Paramaribo",
+   "estado": "",
+   "pais": "Suriname",
+   "coordenada": "5.8242,-55.1663"
+  },
+  {
+   "nome": "Tom Matthews",
+   "id_dev": 91756,
+   "linha_csv": 624,
+   "cidade": "Londres",
+   "estado": "",
+   "pais": "Inglaterra",
+   "coordenada": "51.5622215,-0.2239473"
+  },
+  {
+   "nome": "Zach Lieberman",
+   "id_dev": 91738,
+   "linha_csv": 667,
+   "cidade": "Nova York",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "40.7675215,-74.0849501"
+  },
+  {
+   "nome": "Zoë Melo",
+   "id_dev": 91709,
+   "linha_csv": 680,
+   "cidade": "Los Angeles",
+   "estado": "",
+   "pais": "Estados Unidos",
+   "coordenada": "34.1043044,-118.3094737"
+  }
+ ],
+ "novo_artista": {
+  "linha_csv": 681,
+  "nome": "Angel Lima",
+  "slug": "angel-lima",
+  "tema": "Fotografia",
+  "tipo": "_artista",
+  "site": "https://www.angellimafotoarte.com.br",
+  "outros_sites": "",
+  "cidade": "Palmas",
+  "estado": "Tocantins",
+  "pais": "Brasil",
+  "coordenada": "-10.2078322,-48.2695204",
+  "desc_pt": "Jornalista, artista visual, fotógrafa e pesquisadora. Suas produções transitam entre o experimental e o documental, refletindo aquilo que a impacta: o encantamento diante da natureza e a riqueza da cultura popular brasileira. Sua obra se concentra principalmente em temas como as influências africanas e indígenas, as relações de gênero e reflexões sobre o ser humano e sua interação com o mundo.",
+  "desc_en": "Journalist, visual artist, photographer, and researcher. Her work moves between the experimental and the documentary, reflecting what moves her: the sense of wonder inspired by nature and the richness of Brazilian culture. Her work focuses primarily on themes such as African and Indigenous influences, gender relations, and reflections on the human being and their interaction with the world.",
+  "eixos": [
+   2487,
+   2477,
+   2482,
+   2480,
+   2481,
+   2488
+  ],
+  "eixos_nomes": [
+   "Frame 4 Amazônias > Áreas de transição",
+   "Frame 4 Amazônias > Cidades",
+   "Temas Prioritários > Biodiversidade",
+   "Temas Prioritários > Cultura",
+   "Temas Prioritários > Educação",
+   "Temas Prioritários > PIQCTS"
+  ]
+ },
+ "glossario_cidades": [
+  "Altamira",
+  "Bogotá",
+  "Cacoal",
+  "Caracas",
+  "Cidade do México",
+  "Edéa",
+  "Hamburgo",
+  "Helsinki",
+  "Jayapura",
+  "Kapaa",
+  "La Paz",
+  "Lima",
+  "Llamellín",
+  "Londres",
+  "Los Angeles",
+  "Manaus",
+  "Medellín",
+  "Nova York",
+  "Oregon",
+  "Oxford",
+  "Palmas",
+  "Paramaribo",
+  "Porto Alegre",
+  "Rio de Janeiro",
+  "Rotterdam",
+  "Satipo",
+  "Seattle",
+  "São Francisco",
+  "São Paulo"
+ ],
+ "centroides_novos": {
+  "Los Angeles | ": {
+   "lat": 34.0537,
+   "lon": -118.2428,
+   "radius_km": 12
+  },
+  "Oxford | ": {
+   "lat": 51.752,
+   "lon": -1.2578,
+   "radius_km": 12
+  },
+  "Satipo | ": {
+   "lat": -11.5538,
+   "lon": -74.1182,
+   "radius_km": 10
+  },
+  "Bogotá | ": {
+   "lat": 4.6534,
+   "lon": -74.0836,
+   "radius_km": 12
+  },
+  "Jayapura | ": {
+   "lat": -2.5388,
+   "lon": 140.7037,
+   "radius_km": 10
+  },
+  "Edéa | ": {
+   "lat": 3.799,
+   "lon": 10.1266,
+   "radius_km": 10
+  },
+  "São Francisco | ": {
+   "lat": 37.7879,
+   "lon": -122.4075,
+   "radius_km": 12
+  },
+  "Helsinki | ": {
+   "lat": 60.1666,
+   "lon": 24.9435,
+   "radius_km": 12
+  },
+  "Cidade do México | ": {
+   "lat": 19.3208,
+   "lon": -99.1515,
+   "radius_km": 13
+  },
+  "Seattle | ": {
+   "lat": 47.6038,
+   "lon": -122.3301,
+   "radius_km": 12
+  },
+  "Caracas | ": {
+   "lat": 10.5061,
+   "lon": -66.9146,
+   "radius_km": 12
+  },
+  "Kapaa | ": {
+   "lat": 22.0747,
+   "lon": -159.3192,
+   "radius_km": 8
+  },
+  "Nova York | ": {
+   "lat": 40.7127,
+   "lon": -74.006,
+   "radius_km": 13
+  },
+  "Oregon | ": {
+   "lat": 43.9793,
+   "lon": -120.7373,
+   "radius_km": 60
+  },
+  "La Paz | ": {
+   "lat": -16.4955,
+   "lon": -68.1336,
+   "radius_km": 12
+  },
+  "Medellín | ": {
+   "lat": 6.2697,
+   "lon": -75.6026,
+   "radius_km": 12
+  },
+  "Hamburgo | ": {
+   "lat": 53.5502,
+   "lon": 10.0013,
+   "radius_km": 12
+  },
+  "Llamellín | ": {
+   "lat": -9.0708,
+   "lon": -76.9949,
+   "radius_km": 8
+  },
+  "Londres | ": {
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "radius_km": 13
+  },
+  "Rotterdam | ": {
+   "lat": 51.9244,
+   "lon": 4.4778,
+   "radius_km": 12
+  },
+  "Paramaribo | ": {
+   "lat": 5.8242,
+   "lon": -55.1663,
+   "radius_km": 10
+  },
+  "Cacoal | Rondônia": {
+   "lat": -11.4333,
+   "lon": -61.4421,
+   "radius_km": 10
+  }
+ }
+}
