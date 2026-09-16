@@ -2,7 +2,7 @@
 Theme Name: Hello Elementor Child
 Description: Variáveis CSS globais do tema — toda a CSS modular está em css/
 Author: Daniel Cambría + Warp AI
-Version: 2.3.8
+Version: 2.3.9
 Template: hello-elementor
 */
 
@@ -307,16 +307,19 @@ Template: hello-elementor
 .elementor-location-footer .elementor-field-type-acceptance .elementor-field-subgroup {
     justify-content: center;
     /* width:100% é o que realmente centraliza. Sem ele o subgrupo nasce com
-       654px dentro de um grupo de 739 e encostado à esquerda — o text-align
-       abaixo então centraliza dentro de uma caixa que já está deslocada, e o
-       texto (longo) mal se move. Com a largura cheia, o centro do aceite bate
-       com o do botão ENVIAR/SEND (595 x 594 px, medido em dev). */
+       654px dentro de um grupo de 739 e encostado à esquerda, e o centro cai
+       junto. Com a largura cheia, o centro do aceite bate com o do botão
+       ENVIAR/SEND (595 x 594 px, medido em dev). */
     width: 100%;
 }
 
-.elementor-location-footer .elementor-field-type-acceptance .elementor-field-option {
-    text-align: center;
-}
+/* O `text-align: center` que morava aqui saiu em 15/09/2026. Ele centralizava
+   as LINHAS de texto, não o par caixa+texto: a caixa ficava órfã, sem eixo
+   comum com o texto que ela rotula. Quem alinha o par agora é o
+   bit-elementor-form-responsive.css (≥1.5.0), que faz do .elementor-field-option
+   uma linha flex — caixa à esquerda, texto à esquerda, largura de leitura, e o
+   conjunto centrado pelo justify-content acima. Estrutura mora lá; aqui ficam
+   só cor e underline, que são aparência do rodapé. */
 
 /* =============================================================================
    Consentimento LGPD — cor da caixa (paleta, não o azul do browser)
