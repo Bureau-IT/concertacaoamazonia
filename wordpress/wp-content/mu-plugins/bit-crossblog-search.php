@@ -6,7 +6,7 @@
  *              (blog 2: páginas, Linha das Artes, artistas), aponta a busca do
  *              /cultura/ para o endpoint do blog 1 e renderiza no header do blog 2
  *              o painel de busca cujo template só existe no blog 1.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -86,17 +86,19 @@ function bit_crossblog_search_in_blog( int $blog_id, callable $callback ) {
 
 /**
  * Busca posts publicados de $post_types no blog $blog_id, no idioma do request.
+ * Cada item é montado por $build_item( WP_Post, $lang ) ainda DENTRO do blog
+ * alvo — permalink, thumbnail e resumo dependem dele. Item null é descartado.
  *
- * @return array<int, array{name: string, url: string}>
+ * @return array<int, array>
  */
-function bit_crossblog_search_posts( int $blog_id, array $post_types, string $search, int $limit, ?callable $url_for = null ): array {
+function bit_crossblog_search_posts( int $blog_id, array $post_types, string $search, int $limit, callable $build_item ): array {
 	$search = trim( $search );
 
 	if ( '' === $search || $limit < 1 ) {
 		return [];
 	}
 
-	return bit_crossblog_search_in_blog( $blog_id, function ( string $lang ) use ( $post_types, $search, $limit, $url_for ) {
+	return bit_crossblog_search_in_blog( $blog_id, function ( string $lang ) use ( $post_types, $search, $limit, $build_item ) {
 		$query_args = [
 			's'                   => $search,
 			'post_type'           => $post_types,
@@ -143,13 +145,10 @@ function bit_crossblog_search_posts( int $blog_id, array $post_types, string $se
 		$items = [];
 
 		foreach ( $query->posts as $post ) {
-			$url = $url_for ? $url_for( $post, $lang ) : bit_crossblog_search_permalink( $post, $lang );
+			$item = $build_item( $post, $lang );
 
-			if ( $url ) {
-				$items[] = [
-					'name' => esc_html( get_the_title( $post ) ),
-					'url'  => esc_url( $url ),
-				];
+			if ( $item ) {
+				$items[] = $item;
 			}
 		}
 
@@ -238,14 +237,77 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 			return bit_crossblog_search_permalink( $post, $lang );
 		}
 
+		/**
+		 * Texto do item. Padrão: o mesmo resumo dos itens de post, com a fonte
+		 * e o tamanho configurados no widget (post_content_source/length).
+		 */
+		protected function item_content( WP_Post $post ): string {
+			return (string) \Jet_Search_Template_Functions::get_post_content( $this->args, $post );
+		}
+
+		/**
+		 * Monta o item no blog de origem: título, link, thumbnail e resumo.
+		 * Thumbnail e resumo usam os helpers do próprio JetSearch com os
+		 * settings do widget, para o item sair igual aos de post. A imagem
+		 * de um post do blog 2 vive no blog 1 (Network Media Library); quem
+		 * resolve é o bit-crossblog-attachment-fix, que age com o blog 2 ativo.
+		 */
+		public function build_item( WP_Post $post, string $lang ): ?array {
+			$url = $this->url_for( $post, $lang );
+
+			if ( '' === $url ) {
+				return null;
+			}
+
+			return [
+				'name'      => esc_html( get_the_title( $post ) ),
+				'url'       => esc_url( $url ),
+				'thumbnail' => (string) \Jet_Search_Template_Functions::get_post_thumbnail( $this->args, $post ),
+				'content'   => $this->item_content( $post ),
+			];
+		}
+
 		public function get_query_result( $limit = null ) {
 			return bit_crossblog_search_posts(
 				$this->blog_id(),
 				$this->post_types(),
 				(string) $this->search_string,
 				(int) ( $limit ?? $this->limit ),
-				[ $this, 'url_for' ]
+				[ $this, 'build_item' ]
 			);
+		}
+
+		/**
+		 * Mesmo markup de templates/jet-ajax-search/global/results-item.php,
+		 * para herdar o estilo do widget (tamanho da thumb, fonte, divisórias).
+		 * O render() da classe base só produz uma lista de links.
+		 */
+		public function render() {
+			if ( empty( $this->items_list ) ) {
+				return '';
+			}
+
+			$name   = $this->get_name();
+			$title  = $this->args[ 'search_source_' . $name . '_title' ] ?? '';
+			$target = ! empty( $this->args['show_result_new_tab'] ) && filter_var( $this->args['show_result_new_tab'], FILTER_VALIDATE_BOOLEAN ) ? ' target="_blank"' : '';
+			$html   = '';
+
+			foreach ( $this->items_list as $item ) {
+				$content = '' !== $item['content'] ? '<div class="jet-ajax-search__item-content">' . wp_kses_post( $item['content'] ) . '</div>' : '';
+
+				$html .= '<div class="jet-ajax-search__results-item">'
+					. '<a class="jet-ajax-search__item-link" href="' . $item['url'] . '"' . $target . '>'
+					. wp_kses_post( $item['thumbnail'] )
+					. '<div class="jet-ajax-search__item-content-wrapper">'
+					. '<div class="jet-ajax-search__item-title">' . $item['name'] . '</div>'
+					. $content
+					. '</div></a></div>';
+			}
+
+			return '<div class="jet-ajax-search__source-results-holder jet-ajax-search__source-results-holder_' . esc_attr( $name ) . '">'
+				. '<div class="jet-ajax-search__source-results-holder-title">' . wp_kses_post( $title ) . '</div>'
+				. $html
+				. '</div>';
 		}
 
 		/**
@@ -327,22 +389,38 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 		public function url_for( WP_Post $post, string $lang ): string {
 			return bit_crossblog_search_atlas_url( $lang );
 		}
+
+		// "Fotografia · Palmas, Tocantins — <bio>": o que situa o artista no
+		// Atlas vem antes da bio. Artista não tem imagem destacada (0 de 1.311).
+		protected function item_content( WP_Post $post ): string {
+			$place = implode( ', ', array_filter( [ get_post_meta( $post->ID, 'cidade', true ), get_post_meta( $post->ID, 'estado', true ) ] ) );
+			$meta  = implode( ' · ', array_filter( [ get_post_meta( $post->ID, 'tema', true ), $place ] ) );
+			$bio   = parent::item_content( $post );
+
+			if ( '' === $meta ) {
+				return $bio;
+			}
+
+			return esc_html( $meta ) . ( '' !== $bio ? ' — ' . $bio : '' );
+		}
 	} );
 } );
 
 /**
  * Ajustes de front-end no dropdown, porque o JetSearch não prevê fontes longas:
  *
- * 1. Ele põe as fontes "depois dos posts" DENTRO de
- *    .jet-ajax-search__results-list, cuja altura fixa na do slide de posts
- *    ativo (syncResultsListHeight) com overflow:hidden — os blocos ficavam
- *    cortados. Eles saem da lista e vão para logo depois dela, na ordem.
- * 2. O painel do header é position:fixed; um dropdown mais alto que a janela
- *    não tem como ser rolado. A altura fica limitada à janela, com rolagem
- *    interna.
+ * 1. Ele põe as fontes "depois dos posts" dentro de
+ *    .jet-ajax-search__results-list, fora do slide de posts — que tem rolagem
+ *    própria (max-height do widget) — e fixa a altura da lista na do slide com
+ *    overflow:hidden. Os blocos ficavam cortados, ou com uma segunda rolagem.
+ *    Aqui eles entram no fim do último slide: uma rolagem só cobre posts e
+ *    Atlas, e a altura da lista é ressincronizada com o slide.
+ * 2. Busca sem nenhum post não tem slide: os blocos ficam na lista, de altura
+ *    automática. Como o painel do header é position:fixed, a altura fica
+ *    limitada à janela, com rolagem interna.
  *
  * Observa o DOM em vez do evento `jet-ajax-search/show-results`, que só
- * dispara quando há posts — busca que acha só artistas não passaria por ele.
+ * dispara quando há posts.
  */
 add_action( 'wp_enqueue_scripts', function () {
 	$js = <<<'JS'
@@ -355,13 +433,32 @@ add_action( 'wp_enqueue_scripts', function () {
 		if ( ! list || ! holder ) {
 			return;
 		}
-		var anchor = list;
-		list.querySelectorAll( ':scope > ' + SEL ).forEach( function ( block ) {
-			anchor.after( block );
-			anchor = block;
-		} );
+		var slides = list.querySelectorAll( '.jet-ajax-search__results-slide' );
+		var slide = slides.length ? slides[ slides.length - 1 ] : null;
+		var loose = list.querySelectorAll( ':scope > ' + SEL + ', :scope > .jet-ajax-search__results-list-inner > ' + SEL );
+		if ( slide && loose.length ) {
+			loose.forEach( function ( block ) {
+				slide.appendChild( block );
+			} );
+		}
 		holder.style.maxHeight = '';
 		holder.style.overflowY = '';
+		if ( slide ) {
+			// O max-height do slide (widget) ignora a janela: no mobile o
+			// dropdown passava do rodapé da tela e o fim da lista não era
+			// alcançável. Limita à altura que sobra abaixo do slide.
+			slide.style.maxHeight = '';
+			var footer = area.querySelector( '.jet-ajax-search__results-footer' );
+			var below = footer ? footer.offsetHeight : 0;
+			var space = window.innerHeight - slide.getBoundingClientRect().top - below - 12;
+			if ( space >= 160 && slide.offsetHeight > space ) {
+				slide.style.maxHeight = space + 'px';
+			}
+			if ( list.style.height ) {
+				list.style.height = slide.offsetHeight + 'px';
+			}
+			return;
+		}
 		if ( ! holder.querySelector( SEL ) ) {
 			return;
 		}
@@ -384,7 +481,7 @@ add_action( 'wp_enqueue_scripts', function () {
 					queued = false;
 					adjust( area );
 				} );
-			} ).observe( area, { childList: true, subtree: true, attributes: true, attributeFilter: [ 'class' ] } );
+			} ).observe( area, { childList: true, subtree: true } );
 		} );
 	}
 

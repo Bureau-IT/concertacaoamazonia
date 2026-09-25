@@ -82,6 +82,21 @@ html :is(.elementor-element-5a1231d, .elementor-element-bec826a) select option {
     overflow: hidden;
 }
 
+/* No mobile o inset de 4rem nas laterais, somado ao padding de 2rem do
+   container externo do template (44cf077) e aos 20px do box creme, deixava
+   o campo de busca com 147px numa tela de 390 — resultados ilegíveis.
+   As laterais encolhem; topo e base continuam em 4rem. */
+@media (max-width: 767px) {
+    .jet-hamburger-panel__content[data-template-id="4360"] {
+        inset: 4rem 0.75rem !important;
+    }
+
+    .jet-hamburger-panel__content[data-template-id="4360"] .elementor-element.elementor-element-44cf077 {
+        --padding-left : 0;
+        --padding-right: 0;
+    }
+}
+
 .jet-hamburger-panel__content[data-template-id="4360"] nav.elementor-4360 div#custom-search-template {
     height    : 100%;
     background: color-mix(in lab, var(--ucpa-color-white), transparent 6%);

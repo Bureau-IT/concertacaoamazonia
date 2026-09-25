@@ -7,10 +7,9 @@
  *   .jet-ajax-search__source-results-holder_bit_atlas_pages
  *   .jet-ajax-search__source-results-holder_bit_atlas_artists
  *
- * O widget não expõe controles de estilo para fontes adicionais; sem isto
- * elas herdam o fundo do cabeçalho de resultados. Visual alinhado aos itens
- * de post do mesmo dropdown (fundo secondary, rótulo em accent, itens em
- * primary, Rubik).
+ * Os itens usam o mesmo markup dos itens de post (.jet-ajax-search__results-item)
+ * e herdam o estilo do widget; aqui fica só o rótulo de cada bloco, que o
+ * widget não estiliza (fundo secondary, rótulo em accent).
  * Cores só via Global Colors do Elementor.
  *
  * Especificidade alta de propósito: quando a busca não acha post nenhum, os
@@ -22,7 +21,7 @@
 .jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] {
 	background-color: var(--e-global-color-secondary);
 	border-top: 1px solid color-mix(in srgb, var(--e-global-color-primary) 20%, transparent);
-	padding: 4px 0 8px;
+	padding: 0;
 }
 
 .jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-holder-title {
@@ -32,23 +31,6 @@
 	font-weight: 500;
 	letter-spacing: 0.04em;
 	line-height: 1.5;
-	padding: 10px 15px 4px;
+	padding: 12px 10px 2px;
 	text-transform: uppercase;
-}
-
-.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-item .jet-ajax-search__source-results-item_link {
-	color: var(--e-global-color-primary);
-	display: block;
-	font-family: Rubik, sans-serif;
-	font-size: 1rem;
-	font-weight: 400;
-	line-height: 1.4;
-	padding: 6px 15px;
-	text-decoration: none;
-}
-
-.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-item .jet-ajax-search__source-results-item_link:hover,
-.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-item .jet-ajax-search__source-results-item_link:focus-visible {
-	color: var(--e-global-color-accent);
-	text-decoration: underline;
 }
