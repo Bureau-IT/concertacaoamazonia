@@ -93,17 +93,23 @@ test.describe('Busca cross-blog × JetSearch', () => {
       const blocos = [...document.querySelectorAll('[class*="jet-ajax-search__source-results-holder_bit_atlas_"]')];
       const rolaveis = [...document.querySelectorAll('.jet-ajax-search__results-holder, .jet-ajax-search__results-holder *')]
         .filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1);
-      const holder = document.querySelector('.jet-ajax-search__results-holder').getBoundingClientRect();
+      // O rodapé ("Ver mais resultados") tem de estar de fato visível: o
+      // painel do header corta o conteúdo (overflow:hidden) acima do fim da
+      // janela, então "cabe na janela" não basta — conferir o que está no
+      // ponto do botão.
+      const botao = document.querySelector('.jet-ajax-search__full-results');
+      const r = botao.getBoundingClientRect();
+      const noPonto = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       return {
         dentroDoSlide: blocos.every((b) => b.closest('.jet-ajax-search__results-slide')),
         rolaveis: rolaveis.length,
-        cabeNaJanela: holder.bottom <= window.innerHeight,
+        rodapeVisivel: !!noPonto && (noPonto === botao || botao.contains(noPonto)),
       };
     });
 
     expect(estado.dentroDoSlide, 'blocos fora do slide: o markup do dropdown mudou').toBe(true);
     expect(estado.rolaveis, 'mais de uma área rolável no dropdown').toBeLessThanOrEqual(1);
-    expect(estado.cabeNaJanela, 'dropdown passa do rodapé da janela').toBe(true);
+    expect(estado.rodapeVisivel, 'botão "Ver mais resultados" cortado ou encoberto').toBe(true);
   });
 
   test('C) "Ver mais resultados" leva à página /busca/', async ({ page }) => {

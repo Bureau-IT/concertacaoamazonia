@@ -8,7 +8,7 @@
  *              o painel de busca cujo template só existe no blog 1 e serve a
  *              página de resultados completa em /busca/ (e /en/busca/). O
  *              resultado de artista abre o popup dele no mapa do Atlas.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -659,6 +659,20 @@ add_action( 'wp_enqueue_scripts', function () {
 		}
 	}
 
+	// Limite de baixo visível: a janela, ou o ancestral que corta o conteúdo
+	// (overflow != visible) — o painel do header é fixed com inset de 4rem e
+	// overflow:hidden, e medir só pela janela deixava o rodapé "Ver mais
+	// resultados" na faixa cortada (reportado em 25/09/2026).
+	function visibleBottom( area ) {
+		var bottom = window.innerHeight;
+		for ( var el = area.parentElement; el && el !== document.body; el = el.parentElement ) {
+			if ( getComputedStyle( el ).overflowY !== 'visible' ) {
+				bottom = Math.min( bottom, el.getBoundingClientRect().bottom );
+			}
+		}
+		return bottom;
+	}
+
 	function adjust( area ) {
 		var list = area.querySelector( '.jet-ajax-search__results-list' );
 		var holder = area.querySelector( '.jet-ajax-search__results-holder' );
@@ -685,9 +699,12 @@ add_action( 'wp_enqueue_scripts', function () {
 			var active = activeSlide( list, slides );
 			var footer = area.querySelector( '.jet-ajax-search__results-footer' );
 			var below = footer ? footer.offsetHeight : 0;
-			var space = Math.floor( window.innerHeight - active.getBoundingClientRect().top - below - 12 );
+			var space = Math.floor( visibleBottom( area ) - active.getBoundingClientRect().top - below - 12 );
+			// Piso de ~1 item: em tela baixa (1280x720) o espaço sob o campo
+			// fica abaixo de 160px, e sem teto o rodapé saía cortado.
+			space = Math.max( space, 96 );
 			slides.forEach( function ( slide ) {
-				setStyle( slide, 'maxHeight', space >= 160 && slide.scrollHeight > space ? space + 'px' : '' );
+				setStyle( slide, 'maxHeight', slide.scrollHeight > space ? space + 'px' : '' );
 			} );
 			if ( list.style.height ) {
 				setStyle( list, 'height', active.offsetHeight + 'px' );
@@ -696,8 +713,9 @@ add_action( 'wp_enqueue_scripts', function () {
 		}
 		var capped = false;
 		if ( holder.querySelector( SEL ) ) {
-			var room = Math.floor( window.innerHeight - holder.getBoundingClientRect().top - 16 );
-			capped = room > 160 && holder.scrollHeight > room;
+			var room = Math.floor( visibleBottom( area ) - holder.getBoundingClientRect().top - 16 );
+			room = Math.max( room, 96 );
+			capped = holder.scrollHeight > room;
 		}
 		setStyle( holder, 'maxHeight', capped ? room + 'px' : '' );
 		setStyle( holder, 'overflowY', capped ? 'auto' : '' );
