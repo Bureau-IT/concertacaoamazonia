@@ -34,3 +34,218 @@
 	padding: 12px 10px 2px;
 	text-transform: uppercase;
 }
+
+/* ==========================================================================
+   Página de resultados — /busca/ e /en/busca/ ("Ver mais resultados")
+   Markup do mu-plugin bit-crossblog-search.php. Mesma linguagem do painel de
+   busca e do dropdown: títulos Poppins, itens Rubik com thumb redonda, rótulos
+   Roboto em accent. Os seletores dos itens levam .bit-busca na frente porque
+   o kit do Elementor estiliza todo <a> (.elementor-kit-N a: negrito, accent),
+   e um seletor de uma classe só perde para ele.
+   ========================================================================== */
+
+.bit-busca {
+	color: var(--e-global-color-text);
+	font-family: var(--e-global-typography-text-font-family), sans-serif;
+	padding: 3.5rem 1rem 5rem;
+}
+
+.bit-busca__inner {
+	margin: 0 auto;
+	max-width: 960px;
+}
+
+.bit-busca__title {
+	border-bottom: 2px solid var(--e-global-color-primary);
+	color: var(--e-global-color-primary);
+	font-family: var(--e-global-typography-primary-font-family), sans-serif;
+	font-size: clamp(1.75rem, 4vw, 2.5rem);
+	font-weight: 700;
+	margin: 0 0 1.5rem;
+	padding-bottom: 0.75rem;
+	text-align: center;
+	text-transform: uppercase;
+}
+
+.bit-busca__form {
+	display: flex;
+	gap: 0.5rem;
+	margin-bottom: 1.25rem;
+}
+
+.bit-busca__input {
+	background-color: var(--ucpa-color-white);
+	border: 1px solid color-mix(in srgb, var(--e-global-color-primary) 30%, transparent);
+	border-radius: 8px;
+	color: var(--e-global-color-text);
+	flex: 1 1 auto;
+	font-family: inherit;
+	font-size: 1rem;
+	min-width: 0;
+	padding: 0.85rem 1rem;
+}
+
+.bit-busca__input:focus-visible {
+	border-color: var(--e-global-color-accent);
+	outline: 2px solid var(--e-global-color-accent);
+	outline-offset: 1px;
+}
+
+.bit-busca__submit {
+	background-color: var(--e-global-color-primary);
+	border: 0;
+	border-radius: 8px;
+	color: var(--e-global-color-secondary);
+	cursor: pointer;
+	font-family: var(--e-global-typography-accent-font-family), sans-serif;
+	font-size: 0.9rem;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	padding: 0 1.5rem;
+	text-transform: uppercase;
+}
+
+.bit-busca__submit:hover,
+.bit-busca__submit:focus-visible {
+	background-color: var(--e-global-color-accent);
+}
+
+.bit-busca__summary {
+	font-size: 1rem;
+	margin: 0 0 2rem;
+}
+
+.bit-busca__section {
+	margin-bottom: 2.5rem;
+}
+
+.bit-busca__section-title {
+	border-bottom: 1px solid color-mix(in srgb, var(--e-global-color-primary) 20%, transparent);
+	color: var(--e-global-color-accent);
+	font-family: var(--e-global-typography-accent-font-family), sans-serif;
+	font-size: 0.85rem;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	margin: 0;
+	padding-bottom: 0.5rem;
+	text-transform: uppercase;
+}
+
+.bit-busca__count {
+	color: var(--e-global-color-text);
+	margin-left: 0.35rem;
+	opacity: 0.7;
+}
+
+.bit-busca__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.bit-busca__item {
+	border-bottom: 1px solid color-mix(in srgb, var(--e-global-color-primary) 15%, transparent);
+}
+
+.bit-busca .bit-busca__link {
+	align-items: flex-start;
+	color: var(--e-global-color-text);
+	font-weight: 400;
+	display: flex;
+	gap: 1rem;
+	padding: 1rem 0;
+	text-decoration: none;
+}
+
+.bit-busca__thumb {
+	flex: 0 0 56px;
+}
+
+.bit-busca__img {
+	aspect-ratio: 1 / 1;
+	border-radius: 50%;
+	display: block;
+	height: 56px;
+	object-fit: cover;
+	width: 56px;
+}
+
+.bit-busca__body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	min-width: 0;
+}
+
+.bit-busca .bit-busca__item-title {
+	color: var(--e-global-color-primary);
+	font-weight: 400;
+	font-family: var(--e-global-typography-secondary-font-family), sans-serif;
+	font-size: 1.2rem;
+	line-height: 1.35;
+}
+
+.bit-busca .bit-busca__link:hover .bit-busca__item-title,
+.bit-busca .bit-busca__link:focus-visible .bit-busca__item-title {
+	color: var(--e-global-color-accent);
+	text-decoration: underline;
+}
+
+.bit-busca .bit-busca__text {
+	color: var(--e-global-color-text);
+	font-size: 0.9rem;
+	font-weight: 400;
+	line-height: 1.5;
+}
+
+.bit-busca__more {
+	font-size: 0.9rem;
+	margin: 0.75rem 0 0;
+}
+
+.bit-busca__more a {
+	color: var(--e-global-color-accent);
+}
+
+.bit-busca__pagination {
+	align-items: center;
+	display: flex;
+	font-family: var(--e-global-typography-accent-font-family), sans-serif;
+	font-size: 0.9rem;
+	justify-content: space-between;
+	padding-top: 1rem;
+}
+
+.bit-busca__page-link {
+	color: var(--e-global-color-primary);
+	font-weight: 500;
+	text-transform: uppercase;
+}
+
+.bit-busca__page-link:hover,
+.bit-busca__page-link:focus-visible {
+	color: var(--e-global-color-accent);
+}
+
+@media (max-width: 767px) {
+	.bit-busca {
+		padding-top: 2rem;
+	}
+
+	.bit-busca__submit {
+		padding: 0 1rem;
+	}
+
+	.bit-busca__thumb {
+		flex-basis: 44px;
+	}
+
+	.bit-busca__img {
+		height: 44px;
+		width: 44px;
+	}
+
+	.bit-busca .bit-busca__item-title {
+		font-size: 1.05rem;
+	}
+}
