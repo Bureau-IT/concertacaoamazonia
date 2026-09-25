@@ -25,6 +25,9 @@
  *   D) /busca/ nunca é cacheável; /?s= continua redirecionando (armadilha de crawler),
  *      mas o /?s= do JetSearch (HTML antigo em cache) vai para /busca/
  *   E) no /cultura/ o painel existe e a busca vai para o REST do blog 1
+ *   F) resultado de artista abre o popup dele no mapa do Atlas — contrato com a
+ *      API pública do JetEngine Maps (window.JetEngineMaps.openMapListingPopup);
+ *      rodar também depois de update do JetEngine
  */
 
 const { test, expect } = require('@playwright/test');
@@ -142,5 +145,30 @@ test.describe('Busca cross-blog × JetSearch', () => {
 
     expect(resposta.url(), 'a busca do blog 2 deveria ir ao REST do blog 1').not.toContain('/cultura/wp-json/');
     await expect(page.locator('[class*="jet-ajax-search__source-results-holder_bit_atlas_"]').first()).toBeVisible();
+  });
+
+  test('F) resultado de artista abre o popup dele no mapa do Atlas', async ({ page, context }) => {
+    await abrirPainelEBuscar(page, '/');
+
+    const link = page.locator('.jet-ajax-search__source-results-holder_bit_atlas_artists a').first();
+    await expect(link).toBeVisible();
+
+    const href = await link.getAttribute('href');
+    expect(href, 'link do artista sem o fragmento do popup').toMatch(/#atlas-artista-\d+$/);
+
+    const nome = (await link.locator('.jet-ajax-search__item-title').textContent()).trim();
+
+    // O widget abre resultados em nova aba (show_result_new_tab); seguir as duas formas.
+    let atlas = page;
+    if ((await link.getAttribute('target')) === '_blank') {
+      [atlas] = await Promise.all([context.waitForEvent('page'), link.click()]);
+    } else {
+      await link.click();
+    }
+    await atlas.waitForLoadState('load');
+
+    // O conteúdo do popup chega por um REST separado (get-map-marker-info).
+    await expect(atlas.locator('.leaflet-popup-content'), 'popup do artista não abriu — API do JetEngine Maps mudou?')
+      .toContainText(nome, { timeout: 30000 });
   });
 });

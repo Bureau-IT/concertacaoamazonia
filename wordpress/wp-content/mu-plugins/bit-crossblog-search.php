@@ -6,8 +6,9 @@
  *              (blog 2: páginas, Linha das Artes, artistas), aponta a busca do
  *              /cultura/ para o endpoint do blog 1, renderiza no header do blog 2
  *              o painel de busca cujo template só existe no blog 1 e serve a
- *              página de resultados completa em /busca/ (e /en/busca/).
- * Version: 1.2.0
+ *              página de resultados completa em /busca/ (e /en/busca/). O
+ *              resultado de artista abre o popup dele no mapa do Atlas.
+ * Version: 1.3.0
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -236,13 +237,21 @@ function bit_crossblog_search_permalink( WP_Post $post, string $lang ): string {
 }
 
 /**
- * URL do Atlas no idioma do request, com âncora na listagem de artistas.
- * Artistas não têm página própria (CPT não público): o resultado leva ao Atlas.
+ * URL do Atlas no idioma do request. Artistas não têm página própria (CPT não
+ * público): com $artist_id o link leva ao Atlas com o popup do artista aberto
+ * no mapa (#atlas-artista-<ID>, lido pelo script do Atlas, abaixo). O ID é o
+ * do post no idioma do request — os markers do mapa EN são os posts EN.
+ * Fragmento, e não query string: não chega ao servidor, então a página em
+ * cache (WP Rocket, CloudFront) continua uma só.
  */
-function bit_crossblog_search_atlas_url( string $lang ): string {
+function bit_crossblog_search_atlas_url( string $lang, int $artist_id = 0 ): string {
 	$url = get_permalink( bit_crossblog_search_translation_id( BIT_CROSSBLOG_SEARCH_ATLAS_PAGE, $lang ) );
 
-	return $url ? $url . '#artista-mapa' : '';
+	if ( ! $url ) {
+		return '';
+	}
+
+	return $url . ( $artist_id > 0 ? '#atlas-artista-' . $artist_id : '' );
 }
 
 
@@ -588,7 +597,7 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 		}
 
 		public function url_for( WP_Post $post, string $lang ): string {
-			return bit_crossblog_search_atlas_url( $lang );
+			return bit_crossblog_search_atlas_url( $lang, (int) $post->ID );
 		}
 
 		// "Fotografia · Palmas, Tocantins — <bio>": o que situa o artista no
@@ -1088,7 +1097,7 @@ function bit_crossblog_search_results_data( array $request ): array {
 
 	$artists_total = 0;
 	$artists       = bit_crossblog_search_posts( BIT_CROSSBLOG_SEARCH_ATLAS_BLOG, [ 'artistas' ], $request['term'], BIT_CROSSBLOG_SEARCH_ATLAS_MAX, function ( WP_Post $post, string $lang ) {
-		return bit_crossblog_search_card( $post, bit_crossblog_search_atlas_url( $lang ), bit_crossblog_search_artist_meta( $post ) );
+		return bit_crossblog_search_card( $post, bit_crossblog_search_atlas_url( $lang, (int) $post->ID ), bit_crossblog_search_artist_meta( $post ) );
 	}, $artists_total );
 
 	$data['atlas_pages']   = [ 'cards' => $pages, 'total' => $pages_total ];
@@ -1163,7 +1172,7 @@ function bit_crossblog_search_results_html( array $request, array $data ): strin
 				$atlas = bit_crossblog_search_in_blog( BIT_CROSSBLOG_SEARCH_ATLAS_BLOG, function ( string $lang ) {
 					return bit_crossblog_search_atlas_url( $lang );
 				} );
-				$html .= '<p class="bit-busca__more"><a href="' . esc_url( preg_replace( '/#.*$/', '', $atlas ) ) . '">' . esc_html( bit_crossblog_search_t( 'atlas_all' ) ) . '</a></p>';
+				$html .= '<p class="bit-busca__more"><a href="' . esc_url( $atlas ) . '">' . esc_html( bit_crossblog_search_t( 'atlas_all' ) ) . '</a></p>';
 			}
 
 			$html .= '</section>';
@@ -1306,3 +1315,78 @@ add_action( 'wp_enqueue_scripts', function () {
 
 	wp_add_inline_script( 'jet-search', $js );
 }, 21 );
+
+/**
+ * No Atlas (blog 2), abre o popup do artista pedido em #atlas-artista-<ID>.
+ *
+ * Usa a API pública do JetEngine Maps, window.JetEngineMaps.openMapListingPopup
+ * — a mesma do "abrir popup do mapa" das listagens —, que já trata marker
+ * dentro de cluster (abre o cluster e centraliza). SEM scroll_to_map: com
+ * marker em cluster o JetEngine 3.8.15 chama getContainer(undefined) e quebra
+ * (medido em 25/09/2026); a rolagem até o mapa é feita aqui.
+ *
+ * Os markers entram de forma assíncrona depois do load. Espera até 20s.
+ * Artista sem coordenada não tem marker (655 de 660 têm): cai na listagem
+ * (#artista-mapa). Também reage a hashchange — busca feita no próprio Atlas.
+ * O script só age quando o fragmento casa; nas outras páginas é inerte.
+ */
+add_action( 'wp_footer', function () {
+	if ( get_current_blog_id() !== BIT_CROSSBLOG_SEARCH_ATLAS_BLOG ) {
+		return;
+	}
+	?>
+<script id="bit-atlas-artista-popup">
+( function () {
+	function openFromHash() {
+		var match = /^#atlas-artista-(\d+)$/.exec( window.location.hash );
+		if ( ! match ) {
+			return;
+		}
+		var id = parseInt( match[ 1 ], 10 );
+		var started = Date.now();
+
+		// Não fecha popup aberto: o botão de fechar do Leaflet é um
+		// <a href="#close"> sem preventDefault, e clicá-lo trocaria o
+		// fragmento da URL. Popup de outro artista aberto só acontece trocando
+		// o fragmento na mesma página — e o widget abre resultados em nova aba.
+		function fallback() {
+			var list = document.getElementById( 'artista-mapa' );
+			if ( list ) {
+				list.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+			}
+		}
+
+		( function wait() {
+			var maps = window.JetEngineMaps;
+			var ready = maps && maps.markersData && Object.keys( maps.markersData ).length > 0;
+			if ( ! ready ) {
+				if ( Date.now() - started < 20000 ) {
+					return setTimeout( wait, 250 );
+				}
+				return fallback();
+			}
+			if ( ! maps.markersData[ id ] || typeof maps.openMapListingPopup !== 'function' ) {
+				return fallback();
+			}
+			var map = document.querySelector( '.elementor-widget-jet-engine-maps-listing' );
+			if ( map ) {
+				map.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+			}
+			try {
+				maps.openMapListingPopup( { id: id, zoom: 12 } );
+			} catch ( e ) {
+				fallback();
+			}
+		} )();
+	}
+
+	if ( document.readyState === 'complete' ) {
+		openFromHash();
+	} else {
+		window.addEventListener( 'load', openFromHash );
+	}
+	window.addEventListener( 'hashchange', openFromHash );
+} )();
+</script>
+	<?php
+}, 99 );
