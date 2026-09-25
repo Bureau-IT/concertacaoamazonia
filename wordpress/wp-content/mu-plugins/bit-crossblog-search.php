@@ -8,7 +8,7 @@
  *              o painel de busca cujo template só existe no blog 1 e serve a
  *              página de resultados completa em /busca/ (e /en/busca/). O
  *              resultado de artista abre o popup dele no mapa do Atlas.
- * Version: 1.4.0
+ * Version: 1.4.3
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -463,6 +463,7 @@ function bit_crossblog_search_sections(): array {
 			'priority' => 6,
 			'blog'     => BIT_CROSSBLOG_SEARCH_MAIN_BLOG,
 			'types'    => [ 'post' ],
+			'prefix'   => 'bit_crossblog_search_news_meta',
 		],
 		'bit_eventos'       => [
 			'label'      => 'Próximos eventos',
@@ -550,7 +551,7 @@ function bit_crossblog_search_section_items( string $key, string $term, int $lim
 	if ( isset( $section['items'] ) && is_callable( $section['items'] ) ) {
 		$fn = $section['items'];
 
-		return (array) $fn( $term, $limit, $context, $total );
+		return array_slice( bit_crossblog_search_dedupe( (array) $fn( $term, $limit * 2, $context, $total ) ), 0, $limit );
 	}
 
 	$build = function ( WP_Post $post, string $lang ) use ( $section, $context, $args ) {
@@ -578,7 +579,66 @@ function bit_crossblog_search_section_items( string $key, string $term, int $lim
 		'query_args' => isset( $section['query_args'] ) && is_callable( $section['query_args'] ) ? (array) call_user_func( $section['query_args'] ) : [],
 	];
 
-	return bit_crossblog_search_posts( (int) $section['blog'], (array) $section['types'], $term, $limit, $build, $total, $opts );
+	// Busca o dobro e deduplica (ver bit_crossblog_search_dedupe). O total da
+	// página continua o do banco, que conta as cópias.
+	$items = bit_crossblog_search_posts( (int) $section['blog'], (array) $section['types'], $term, $limit * 2, $build, $total, $opts );
+
+	return array_slice( bit_crossblog_search_dedupe( $items ), 0, $limit );
+}
+
+/**
+ * Remove cards repetidos. Repetido = mesmo título E (mesmo destino OU mesmo
+ * texto). O conteúdo tem cópias que o visitante veria em dobro (medido em
+ * 25/09/2026):
+ * - 15 obras de galeria-1 idênticas às de galeria-2, com o mesmo destino;
+ * - notícias com o mesmo título e o mesmo texto em destinos diferentes (as
+ *   de clipping de veículos distintos NÃO somem: o veículo entra no texto);
+ * - 253 participantes com linha repetida, todos com o mesmo destino.
+ * Título igual com texto E destino diferentes não é repetição: as três
+ * "Rakel Caminha" da Linha das Artes são obras distintas.
+ */
+function bit_crossblog_search_dedupe( array $cards ): array {
+	$norm = function ( string $text, int $length = 0 ): string {
+		$text = mb_strtolower( trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( html_entity_decode( $text, ENT_QUOTES, 'UTF-8' ) ) ) ) );
+
+		return $length ? mb_substr( $text, 0, $length ) : $text;
+	};
+
+	$seen = [];
+	$out  = [];
+
+	foreach ( $cards as $card ) {
+		$title = $norm( (string) $card['title'] );
+		$keys  = [ $title . '|url|' . $card['url'] ];
+
+		if ( '' !== trim( (string) $card['text'] ) ) {
+			$keys[] = $title . '|txt|' . $norm( (string) $card['text'], 160 );
+		}
+
+		if ( array_intersect_key( $seen, array_flip( $keys ) ) ) {
+			continue;
+		}
+
+		foreach ( $keys as $key ) {
+			$seen[ $key ] = true;
+		}
+
+		$out[] = $card;
+	}
+
+	return $out;
+}
+
+/* ── Notícias: o veículo antes do resumo ──
+ * Boa parte das notícias é clipping: a mesma matéria republicada por vários
+ * veículos, cada uma com o seu registro ("Em vez de chantagem…" tem 11, da
+ * Folha, Yahoo, MSN…). São registros legítimos, não cópias; sem o veículo o
+ * visitante via oito títulos iguais sem saber a diferença. */
+
+function bit_crossblog_search_news_meta( WP_Post $post ): string {
+	$names = wp_get_post_terms( $post->ID, 'veiculo', [ 'fields' => 'names' ] );
+
+	return is_array( $names ) ? implode( ', ', $names ) : '';
 }
 
 /* ── Eventos (The Events Calendar, blog 1): só os que ainda não terminaram ── */
@@ -645,12 +705,15 @@ function bit_crossblog_search_participants( string $term, int $limit, string $co
 		$where = $wpdb->prepare( "cct_status = 'publish' AND ( item_title LIKE %s OR organizacao LIKE %s )", $like, $like );
 
 		if ( null !== $total ) {
-			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE {$where}" ); // phpcs:ignore WordPress.DB.PreparedSQL
+			// Por nome distinto: 253 nomes têm linha repetida no CCT.
+			$total = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT LOWER(TRIM(item_title))) FROM {$table} WHERE {$where}" ); // phpcs:ignore WordPress.DB.PreparedSQL
 		}
 
-		// Quem começa com o termo primeiro, depois ordem alfabética.
+		// Quem começa com o termo primeiro, depois ordem alfabética; entre linhas
+		// repetidas do mesmo nome, a que tem organização vem antes — é a que
+		// sobra na deduplicação.
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT item_title, organizacao, item_thumbnail FROM {$table} WHERE {$where} ORDER BY ( item_title LIKE %s ) DESC, item_title ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL
+			"SELECT item_title, organizacao, item_thumbnail FROM {$table} WHERE {$where} ORDER BY ( item_title LIKE %s ) DESC, item_title ASC, ( TRIM( IFNULL( organizacao, '' ) ) = '' ) ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL
 			$wpdb->esc_like( $term ) . '%',
 			$limit
 		) );
@@ -1296,7 +1359,7 @@ function bit_crossblog_search_results_data( array $request ): array {
 		$request['types'],
 		$request['page'],
 		array_keys( bit_crossblog_search_sections() ),
-		'1.4.0',
+		'1.4.3',
 	] ) );
 	$cached = get_transient( $cache_key );
 
