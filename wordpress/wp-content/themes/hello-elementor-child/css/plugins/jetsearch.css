@@ -2,10 +2,10 @@
  * jetsearch.css — Fontes adicionais do Ajax Search (JetSearch)
  * Tema: hello-elementor-child
  *
- * Estiliza os blocos do Atlas Cultural (blog 2) que o mu-plugin
- * bit-crossblog-search.php injeta no dropdown da busca do header:
- *   .jet-ajax-search__source-results-holder_bit_atlas_pages
- *   .jet-ajax-search__source-results-holder_bit_atlas_artists
+ * Estiliza os blocos adicionais que o mu-plugin bit-crossblog-search.php
+ * injeta no dropdown da busca do header — notícias, eventos, participantes e
+ * Atlas Cultural —, todos com a classe
+ *   .jet-ajax-search__source-results-holder_bit_<seção>
  *
  * Os itens usam o mesmo markup dos itens de post (.jet-ajax-search__results-item)
  * e herdam o estilo do widget; aqui fica só o rótulo de cada bloco, que o
@@ -18,13 +18,13 @@
  * um seletor curto.
  */
 
-.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] {
+.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_"] {
 	background-color: var(--e-global-color-secondary);
 	border-top: 1px solid color-mix(in srgb, var(--e-global-color-primary) 20%, transparent);
 	padding: 0;
 }
 
-.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-holder-title {
+.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_"] .jet-ajax-search__source-results-holder-title {
 	color: var(--e-global-color-accent);
 	font-family: Roboto, sans-serif;
 	font-size: 0.8rem;

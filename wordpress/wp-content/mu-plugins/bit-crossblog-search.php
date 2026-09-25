@@ -8,7 +8,7 @@
  *              o painel de busca cujo template só existe no blog 1 e serve a
  *              página de resultados completa em /busca/ (e /en/busca/). O
  *              resultado de artista abre o popup dele no mapa do Atlas.
- * Version: 1.3.1
+ * Version: 1.4.0
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -108,19 +108,27 @@ function bit_crossblog_search_in_blog( int $blog_id, callable $callback ) {
  * Cada item é montado por $build_item( WP_Post, $lang ) ainda DENTRO do blog
  * alvo — permalink, thumbnail e resumo dependem dele. Item null é descartado.
  *
+ * $opts:
+ * - 'fallback'   (bool)  no idioma não-padrão, inclui também os originais sem
+ *                        tradução nele — o "exibir como traduzido" do WPML.
+ *                        Eventos e exposições quase não têm EN.
+ * - 'query_args' (array) args extras do WP_Query (meta_query, orderby…).
+ *
  * @return array<int, array>
  */
-function bit_crossblog_search_posts( int $blog_id, array $post_types, string $search, int $limit, callable $build_item, ?int &$total = null ): array {
+function bit_crossblog_search_posts( int $blog_id, array $post_types, string $search, int $limit, callable $build_item, ?int &$total = null, array $opts = [] ): array {
 	// Total só quando o chamador pede (a página de resultados); o dropdown
 	// dispensa o SQL_CALC_FOUND_ROWS.
-	$count  = func_num_args() > 5;
+	$count    = null !== $total;
+	$fallback = ! empty( $opts['fallback'] );
+	$extra    = isset( $opts['query_args'] ) && is_array( $opts['query_args'] ) ? $opts['query_args'] : [];
 	$search = trim( $search );
 
 	if ( '' === $search || $limit < 1 ) {
 		return [];
 	}
 
-	return bit_crossblog_search_in_blog( $blog_id, function ( string $lang ) use ( $post_types, $search, $limit, $build_item, $count, &$total ) {
+	return bit_crossblog_search_in_blog( $blog_id, function ( string $lang ) use ( $post_types, $search, $limit, $build_item, $count, &$total, $fallback, $extra ) {
 		$query_args = [
 			's'                   => $search,
 			'post_type'           => $post_types,
@@ -139,17 +147,32 @@ function bit_crossblog_search_posts( int $blog_id, array $post_types, string $se
 		$lang_clauses = null;
 
 		if ( '' !== $lang ) {
-			$lang_clauses = function ( array $clauses, WP_Query $query ) use ( $lang ) {
+			$settings = get_option( 'icl_sitepress_settings' );
+			$default  = is_array( $settings ) ? (string) ( $settings['default_language'] ?? '' ) : '';
+
+			$lang_clauses = function ( array $clauses, WP_Query $query ) use ( $lang, $fallback, $default ) {
 				global $wpdb;
 
 				if ( ! $query->get( 'bit_crossblog_search' ) ) {
 					return $clauses;
 				}
 
-				$clauses['join']  .= " INNER JOIN {$wpdb->prefix}icl_translations bit_cbs_t"
+				$clauses['join'] .= " INNER JOIN {$wpdb->prefix}icl_translations bit_cbs_t"
 					. " ON bit_cbs_t.element_id = {$wpdb->posts}.ID"
 					. " AND bit_cbs_t.element_type = CONCAT('post_', {$wpdb->posts}.post_type)";
-				$clauses['where'] .= $wpdb->prepare( ' AND bit_cbs_t.language_code = %s', $lang );
+
+				if ( $fallback && '' !== $default && $lang !== $default ) {
+					$clauses['where'] .= $wpdb->prepare(
+						" AND ( bit_cbs_t.language_code = %s OR ( bit_cbs_t.language_code = %s AND NOT EXISTS ("
+						. " SELECT 1 FROM {$wpdb->prefix}icl_translations bit_cbs_t2"
+						. " WHERE bit_cbs_t2.trid = bit_cbs_t.trid AND bit_cbs_t2.language_code = %s ) ) )",
+						$lang,
+						$default,
+						$lang
+					);
+				} else {
+					$clauses['where'] .= $wpdb->prepare( ' AND bit_cbs_t.language_code = %s', $lang );
+				}
 
 				return $clauses;
 			};
@@ -158,7 +181,7 @@ function bit_crossblog_search_posts( int $blog_id, array $post_types, string $se
 		}
 
 		try {
-			$query = new WP_Query( apply_filters( 'bit_crossblog_search/query_args', $query_args + [ 'bit_crossblog_search' => true ], $post_types ) );
+			$query = new WP_Query( apply_filters( 'bit_crossblog_search/query_args', array_merge( $query_args, $extra, [ 'bit_crossblog_search' => true ] ), $post_types ) );
 		} finally {
 			if ( $lang_clauses ) {
 				remove_filter( 'posts_clauses', $lang_clauses, 99 );
@@ -276,10 +299,10 @@ function bit_crossblog_search_excerpt( WP_Post $post, int $words = 30 ): string 
 }
 
 /**
- * Thumbnail e resumo dos itens do dropdown. Os helpers do JetSearch aplicam os
- * settings do widget (tamanho, fonte e comprimento do resumo), e é por isso que
- * são a primeira escolha — mas são internos: se um update os remover ou mudar,
- * cai para o equivalente do core em vez de dar fatal.
+ * Thumbnail dos itens do dropdown. O helper do JetSearch aplica os settings do
+ * widget (visibilidade e tamanho), e é por isso que é a primeira escolha — mas
+ * é interno: se um update o remover ou mudar, cai para o equivalente do core
+ * em vez de dar fatal.
  */
 function bit_crossblog_search_item_thumbnail( array $args, WP_Post $post ): string {
 	if ( is_callable( [ '\Jet_Search_Template_Functions', 'get_post_thumbnail' ] ) ) {
@@ -289,14 +312,6 @@ function bit_crossblog_search_item_thumbnail( array $args, WP_Post $post ): stri
 	$html = get_the_post_thumbnail( $post, 'thumbnail', [ 'class' => 'jet-ajax-search__item-thumbnail-img' ] );
 
 	return $html ? '<div class="jet-ajax-search__item-thumbnail">' . $html . '</div>' : '';
-}
-
-function bit_crossblog_search_item_content( array $args, WP_Post $post ): string {
-	if ( is_callable( [ '\Jet_Search_Template_Functions', 'get_post_content' ] ) ) {
-		return (string) \Jet_Search_Template_Functions::get_post_content( $args, $post );
-	}
-
-	return esc_html( bit_crossblog_search_excerpt( $post, 25 ) );
 }
 
 /**
@@ -365,7 +380,7 @@ function bit_crossblog_search_check_base_class( string $base ): string {
 		}
 
 		// Métodos nossos não podem colidir com métodos novos da base.
-		foreach ( [ 'blog_id', 'post_types', 'url_for', 'item_content', 'build_item', 'titles' ] as $name ) {
+		foreach ( [ 'section' ] as $name ) {
 			if ( $class->hasMethod( $name ) ) {
 				return sprintf( 'a classe base passou a ter um método %s()', $name );
 			}
@@ -413,6 +428,286 @@ function bit_crossblog_search_jetsearch_version(): string {
 	return '';
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * Registro das seções — fonte única do dropdown E da página /busca/
+ *
+ * Cada entrada vira uma fonte adicional do JetSearch (bloco com título no
+ * dropdown) e uma seção da página de resultados. Chaves:
+ *   label      rótulo no editor do Elementor
+ *   titles     título do bloco/seção por idioma (os headers EN mostram o
+ *              template PT 4360, então o título do widget sairia em PT)
+ *   priority   ordem: maior aparece primeiro, logo depois da lista principal
+ *   blog/types posts buscados (WP_Query em modo frase, no idioma do request)
+ *   fallback   no EN, inclui originais PT sem tradução (eventos, exposições)
+ *   query_args callable → args extras do WP_Query (ex.: só eventos futuros)
+ *   url        callable( WP_Post, $lang ) → link; padrão: permalink
+ *   prefix     callable( WP_Post ) → linha antes do resumo ("Fotografia · …")
+ *   items      callable( $term, $limit, $context, &$total ) → cards prontos,
+ *              para o que não é post (participantes, CCT do JetEngine)
+ *   more       callable( $lang ) → link "ver todos" na página /busca/
+ * ────────────────────────────────────────────────────────────────────────── */
+
+const BIT_CROSSBLOG_SEARCH_PARTICIPANTS_PAGE = 26645; // "Participantes" no blog 1 (PT)
+
+function bit_crossblog_search_sections(): array {
+	static $sections = null;
+
+	if ( null !== $sections ) {
+		return $sections;
+	}
+
+	$sections = [
+		'bit_noticias'      => [
+			'label'    => 'Notícias',
+			'titles'   => [ 'pt-br' => 'Notícias', 'en' => 'News' ],
+			'priority' => 6,
+			'blog'     => BIT_CROSSBLOG_SEARCH_MAIN_BLOG,
+			'types'    => [ 'post' ],
+		],
+		'bit_eventos'       => [
+			'label'      => 'Próximos eventos',
+			'titles'     => [ 'pt-br' => 'Próximos eventos', 'en' => 'Upcoming events' ],
+			'priority'   => 5,
+			'blog'       => BIT_CROSSBLOG_SEARCH_MAIN_BLOG,
+			'types'      => [ 'tribe_events' ],
+			'fallback'   => true, // 14 futuros em PT, 0 em EN
+			'query_args' => 'bit_crossblog_search_events_args',
+			'prefix'     => 'bit_crossblog_search_event_meta',
+		],
+		'bit_participantes' => [
+			'label'    => 'Participantes',
+			'titles'   => [ 'pt-br' => 'Participantes', 'en' => 'Participants' ],
+			'priority' => 4,
+			'items'    => 'bit_crossblog_search_participants',
+			'more'     => 'bit_crossblog_search_participants_url',
+		],
+		'bit_atlas_pages'   => [
+			'label'    => 'Atlas Cultural (páginas)',
+			'titles'   => [ 'pt-br' => 'Atlas Cultural: páginas', 'en' => 'Cultural Atlas: pages' ],
+			'priority' => 3,
+			'blog'     => BIT_CROSSBLOG_SEARCH_ATLAS_BLOG,
+			'types'    => [ 'page', 'linha-das-artes' ],
+		],
+		'bit_atlas_artists' => [
+			'label'    => 'Atlas Cultural (artistas)',
+			'titles'   => [ 'pt-br' => 'Atlas Cultural: artistas', 'en' => 'Cultural Atlas: artists' ],
+			'priority' => 2,
+			'blog'     => BIT_CROSSBLOG_SEARCH_ATLAS_BLOG,
+			'types'    => [ 'artistas' ],
+			'url'      => function ( WP_Post $post, string $lang ): string {
+				return bit_crossblog_search_atlas_url( $lang, (int) $post->ID );
+			},
+			'prefix'   => 'bit_crossblog_search_artist_meta',
+			'more'     => function ( string $lang ): string {
+				return (string) bit_crossblog_search_in_blog( BIT_CROSSBLOG_SEARCH_ATLAS_BLOG, function ( string $l ) {
+					return bit_crossblog_search_atlas_url( $l );
+				} );
+			},
+		],
+		'bit_exposicoes'    => [
+			'label'    => 'Atlas Cultural (exposições)',
+			'titles'   => [ 'pt-br' => 'Exposições', 'en' => 'Exhibitions' ],
+			'priority' => 1,
+			'blog'     => BIT_CROSSBLOG_SEARCH_ATLAS_BLOG,
+			'types'    => array_keys( bit_crossblog_search_exhibition_pages() ),
+			'fallback' => true, // galeria-1 e expo-pdp só têm PT
+			'url'      => 'bit_crossblog_search_exhibition_url',
+			'prefix'   => 'bit_crossblog_search_exhibition_name',
+		],
+	];
+
+	$sections = (array) apply_filters( 'bit_crossblog_search/sections', $sections );
+
+	uasort( $sections, function ( $a, $b ) {
+		return ( $b['priority'] ?? 0 ) <=> ( $a['priority'] ?? 0 );
+	} );
+
+	return $sections;
+}
+
+function bit_crossblog_search_section_title( string $key, string $fallback = '' ): string {
+	$section = bit_crossblog_search_sections()[ $key ] ?? [];
+	$lang    = bit_crossblog_search_lang();
+
+	return (string) ( $section['titles'][ $lang ] ?? ( '' !== $fallback ? $fallback : ( $section['titles']['pt-br'] ?? $key ) ) );
+}
+
+/**
+ * Itens de uma seção no formato comum: title, url, thumb (HTML), text (puro).
+ * $context 'dropdown' usa o helper de thumbnail do JetSearch (tamanho do
+ * widget); 'page' usa o thumbnail do core com a classe da página /busca/.
+ *
+ * @return array<int, array{title: string, url: string, thumb: string, text: string}>
+ */
+function bit_crossblog_search_section_items( string $key, string $term, int $limit, string $context, array $args = [], ?int &$total = null ): array {
+	$section = bit_crossblog_search_sections()[ $key ] ?? null;
+	$term    = trim( $term );
+
+	if ( ! $section || '' === $term || $limit < 1 ) {
+		return [];
+	}
+
+	if ( isset( $section['items'] ) && is_callable( $section['items'] ) ) {
+		$fn = $section['items'];
+
+		return (array) $fn( $term, $limit, $context, $total );
+	}
+
+	$build = function ( WP_Post $post, string $lang ) use ( $section, $context, $args ) {
+		$url = isset( $section['url'] ) ? (string) call_user_func( $section['url'], $post, $lang ) : bit_crossblog_search_permalink( $post, $lang );
+
+		if ( '' === $url ) {
+			return null;
+		}
+
+		$prefix = isset( $section['prefix'] ) ? (string) call_user_func( $section['prefix'], $post ) : '';
+		$text   = bit_crossblog_search_excerpt( $post, 'page' === $context ? 30 : 25 );
+
+		return [
+			'title' => get_the_title( $post ),
+			'url'   => $url,
+			'thumb' => 'page' === $context
+				? (string) get_the_post_thumbnail( $post, 'thumbnail', [ 'class' => 'bit-busca__img', 'loading' => 'lazy', 'alt' => '' ] )
+				: bit_crossblog_search_item_thumbnail( $args, $post ),
+			'text'  => '' !== $prefix ? $prefix . ( '' !== $text ? ' — ' . $text : '' ) : $text,
+		];
+	};
+
+	$opts = [
+		'fallback'   => ! empty( $section['fallback'] ),
+		'query_args' => isset( $section['query_args'] ) && is_callable( $section['query_args'] ) ? (array) call_user_func( $section['query_args'] ) : [],
+	];
+
+	return bit_crossblog_search_posts( (int) $section['blog'], (array) $section['types'], $term, $limit, $build, $total, $opts );
+}
+
+/* ── Eventos (The Events Calendar, blog 1): só os que ainda não terminaram ── */
+
+function bit_crossblog_search_events_args(): array {
+	return [
+		'meta_query' => [
+			[
+				'key'     => '_EventEndDate',
+				'value'   => current_time( 'mysql' ),
+				'compare' => '>=',
+				'type'    => 'DATETIME',
+			],
+		],
+		'meta_key'   => '_EventStartDate', // phpcs:ignore WordPress.DB.SlowDBQuery
+		'orderby'    => 'meta_value',
+		'order'      => 'ASC',
+	];
+}
+
+/**
+ * "12 out 2026 · Local" — data de início e local, antes do resumo.
+ */
+function bit_crossblog_search_event_meta( WP_Post $post ): string {
+	$start = (string) get_post_meta( $post->ID, '_EventStartDate', true );
+	$date  = '' !== $start ? date_i18n( get_option( 'date_format' ), strtotime( $start ) ) : '';
+	$venue = (int) get_post_meta( $post->ID, '_EventVenueID', true );
+
+	return implode( ' · ', array_filter( [ $date, $venue ? get_the_title( $venue ) : '' ] ) );
+}
+
+/* ── Participantes (CCT do JetEngine, blog 1) ──
+ * A fonte nativa do JetEngine para CCT (cct_participantes_cct) busca em todos
+ * os campos e rende só uma lista de links, sem resumo nem imagem; esta segue
+ * o formato dos outros itens: nome e organização. Não há página por
+ * participante: o link leva à página de participantes no idioma do request.
+ * (O filtro de busca daquela página não filtra, em dev e em prod — medido em
+ * 25/09/2026 —, por isso o link não tenta pré-filtrar.) */
+
+function bit_crossblog_search_participants_url( string $lang ): string {
+	return (string) bit_crossblog_search_in_blog( BIT_CROSSBLOG_SEARCH_MAIN_BLOG, function ( string $l ) use ( $lang ) {
+		$url = get_permalink( bit_crossblog_search_translation_id( BIT_CROSSBLOG_SEARCH_PARTICIPANTS_PAGE, '' !== $lang ? $lang : $l ) );
+
+		return $url ? $url : '';
+	} );
+}
+
+function bit_crossblog_search_participants( string $term, int $limit, string $context, ?int &$total = null ): array {
+	return (array) bit_crossblog_search_in_blog( BIT_CROSSBLOG_SEARCH_MAIN_BLOG, function ( string $lang ) use ( $term, $limit, $context, &$total ) {
+		global $wpdb;
+
+		static $exists = null;
+		$table = $wpdb->prefix . 'jet_cct_participantes_cct';
+
+		if ( null === $exists ) {
+			$exists = $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+		}
+
+		if ( ! $exists ) {
+			return [];
+		}
+
+		$like  = '%' . $wpdb->esc_like( $term ) . '%';
+		$where = $wpdb->prepare( "cct_status = 'publish' AND ( item_title LIKE %s OR organizacao LIKE %s )", $like, $like );
+
+		if ( null !== $total ) {
+			$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE {$where}" ); // phpcs:ignore WordPress.DB.PreparedSQL
+		}
+
+		// Quem começa com o termo primeiro, depois ordem alfabética.
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT item_title, organizacao, item_thumbnail FROM {$table} WHERE {$where} ORDER BY ( item_title LIKE %s ) DESC, item_title ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL
+			$wpdb->esc_like( $term ) . '%',
+			$limit
+		) );
+
+		$url   = bit_crossblog_search_participants_url( $lang );
+		$cards = [];
+
+		foreach ( (array) $rows as $row ) {
+			$thumb = '';
+
+			if ( is_numeric( $row->item_thumbnail ) && (int) $row->item_thumbnail > 0 ) {
+				$img   = wp_get_attachment_image( (int) $row->item_thumbnail, 'thumbnail', false, [ 'class' => 'page' === $context ? 'bit-busca__img' : 'jet-ajax-search__item-thumbnail-img', 'alt' => '' ] );
+				$thumb = $img ? ( 'page' === $context ? $img : '<div class="jet-ajax-search__item-thumbnail">' . $img . '</div>' ) : '';
+			}
+
+			$cards[] = [
+				'title' => (string) $row->item_title,
+				'url'   => $url,
+				'thumb' => $thumb,
+				'text'  => (string) $row->organizacao,
+			];
+		}
+
+		return $cards;
+	} );
+}
+
+/* ── Exposições do Atlas (blog 2): cada tipo mora numa página de exposição ── */
+
+function bit_crossblog_search_exhibition_pages(): array {
+	return [
+		'artistas-infantis' => [ 70848, 'Exposição Cores do Futuro', 'Colors of the Future Exhibition' ],
+		'galeria-1'         => [ 26767, 'Galeria', 'Gallery' ],
+		'galeria-2'         => [ 26767, 'Galeria', 'Gallery' ],
+		'expo-pdp'          => [ 80405, 'Exposição Poéticas do Possível', 'Poetics of the Possible Exhibition' ],
+	];
+}
+
+function bit_crossblog_search_exhibition_url( WP_Post $post, string $lang ): string {
+	$page = bit_crossblog_search_exhibition_pages()[ $post->post_type ][0] ?? 0;
+	$url  = $page ? get_permalink( bit_crossblog_search_translation_id( $page, $lang ) ) : '';
+
+	return $url ? $url : '';
+}
+
+function bit_crossblog_search_exhibition_name( WP_Post $post ): string {
+	$data = bit_crossblog_search_exhibition_pages()[ $post->post_type ] ?? null;
+
+	if ( ! $data ) {
+		return '';
+	}
+
+	return 'en' === bit_crossblog_search_lang() ? $data[2] : $data[1];
+}
+
+/* ── Fontes do dropdown: uma classe genérica, uma instância por seção ── */
+
 add_action( 'jet-search/sources/register', function ( $manager ) {
 	if ( class_exists( 'BIT_Crossblog_Search_Source', false ) || ! is_object( $manager ) || ! method_exists( $manager, 'register_source' ) ) {
 		return;
@@ -421,58 +716,41 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 	$incompat = bit_crossblog_search_jetsearch_incompat();
 
 	if ( '' !== $incompat ) {
-		error_log( '[bit-crossblog-search] fontes do Atlas desligadas — JetSearch ' . bit_crossblog_search_jetsearch_version() . ': ' . $incompat );
+		error_log( '[bit-crossblog-search] fontes adicionais desligadas — JetSearch ' . bit_crossblog_search_jetsearch_version() . ': ' . $incompat );
 
 		return;
 	}
 
 	/**
-	 * Fonte base: posts de outro blog. As filhas definem blog, tipos e URL.
+	 * Fonte adicional do JetSearch montada a partir de uma entrada do registro.
 	 */
-	abstract class BIT_Crossblog_Search_Source extends \Jet_Search\Search_Sources\Base {
+	class BIT_Crossblog_Search_Source extends \Jet_Search\Search_Sources\Base {
 
-		abstract protected function blog_id(): int;
+		protected $source_name = '';
 
-		abstract protected function post_types(): array;
-
-		public function url_for( WP_Post $post, string $lang ): string {
-			return bit_crossblog_search_permalink( $post, $lang );
+		public function __construct( string $key ) {
+			$this->source_name = $key;
+			parent::__construct();
 		}
 
-		/**
-		 * Texto do item. Padrão: o mesmo resumo dos itens de post, com a fonte
-		 * e o tamanho configurados no widget (post_content_source/length).
-		 */
-		protected function item_content( WP_Post $post ): string {
-			return bit_crossblog_search_item_content( $this->args, $post );
+		protected function section(): array {
+			return bit_crossblog_search_sections()[ $this->source_name ] ?? [];
 		}
 
-		/**
-		 * Monta o item no blog de origem: título, link, thumbnail e resumo.
-		 * Thumbnail e resumo usam os helpers do próprio JetSearch com os
-		 * settings do widget, para o item sair igual aos de post. A imagem
-		 * de um post do blog 2 vive no blog 1 (Network Media Library); quem
-		 * resolve é o bit-crossblog-attachment-fix, que age com o blog 2 ativo.
-		 */
-		public function build_item( WP_Post $post, string $lang ): ?array {
-			$url = $this->url_for( $post, $lang );
+		public function get_label() {
+			return (string) ( $this->section()['label'] ?? $this->source_name );
+		}
 
-			if ( '' === $url ) {
-				return null;
-			}
-
-			return [
-				'name'      => esc_html( get_the_title( $post ) ),
-				'url'       => esc_url( $url ),
-				'thumbnail' => bit_crossblog_search_item_thumbnail( $this->args, $post ),
-				'content'   => $this->item_content( $post ),
-			];
+		// O JS do JetSearch insere cada fonte "depois dos posts" com .after()
+		// colado na lista: a de maior prioridade é inserida por último e fica
+		// em cima — a ordem visível é a da prioridade, decrescente.
+		public function get_priority() {
+			return (int) ( $this->section()['priority'] ?? 1 );
 		}
 
 		public function get_query_result( $limit = null ) {
-			return bit_crossblog_search_posts(
-				$this->blog_id(),
-				$this->post_types(),
+			return bit_crossblog_search_section_items(
+				$this->source_name,
 				// set_search_string() do JetSearch aplica esc_sql(); o WP_Query
 				// escapa de novo, e "d'água" viraria busca por "d\'água".
 				stripslashes( (string) $this->search_string ),
@@ -481,8 +759,16 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 				// 5000 e levava os 658 artistas (292 KB) — e /wp-json/ não é
 				// cacheado no CloudFront. Revisão de 25/09/2026.
 				min( max( (int) ( $limit ?? $this->limit ), 1 ), BIT_CROSSBLOG_SEARCH_ATLAS_MAX ),
-				[ $this, 'build_item' ]
+				'dropdown',
+				$this->args
 			);
+		}
+
+		public function build_items_list() {
+			$items = apply_filters( 'bit_crossblog_search/' . $this->source_name . '/items', $this->get_query_result() );
+
+			$this->items_list    = $items;
+			$this->results_count = count( $items );
 		}
 
 		/**
@@ -495,126 +781,37 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 				return '';
 			}
 
-			$name   = $this->get_name();
-			$title  = $this->args[ 'search_source_' . $name . '_title' ] ?? '';
+			$name   = $this->source_name;
+			$title  = bit_crossblog_search_section_title( $name, (string) ( $this->args[ 'search_source_' . $name . '_title' ] ?? '' ) );
 			$target = ! empty( $this->args['show_result_new_tab'] ) && filter_var( $this->args['show_result_new_tab'], FILTER_VALIDATE_BOOLEAN ) ? ' target="_blank"' : '';
 			$html   = '';
 
 			foreach ( $this->items_list as $item ) {
-				$content = '' !== $item['content'] ? '<div class="jet-ajax-search__item-content">' . wp_kses_post( $item['content'] ) . '</div>' : '';
+				$content = '' !== $item['text'] ? '<div class="jet-ajax-search__item-content">' . esc_html( $item['text'] ) . '</div>' : '';
 
 				$html .= '<div class="jet-ajax-search__results-item">'
-					. '<a class="jet-ajax-search__item-link" href="' . $item['url'] . '"' . $target . '>'
-					. wp_kses_post( $item['thumbnail'] )
+					. '<a class="jet-ajax-search__item-link" href="' . esc_url( $item['url'] ) . '"' . $target . '>'
+					. wp_kses_post( $item['thumb'] )
 					. '<div class="jet-ajax-search__item-content-wrapper">'
-					. '<div class="jet-ajax-search__item-title">' . $item['name'] . '</div>'
+					. '<div class="jet-ajax-search__item-title">' . esc_html( $item['title'] ) . '</div>'
 					. $content
 					. '</div></a></div>';
 			}
 
 			return '<div class="jet-ajax-search__source-results-holder jet-ajax-search__source-results-holder_' . esc_attr( $name ) . '">'
-				. '<div class="jet-ajax-search__source-results-holder-title">' . wp_kses_post( $title ) . '</div>'
+				. '<div class="jet-ajax-search__source-results-holder-title">' . esc_html( $title ) . '</div>'
 				. $html
 				. '</div>';
-		}
-
-		/**
-		 * Título do bloco por idioma. Os headers EN dos dois blogs mostram o
-		 * template PT (4360), então o título do widget sairia em português.
-		 * Idioma sem entrada aqui usa o título configurado no widget.
-		 *
-		 * @return array<string, string>
-		 */
-		protected function titles(): array {
-			return [];
-		}
-
-		public function build_items_list() {
-			$items = apply_filters( 'bit_crossblog_search/' . $this->get_name() . '/items', $this->get_query_result() );
-
-			$this->items_list    = $items;
-			$this->results_count = count( $items );
-
-			$titles = apply_filters( 'bit_crossblog_search/' . $this->get_name() . '/titles', $this->titles() );
-			$lang   = bit_crossblog_search_lang();
-
-			if ( isset( $titles[ $lang ] ) ) {
-				$this->args[ 'search_source_' . $this->get_name() . '_title' ] = $titles[ $lang ];
-			}
 		}
 	}
 
 	// Última rede: qualquer erro ao instanciar vira log, não fatal no init.
 	try {
-	$manager->register_source( new class() extends BIT_Crossblog_Search_Source {
-		protected $source_name = 'bit_atlas_pages';
-
-		public function get_label() {
-			return 'Atlas Cultural (páginas)';
+		foreach ( array_keys( bit_crossblog_search_sections() ) as $key ) {
+			$manager->register_source( new BIT_Crossblog_Search_Source( $key ) );
 		}
-
-		// O JS insere cada fonte "depois dos posts" com .after() colado na
-		// lista: a de maior prioridade é inserida por último e fica em cima.
-		// Páginas = 2 para aparecer antes dos artistas.
-		public function get_priority() {
-			return 2;
-		}
-
-		protected function blog_id(): int {
-			return BIT_CROSSBLOG_SEARCH_ATLAS_BLOG;
-		}
-
-		protected function post_types(): array {
-			return [ 'page', 'linha-das-artes' ];
-		}
-
-		protected function titles(): array {
-			return [ 'en' => 'Cultural Atlas: pages' ];
-		}
-	} );
-
-	$manager->register_source( new class() extends BIT_Crossblog_Search_Source {
-		protected $source_name = 'bit_atlas_artists';
-
-		public function get_label() {
-			return 'Atlas Cultural (artistas)';
-		}
-
-		public function get_priority() {
-			return 1;
-		}
-
-		protected function blog_id(): int {
-			return BIT_CROSSBLOG_SEARCH_ATLAS_BLOG;
-		}
-
-		protected function post_types(): array {
-			return [ 'artistas' ];
-		}
-
-		protected function titles(): array {
-			return [ 'en' => 'Cultural Atlas: artists' ];
-		}
-
-		public function url_for( WP_Post $post, string $lang ): string {
-			return bit_crossblog_search_atlas_url( $lang, (int) $post->ID );
-		}
-
-		// "Fotografia · Palmas, Tocantins — <bio>": o que situa o artista no
-		// Atlas vem antes da bio. Artista não tem imagem destacada (0 de 1.311).
-		protected function item_content( WP_Post $post ): string {
-			$meta = bit_crossblog_search_artist_meta( $post );
-			$bio  = parent::item_content( $post );
-
-			if ( '' === $meta ) {
-				return $bio;
-			}
-
-			return esc_html( $meta ) . ( '' !== $bio ? ' — ' . $bio : '' );
-		}
-	} );
 	} catch ( \Throwable $e ) {
-		error_log( '[bit-crossblog-search] fontes do Atlas não registradas: ' . $e->getMessage() );
+		error_log( '[bit-crossblog-search] fontes adicionais não registradas: ' . $e->getMessage() );
 	}
 } );
 
@@ -637,7 +834,7 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 add_action( 'wp_enqueue_scripts', function () {
 	$js = <<<'JS'
 ( function () {
-	var SEL = '[class*="jet-ajax-search__source-results-holder_bit_atlas_"]';
+	var SEL = '[class*="jet-ajax-search__source-results-holder_bit_"]';
 
 	// Slide visível: o JetSearch pagina movendo a lista interna com
 	// translateX(-N*100%). É ele que a lista mede em syncResultsListHeight.
@@ -890,11 +1087,10 @@ function bit_crossblog_search_t( string $key ): string {
 			'none'          => 'Nenhum resultado para “%s”.',
 			'summary_one'   => '1 resultado para “%2$s”',
 			'summary_many'  => '%1$s resultados para “%2$s”',
-			'main'          => 'Estudos e páginas',
-			'atlas_pages'   => 'Atlas Cultural: páginas',
-			'atlas_artists' => 'Atlas Cultural: artistas',
+			'main'          => 'Estudos, encontros e publicações',
 			'showing'       => 'Mostrando %1$s de %2$s',
-			'atlas_all'     => 'Explorar o Atlas Cultural completo',
+			'more_bit_atlas_artists' => 'Explorar o Atlas Cultural completo',
+			'more_bit_participantes' => 'Ver todos os participantes',
 			'prev'          => 'Anteriores',
 			'next'          => 'Próximos',
 			'page_of'       => 'Página %1$s de %2$s',
@@ -909,11 +1105,10 @@ function bit_crossblog_search_t( string $key ): string {
 			'none'          => 'No results for “%s”.',
 			'summary_one'   => '1 result for “%2$s”',
 			'summary_many'  => '%1$s results for “%2$s”',
-			'main'          => 'Studies and pages',
-			'atlas_pages'   => 'Cultural Atlas: pages',
-			'atlas_artists' => 'Cultural Atlas: artists',
+			'main'          => 'Studies, meetings and publications',
 			'showing'       => 'Showing %1$s of %2$s',
-			'atlas_all'     => 'Explore the full Cultural Atlas',
+			'more_bit_atlas_artists' => 'Explore the full Cultural Atlas',
+			'more_bit_participantes' => 'See all participants',
 			'prev'          => 'Previous',
 			'next'          => 'Next',
 			'page_of'       => 'Page %1$s of %2$s',
@@ -1030,7 +1225,9 @@ function bit_crossblog_search_results_request(): array {
 	$term = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 	$term = trim( mb_substr( $term, 0, 100 ) );
 
-	$allowed   = (array) apply_filters( 'bit_crossblog_search/results_post_types', [ 'estudos', 'page' ] );
+	// Os mesmos post types da lista principal do widget (search_source dos
+	// templates 4360/5638). Notícias e eventos têm seção própria.
+	$allowed   = (array) apply_filters( 'bit_crossblog_search/results_post_types', [ 'estudos', 'plenarias', 'releases', 'webinarios', 'page' ] );
 	$requested = [];
 
 	if ( isset( $_GET['jet_ajax_search_settings'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
@@ -1079,13 +1276,32 @@ function bit_crossblog_search_render_cards( array $cards ): string {
 }
 
 /**
- * Monta os dados da página: blog 1 paginado, Atlas limitado.
+ * Monta os dados da página: a lista principal (blog 1) paginada e as seções
+ * do registro limitadas a BIT_CROSSBLOG_SEARCH_ATLAS_MAX, com o total real.
  */
 function bit_crossblog_search_results_data( array $request ): array {
-	$data = [ 'main' => null, 'atlas_pages' => null, 'atlas_artists' => null, 'total' => 0 ];
+	$data = [ 'main' => null, 'sections' => [], 'total' => 0 ];
 
 	if ( '' === $request['term'] ) {
 		return $data;
+	}
+
+	// Cache de 10 min (Redis em prod). Com as seções de notícias e eventos um
+	// termo amplo ("Amazônia") levava 3–4,5 s em dev: sete consultas LIKE, cada
+	// uma contando o total. A página é no-store no CloudFront, então sem isto
+	// cada repetição pagava o custo inteiro. Conteúdo novo aparece em até 10 min.
+	$cache_key = 'bit_busca_' . md5( wp_json_encode( [
+		(string) apply_filters( 'wpml_current_language', '' ),
+		mb_strtolower( $request['term'] ),
+		$request['types'],
+		$request['page'],
+		array_keys( bit_crossblog_search_sections() ),
+		'1.4.0',
+	] ) );
+	$cached = get_transient( $cache_key );
+
+	if ( is_array( $cached ) ) {
+		return $cached;
 	}
 
 	$query = new WP_Query( [
@@ -1108,25 +1324,24 @@ function bit_crossblog_search_results_data( array $request ): array {
 		'pages' => (int) $query->max_num_pages,
 	];
 
-	$pages_total = 0;
-	$pages       = bit_crossblog_search_posts( BIT_CROSSBLOG_SEARCH_ATLAS_BLOG, [ 'page', 'linha-das-artes' ], $request['term'], BIT_CROSSBLOG_SEARCH_ATLAS_MAX, function ( WP_Post $post, string $lang ) {
-		return bit_crossblog_search_card( $post, bit_crossblog_search_permalink( $post, $lang ) );
-	}, $pages_total );
+	$data['total'] = $data['main']['total'];
 
-	$artists_total = 0;
-	$artists       = bit_crossblog_search_posts( BIT_CROSSBLOG_SEARCH_ATLAS_BLOG, [ 'artistas' ], $request['term'], BIT_CROSSBLOG_SEARCH_ATLAS_MAX, function ( WP_Post $post, string $lang ) {
-		return bit_crossblog_search_card( $post, bit_crossblog_search_atlas_url( $lang, (int) $post->ID ), bit_crossblog_search_artist_meta( $post ) );
-	}, $artists_total );
+	foreach ( array_keys( bit_crossblog_search_sections() ) as $key ) {
+		$total = 0;
+		$cards = bit_crossblog_search_section_items( $key, $request['term'], BIT_CROSSBLOG_SEARCH_ATLAS_MAX, 'page', [], $total );
 
-	$data['atlas_pages']   = [ 'cards' => $pages, 'total' => $pages_total ];
-	$data['atlas_artists'] = [ 'cards' => $artists, 'total' => $artists_total ];
-	$data['total']         = $data['main']['total'] + $pages_total + $artists_total;
+		$data['sections'][ $key ] = [ 'cards' => $cards, 'total' => $total ];
+		$data['total']           += $total;
+	}
+
+	set_transient( $cache_key, $data, 10 * MINUTE_IN_SECONDS );
 
 	return $data;
 }
 
 function bit_crossblog_search_results_html( array $request, array $data ): string {
-	$self = bit_crossblog_search_results_url( (string) apply_filters( 'wpml_current_language', '' ) );
+	$lang = (string) apply_filters( 'wpml_current_language', '' );
+	$self = bit_crossblog_search_results_url( $lang );
 	$html = '<main id="content" class="site-main bit-busca"><div class="bit-busca__inner">';
 
 	$html .= '<h1 class="bit-busca__title">' . esc_html( bit_crossblog_search_t( 'title' ) ) . '</h1>';
@@ -1147,7 +1362,7 @@ function bit_crossblog_search_results_html( array $request, array $data ): strin
 	$summary = 1 === $data['total'] ? 'summary_one' : 'summary_many';
 	$html   .= '<p class="bit-busca__summary">' . esc_html( sprintf( bit_crossblog_search_t( $summary ), number_format_i18n( $data['total'] ), $request['term'] ) ) . '</p>';
 
-	// Blog 1, paginado.
+	// Lista principal (blog 1), paginada.
 	if ( $data['main']['cards'] ) {
 		$html .= '<section class="bit-busca__section bit-busca__section--main">'
 			. '<h2 class="bit-busca__section-title">' . esc_html( bit_crossblog_search_t( 'main' ) ) . ' <span class="bit-busca__count">' . esc_html( number_format_i18n( $data['main']['total'] ) ) . '</span></h2>'
@@ -1169,28 +1384,30 @@ function bit_crossblog_search_results_html( array $request, array $data ): strin
 		$html .= '</section>';
 	}
 
-	// Atlas: só na primeira página, limitado a BIT_CROSSBLOG_SEARCH_ATLAS_MAX.
+	// Seções do registro: só na primeira página, limitadas, na ordem do registro.
 	if ( 1 === $request['page'] ) {
-		foreach ( [ 'atlas_pages', 'atlas_artists' ] as $key ) {
-			$section = $data[ $key ];
+		$sections = bit_crossblog_search_sections();
 
+		foreach ( $data['sections'] as $key => $section ) {
 			if ( ! $section['cards'] ) {
 				continue;
 			}
 
-			$html .= '<section class="bit-busca__section bit-busca__section--' . esc_attr( str_replace( '_', '-', $key ) ) . '">'
-				. '<h2 class="bit-busca__section-title">' . esc_html( bit_crossblog_search_t( $key ) ) . ' <span class="bit-busca__count">' . esc_html( number_format_i18n( $section['total'] ) ) . '</span></h2>'
+			$slug  = str_replace( '_', '-', preg_replace( '/^bit_/', '', $key ) );
+			$html .= '<section class="bit-busca__section bit-busca__section--' . esc_attr( $slug ) . '">'
+				. '<h2 class="bit-busca__section-title">' . esc_html( bit_crossblog_search_section_title( $key ) ) . ' <span class="bit-busca__count">' . esc_html( number_format_i18n( $section['total'] ) ) . '</span></h2>'
 				. bit_crossblog_search_render_cards( $section['cards'] );
 
 			if ( $section['total'] > count( $section['cards'] ) ) {
 				$html .= '<p class="bit-busca__more">' . esc_html( sprintf( bit_crossblog_search_t( 'showing' ), number_format_i18n( count( $section['cards'] ) ), number_format_i18n( $section['total'] ) ) ) . '</p>';
 			}
 
-			if ( 'atlas_artists' === $key ) {
-				$atlas = bit_crossblog_search_in_blog( BIT_CROSSBLOG_SEARCH_ATLAS_BLOG, function ( string $lang ) {
-					return bit_crossblog_search_atlas_url( $lang );
-				} );
-				$html .= '<p class="bit-busca__more"><a href="' . esc_url( $atlas ) . '">' . esc_html( bit_crossblog_search_t( 'atlas_all' ) ) . '</a></p>';
+			if ( isset( $sections[ $key ]['more'] ) && is_callable( $sections[ $key ]['more'] ) ) {
+				$more = (string) call_user_func( $sections[ $key ]['more'], $lang );
+
+				if ( '' !== $more ) {
+					$html .= '<p class="bit-busca__more"><a href="' . esc_url( $more ) . '">' . esc_html( bit_crossblog_search_t( 'more_' . $key ) ) . '</a></p>';
+				}
 			}
 
 			$html .= '</section>';

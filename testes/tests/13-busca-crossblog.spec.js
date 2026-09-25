@@ -19,7 +19,8 @@
  * checagem por Reflection desligou as fontes — o motivo está no aviso vermelho
  * do admin e no error_log ("[bit-crossblog-search]").
  *
- *   A) REST do JetSearch devolve os blocos do Atlas no markup de item
+ *   A) REST do JetSearch devolve os seis blocos adicionais (notícias, eventos,
+ *      participantes, Atlas: páginas/artistas/exposições) no markup de item
  *   B) no dropdown, os blocos entram no slide de posts: uma rolagem só
  *   C) "Ver mais resultados" leva a /busca/ com as três seções
  *   D) /busca/ nunca é cacheável; /?s= continua redirecionando (armadilha de crawler),
@@ -64,6 +65,10 @@ test.describe('Busca cross-blog × JetSearch', () => {
         'data[post_content_length]': '20',
         'data[search_source_bit_atlas_pages]': 'true',
         'data[search_source_bit_atlas_artists]': 'true',
+        'data[search_source_bit_noticias]': 'true',
+        'data[search_source_bit_eventos]': 'true',
+        'data[search_source_bit_participantes]': 'true',
+        'data[search_source_bit_exposicoes]': 'true',
         lang: 'pt-br',
       },
     });
@@ -73,8 +78,9 @@ test.describe('Busca cross-blog × JetSearch', () => {
     const dados = corpo.data || corpo;
     const tipos = (dados.sources || []).map((s) => s.type);
 
-    expect(tipos, 'fontes do Atlas ausentes — ver aviso no admin / error_log').toEqual(
-      expect.arrayContaining(['bit_atlas_pages', 'bit_atlas_artists'])
+    // A rota devolve toda fonte ligada, mesmo sem resultado (content vazio).
+    expect(tipos, 'fontes adicionais ausentes — ver aviso no admin / error_log').toEqual(
+      expect.arrayContaining(['bit_noticias', 'bit_eventos', 'bit_participantes', 'bit_atlas_pages', 'bit_atlas_artists', 'bit_exposicoes'])
     );
 
     const paginas = dados.sources.find((s) => s.type === 'bit_atlas_pages').content;
@@ -86,11 +92,11 @@ test.describe('Busca cross-blog × JetSearch', () => {
   test('B) os blocos do Atlas entram no slide: uma rolagem só', async ({ page }) => {
     await abrirPainelEBuscar(page, '/');
 
-    const bloco = page.locator('[class*="jet-ajax-search__source-results-holder_bit_atlas_"]').first();
+    const bloco = page.locator('[class*="jet-ajax-search__source-results-holder_bit_"]').first();
     await expect(bloco).toBeVisible();
 
     const estado = await page.evaluate(() => {
-      const blocos = [...document.querySelectorAll('[class*="jet-ajax-search__source-results-holder_bit_atlas_"]')];
+      const blocos = [...document.querySelectorAll('[class*="jet-ajax-search__source-results-holder_bit_"]')];
       const rolaveis = [...document.querySelectorAll('.jet-ajax-search__results-holder, .jet-ajax-search__results-holder *')]
         .filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1);
       // O rodapé ("Ver mais resultados") tem de estar de fato visível: o
@@ -117,7 +123,7 @@ test.describe('Busca cross-blog × JetSearch', () => {
 
     // A resposta do REST chega antes de o dropdown renderizar; clicar nesse
     // intervalo não navega. Espera o que o visitante espera: os resultados.
-    await expect(page.locator('[class*="jet-ajax-search__source-results-holder_bit_atlas_"]').first()).toBeVisible();
+    await expect(page.locator('[class*="jet-ajax-search__source-results-holder_bit_"]').first()).toBeVisible();
 
     await Promise.all([
       page.waitForURL(/\/busca\/\?/),
@@ -150,7 +156,7 @@ test.describe('Busca cross-blog × JetSearch', () => {
     const { resposta } = await abrirPainelEBuscar(page, '/cultura/');
 
     expect(resposta.url(), 'a busca do blog 2 deveria ir ao REST do blog 1').not.toContain('/cultura/wp-json/');
-    await expect(page.locator('[class*="jet-ajax-search__source-results-holder_bit_atlas_"]').first()).toBeVisible();
+    await expect(page.locator('[class*="jet-ajax-search__source-results-holder_bit_"]').first()).toBeVisible();
   });
 
   test('F) resultado de artista abre o popup dele no mapa do Atlas', async ({ page, context }) => {

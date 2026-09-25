@@ -23,7 +23,7 @@ $cases = [
 	'RenderComRetorno'   => [ str_replace( 'public function render() {', 'public function render(): string {', $base_body ), false ],
 	'QueryDoisParams'    => [ str_replace( 'abstract public function get_query_result();', 'abstract public function get_query_result( $limit = null, $offset = 0 );', $base_body ), false ],
 	'SourceNameTipado'   => [ str_replace( 'protected $source_name = null;', 'protected ?string $source_name = null;', $base_body ), false ],
-	'ColisaoTitles'      => [ $base_body . 'public function titles() { return []; }', false ],
+	'ColisaoSection'     => [ $base_body . 'public function section() { return []; }', false ],
 	'SemItemsList'       => [ str_replace( 'protected $items_list = array();', '', $base_body ), false ],
 	'RenderFinal'        => [ str_replace( 'public function render() {', 'final public function render() {', $base_body ), false ],
 	'ConstrutorComArg'   => [ $base_body . 'public function __construct( $manager ) {}', false ],
