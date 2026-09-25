@@ -224,6 +224,84 @@
     overflow     : hidden;
 }
 
+/* ==========================================================================
+   Busca do header — botão no mesmo desenho do seletor de idioma
+   Círculo de 32px com borda fina, ícone de traço fino (Lucide "search", e
+   "x" com o painel aberto). O ícone do widget (Font Awesome sólido) fica
+   escondido: o desenho vem de uma máscara SVG pintada com currentColor.
+   Especificidade alta (.elementor-element a mais) para vencer o CSS do
+   próprio widget no header (post-39359.css: fundo transparente, padding
+   3px, hover preto), que tem o mesmo peso e carrega depois.
+   ========================================================================== */
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__toggle {
+    align-items    : center;
+    border         : 1px solid color-mix(in srgb, var(--e-global-color-d06d81a) 73%, transparent); /* Global: branco */
+    border-radius  : 50%;
+    box-sizing     : border-box;
+    --bit-busca-icon-color: var(--e-global-color-d06d81a);
+    display        : inline-flex;
+    height         : 32px;
+    justify-content: center;
+    padding        : 0;
+    width          : 32px;
+}
+
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__toggle::before {
+    display: none; /* o círculo branco de hover do custom CSS antigo */
+}
+
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__toggle:hover,
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__toggle:focus-visible {
+    --bit-busca-icon-color: var(--e-global-color-primary);
+    background-color      : var(--e-global-color-d06d81a);
+}
+
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__toggle .jet-hamburger-panel__icon {
+    /* variável, não currentColor: o CSS do widget força color:black no hover */
+    background-color: var(--bit-busca-icon-color) !important;
+    height          : 16px;
+    -webkit-mask    : var(--bit-busca-icon) center / contain no-repeat;
+    mask            : var(--bit-busca-icon) center / contain no-repeat;
+    width           : 16px;
+}
+
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__toggle .jet-hamburger-panel__icon > * {
+    display: none;
+}
+
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__icon.icon-normal {
+    --bit-busca-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+}
+
+.ucpa-header-icons .elementor-element.elementor-widget-jet-hamburger-panel .jet-hamburger-panel__icon.icon-active {
+    --bit-busca-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/svg%3E");
+}
+
+/* Idioma e busca, agora os dois com 32px, não cabem nos 67px do container
+   de ícones no mobile (32 + 8 + 32): a lupa caía para a linha de baixo.
+   Uma linha só, com a largura do conteúdo. */
+@media (max-width: 767px) {
+    .elementor-location-header .elementor-element.e-con.ucpa-header-icons {
+        --flex-wrap: nowrap;
+        --width    : auto;
+        flex-wrap  : nowrap;
+    }
+}
+
+/* A lupa "perdida": o botão de fechar próprio do painel, fixo no canto da
+   tela. Fechar já está no toggle (vira "x") e no "Fechar" do modal. */
+.ucpa-header-icons .jet-hamburger-panel__inner > .jet-hamburger-panel__close-button {
+    display: none;
+}
+
+/* Com o painel aberto o JetBlocks trava o <html> (overflow:hidden); o <body>
+   vira o elemento rolável e mostrava a própria barra atrás do modal. Trava
+   também o body. Sem scrollbar-gutter: reservar o espaço deixava uma faixa
+   clara ao lado do header escuro, pior que o deslocamento de 15px. */
+html.jet-hamburger-panel-visible body {
+    overflow: hidden;
+}
+
 /* O WPML aplica o template do switcher por blog: vertical no blog 1,
    legacy-list-horizontal no /cultura/, que traz padding: 7px no wrapper.
    Com ele o botão ocupava 46px em vez de 32 e, no mobile, empurrava a lupa

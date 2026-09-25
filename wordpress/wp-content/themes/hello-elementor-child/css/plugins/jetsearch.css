@@ -259,3 +259,15 @@ html body.bit-busca-page {
 		font-size: 1.05rem;
 	}
 }
+
+/* ==========================================================================
+   Painel de busca do header — campo centralizado
+   O widget reserva 35px à esquerda (lugar de um ícone que ele não mostra);
+   com o texto centralizado o respiro fica simétrico, e o "×" de limpar
+   continua à direita, dentro dos 44px.
+   ========================================================================== */
+.jet-hamburger-panel__content[data-template-id="4360"] .jet-ajax-search .jet-ajax-search__field {
+	padding-left : 44px;
+	padding-right: 44px;
+	text-align   : center;
+}
