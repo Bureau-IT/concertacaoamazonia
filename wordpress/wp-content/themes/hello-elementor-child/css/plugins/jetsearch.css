@@ -44,6 +44,16 @@
    e um seletor de uma classe só perde para ele.
    ========================================================================== */
 
+/* O fundo cream das páginas vem das configurações de cada página no
+   Elementor (body.elementor-page-N). A rota /busca/ não é página do WP e
+   cai no `html body.elementor-default` do base.css, que usa
+   --ucpa-color-offwhite -> --offwhite, variável legada que não existe:
+   fundo transparente (branco). Mesmo token das páginas, com a mesma
+   especificidade do base.css (este arquivo carrega depois dele). */
+html body.bit-busca-page {
+	background-color: var(--e-global-color-secondary);
+}
+
 .bit-busca {
 	color: var(--e-global-color-text);
 	font-family: var(--e-global-typography-text-font-family), sans-serif;
