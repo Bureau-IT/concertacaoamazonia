@@ -101,6 +101,17 @@ function hello_elementor_child_enqueue_scripts() {
         );
     }
 
+    // 7b. Plugin: JetSearch — fontes do Atlas no dropdown da busca do header
+    //     (o painel de busca está em todas as páginas, então é global)
+    if (class_exists('Jet_Search')) {
+        wp_enqueue_style(
+            'conc-jetsearch',
+            "$theme_uri/css/plugins/jetsearch.css",
+            ['conc-base'],
+            bureau_it_asset_ver('css/plugins/jetsearch.css')
+        );
+    }
+
     // 8. Home page
     if (is_front_page() || is_home()) {
         wp_enqueue_style(

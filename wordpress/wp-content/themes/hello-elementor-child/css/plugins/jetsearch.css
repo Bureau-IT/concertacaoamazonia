@@ -1,0 +1,54 @@
+/*
+ * jetsearch.css — Fontes adicionais do Ajax Search (JetSearch)
+ * Tema: hello-elementor-child
+ *
+ * Estiliza os blocos do Atlas Cultural (blog 2) que o mu-plugin
+ * bit-crossblog-search.php injeta no dropdown da busca do header:
+ *   .jet-ajax-search__source-results-holder_bit_atlas_pages
+ *   .jet-ajax-search__source-results-holder_bit_atlas_artists
+ *
+ * O widget não expõe controles de estilo para fontes adicionais; sem isto
+ * elas herdam o fundo do cabeçalho de resultados. Visual alinhado aos itens
+ * de post do mesmo dropdown (fundo secondary, rótulo em accent, itens em
+ * primary, Rubik).
+ * Cores só via Global Colors do Elementor.
+ *
+ * Especificidade alta de propósito: quando a busca não acha post nenhum, os
+ * blocos ficam dentro de .jet-ajax-search__results-list e o CSS do plugin
+ * (.jet-ajax-search__results-list .…-holder-title { font-size: 24px }) vence
+ * um seletor curto.
+ */
+
+.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] {
+	background-color: var(--e-global-color-secondary);
+	border-top: 1px solid color-mix(in srgb, var(--e-global-color-primary) 20%, transparent);
+	padding: 4px 0 8px;
+}
+
+.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-holder-title {
+	color: var(--e-global-color-accent);
+	font-family: Roboto, sans-serif;
+	font-size: 0.8rem;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	line-height: 1.5;
+	padding: 10px 15px 4px;
+	text-transform: uppercase;
+}
+
+.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-item .jet-ajax-search__source-results-item_link {
+	color: var(--e-global-color-primary);
+	display: block;
+	font-family: Rubik, sans-serif;
+	font-size: 1rem;
+	font-weight: 400;
+	line-height: 1.4;
+	padding: 6px 15px;
+	text-decoration: none;
+}
+
+.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-item .jet-ajax-search__source-results-item_link:hover,
+.jet-ajax-search .jet-ajax-search__results-holder [class*="jet-ajax-search__source-results-holder_bit_atlas_"] .jet-ajax-search__source-results-item .jet-ajax-search__source-results-item_link:focus-visible {
+	color: var(--e-global-color-accent);
+	text-decoration: underline;
+}
