@@ -29,6 +29,11 @@
  *   F) resultado de artista abre o popup dele no mapa do Atlas — contrato com a
  *      API pública do JetEngine Maps (window.JetEngineMaps.openMapListingPopup);
  *      rodar também depois de update do JetEngine
+ *   G) abas no dropdown: vêm do `bit_tabs` do REST (hook
+ *      jet-search/ajax-search/search-results + ajaxSuccess do jQuery), filtram
+ *      só no cliente e levam o rodapé para a aba certa em /busca/
+ *   H) abas na página /busca/: ?cat= filtra, a ativa é a da URL, e em 390px a
+ *      linha rola sozinha, sem rolagem lateral da página
  */
 
 const { test, expect } = require('@playwright/test');
@@ -134,6 +139,7 @@ test.describe('Busca cross-blog × JetSearch', () => {
     await expect(page.locator('.bit-busca__section--main .bit-busca__item').first()).toBeVisible();
     await expect(page.locator('.bit-busca__section--atlas-pages .bit-busca__item').first()).toBeVisible();
     await expect(page.locator('.bit-busca__section--atlas-artists .bit-busca__item').first()).toBeVisible();
+    await expect(page.locator('.bit-busca__tabs [aria-current="page"] .bit-tabs__label')).toHaveText(/Tudo/);
   });
 
   test('D) /busca/ não é cacheável e /?s= segue redirecionando', async ({ request }) => {
@@ -182,5 +188,55 @@ test.describe('Busca cross-blog × JetSearch', () => {
     // O conteúdo do popup chega por um REST separado (get-map-marker-info).
     await expect(atlas.locator('.leaflet-popup-content'), 'popup do artista não abriu — API do JetEngine Maps mudou?')
       .toContainText(nome, { timeout: 30000 });
+  });
+
+  test('G) abas no dropdown filtram os blocos e levam o rodapé à aba', async ({ page }) => {
+    await abrirPainelEBuscar(page, '/');
+
+    const barra = page.locator('.jet-ajax-search .bit-tabs--compact:visible').first();
+    await expect(barra, 'abas não apareceram — bit_tabs sumiu da resposta ou o ajaxSuccess não chegou').toBeVisible();
+    await expect(barra.locator('.bit-tabs__tab[aria-selected="true"]')).toHaveAttribute('data-cat', '');
+
+    const cultura = barra.locator('.bit-tabs__tab[data-cat="cultura"]');
+    await cultura.click();
+    await expect(cultura).toHaveAttribute('aria-selected', 'true');
+
+    const estado = await page.evaluate(() => {
+      const area = document.querySelector('.jet-ajax-search__results-area[data-bit-tab="cultura"]');
+      const visivel = (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+      const blocos = [...area.querySelectorAll('[class*="jet-ajax-search__source-results-holder_bit_"]')].filter(visivel)
+        .map((b) => /holder_(bit_[a-z_]+)/.exec(b.className)[1]);
+      const principais = [...area.querySelectorAll('.jet-ajax-search__results-slide > .jet-ajax-search__results-item')].filter(visivel).length;
+      return { blocos, principais, contador: area.querySelector('.jet-ajax-search__results-count span')?.textContent,
+        aba: area.querySelector('.bit-tabs__tab[data-cat="cultura"] .bit-tabs__count')?.textContent };
+    });
+    expect(estado.blocos.length).toBeGreaterThan(0);
+    expect(estado.blocos.every((b) => ['bit_atlas_pages', 'bit_atlas_artists'].includes(b)), 'bloco de outra aba visível: ' + estado.blocos).toBe(true);
+    expect(estado.principais, 'posts da lista principal visíveis na aba Cultura').toBe(0);
+    expect(estado.contador, 'contador do topo não acompanha a aba').toBe(estado.aba);
+
+    const rodape = page.locator('.jet-ajax-search__full-results:visible').first();
+    await expect(rodape).toContainText(/Cultura/i);
+    await Promise.all([page.waitForURL(/\/busca\/\?.*cat=cultura/), rodape.click()]);
+    await expect(page.locator('.bit-busca__tabs [aria-current="page"] .bit-tabs__label')).toHaveText(/Cultura/);
+  });
+
+  test('H) abas na página /busca/ filtram e não estouram o celular', async ({ page }) => {
+    await page.goto(BASE_URL + '/busca/?s=' + encodeURIComponent(TERMO) + '&cat=cultura', { waitUntil: 'load' });
+    await expect(page.locator('.bit-busca__tabs [aria-current="page"] .bit-tabs__label')).toHaveText(/Cultura/);
+    await expect(page.locator('.bit-busca__section--main')).toHaveCount(0);
+    await expect(page.locator('.bit-busca__section--atlas-artists .bit-busca__item').first()).toBeVisible();
+
+    await page.goto(BASE_URL + '/busca/?s=' + encodeURIComponent(TERMO) + '&cat=inexistente', { waitUntil: 'load' });
+    await expect(page.locator('.bit-busca__tabs [aria-current="page"] .bit-tabs__label')).toHaveText(/Tudo/);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(BASE_URL + '/busca/?s=' + encodeURIComponent(TERMO), { waitUntil: 'load' });
+    const medida = await page.evaluate(() => {
+      const t = document.querySelector('.bit-busca__tabs .bit-tabs__track');
+      return { pagina: document.documentElement.scrollWidth, janela: window.innerWidth, trilhoRola: t.scrollWidth > t.clientWidth };
+    });
+    expect(medida.pagina, 'rolagem lateral da página no celular').toBeLessThanOrEqual(medida.janela);
+    expect(medida.trilhoRola, 'no celular a linha de abas deveria rolar sozinha').toBe(true);
   });
 });

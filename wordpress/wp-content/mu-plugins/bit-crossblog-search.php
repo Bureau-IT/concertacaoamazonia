@@ -7,8 +7,10 @@
  *              /cultura/ para o endpoint do blog 1, renderiza no header do blog 2
  *              o painel de busca cujo template só existe no blog 1 e serve a
  *              página de resultados completa em /busca/ (e /en/busca/). O
- *              resultado de artista abre o popup dele no mapa do Atlas.
- * Version: 1.4.3
+ *              resultado de artista abre o popup dele no mapa do Atlas. Os
+ *              resultados se dividem em abas por categoria (Tudo, Estudos,
+ *              Notícias…), na página e no dropdown.
+ * Version: 1.5.0
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -29,6 +31,7 @@ if ( ! defined( 'ABSPATH' ) || ! is_multisite() ) {
 	return;
 }
 
+const BIT_CROSSBLOG_SEARCH_VERSION    = '1.5.0'; // entra na chave dos transients
 const BIT_CROSSBLOG_SEARCH_MAIN_BLOG  = 1;
 const BIT_CROSSBLOG_SEARCH_ATLAS_BLOG = 2;
 const BIT_CROSSBLOG_SEARCH_ATLAS_PAGE = 57548; // "Atlas Cultural das Amazônias" no blog 2 (PT)
@@ -42,6 +45,11 @@ const BIT_CROSSBLOG_SEARCH_JETSEARCH_TESTED = '3.6.3.1';
 const BIT_CROSSBLOG_SEARCH_RESULTS_SLUG     = 'busca';
 const BIT_CROSSBLOG_SEARCH_RESULTS_PER_PAGE = 10;
 const BIT_CROSSBLOG_SEARCH_ATLAS_MAX        = 20;
+// Numa aba de seção (?cat=noticias…) a lista é paginada em PHP sobre no máximo
+// este tanto de itens: a deduplicação não combina com LIMIT/OFFSET no banco.
+const BIT_CROSSBLOG_SEARCH_SECTION_MAX      = 100;
+// Itens por categoria na aba "Tudo" da página.
+const BIT_CROSSBLOG_SEARCH_ALL_PER_SECTION  = 3;
 
 /**
  * Idioma do request de busca. O JetSearch manda `lang` fora de `data`, e as
@@ -445,6 +453,9 @@ function bit_crossblog_search_jetsearch_version(): string {
  *   items      callable( $term, $limit, $context, &$total ) → cards prontos,
  *              para o que não é post (participantes, CCT do JetEngine)
  *   more       callable( $lang ) → link "ver todos" na página /busca/
+ *   tab        slug da aba (?cat=) em que a seção entra; seções com o mesmo
+ *              slug dividem a aba, na ordem de prioridade
+ *   tab_labels rótulo da aba por idioma (vale o da primeira seção da aba)
  * ────────────────────────────────────────────────────────────────────────── */
 
 const BIT_CROSSBLOG_SEARCH_PARTICIPANTS_PAGE = 26645; // "Participantes" no blog 1 (PT)
@@ -461,6 +472,8 @@ function bit_crossblog_search_sections(): array {
 			'label'    => 'Notícias',
 			'titles'   => [ 'pt-br' => 'Notícias', 'en' => 'News' ],
 			'priority' => 6,
+			'tab'      => 'noticias',
+			'tab_labels' => [ 'pt-br' => 'Notícias', 'en' => 'News' ],
 			'blog'     => BIT_CROSSBLOG_SEARCH_MAIN_BLOG,
 			'types'    => [ 'post' ],
 			'prefix'   => 'bit_crossblog_search_news_meta',
@@ -469,6 +482,8 @@ function bit_crossblog_search_sections(): array {
 			'label'      => 'Próximos eventos',
 			'titles'     => [ 'pt-br' => 'Próximos eventos', 'en' => 'Upcoming events' ],
 			'priority'   => 5,
+			'tab'        => 'eventos',
+			'tab_labels' => [ 'pt-br' => 'Eventos', 'en' => 'Events' ],
 			'blog'       => BIT_CROSSBLOG_SEARCH_MAIN_BLOG,
 			'types'      => [ 'tribe_events' ],
 			'fallback'   => true, // 14 futuros em PT, 0 em EN
@@ -479,13 +494,21 @@ function bit_crossblog_search_sections(): array {
 			'label'    => 'Participantes',
 			'titles'   => [ 'pt-br' => 'Participantes', 'en' => 'Participants' ],
 			'priority' => 4,
+			'tab'      => 'participantes',
+			'tab_labels' => [ 'pt-br' => 'Participantes', 'en' => 'Participants' ],
 			'items'    => 'bit_crossblog_search_participants',
 			'more'     => 'bit_crossblog_search_participants_url',
 		],
+		// A chave diz "atlas" por herança (é o nome gravado nos templates 4360/5638),
+		// mas o conteúdo são as páginas do site /cultura/ (Linha do Tempo, Linha
+		// das Artes…): o Atlas em si é uma página só, e o que mora nele são os
+		// artistas. As duas dividem a aba "Cultura".
 		'bit_atlas_pages'   => [
-			'label'    => 'Atlas Cultural (páginas)',
-			'titles'   => [ 'pt-br' => 'Atlas Cultural: páginas', 'en' => 'Cultural Atlas: pages' ],
+			'label'    => 'Cultura (páginas do /cultura/)',
+			'titles'   => [ 'pt-br' => 'Páginas da Cultura', 'en' => 'Culture pages' ],
 			'priority' => 3,
+			'tab'      => 'cultura',
+			'tab_labels' => [ 'pt-br' => 'Cultura', 'en' => 'Culture' ],
 			'blog'     => BIT_CROSSBLOG_SEARCH_ATLAS_BLOG,
 			'types'    => [ 'page', 'linha-das-artes' ],
 		],
@@ -493,6 +516,7 @@ function bit_crossblog_search_sections(): array {
 			'label'    => 'Atlas Cultural (artistas)',
 			'titles'   => [ 'pt-br' => 'Atlas Cultural: artistas', 'en' => 'Cultural Atlas: artists' ],
 			'priority' => 2,
+			'tab'      => 'cultura',
 			'blog'     => BIT_CROSSBLOG_SEARCH_ATLAS_BLOG,
 			'types'    => [ 'artistas' ],
 			'url'      => function ( WP_Post $post, string $lang ): string {
@@ -509,6 +533,8 @@ function bit_crossblog_search_sections(): array {
 			'label'    => 'Atlas Cultural (exposições)',
 			'titles'   => [ 'pt-br' => 'Exposições', 'en' => 'Exhibitions' ],
 			'priority' => 1,
+			'tab'      => 'exposicoes',
+			'tab_labels' => [ 'pt-br' => 'Exposições', 'en' => 'Exhibitions' ],
 			'blog'     => BIT_CROSSBLOG_SEARCH_ATLAS_BLOG,
 			'types'    => array_keys( bit_crossblog_search_exhibition_pages() ),
 			'fallback' => true, // galeria-1 e expo-pdp só têm PT
@@ -534,6 +560,77 @@ function bit_crossblog_search_section_title( string $key, string $fallback = '' 
 }
 
 /**
+ * Abas de categoria, na ordem em que aparecem: a lista principal (estudos,
+ * encontros e publicações — os post types do widget) e depois as seções do
+ * registro, agrupadas pelo slug `tab`. Fonte nova no registro ganha aba
+ * sozinha. "Tudo" não está aqui: é a ausência de categoria.
+ *
+ * @return array<string, array{labels: array, sections: string[], main: bool}>
+ */
+function bit_crossblog_search_tabs(): array {
+	$tabs = [
+		'estudos' => [ 'labels' => [ 'pt-br' => 'Estudos', 'en' => 'Studies' ], 'sections' => [], 'main' => true ],
+	];
+
+	foreach ( bit_crossblog_search_sections() as $key => $section ) {
+		$slug = sanitize_key( (string) ( $section['tab'] ?? str_replace( '_', '-', preg_replace( '/^bit_/', '', $key ) ) ) );
+
+		if ( ! isset( $tabs[ $slug ] ) ) {
+			$tabs[ $slug ] = [ 'labels' => (array) ( $section['tab_labels'] ?? $section['titles'] ?? [] ), 'sections' => [], 'main' => false ];
+		}
+
+		$tabs[ $slug ]['sections'][] = $key;
+	}
+
+	return $tabs;
+}
+
+function bit_crossblog_search_tab_label( string $slug ): string {
+	$tab  = bit_crossblog_search_tabs()[ $slug ] ?? null;
+	$lang = bit_crossblog_search_lang();
+
+	if ( ! $tab ) {
+		return bit_crossblog_search_t( 'all' );
+	}
+
+	return (string) ( $tab['labels'][ $lang ] ?? $tab['labels']['pt-br'] ?? $slug );
+}
+
+/**
+ * Abas com contagem, para a página e para o dropdown. $counts traz 'estudos'
+ * (lista principal) e as chaves de seção que estão ligadas; aba sem nenhuma
+ * seção ligada fica de fora. A primeira é "Tudo" (slug '').
+ *
+ * @return array<int, array{slug: string, label: string, count: int, sections: string[]}>
+ */
+function bit_crossblog_search_tab_list( array $counts ): array {
+	$list = [];
+	$all  = 0;
+
+	foreach ( bit_crossblog_search_tabs() as $slug => $tab ) {
+		$keys = $tab['main'] ? [ 'estudos' ] : $tab['sections'];
+		$on   = array_values( array_intersect( $keys, array_keys( $counts ) ) );
+
+		if ( ! $on ) {
+			continue;
+		}
+
+		$count = 0;
+
+		foreach ( $on as $key ) {
+			$count += (int) $counts[ $key ];
+		}
+
+		$all   += $count;
+		$list[] = [ 'slug' => $slug, 'label' => bit_crossblog_search_tab_label( $slug ), 'count' => $count, 'sections' => $tab['main'] ? [] : $on ];
+	}
+
+	array_unshift( $list, [ 'slug' => '', 'label' => bit_crossblog_search_t( 'all' ), 'count' => $all, 'sections' => [] ] );
+
+	return $list;
+}
+
+/**
  * Itens de uma seção no formato comum: title, url, thumb (HTML), text (puro).
  * $context 'dropdown' usa o helper de thumbnail do JetSearch (tamanho do
  * widget); 'page' usa o thumbnail do core com a classe da página /busca/.
@@ -549,9 +646,10 @@ function bit_crossblog_search_section_items( string $key, string $term, int $lim
 	}
 
 	if ( isset( $section['items'] ) && is_callable( $section['items'] ) ) {
-		$fn = $section['items'];
+		$fn  = $section['items'];
+		$raw = (array) $fn( $term, $limit * 2, $context, $total );
 
-		return array_slice( bit_crossblog_search_dedupe( (array) $fn( $term, $limit * 2, $context, $total ) ), 0, $limit );
+		return bit_crossblog_search_dedupe_slice( $raw, $limit * 2, $limit, $total );
 	}
 
 	$build = function ( WP_Post $post, string $lang ) use ( $section, $context, $args ) {
@@ -583,7 +681,23 @@ function bit_crossblog_search_section_items( string $key, string $term, int $lim
 	// página continua o do banco, que conta as cópias.
 	$items = bit_crossblog_search_posts( (int) $section['blog'], (array) $section['types'], $term, $limit * 2, $build, $total, $opts );
 
-	return array_slice( bit_crossblog_search_dedupe( $items ), 0, $limit );
+	return bit_crossblog_search_dedupe_slice( $items, $limit * 2, $limit, $total );
+}
+
+/**
+ * Deduplica e corta em $limit. Quando a busca veio inteira (menos itens que o
+ * pedido ao banco), o total passa a ser o que sobrou da deduplicação: sem isso
+ * a aba dizia 23 e a lista mostrava 15 (as cópias da galeria-1). Com a busca
+ * cortada o total segue o do banco, que conta as cópias.
+ */
+function bit_crossblog_search_dedupe_slice( array $raw, int $fetched, int $limit, ?int &$total ): array {
+	$cards = bit_crossblog_search_dedupe( $raw );
+
+	if ( null !== $total && count( $raw ) < $fetched ) {
+		$total = count( $cards );
+	}
+
+	return array_slice( $cards, 0, $limit );
 }
 
 /**
@@ -812,7 +926,9 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 		}
 
 		public function get_query_result( $limit = null ) {
-			return bit_crossblog_search_section_items(
+			// Com o total: é a contagem da aba no dropdown.
+			$total = 0;
+			$items = bit_crossblog_search_section_items(
 				$this->source_name,
 				// set_search_string() do JetSearch aplica esc_sql(); o WP_Query
 				// escapa de novo, e "d'água" viraria busca por "d\'água".
@@ -823,8 +939,13 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 				// cacheado no CloudFront. Revisão de 25/09/2026.
 				min( max( (int) ( $limit ?? $this->limit ), 1 ), BIT_CROSSBLOG_SEARCH_ATLAS_MAX ),
 				'dropdown',
-				$this->args
+				$this->args,
+				$total
 			);
+
+			bit_crossblog_search_dropdown_counts( $this->source_name, $total );
+
+			return $items;
 		}
 
 		public function build_items_list() {
@@ -877,6 +998,89 @@ add_action( 'jet-search/sources/register', function ( $manager ) {
 		error_log( '[bit-crossblog-search] fontes adicionais não registradas: ' . $e->getMessage() );
 	}
 } );
+
+/* ── Abas do dropdown: contagens por categoria na resposta do REST ──
+ * O JetSearch devolve o total "N resultados" como a soma do que cada bloco
+ * MOSTRA (5 por fonte, 10 posts), não do que existe. As abas precisam do total
+ * real de cada categoria, então ele é medido aqui e vai na resposta em
+ * `bit_tabs`, que o script do dropdown lê. Sem o campo (hook removido num
+ * update), o dropdown só não ganha abas. */
+
+/**
+ * Totais do request corrente: seção => total, e 'estudos' => total da lista
+ * principal. Setter e getter no mesmo static.
+ */
+function bit_crossblog_search_dropdown_counts( ?string $key = null, int $total = 0 ): array {
+	static $counts = [];
+
+	if ( null !== $key ) {
+		$counts[ $key ] = $total;
+	}
+
+	return $counts;
+}
+
+// A query principal do JetSearch é marcada no filtro de args e o total vem do
+// found_posts dela — antes do filter_public_search_query_results, que o
+// reescreve para o número de posts da página (no máximo 10). Lido em
+// posts_results, e não no filtro found_posts: com o cache de queries do core
+// (WP 6.1+, Redis) o resultado repetido vem do cache sem passar pelo filtro —
+// a aba dizia 34 na primeira busca e 10 nas seguintes.
+add_filter( 'jet-search/ajax-search/query-args', function ( $args ) {
+	$args['bit_crossblog_search_main'] = true;
+
+	return $args;
+}, 20 );
+
+add_filter( 'posts_results', function ( $posts, $query ) {
+	if ( $query instanceof WP_Query && $query->get( 'bit_crossblog_search_main' ) ) {
+		bit_crossblog_search_dropdown_counts( 'estudos', (int) $query->found_posts );
+	}
+
+	return $posts;
+}, 10, 2 );
+
+add_action( 'jet-search/ajax-search/search-results', function ( &$response, $posts = null, $data = [] ) {
+	if ( ! is_array( $response ) || empty( $response['sources'] ) ) {
+		return;
+	}
+
+	$sections = bit_crossblog_search_sections();
+	$enabled  = [];
+
+	foreach ( (array) $response['sources'] as $source ) {
+		if ( isset( $source['type'], $sections[ $source['type'] ] ) ) {
+			$enabled[] = $source['type'];
+		}
+	}
+
+	if ( ! $enabled ) {
+		return;
+	}
+
+	$measured = bit_crossblog_search_dropdown_counts();
+	$counts   = [ 'estudos' => (int) ( $measured['estudos'] ?? ( $response['post_count'] ?? 0 ) ) ];
+
+	foreach ( $enabled as $key ) {
+		$counts[ $key ] = (int) ( $measured[ $key ] ?? 0 );
+	}
+
+	$term = is_array( $data ) && isset( $data['value'] ) ? sanitize_text_field( (string) $data['value'] ) : '';
+	$base = bit_crossblog_search_results_url( bit_crossblog_search_lang() );
+	$tabs = bit_crossblog_search_tab_list( $counts );
+
+	foreach ( $tabs as $i => $tab ) {
+		$tabs[ $i ]['url'] = bit_crossblog_search_results_link( $base, $term, $tab['slug'] );
+	}
+
+	$response['bit_tabs'] = [
+		'term'    => $term,
+		'tabs'    => $tabs,
+		'label'   => bit_crossblog_search_t( 'tabs' ),
+		'see_all' => bit_crossblog_search_t( 'see_all' ),
+		'see_one' => bit_crossblog_search_t( 'see_one' ),
+	];
+}, 10, 3 );
 
 /**
  * Ajustes de front-end no dropdown, porque o JetSearch não prevê fontes longas:
@@ -1001,6 +1205,166 @@ add_action( 'wp_enqueue_scripts', function () {
 		document.addEventListener( 'DOMContentLoaded', watch );
 	} else {
 		watch();
+	}
+
+	/* Abas por categoria. Os dados vêm no `bit_tabs` da resposta do REST
+	   (rótulos no idioma, totais reais, URL da aba em /busca/). O filtro é só
+	   no cliente: todos os blocos já vieram na mesma resposta. A resposta é
+	   lida pelo ajaxSuccess global do jQuery, que dispara depois do callback
+	   do JetSearch — a lista já está no DOM. */
+	function el( tag, cls, text ) {
+		var node = document.createElement( tag );
+		if ( cls ) {
+			node.className = cls;
+		}
+		if ( text !== undefined ) {
+			node.textContent = text;
+		}
+		return node;
+	}
+
+	function fmt( tpl, count, label ) {
+		return tpl.replace( '%1$s', String( count ) ).replace( '%2$s', label );
+	}
+
+	function applyTab( area, slug ) {
+		var data = area.bitTabs;
+		if ( ! data ) {
+			return;
+		}
+		var tab = data.tabs.filter( function ( t ) { return t.slug === slug; } )[ 0 ] || data.tabs[ 0 ];
+		area.setAttribute( 'data-bit-tab', tab.slug );
+
+		area.querySelectorAll( '.bit-tabs__tab' ).forEach( function ( b ) {
+			b.setAttribute( 'aria-selected', b.getAttribute( 'data-cat' ) === tab.slug ? 'true' : 'false' );
+		} );
+
+		// Blocos adicionais: visíveis em Tudo e na aba a que pertencem.
+		area.querySelectorAll( SEL ).forEach( function ( block ) {
+			var m = /jet-ajax-search__source-results-holder_(bit_[a-z_]+)/.exec( block.className );
+			var show = tab.slug === '' || ( m && tab.sections.indexOf( m[ 1 ] ) >= 0 );
+			block.classList.toggle( 'bit-tab-hidden', ! show );
+		} );
+
+		var count = area.querySelector( '.jet-ajax-search__results-count span' );
+		if ( count ) {
+			count.textContent = String( tab.count );
+		}
+
+		var btn = area.querySelector( '.jet-ajax-search__full-results' );
+		if ( btn ) {
+			if ( ! btn.hasAttribute( 'data-bit-text' ) ) {
+				btn.setAttribute( 'data-bit-text', btn.textContent );
+			}
+			btn.textContent = tab.slug === ''
+				? btn.getAttribute( 'data-bit-text' )
+				: fmt( tab.count === 1 ? data.see_one : data.see_all, tab.count, tab.label );
+		}
+
+		adjust( area );
+	}
+
+	function renderTabs( area, data ) {
+		var old = area.querySelector( '.bit-tabs' );
+		if ( old ) {
+			old.remove();
+		}
+		area.bitTabs = data;
+		area.setAttribute( 'data-bit-tab', '' );
+
+		var bar = el( 'div', 'bit-tabs bit-tabs--compact' );
+		var track = el( 'div', 'bit-tabs__track' );
+		track.setAttribute( 'role', 'tablist' );
+		track.setAttribute( 'aria-label', data.label );
+
+		data.tabs.forEach( function ( tab ) {
+			var b = el( 'button', 'bit-tabs__tab' );
+			b.type = 'button';
+			b.setAttribute( 'role', 'tab' );
+			b.setAttribute( 'data-cat', tab.slug );
+			b.setAttribute( 'aria-selected', tab.slug === '' ? 'true' : 'false' );
+			b.appendChild( el( 'span', 'bit-tabs__label', tab.label ) );
+			b.appendChild( el( 'span', 'bit-tabs__count', String( tab.count ) ) );
+			if ( tab.count === 0 ) {
+				b.disabled = true;
+				b.setAttribute( 'aria-disabled', 'true' );
+			}
+			track.appendChild( b );
+		} );
+		bar.appendChild( track );
+
+		var header = area.querySelector( '.jet-ajax-search__results-header' );
+		var holder = area.querySelector( '.jet-ajax-search__results-holder' );
+		if ( header ) {
+			header.after( bar );
+		} else if ( holder ) {
+			holder.prepend( bar );
+		}
+		watchOverflow( bar );
+
+		if ( ! area.bitTabsBound ) {
+			area.bitTabsBound = true;
+			area.addEventListener( 'click', function ( e ) {
+				var b = e.target.closest( '.bit-tabs__tab' );
+				if ( b && area.contains( b ) ) {
+					e.preventDefault();
+					if ( ! b.disabled ) {
+						applyTab( area, b.getAttribute( 'data-cat' ) );
+					}
+					return;
+				}
+				// Numa aba, o rodapé leva à mesma aba em /busca/. Captura, para
+				// chegar antes do handler do JetSearch no botão.
+				var full = e.target.closest( '.jet-ajax-search__full-results' );
+				var slug = area.getAttribute( 'data-bit-tab' );
+				if ( full && slug && area.bitTabs ) {
+					var tab = area.bitTabs.tabs.filter( function ( t ) { return t.slug === slug; } )[ 0 ];
+					if ( tab && tab.url ) {
+						e.preventDefault();
+						e.stopImmediatePropagation();
+						window.location.href = tab.url;
+					}
+				}
+			}, true );
+		}
+
+		applyTab( area, '' );
+	}
+
+	// Esmaecimento nas bordas só quando há mais abas para aquele lado.
+	function watchOverflow( bar ) {
+		var track = bar.querySelector( '.bit-tabs__track' );
+		function update() {
+			var max = track.scrollWidth - track.clientWidth;
+			bar.classList.toggle( 'has-more-right', max > 1 && track.scrollLeft < max - 1 );
+			bar.classList.toggle( 'has-more-left', track.scrollLeft > 1 );
+		}
+		track.addEventListener( 'scroll', update, { passive: true } );
+		window.addEventListener( 'resize', update );
+		requestAnimationFrame( update );
+	}
+
+	if ( window.jQuery ) {
+		window.jQuery( document ).on( 'ajaxSuccess', function ( e, xhr, opts, resp ) {
+			if ( ! opts || ! opts.url || opts.url.indexOf( '/jet-search/v1/search-posts' ) < 0 ) {
+				return;
+			}
+			var data = resp && ( resp.bit_tabs ? resp : resp.data );
+			data = data && data.bit_tabs;
+			if ( ! data || ! data.tabs || ! data.tabs.length ) {
+				return;
+			}
+			requestAnimationFrame( function () {
+				var term = String( data.term || '' ).trim().toLowerCase();
+				document.querySelectorAll( '.jet-ajax-search' ).forEach( function ( widget ) {
+					var field = widget.querySelector( '.jet-ajax-search__field' );
+					var area = widget.querySelector( '.jet-ajax-search__results-area' );
+					if ( area && field && field.value.trim().toLowerCase() === term ) {
+						renderTabs( area, data );
+					}
+				} );
+			} );
+		} );
 	}
 } )();
 JS;
@@ -1158,6 +1522,13 @@ function bit_crossblog_search_t( string $key ): string {
 			'next'          => 'Próximos',
 			'page_of'       => 'Página %1$s de %2$s',
 			'pagination'    => 'Paginação dos resultados',
+			'all'           => 'Tudo',
+			'tabs'          => 'Categorias de resultado',
+			'see_all'       => 'Ver todos os %1$s em %2$s',
+			'see_one'       => 'Ver o resultado em %2$s',
+			'cat_summary_one'  => '1 resultado em %3$s para “%2$s”',
+			'cat_summary_many' => '%1$s resultados em %3$s para “%2$s”',
+			'capped'        => 'Mostrando os %1$s primeiros de %2$s. Refine a busca para ver os outros.',
 		],
 		'en'    => [
 			'title'         => 'Search results',
@@ -1176,10 +1547,19 @@ function bit_crossblog_search_t( string $key ): string {
 			'next'          => 'Next',
 			'page_of'       => 'Page %1$s of %2$s',
 			'pagination'    => 'Results pagination',
+			'all'           => 'All',
+			'tabs'          => 'Result categories',
+			'see_all'       => 'See all %1$s in %2$s',
+			'see_one'       => 'See the result in %2$s',
+			'cat_summary_one'  => '1 result in %3$s for “%2$s”',
+			'cat_summary_many' => '%1$s results in %3$s for “%2$s”',
+			'capped'        => 'Showing the first %1$s of %2$s. Refine the search to see the rest.',
 		],
 	];
 
-	$lang = apply_filters( 'wpml_current_language', null );
+	// Idioma do request: no REST do dropdown vem do `lang` do JetSearch; na
+	// página, do WPML.
+	$lang = bit_crossblog_search_lang();
 	$set  = $strings[ is_string( $lang ) && isset( $strings[ $lang ] ) ? $lang : 'pt-br' ];
 
 	return $set[ $key ] ?? $key;
@@ -1279,10 +1659,11 @@ add_filter( 'posts_pre_query', function ( $posts, $query ) {
 }, 10, 2 );
 
 /**
- * Termo e post types vindos da URL, saneados. Post types: só os da allowlist,
- * mesmo que a URL peça outros (a URL é pública).
+ * Termo, post types, categoria e página vindos da URL, saneados. Post types:
+ * só os da allowlist, mesmo que a URL peça outros (a URL é pública).
+ * Categoria desconhecida vale "Tudo".
  *
- * @return array{term: string, types: string[], page: int}
+ * @return array{term: string, types: string[], page: int, cat: string}
  */
 function bit_crossblog_search_results_request(): array {
 	$term = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
@@ -1299,12 +1680,26 @@ function bit_crossblog_search_results_request(): array {
 	}
 
 	$types = array_values( array_intersect( $requested, $allowed ) );
+	$cat   = isset( $_GET['cat'] ) ? sanitize_key( wp_unslash( (string) $_GET['cat'] ) ) : ''; // phpcs:ignore
 
 	return [
 		'term'  => $term,
 		'types' => $types ?: array_values( $allowed ),
 		'page'  => min( 500, max( 1, isset( $_GET['pg'] ) ? absint( $_GET['pg'] ) : 1 ) ), // phpcs:ignore
+		'cat'   => isset( bit_crossblog_search_tabs()[ $cat ] ) ? $cat : '',
 	];
+}
+
+/**
+ * Link da página de resultados com termo, aba e página. add_query_arg() não
+ * codifica: "P&D #1" virava s=P.
+ */
+function bit_crossblog_search_results_link( string $base, string $term, string $cat = '', int $page = 1 ): string {
+	return add_query_arg( array_filter( [
+		's'   => '' !== $term ? rawurlencode( $term ) : null,
+		'cat' => '' !== $cat ? $cat : null,
+		'pg'  => $page > 1 ? $page : null,
+	] ), $base );
 }
 
 /**
@@ -1339,70 +1734,188 @@ function bit_crossblog_search_render_cards( array $cards ): string {
 }
 
 /**
- * Monta os dados da página: a lista principal (blog 1) paginada e as seções
- * do registro limitadas a BIT_CROSSBLOG_SEARCH_ATLAS_MAX, com o total real.
+ * Cache de 10 min (Redis em prod). Um termo amplo ("Amazônia") levava 3–4,5 s
+ * em dev: sete consultas LIKE, cada uma contando o total. A página é no-store
+ * no CloudFront, então sem isto cada repetição pagava o custo inteiro.
+ * Conteúdo novo aparece em até 10 min.
  */
-function bit_crossblog_search_results_data( array $request ): array {
-	$data = [ 'main' => null, 'sections' => [], 'total' => 0 ];
-
-	if ( '' === $request['term'] ) {
-		return $data;
-	}
-
-	// Cache de 10 min (Redis em prod). Com as seções de notícias e eventos um
-	// termo amplo ("Amazônia") levava 3–4,5 s em dev: sete consultas LIKE, cada
-	// uma contando o total. A página é no-store no CloudFront, então sem isto
-	// cada repetição pagava o custo inteiro. Conteúdo novo aparece em até 10 min.
-	$cache_key = 'bit_busca_' . md5( wp_json_encode( [
+function bit_crossblog_search_cached( string $prefix, array $parts, callable $build ): array {
+	$key    = 'bit_busca_' . $prefix . '_' . md5( wp_json_encode( array_merge( [
 		(string) apply_filters( 'wpml_current_language', '' ),
-		mb_strtolower( $request['term'] ),
-		$request['types'],
-		$request['page'],
 		array_keys( bit_crossblog_search_sections() ),
-		'1.4.3',
-	] ) );
-	$cached = get_transient( $cache_key );
+		BIT_CROSSBLOG_SEARCH_VERSION,
+	], $parts ) ) );
+	$cached = get_transient( $key );
 
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
 
+	$data = $build();
+	set_transient( $key, $data, 10 * MINUTE_IN_SECONDS );
+
+	return $data;
+}
+
+/**
+ * Lista principal (blog 1): WP search em modo frase nos mesmos post types do
+ * widget, paginada.
+ */
+function bit_crossblog_search_main_query( array $request, int $per_page, int $page ): array {
 	$query = new WP_Query( [
 		's'                   => $request['term'],
 		'post_type'           => $request['types'],
 		'post_status'         => 'publish',
 		'sentence'            => true,
 		'orderby'             => 'relevance',
-		'posts_per_page'      => BIT_CROSSBLOG_SEARCH_RESULTS_PER_PAGE,
-		'paged'               => $request['page'],
+		'posts_per_page'      => $per_page,
+		'paged'               => $page,
 		'ignore_sticky_posts' => true,
 		'suppress_filters'    => false,
 	] );
 
-	$data['main'] = [
+	return [
 		'cards' => array_map( function ( $post ) {
 			return bit_crossblog_search_card( $post, (string) get_permalink( $post ) );
 		}, $query->posts ),
 		'total' => (int) $query->found_posts,
 		'pages' => (int) $query->max_num_pages,
 	];
-
-	$data['total'] = $data['main']['total'];
-
-	foreach ( array_keys( bit_crossblog_search_sections() ) as $key ) {
-		$total = 0;
-		$cards = bit_crossblog_search_section_items( $key, $request['term'], BIT_CROSSBLOG_SEARCH_ATLAS_MAX, 'page', [], $total );
-
-		$data['sections'][ $key ] = [ 'cards' => $cards, 'total' => $total ];
-		$data['total']           += $total;
-	}
-
-	set_transient( $cache_key, $data, 10 * MINUTE_IN_SECONDS );
-
-	return $data;
 }
 
-function bit_crossblog_search_results_html( array $request, array $data ): string {
+/**
+ * Resumo de todas as categorias: é a aba "Tudo" e a fonte das contagens das
+ * abas. A lista principal traz só os primeiros; as seções trazem até
+ * BIT_CROSSBLOG_SEARCH_ATLAS_MAX, o que torna o total exato (sem as cópias)
+ * sempre que a seção cabe nisso.
+ *
+ * @return array{main: array, sections: array, counts: array, total: int}
+ */
+function bit_crossblog_search_results_summary( array $request ): array {
+	if ( '' === $request['term'] ) {
+		return [ 'main' => null, 'sections' => [], 'counts' => [], 'total' => 0 ];
+	}
+
+	return bit_crossblog_search_cached( 'all', [ mb_strtolower( $request['term'] ), $request['types'] ], function () use ( $request ) {
+		$data = [
+			'main'     => bit_crossblog_search_main_query( $request, BIT_CROSSBLOG_SEARCH_ALL_PER_SECTION, 1 ),
+			'sections' => [],
+			'counts'   => [],
+			'total'    => 0,
+		];
+
+		$data['counts']['estudos'] = $data['main']['total'];
+
+		foreach ( array_keys( bit_crossblog_search_sections() ) as $key ) {
+			$total = 0;
+			$cards = bit_crossblog_search_section_items( $key, $request['term'], BIT_CROSSBLOG_SEARCH_ATLAS_MAX, 'page', [], $total );
+
+			$data['sections'][ $key ] = [ 'cards' => $cards, 'total' => $total ];
+			$data['counts'][ $key ]   = $total;
+		}
+
+		$data['total'] = array_sum( $data['counts'] );
+
+		return $data;
+	} );
+}
+
+/**
+ * Uma aba: a lista completa daquela categoria, paginada. A lista principal
+ * pagina no banco; as seções buscam até BIT_CROSSBLOG_SEARCH_SECTION_MAX,
+ * deduplicam e paginam aqui (o cache é por aba, não por página).
+ *
+ * @return array{sections: array, total: int, pages: int, capped: bool}
+ */
+function bit_crossblog_search_results_tab( array $request ): array {
+	$tab = bit_crossblog_search_tabs()[ $request['cat'] ];
+
+	if ( $tab['main'] ) {
+		$main = bit_crossblog_search_cached( 'main', [ mb_strtolower( $request['term'] ), $request['types'], $request['page'] ], function () use ( $request ) {
+			return bit_crossblog_search_main_query( $request, BIT_CROSSBLOG_SEARCH_RESULTS_PER_PAGE, $request['page'] );
+		} );
+
+		return [ 'sections' => [ 'main' => $main ], 'total' => $main['total'], 'pages' => $main['pages'], 'capped' => false ];
+	}
+
+	$full = bit_crossblog_search_cached( 'cat', [ mb_strtolower( $request['term'] ), $request['cat'] ], function () use ( $request, $tab ) {
+		$out = [];
+
+		foreach ( $tab['sections'] as $key ) {
+			$total       = 0;
+			$cards       = bit_crossblog_search_section_items( $key, $request['term'], BIT_CROSSBLOG_SEARCH_SECTION_MAX, 'page', [], $total );
+			$out[ $key ] = [ 'cards' => $cards, 'total' => $total ];
+		}
+
+		return $out;
+	} );
+
+	// Uma lista só, na ordem das seções, fatiada na página pedida; cada fatia
+	// volta para a sua seção (os títulos continuam separando páginas e artistas).
+	$flat = [];
+
+	foreach ( $full as $key => $section ) {
+		foreach ( $section['cards'] as $card ) {
+			$flat[] = [ $key, $card ];
+		}
+	}
+
+	$per      = BIT_CROSSBLOG_SEARCH_RESULTS_PER_PAGE;
+	$slice    = array_slice( $flat, ( $request['page'] - 1 ) * $per, $per );
+	$sections = [];
+
+	foreach ( $slice as [ $key, $card ] ) {
+		$sections[ $key ]['cards'][] = $card;
+		$sections[ $key ]['total']   = $full[ $key ]['total'];
+	}
+
+	return [
+		'sections' => $sections,
+		'total'    => array_sum( array_column( $full, 'total' ) ),
+		'pages'    => (int) ceil( count( $flat ) / $per ),
+		'capped'   => array_sum( array_column( $full, 'total' ) ) > count( $flat ),
+		'shown'    => count( $flat ),
+	];
+}
+
+/**
+ * Linha de abas da página. Links de verdade (?cat=), funcionam sem JS; aba
+ * sem resultado fica esmaecida e não é link.
+ */
+function bit_crossblog_search_tabs_html( array $tabs, string $active, string $base, string $term ): string {
+	$html = '<nav class="bit-tabs bit-busca__tabs" aria-label="' . esc_attr( bit_crossblog_search_t( 'tabs' ) ) . '"><div class="bit-tabs__track">';
+
+	foreach ( $tabs as $tab ) {
+		$inner = '<span class="bit-tabs__label">' . esc_html( $tab['label'] ) . '</span>'
+			. '<span class="bit-tabs__count">' . esc_html( number_format_i18n( $tab['count'] ) ) . '</span>';
+
+		if ( $tab['slug'] === $active ) {
+			$html .= '<a class="bit-tabs__tab" aria-current="page" href="' . esc_url( bit_crossblog_search_results_link( $base, $term, $tab['slug'] ) ) . '">' . $inner . '</a>';
+		} elseif ( 0 === $tab['count'] ) {
+			$html .= '<span class="bit-tabs__tab" aria-disabled="true">' . $inner . '</span>';
+		} else {
+			$html .= '<a class="bit-tabs__tab" href="' . esc_url( bit_crossblog_search_results_link( $base, $term, $tab['slug'] ) ) . '">' . $inner . '</a>';
+		}
+	}
+
+	return $html . '</div></nav>';
+}
+
+/**
+ * Uma seção da página: título com total, cards e, opcionalmente, rodapé.
+ */
+function bit_crossblog_search_section_html( string $key, array $section, string $after = '' ): string {
+	$title = 'main' === $key ? bit_crossblog_search_t( 'main' ) : bit_crossblog_search_section_title( $key );
+	$slug  = 'main' === $key ? 'main' : str_replace( '_', '-', preg_replace( '/^bit_/', '', $key ) );
+
+	return '<section class="bit-busca__section bit-busca__section--' . esc_attr( $slug ) . '">'
+		. '<h2 class="bit-busca__section-title">' . esc_html( $title ) . ' <span class="bit-busca__count">' . esc_html( number_format_i18n( $section['total'] ) ) . '</span></h2>'
+		. bit_crossblog_search_render_cards( $section['cards'] )
+		. $after
+		. '</section>';
+}
+
+function bit_crossblog_search_results_html( array $request, array $summary, ?array $tab ): string {
 	$lang = (string) apply_filters( 'wpml_current_language', '' );
 	$self = bit_crossblog_search_results_url( $lang );
 	$html = '<main id="content" class="site-main bit-busca"><div class="bit-busca__inner">';
@@ -1411,6 +1924,8 @@ function bit_crossblog_search_results_html( array $request, array $data ): strin
 	$html .= '<form class="bit-busca__form" role="search" method="get" action="' . esc_url( $self ) . '">'
 		. '<label class="bit-busca__label screen-reader-text" for="bit-busca-s">' . esc_html( bit_crossblog_search_t( 'label' ) ) . '</label>'
 		. '<input class="bit-busca__input" id="bit-busca-s" type="search" name="s" value="' . esc_attr( $request['term'] ) . '" placeholder="' . esc_attr( bit_crossblog_search_t( 'placeholder' ) ) . '">'
+		// Nova busca continua na aba aberta, como no Google.
+		. ( '' !== $request['cat'] ? '<input type="hidden" name="cat" value="' . esc_attr( $request['cat'] ) . '">' : '' )
 		. '<button class="bit-busca__submit" type="submit">' . esc_html( bit_crossblog_search_t( 'submit' ) ) . '</button>'
 		. '</form>';
 
@@ -1418,62 +1933,101 @@ function bit_crossblog_search_results_html( array $request, array $data ): strin
 		return $html . '<p class="bit-busca__summary">' . esc_html( bit_crossblog_search_t( 'empty' ) ) . '</p></div></main>';
 	}
 
-	if ( 0 === $data['total'] ) {
+	if ( 0 === $summary['total'] ) {
 		return $html . '<p class="bit-busca__summary">' . esc_html( sprintf( bit_crossblog_search_t( 'none' ), $request['term'] ) ) . '</p></div></main>';
 	}
 
-	$summary = 1 === $data['total'] ? 'summary_one' : 'summary_many';
-	$html   .= '<p class="bit-busca__summary">' . esc_html( sprintf( bit_crossblog_search_t( $summary ), number_format_i18n( $data['total'] ), $request['term'] ) ) . '</p>';
+	// Contagens: as do resumo; a da aba aberta, a da própria aba (mede mais
+	// itens, então o total dela é o mais exato).
+	$counts = $summary['counts'];
 
-	// Lista principal (blog 1), paginada.
-	if ( $data['main']['cards'] ) {
-		$html .= '<section class="bit-busca__section bit-busca__section--main">'
-			. '<h2 class="bit-busca__section-title">' . esc_html( bit_crossblog_search_t( 'main' ) ) . ' <span class="bit-busca__count">' . esc_html( number_format_i18n( $data['main']['total'] ) ) . '</span></h2>'
-			. bit_crossblog_search_render_cards( $data['main']['cards'] );
-
-		if ( $data['main']['pages'] > 1 ) {
-			$link = function ( int $page ) use ( $self, $request ) {
-				// add_query_arg() não codifica: "P&D #1" virava s=P.
-				return add_query_arg( array_filter( [ 's' => rawurlencode( $request['term'] ), 'pg' => $page > 1 ? $page : null ] ), $self );
-			};
-
-			$html .= '<nav class="bit-busca__pagination" aria-label="' . esc_attr( bit_crossblog_search_t( 'pagination' ) ) . '">';
-			$html .= $request['page'] > 1 ? '<a class="bit-busca__page-link" href="' . esc_url( $link( $request['page'] - 1 ) ) . '">' . esc_html( bit_crossblog_search_t( 'prev' ) ) . '</a>' : '<span></span>';
-			$html .= '<span class="bit-busca__page-status">' . esc_html( sprintf( bit_crossblog_search_t( 'page_of' ), number_format_i18n( $request['page'] ), number_format_i18n( $data['main']['pages'] ) ) ) . '</span>';
-			$html .= $request['page'] < $data['main']['pages'] ? '<a class="bit-busca__page-link" href="' . esc_url( $link( $request['page'] + 1 ) ) . '">' . esc_html( bit_crossblog_search_t( 'next' ) ) . '</a>' : '<span></span>';
-			$html .= '</nav>';
+	if ( $tab ) {
+		foreach ( bit_crossblog_search_tabs()[ $request['cat'] ]['sections'] ?: [ 'estudos' ] as $key ) {
+			$counts[ $key ] = 'estudos' === $key ? $tab['total'] : (int) ( $tab['sections'][ $key ]['total'] ?? $counts[ $key ] ?? 0 );
 		}
-
-		$html .= '</section>';
 	}
 
-	// Seções do registro: só na primeira página, limitadas, na ordem do registro.
-	if ( 1 === $request['page'] ) {
-		$sections = bit_crossblog_search_sections();
+	$tabs  = bit_crossblog_search_tab_list( $counts );
+	$html .= bit_crossblog_search_tabs_html( $tabs, $request['cat'], $self, $request['term'] );
 
-		foreach ( $data['sections'] as $key => $section ) {
-			if ( ! $section['cards'] ) {
+	if ( ! $tab ) {
+		$html .= '<p class="bit-busca__summary">' . esc_html( sprintf( bit_crossblog_search_t( 1 === $summary['total'] ? 'summary_one' : 'summary_many' ), number_format_i18n( $summary['total'] ), $request['term'] ) ) . '</p>';
+
+		// Tudo: os primeiros de cada categoria, e o caminho para a aba dela.
+		foreach ( $tabs as $t ) {
+			if ( '' === $t['slug'] || 0 === $t['count'] ) {
 				continue;
 			}
 
-			$slug  = str_replace( '_', '-', preg_replace( '/^bit_/', '', $key ) );
-			$html .= '<section class="bit-busca__section bit-busca__section--' . esc_attr( $slug ) . '">'
-				. '<h2 class="bit-busca__section-title">' . esc_html( bit_crossblog_search_section_title( $key ) ) . ' <span class="bit-busca__count">' . esc_html( number_format_i18n( $section['total'] ) ) . '</span></h2>'
-				. bit_crossblog_search_render_cards( $section['cards'] );
+			$keys   = $t['sections'] ?: [ 'main' ];
+			$last   = end( $keys );
+			$shown  = 0;
+			$blocks = '';
 
-			if ( $section['total'] > count( $section['cards'] ) ) {
-				$html .= '<p class="bit-busca__more">' . esc_html( sprintf( bit_crossblog_search_t( 'showing' ), number_format_i18n( count( $section['cards'] ) ), number_format_i18n( $section['total'] ) ) ) . '</p>';
-			}
+			foreach ( $keys as $key ) {
+				$section = 'main' === $key ? $summary['main'] : $summary['sections'][ $key ];
+				$cards   = array_slice( $section['cards'], 0, BIT_CROSSBLOG_SEARCH_ALL_PER_SECTION );
 
-			if ( isset( $sections[ $key ]['more'] ) && is_callable( $sections[ $key ]['more'] ) ) {
-				$more = (string) call_user_func( $sections[ $key ]['more'], $lang );
-
-				if ( '' !== $more ) {
-					$html .= '<p class="bit-busca__more"><a href="' . esc_url( $more ) . '">' . esc_html( bit_crossblog_search_t( 'more_' . $key ) ) . '</a></p>';
+				if ( ! $cards ) {
+					continue;
 				}
+
+				$shown  += count( $cards );
+				$more    = '';
+
+				if ( $key === $last && $t['count'] > $shown ) {
+					$more = '<a class="bit-busca__see-all" href="' . esc_url( bit_crossblog_search_results_link( $self, $request['term'], $t['slug'] ) ) . '">'
+						. esc_html( sprintf( bit_crossblog_search_t( 'see_all' ), number_format_i18n( $t['count'] ), $t['label'] ) )
+						. ' <span aria-hidden="true">→</span></a>';
+				}
+
+				$blocks .= bit_crossblog_search_section_html( $key, [ 'cards' => $cards, 'total' => $section['total'] ], $more );
 			}
 
-			$html .= '</section>';
+			// Link para a aba mesmo quando a última seção do grupo veio vazia.
+			if ( $t['count'] > $shown && false === strpos( $blocks, 'bit-busca__see-all' ) ) {
+				$blocks .= '<p><a class="bit-busca__see-all" href="' . esc_url( bit_crossblog_search_results_link( $self, $request['term'], $t['slug'] ) ) . '">'
+					. esc_html( sprintf( bit_crossblog_search_t( 'see_all' ), number_format_i18n( $t['count'] ), $t['label'] ) ) . ' <span aria-hidden="true">→</span></a></p>';
+			}
+
+			$html .= '<div class="bit-busca__group bit-busca__group--' . esc_attr( $t['slug'] ) . '">' . $blocks . '</div>';
+		}
+
+		return $html . '</div></main>';
+	}
+
+	// Uma aba: lista completa, paginada.
+	$label  = bit_crossblog_search_tab_label( $request['cat'] );
+	$html  .= '<p class="bit-busca__summary">' . esc_html( sprintf( bit_crossblog_search_t( 1 === $tab['total'] ? 'cat_summary_one' : 'cat_summary_many' ), number_format_i18n( $tab['total'] ), $request['term'], $label ) ) . '</p>';
+	$config = bit_crossblog_search_sections();
+
+	foreach ( $tab['sections'] as $key => $section ) {
+		$html .= bit_crossblog_search_section_html( $key, $section );
+	}
+
+	if ( $tab['pages'] > 1 ) {
+		$link  = function ( int $page ) use ( $self, $request ) {
+			return bit_crossblog_search_results_link( $self, $request['term'], $request['cat'], $page );
+		};
+		$html .= '<nav class="bit-busca__pagination" aria-label="' . esc_attr( bit_crossblog_search_t( 'pagination' ) ) . '">';
+		$html .= $request['page'] > 1 ? '<a class="bit-busca__page-link" href="' . esc_url( $link( $request['page'] - 1 ) ) . '">' . esc_html( bit_crossblog_search_t( 'prev' ) ) . '</a>' : '<span></span>';
+		$html .= '<span class="bit-busca__page-status">' . esc_html( sprintf( bit_crossblog_search_t( 'page_of' ), number_format_i18n( $request['page'] ), number_format_i18n( $tab['pages'] ) ) ) . '</span>';
+		$html .= $request['page'] < $tab['pages'] ? '<a class="bit-busca__page-link" href="' . esc_url( $link( $request['page'] + 1 ) ) . '">' . esc_html( bit_crossblog_search_t( 'next' ) ) . '</a>' : '<span></span>';
+		$html .= '</nav>';
+	}
+
+	if ( ! empty( $tab['capped'] ) && $request['page'] >= $tab['pages'] ) {
+		$html .= '<p class="bit-busca__more">' . esc_html( sprintf( bit_crossblog_search_t( 'capped' ), number_format_i18n( $tab['shown'] ), number_format_i18n( $tab['total'] ) ) ) . '</p>';
+	}
+
+	// Links para fora (Atlas completo, página de participantes), no fim da aba.
+	foreach ( bit_crossblog_search_tabs()[ $request['cat'] ]['sections'] as $key ) {
+		if ( isset( $config[ $key ]['more'] ) && is_callable( $config[ $key ]['more'] ) && ! empty( $tab['sections'] ) ) {
+			$more = (string) call_user_func( $config[ $key ]['more'], $lang );
+
+			if ( '' !== $more ) {
+				$html .= '<p class="bit-busca__more"><a href="' . esc_url( $more ) . '">' . esc_html( bit_crossblog_search_t( 'more_' . $key ) ) . '</a></p>';
+			}
 		}
 	}
 
@@ -1515,13 +2069,21 @@ add_action( 'template_redirect', function () {
 	}
 
 	$request = bit_crossblog_search_results_request();
-	$data    = bit_crossblog_search_results_data( $request );
 
-	// pg além da última página: o WP não preenche found_posts quando a página
-	// vem vazia, e o total saía errado sem link de volta. Volta para a 1.
-	if ( $request['page'] > 1 && $data['main'] && ! $data['main']['cards'] ) {
+	// "Tudo" não pagina: ?pg= sem aba é resto de link antigo (a lista principal
+	// paginava em "Tudo" até a 1.4) — vai para a aba Estudos, que é o que ele
+	// paginava.
+	if ( '' === $request['cat'] && $request['page'] > 1 && '' !== $request['term'] ) {
+		$request['cat'] = 'estudos';
+	}
+
+	$summary = bit_crossblog_search_results_summary( $request );
+	$tab     = '' !== $request['cat'] && '' !== $request['term'] ? bit_crossblog_search_results_tab( $request ) : null;
+
+	// pg além da última página da aba: volta para a primeira dela.
+	if ( $tab && $request['page'] > 1 && $request['page'] > $tab['pages'] ) {
 		nocache_headers();
-		wp_safe_redirect( add_query_arg( [ 's' => rawurlencode( $request['term'] ) ], bit_crossblog_search_results_url( (string) apply_filters( 'wpml_current_language', '' ) ) ), 302, 'bit-crossblog-search' );
+		wp_safe_redirect( bit_crossblog_search_results_link( bit_crossblog_search_results_url( (string) apply_filters( 'wpml_current_language', '' ) ), $request['term'], $request['cat'] ), 302, 'bit-crossblog-search' );
 		exit;
 	}
 
@@ -1534,7 +2096,7 @@ add_action( 'template_redirect', function () {
 	header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
 	header( 'X-Robots-Tag: noindex, follow' );
 
-	$title = bit_crossblog_search_t( 'title' ) . ( '' !== $request['term'] ? ': ' . $request['term'] : '' );
+	$title = bit_crossblog_search_t( 'title' ) . ( '' !== $request['term'] ? ': ' . $request['term'] : '' ) . ( $tab ? ' · ' . bit_crossblog_search_tab_label( $request['cat'] ) : '' );
 
 	add_filter( 'pre_get_document_title', function () use ( $title ) {
 		return $title . ' – ' . get_bloginfo( 'name' );
@@ -1556,14 +2118,18 @@ add_action( 'template_redirect', function () {
 	// Seletor de idioma: a mesma busca no outro idioma, não a home dele.
 	add_filter( 'icl_ls_languages', function ( $languages ) use ( $request ) {
 		foreach ( $languages as $code => $language ) {
-			$languages[ $code ]['url'] = add_query_arg( array_filter( [ 's' => rawurlencode( $request['term'] ) ] ), bit_crossblog_search_results_url( (string) $code ) );
+			$languages[ $code ]['url'] = bit_crossblog_search_results_link( bit_crossblog_search_results_url( (string) $code ), $request['term'], $request['cat'] );
 		}
 
 		return $languages;
 	}, 99 );
 
 	get_header();
-	echo bit_crossblog_search_results_html( $request, $data ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado na montagem
+	echo bit_crossblog_search_results_html( $request, $summary, $tab ); // phpcs:ignore WordPress.Security.EscapeOutput -- escapado na montagem
+	// Esmaecimento nas bordas da linha de abas (só do lado em que há mais) e
+	// a aba ativa à vista no celular. Próprio, e não o do dropdown: o script
+	// do JetSearch pode vir atrasado pelo "delay JS" do WP Rocket.
+	echo '<script>(function(){var n=document.querySelector(".bit-busca__tabs");if(!n)return;var t=n.querySelector(".bit-tabs__track"),a=n.querySelector("[aria-current]");function u(){var m=t.scrollWidth-t.clientWidth;n.classList.toggle("has-more-right",m>1&&t.scrollLeft<m-1);n.classList.toggle("has-more-left",t.scrollLeft>1);}if(a&&t.scrollWidth>t.clientWidth)t.scrollLeft=a.offsetLeft-16;t.addEventListener("scroll",u,{passive:true});window.addEventListener("resize",u);u();})();</script>';
 	get_footer();
 	exit;
 }, 999 );

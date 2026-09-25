@@ -3,8 +3,9 @@
  * Tema: hello-elementor-child
  *
  * Estiliza os blocos adicionais que o mu-plugin bit-crossblog-search.php
- * injeta no dropdown da busca do header — notícias, eventos, participantes e
- * Atlas Cultural —, todos com a classe
+ * injeta no dropdown da busca do header — notícias, eventos, participantes,
+ * Cultura (páginas do /cultura/ e artistas do Atlas) e exposições —, todos
+ * com a classe
  *   .jet-ajax-search__source-results-holder_bit_<seção>
  *
  * Os itens usam o mesmo markup dos itens de post (.jet-ajax-search__results-item)
@@ -258,6 +259,177 @@ html body.bit-busca-page {
 	.bit-busca .bit-busca__item-title {
 		font-size: 1.05rem;
 	}
+}
+
+/* ==========================================================================
+   Abas por categoria — página /busca/ e dropdown do painel
+   Linha de abas como a do Google: rótulo, contagem num badge, sublinhado de
+   3px em accent na ativa. Rola na horizontal quando não cabe (sem barra), com
+   esmaecimento só do lado em que há mais (classes has-more-* postas pelo JS).
+   A página usa links (<a>, funciona sem JS); o dropdown usa <button>.
+   Seletores com :is(.bit-busca, .jet-ajax-search) na frente: o kit do
+   Elementor estiliza todo <a> e <button> (.elementor-kit-N button: fundo,
+   borda, padding) e um seletor curto perde para ele.
+   ========================================================================== */
+.bit-tabs {
+	position: relative;
+}
+
+.bit-tabs__track {
+	border-bottom: 1px solid color-mix(in srgb, var(--e-global-color-primary) 18%, transparent);
+	display: flex;
+	gap: 2px;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
+}
+
+.bit-tabs__track::-webkit-scrollbar {
+	display: none;
+}
+
+/* Máscara: só a opacidade conta, "black" aqui não é cor de tela. */
+.bit-tabs.has-more-right .bit-tabs__track {
+	mask-image: linear-gradient(90deg, black calc(100% - 48px), transparent);
+}
+
+.bit-tabs.has-more-left .bit-tabs__track {
+	mask-image: linear-gradient(90deg, transparent, black 48px);
+}
+
+.bit-tabs.has-more-left.has-more-right .bit-tabs__track {
+	mask-image: linear-gradient(90deg, transparent, black 48px, black calc(100% - 48px), transparent);
+}
+
+:is(.bit-busca, .jet-ajax-search) .bit-tabs .bit-tabs__tab {
+	align-items: center;
+	appearance: none;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	color: color-mix(in srgb, var(--e-global-color-text) 75%, transparent);
+	cursor: pointer;
+	display: inline-flex;
+	flex: 0 0 auto;
+	font-family: var(--e-global-typography-accent-font-family), Roboto, sans-serif;
+	font-size: 0.9rem;
+	font-weight: 500;
+	gap: 0.45rem;
+	letter-spacing: 0;
+	line-height: 1.2;
+	margin: 0;
+	padding: 0.75rem 0.85rem;
+	position: relative;
+	text-decoration: none;
+	text-transform: none;
+	white-space: nowrap;
+}
+
+:is(.bit-busca, .jet-ajax-search) .bit-tabs .bit-tabs__tab:hover,
+:is(.bit-busca, .jet-ajax-search) .bit-tabs .bit-tabs__tab:focus-visible {
+	background: transparent;
+	color: var(--e-global-color-primary);
+}
+
+:is(.bit-busca, .jet-ajax-search) .bit-tabs .bit-tabs__tab:focus-visible {
+	outline: 2px solid var(--e-global-color-accent);
+	outline-offset: -2px;
+}
+
+:is(.bit-busca, .jet-ajax-search) .bit-tabs .bit-tabs__tab:is([aria-current="page"], [aria-selected="true"]) {
+	color: var(--e-global-color-accent);
+}
+
+:is(.bit-busca, .jet-ajax-search) .bit-tabs .bit-tabs__tab:is([aria-current="page"], [aria-selected="true"])::after {
+	background: var(--e-global-color-accent);
+	border-radius: 3px 3px 0 0;
+	bottom: 0;
+	content: "";
+	height: 3px;
+	left: 0.6rem;
+	position: absolute;
+	right: 0.6rem;
+}
+
+:is(.bit-busca, .jet-ajax-search) .bit-tabs .bit-tabs__tab[aria-disabled="true"] {
+	cursor: default;
+	opacity: 0.45;
+	pointer-events: none;
+}
+
+.bit-tabs .bit-tabs__count {
+	background: color-mix(in srgb, var(--e-global-color-primary) 12%, transparent);
+	border-radius: 999px;
+	color: var(--e-global-color-primary);
+	font-size: 0.72rem;
+	font-weight: 500;
+	line-height: 1.4;
+	padding: 0.05rem 0.45rem;
+}
+
+.bit-tabs .bit-tabs__tab:is([aria-current="page"], [aria-selected="true"]) .bit-tabs__count {
+	background: color-mix(in srgb, var(--e-global-color-accent) 16%, transparent);
+	color: var(--e-global-color-accent);
+}
+
+/* O base.css põe overflow-x:hidden em html E body no celular: com os dois,
+   o body vira um contêiner de rolagem que nunca rola, e o sticky das abas
+   para de funcionar. `clip` corta a lateral do mesmo jeito sem criar
+   contêiner. Só nesta página. */
+html body.bit-busca-page {
+	overflow-x: clip;
+}
+
+/* Página: a linha fica presa no topo ao rolar, sobre o fundo cream. */
+.bit-busca__tabs {
+	background-color: var(--e-global-color-secondary);
+	margin: 0 0 1.25rem;
+	position: sticky;
+	top: var(--bit-busca-tabs-top, 0px);
+	z-index: 5;
+}
+
+.bit-busca__group + .bit-busca__group {
+	margin-top: 0.5rem;
+}
+
+.bit-busca .bit-busca__see-all {
+	color: var(--e-global-color-primary);
+	display: inline-block;
+	font-family: var(--e-global-typography-accent-font-family), sans-serif;
+	font-size: 0.85rem;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	margin-top: 0.85rem;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+
+.bit-busca .bit-busca__see-all:hover,
+.bit-busca .bit-busca__see-all:focus-visible {
+	color: var(--e-global-color-accent);
+}
+
+/* Dropdown: menor, entre a barra "N resultados" e a lista. A barra do
+   contador tem o fundo teal do widget; as abas ficam numa faixa cream
+   própria, colada à lista (sobre o teal, os rótulos perdiam contraste). */
+.jet-ajax-search .bit-tabs--compact {
+	background-color: var(--e-global-color-secondary);
+	margin: 0;
+	padding: 0 10px;
+}
+
+.jet-ajax-search .bit-tabs--compact .bit-tabs__tab {
+	font-size: 0.8rem;
+	padding: 0.55rem 0.6rem;
+}
+
+/* Filtro do dropdown: bloco fora da aba, e os posts da lista principal
+   (filhos diretos do slide) fora de "Tudo" e "Estudos". */
+.jet-ajax-search .jet-ajax-search__results-holder .bit-tab-hidden,
+.jet-ajax-search__results-area[data-bit-tab]:not([data-bit-tab=""]):not([data-bit-tab="estudos"]) .jet-ajax-search__results-slide > .jet-ajax-search__results-item {
+	display: none;
 }
 
 /* ==========================================================================
