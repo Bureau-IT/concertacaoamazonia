@@ -224,6 +224,14 @@
     overflow     : hidden;
 }
 
+/* O WPML aplica o template do switcher por blog: vertical no blog 1,
+   legacy-list-horizontal no /cultura/, que traz padding: 7px no wrapper.
+   Com ele o botão ocupava 46px em vez de 32 e, no mobile, empurrava a lupa
+   da busca para uma segunda linha do container de ícones. */
+.ucpa-header-icons .wpml-ls {
+    padding: 0;
+}
+
 /* ==========================================================================
    Footer — item de menu ativo (página atual)
    Por padrão o widget Elementor capitaliza o .elementor-item-active.
