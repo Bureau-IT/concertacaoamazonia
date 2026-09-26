@@ -10,7 +10,7 @@
  *              resultado de artista abre o popup dele no mapa do Atlas. Os
  *              resultados se dividem em abas por categoria (Tudo, Estudos,
  *              Notícias…), na página e no dropdown.
- * Version: 1.5.0
+ * Version: 1.5.1
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -31,7 +31,23 @@ if ( ! defined( 'ABSPATH' ) || ! is_multisite() ) {
 	return;
 }
 
-const BIT_CROSSBLOG_SEARCH_VERSION    = '1.5.0'; // entra na chave dos transients
+/*
+ * Só age no multisite da Concertação. O arquivo vive também no acervo comum
+ * (bit-servertools/docker-dev/common/mu-plugins/), que é sincronizado em lote,
+ * e o parque tem outro multisite (www-concertacao): lá ele registraria a rota
+ * pública /busca/ e o 302 do /?s= legado no blog 1.
+ *
+ * O padrão reconhece o site pela rede, não pelo wp-config: o blog 2 é o
+ * /cultura/ (no www-concertacao é o /5anos/). Constante no wp-config não serve
+ * de padrão porque ele é regerado a cada deploy blue-green
+ * (04-wpcli-wp-install.sh), e esquecê-la apagaria a busca sem aviso.
+ * BIT_CROSSBLOG_SEARCH no wp-config força ligar (true) ou desligar (false).
+ */
+if ( defined( 'BIT_CROSSBLOG_SEARCH' ) ? ! BIT_CROSSBLOG_SEARCH : ( ( get_site( 2 )->path ?? '' ) !== ( get_site( 1 )->path ?? '/' ) . 'cultura/' ) ) {
+	return;
+}
+
+const BIT_CROSSBLOG_SEARCH_VERSION    = '1.5.1'; // entra na chave dos transients
 const BIT_CROSSBLOG_SEARCH_MAIN_BLOG  = 1;
 const BIT_CROSSBLOG_SEARCH_ATLAS_BLOG = 2;
 const BIT_CROSSBLOG_SEARCH_ATLAS_PAGE = 57548; // "Atlas Cultural das Amazônias" no blog 2 (PT)
