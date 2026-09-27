@@ -2,8 +2,34 @@
 /**
  * Plugin Name: BIT — Elementor Local Cache (bypass S3-Uploads)
  * Description: Mantem o cache CSS do Elementor no filesystem local, fora do S3.
- * Version: 2.2.0
+ * Version: 2.3.0
  * Author: Daniel Cambria / Bureau de Tecnologia
+ *
+ * v2.3.0: o pre-warm passou a rodar com prioridade PHP_INT_MAX (era 1).
+ * A premissa da v2.0.0 — "prioridade 1 roda antes do S3-Uploads em 10, logo
+ * ganha" — estava invertida: em `apply_filters` quem roda POR ULTIMO da a
+ * palavra final. O filtro do S3-Uploads (`Plugin::filter_upload_dir`,
+ * prioridade 10 default) faz `str_replace( WP_CONTENT_DIR, 's3://bucket/pref',
+ * $dirs['basedir'] )` — e o basedir local deste mu-plugin
+ * (WP_CONTENT_DIR . '/elementor-cache') COMECA com WP_CONTENT_DIR, entao era
+ * reescrito de volta para `s3://bucket/assets/elementor-cache` logo depois do
+ * pre-warm, e esse valor ficava memoizado em `Base::$wp_uploads_dir`.
+ * A metade da URL nao denunciava nada: o S3-Uploads recalcula `baseurl` a
+ * partir de `get_s3_url()`, que aqui e S3_UPLOADS_BUCKET_URL
+ * ('https://concertacaoamazonia.com.br/wp-content') — identico ao
+ * WP_CONTENT_URL, ou seja, um no-op. Resultado: **URL certa, path errado**.
+ * O Elementor gravava o CSS por-post no S3 enquanto o HTML apontava para
+ * /wp-content/elementor-cache/... servido pelo nginx a partir do disco local.
+ * Enquanto o disco local tinha os arquivos antigos ninguem via nada; o flush
+ * de 31/08/2026 17:35 esvaziou o diretorio do blog 1 e as paginas passaram a
+ * ser servidas CRUAS (35 de 64 aferidas pelo css-health, 50 frias de 63 no
+ * warm-check; o blog 2 escapou so porque nao foi flushado).
+ * O bug ficou latente entre o deploy da v2.0.0 e a REATIVACAO do s3-uploads
+ * em 31/08/2026: com o plugin desligado, o filtro dele nao rodava e o path
+ * local sobrevivia por acidente.
+ * Corolario: nao adianta "chegar antes" do S3-Uploads — e preciso chegar
+ * DEPOIS. Qualquer futura camada de defesa deste mu-plugin tem de rodar em
+ * prioridade > 10.
  *
  * v2.2.0: filtro `rocket_exclude_css` ensinando o WP Rocket sobre o path
  * redirecionado (/wp-content/elementor-cache/...). O compat nativo do WP
@@ -49,12 +75,13 @@
  *
  * Solucao v2.0.0 (substitui v1.x — debug_backtrace nao funcionava):
  *
- *   1) PRE-WARM do static cache do Elementor com path LOCAL antes do S3-Uploads
- *      popular. Elementor 3.35.x tem `Base::$wp_uploads_dir[$blog_id]` que e
+ *   1) PRE-WARM do static cache do Elementor com path LOCAL, com o filtro
+ *      registrado em PHP_INT_MAX para dar a ULTIMA palavra sobre o S3-Uploads. Elementor 3.35.x tem `Base::$wp_uploads_dir[$blog_id]` que e
  *      memoizado por request (core/files/base.php:18,296-303). A primeira chamada
  *      a wp_upload_dir() popula esse cache e nenhuma chamada subsequente passa
  *      pelo filtro upload_dir. Por isso forcamos a primeira chamada com filtro
- *      local de prioridade 1 (antes do S3-Uploads em prioridade 10).
+ *      local em PHP_INT_MAX — depois do S3-Uploads (prioridade 10), nao antes
+ *      (ver changelog v2.3.0: chegar antes e perder).
  *
  *   2) Filtro `s3_uploads_enabled` retorna false quando o caller atual e
  *      Elementor escrevendo CSS — proteção em camada para escritas que escapem
@@ -65,10 +92,14 @@
  *
  * Cuidados:
  * - Multisite path-based: blog 1 vai pra /elementor-cache/, blog 2 pra /elementor-cache/sites/2/
- * - Pre-warm precisa rodar ANTES do S3-Uploads (`s3-uploads/s3-uploads.php`).
- *   Mu-plugins carregam antes de plugins, entao plugins_loaded priority 1 e
- *   suficiente. Se trocar para must-use plugin folder, garantir ordem alfabetica
- *   (b < s, ja garante).
+ * - Pre-warm precisa rodar DEPOIS do filtro do S3-Uploads (`upload_dir`,
+ *   prioridade 10) — dai o PHP_INT_MAX. O que precisa acontecer antes e o
+ *   CARREGAMENTO: este arquivo tem de estar em mu-plugins (carregam antes dos
+ *   plugins) para conseguir se inscrever no `plugins_loaded`.
+ * - Validacao que pega a regressao em um comando (path tem de ser local):
+ *   `wp eval 'echo \Elementor\Core\Files\Base::get_base_uploads_dir();'`
+ *   Se voltar `s3://`, o CSS esta indo pro bucket e o site vai servir pagina
+ *   crua assim que o cache local for flushado.
  *
  * Validacao:
  *   wp eval 'echo \Elementor\Core\Files\Base::get_base_uploads_dir();'
@@ -255,14 +286,16 @@ function bit_elc_caller_is_elementor_files() {
 /**
  * (1) PRE-WARM do static cache do Elementor.
  *
- * Roda em `plugins_loaded` priority 1 — depois dos mu-plugins carregarem mas
- * antes do S3-Uploads se inscrever no `init` do WP. Forca o filtro local com
- * prioridade 1 (antes do S3-Uploads em 10), chama `wp_upload_dir()` (que
- * preenche o cache static do Elementor via primeira chamada na sessao), e
- * desregistra o filtro para nao afetar uploads reais.
+ * Roda em `plugins_loaded` priority 1 — cedo o bastante para que a PRIMEIRA
+ * chamada a wp_upload_dir() da request seja esta (e o Elementor memoiza a
+ * primeira). Forca o filtro local em PHP_INT_MAX, ou seja, DEPOIS do
+ * S3-Uploads (prioridade 10) — quem roda por ultimo da a palavra final; ver
+ * changelog v2.3.0. Chama `wp_upload_dir()` (que preenche o cache static do
+ * Elementor via primeira chamada na sessao) e desregistra o filtro para nao
+ * afetar uploads reais.
  */
 add_action( 'plugins_loaded', function () {
-	add_filter( 'upload_dir', 'bit_elc_force_local', 1 );
+	add_filter( 'upload_dir', 'bit_elc_force_local', PHP_INT_MAX );
 
 	// Pre-warm para TODOS os blogs do multisite — Base::$wp_uploads_dir e
 	// keyed por blog_id (Elementor base.php:297-299 usa `global $blog_id`),
@@ -285,7 +318,7 @@ add_action( 'plugins_loaded', function () {
 		}
 	}
 
-	remove_filter( 'upload_dir', 'bit_elc_force_local', 1 );
+	remove_filter( 'upload_dir', 'bit_elc_force_local', PHP_INT_MAX );
 }, 1 );
 
 /**
@@ -309,10 +342,10 @@ add_action( 'switch_blog', function ( $new_blog_id, $prev_blog_id ) {
 	} catch ( \Throwable $e ) {
 		return;
 	}
-	add_filter( 'upload_dir', 'bit_elc_force_local', 1 );
+	add_filter( 'upload_dir', 'bit_elc_force_local', PHP_INT_MAX );
 	wp_upload_dir( null, false );
 	\Elementor\Core\Files\Base::get_base_uploads_dir();
-	remove_filter( 'upload_dir', 'bit_elc_force_local', 1 );
+	remove_filter( 'upload_dir', 'bit_elc_force_local', PHP_INT_MAX );
 }, 1, 2 );
 
 /**
