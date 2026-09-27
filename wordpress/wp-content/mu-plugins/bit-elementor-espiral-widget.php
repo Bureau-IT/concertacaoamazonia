@@ -4,11 +4,14 @@
  * Description:  Widget "BIT Espiral do Conhecimento" — carrega SVG inline com
  *               controles visuais e persistência via REST API. Suporta qualquer subsite
  *               da rede. Complementa o bit-elementor-svg-widget para a espiral 2026.
- * Version:      2.3.0
+ * Version:      2.4.0
  * Author:       Bureau IT
  * Network:      true
  *
  * Changelog:
+ * 2.4.0 — Seção "Gradiente da Borda": gradiente radial centrado no miolo pinta
+ *         os setores (cor interna, intermediária opcional e externa). Desligada
+ *         por padrão; sem ela os setores seguem na "Cor de fundo" chapada.
  * 2.3.0 — Os controles "Clique nos eixos" passam a governar TAMBÉM a camada de
  *         overlay SVG do glow. Antes, a cor (#ec4899) e as durações do glow e do
  *         pulso estavam cravadas no JS, então "Cor do glow" e "Velocidade do
