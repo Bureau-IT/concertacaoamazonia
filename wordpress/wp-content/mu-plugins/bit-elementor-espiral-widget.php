@@ -208,6 +208,9 @@ add_action( 'elementor/widgets/register', function ( $widgets_manager ) {
                 '--spiral2026-mainline-color'              => 'rgba(189,248,57,0.878)',
                 '--spiral2026-middle-center-color'         => 'rgba(214,243,149,0.902)',
                 '--spiral2026-middle-edge-color'           => 'rgba(100,212,233,0.431)',
+                '--spiral2026-border-inner-color'          => 'rgba(10,38,102,0)',
+                '--spiral2026-border-mid-color'            => 'rgba(100,212,233,0.25)',
+                '--spiral2026-border-edge-color'           => 'rgba(100,212,233,0.85)',
                 '--spiral2026-flood-color'                 => '#060f0a',
                 '--spiral2026-animation-delay'             => '90ms',
                 '--spiral2026-animation-duration'          => '1.2s',
@@ -607,6 +610,169 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     ],
                 ] );
             }
+
+            $this->end_controls_section();
+
+            // ── Gradiente da Borda (anel externo) ─────────────────
+            //
+            // O "Centro" já tem duas cores (middle-center / middle-edge) que
+            // alimentam o gradiente radial do miolo, definido dentro do SVG
+            // fonte. Esta seção faz o equivalente para a ÁREA DOS SETORES:
+            // injeta um <radialGradient> centrado no miolo da espiral e passa
+            // a pintar os setores com ele, de modo que o anel externo receba
+            // uma cor diferente do miolo (degradê do centro para a borda).
+            //
+            // Implementação: os setores já são pintados pela regra
+            //   .spiral26AxisLinksGroup a { fill: var(--spiral2026-axis-fill,
+            //                                    var(--spiral2026-backgroundcolor)) }
+            // Com o gradiente ligado, o render define
+            // --spiral2026-axis-fill: url(#bitEspiralBorderGrad-<id>).
+            // Desligado, a var não existe e vale o fallback (cor chapada) —
+            // comportamento idêntico ao de antes.
+            $this->start_controls_section( 'border_grad_section', [
+                'label' => 'Gradiente da Borda',
+                'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+            ] );
+
+            $this->add_control( 'border_grad_enabled', [
+                'label'        => 'Ativar gradiente na borda',
+                'type'         => \Elementor\Controls_Manager::SWITCHER,
+                'label_on'     => 'Sim',
+                'label_off'    => 'Não',
+                'return_value' => '1',
+                'default'      => '',
+                'description'  => 'Pinta os setores com um gradiente radial centrado no miolo: a cor interna fica no centro e a cor externa no anel de fora. Substitui a "Cor de fundo" chapada — o hover e o clique continuam usando as cores de "Cores Principais" e "Efeito de Clique".',
+                'render_type'  => 'template',
+            ] );
+
+            $this->add_control( 'border_grad_inner_color', [
+                'label'       => 'Borda — cor interna',
+                'type'        => \Elementor\Controls_Manager::COLOR,
+                'global'      => [ 'active' => true ],
+                'default'     => 'rgba(10,38,102,0)',
+                'description' => 'Cor no centro da espiral. Transparente deixa o miolo limpo. Para não mexer no miolo, use o mesmo valor de "Cor de fundo".',
+                'selectors'   => [
+                    '{{WRAPPER}} .SVGSpiral2026' => '--spiral2026-border-inner-color: {{VALUE}};',
+                ],
+                'condition'   => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_inner_offset', [
+                'label'       => 'Início do degradê (%)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'size_units'  => [ '%' ],
+                'range'       => [ '%' => [ 'min' => 0, 'max' => 100, 'step' => 1 ] ],
+                'default'     => [ 'unit' => '%', 'size' => 0 ],
+                'description' => 'Até onde a cor interna se mantém chapada antes de começar a virar. Aumente para preservar as voltas de dentro.',
+                'render_type' => 'template',
+                'condition'   => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_mid_enabled', [
+                'label'        => 'Usar cor intermediária',
+                'type'         => \Elementor\Controls_Manager::SWITCHER,
+                'label_on'     => 'Sim',
+                'label_off'    => 'Não',
+                'return_value' => '1',
+                'default'      => '1',
+                'description'  => 'Terceira parada no meio do caminho — é ela que cria a faixa clara antes da borda.',
+                'render_type'  => 'template',
+                'condition'    => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_mid_color', [
+                'label'     => 'Borda — cor intermediária',
+                'type'      => \Elementor\Controls_Manager::COLOR,
+                'global'    => [ 'active' => true ],
+                'default'   => 'rgba(100,212,233,0.25)',
+                'selectors' => [
+                    '{{WRAPPER}} .SVGSpiral2026' => '--spiral2026-border-mid-color: {{VALUE}};',
+                ],
+                'condition' => [
+                    'border_grad_enabled'     => '1',
+                    'border_grad_mid_enabled' => '1',
+                ],
+            ] );
+
+            $this->add_control( 'border_grad_mid_offset', [
+                'label'       => 'Posição da cor intermediária (%)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'size_units'  => [ '%' ],
+                'range'       => [ '%' => [ 'min' => 0, 'max' => 100, 'step' => 1 ] ],
+                'default'     => [ 'unit' => '%', 'size' => 65 ],
+                'render_type' => 'template',
+                'condition'   => [
+                    'border_grad_enabled'     => '1',
+                    'border_grad_mid_enabled' => '1',
+                ],
+            ] );
+
+            $this->add_control( 'border_grad_edge_color', [
+                'label'       => 'Borda — cor externa',
+                'type'        => \Elementor\Controls_Manager::COLOR,
+                'global'      => [ 'active' => true ],
+                'default'     => 'rgba(100,212,233,0.85)',
+                'description' => 'Cor no anel de fora da espiral.',
+                'selectors'   => [
+                    '{{WRAPPER}} .SVGSpiral2026' => '--spiral2026-border-edge-color: {{VALUE}};',
+                ],
+                'condition'   => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_edge_offset', [
+                'label'       => 'Fim do degradê (%)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'size_units'  => [ '%' ],
+                'range'       => [ '%' => [ 'min' => 0, 'max' => 100, 'step' => 1 ] ],
+                'default'     => [ 'unit' => '%', 'size' => 100 ],
+                'description' => 'Diminua para a cor externa chegar antes do raio total e formar uma borda mais dura.',
+                'render_type' => 'template',
+                'condition'   => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_radius', [
+                'label'       => 'Raio do gradiente (%)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'size_units'  => [ '%' ],
+                'range'       => [ '%' => [ 'min' => 20, 'max' => 200, 'step' => 1 ] ],
+                'default'     => [ 'unit' => '%', 'size' => 100 ],
+                'description' => '100% = metade do menor lado do viewBox. Ajuste até a cor externa cair exatamente no anel de fora.',
+                'render_type' => 'template',
+                'condition'   => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_cx', [
+                'label'       => 'Deslocamento horizontal do centro (%)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'size_units'  => [ '%' ],
+                'range'       => [ '%' => [ 'min' => -50, 'max' => 50, 'step' => 0.5 ] ],
+                'default'     => [ 'unit' => '%', 'size' => 0 ],
+                'description' => 'O centro do gradiente começa no centro do viewBox. Use estes dois controles para casar com o miolo real da espiral.',
+                'render_type' => 'template',
+                'condition'   => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_cy', [
+                'label'       => 'Deslocamento vertical do centro (%)',
+                'type'        => \Elementor\Controls_Manager::SLIDER,
+                'size_units'  => [ '%' ],
+                'range'       => [ '%' => [ 'min' => -50, 'max' => 50, 'step' => 0.5 ] ],
+                'default'     => [ 'unit' => '%', 'size' => 0 ],
+                'render_type' => 'template',
+                'condition'   => [ 'border_grad_enabled' => '1' ],
+            ] );
+
+            $this->add_control( 'border_grad_on_background', [
+                'label'        => 'Aplicar também na camada de fundo',
+                'type'         => \Elementor\Controls_Manager::SWITCHER,
+                'label_on'     => 'Sim',
+                'label_off'    => 'Não',
+                'return_value' => '1',
+                'default'      => '1',
+                'description'  => 'Pinta também os path de .spiral26AxisBackground (camada base sob os links). Desligue se algum setor sem link precisar manter a cor chapada.',
+                'render_type'  => 'template',
+                'condition'    => [ 'border_grad_enabled' => '1' ],
+            ] );
 
             $this->end_controls_section();
 
@@ -1557,6 +1723,146 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                 ? max( 0.2, min( 1.0, (float) $s['click_fx_loading_dim']['size'] ) )
                 : 0.5;
 
+
+            // ── 3.1. Gradiente da borda (anel externo) ────────────────
+            //
+            // Monta um <radialGradient> em userSpaceOnUse centrado no miolo da
+            // espiral. userSpaceOnUse (e NÃO objectBoundingBox) é obrigatório:
+            // com bounding box cada setor ganharia o seu próprio degradê; aqui
+            // todos os setores compartilham UM gradiente no sistema de
+            // coordenadas do viewBox, então as voltas de dentro pegam as
+            // paradas iniciais e o anel de fora pega as finais.
+            $grad_defs = '';
+            $grad_css  = '';
+
+            if ( isset( $s['border_grad_enabled'] ) && '1' === $s['border_grad_enabled'] ) {
+                // viewBox do SVG fonte (fallback: dimensões do arquivo atual).
+                $vb_x = 0.0; $vb_y = 0.0; $vb_w = 855.0; $vb_h = 945.0;
+                if ( preg_match(
+                    '/\bviewBox\s*=\s*["\']\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+(-?[\d.]+)/i',
+                    $svg,
+                    $m_vb
+                ) ) {
+                    $vb_x = (float) $m_vb[1];
+                    $vb_y = (float) $m_vb[2];
+                    $vb_w = (float) $m_vb[3];
+                    $vb_h = (float) $m_vb[4];
+                }
+                if ( $vb_w <= 0 ) { $vb_w = 855.0; }
+                if ( $vb_h <= 0 ) { $vb_h = 945.0; }
+
+                $g_num = static function ( $val, $fallback, $min, $max ) {
+                    $n = ( is_array( $val ) && isset( $val['size'] ) && '' !== $val['size'] && null !== $val['size'] )
+                        ? (float) $val['size']
+                        : (float) $fallback;
+                    return max( $min, min( $max, $n ) );
+                };
+                $g_fmt = static function ( $n ) {
+                    $out = rtrim( rtrim( number_format( (float) $n, 3, '.', '' ), '0' ), '.' );
+                    return '' === $out || '-' === $out ? '0' : $out;
+                };
+
+                $g_cx_pct = $g_num( $s['border_grad_cx']     ?? null,   0, -50,  50 );
+                $g_cy_pct = $g_num( $s['border_grad_cy']     ?? null,   0, -50,  50 );
+                $g_r_pct  = $g_num( $s['border_grad_radius'] ?? null, 100,  20, 200 );
+
+                $g_cx = $vb_x + $vb_w / 2 + ( $g_cx_pct / 100 ) * $vb_w;
+                $g_cy = $vb_y + $vb_h / 2 + ( $g_cy_pct / 100 ) * $vb_h;
+                $g_r  = ( min( $vb_w, $vb_h ) / 2 ) * ( $g_r_pct / 100 );
+                if ( $g_r <= 0 ) { $g_r = min( $vb_w, $vb_h ) / 2; }
+
+                // Paradas em % do raio. A spec exige offsets em ordem crescente:
+                // cada parada é clampada ao mínimo da anterior.
+                $g_off_in  = $g_num( $s['border_grad_inner_offset'] ?? null,   0, 0, 100 );
+                $g_off_mid = $g_num( $s['border_grad_mid_offset']   ?? null,  65, 0, 100 );
+                $g_off_out = $g_num( $s['border_grad_edge_offset']  ?? null, 100, 0, 100 );
+                $g_use_mid = ! isset( $s['border_grad_mid_enabled'] ) || '1' === $s['border_grad_mid_enabled'];
+                $g_off_mid = max( $g_off_mid, $g_off_in );
+                $g_off_out = max( $g_off_out, $g_use_mid ? $g_off_mid : $g_off_in );
+
+                // stop-color inline com var(): a custom property é declarada em
+                // .SVGSpiral2026 (pelos selectors do Elementor) e herda até o
+                // <stop> dentro de <defs>. O 2º argumento do var() mantém o
+                // visual padrão caso o controle esteja vazio.
+                $g_stop = static function ( $offset, $var, $fallback ) use ( $g_fmt ) {
+                    return '<stop offset="' . $g_fmt( $offset ) . '%" '
+                         . 'style="stop-color:var(' . $var . ',' . $fallback . ')" />';
+                };
+
+                $grad_id   = 'bitEspiralBorderGrad-' . $this->get_id();
+                $grad_defs = '<defs data-bit-espiral-border-grad>'
+                    . '<radialGradient id="' . esc_attr( $grad_id ) . '"'
+                    . ' gradientUnits="userSpaceOnUse"'
+                    . ' cx="' . $g_fmt( $g_cx ) . '" cy="' . $g_fmt( $g_cy ) . '" r="' . $g_fmt( $g_r ) . '">'
+                    . $g_stop( $g_off_in, '--spiral2026-border-inner-color', 'rgba(10,38,102,0)' )
+                    . ( $g_use_mid ? $g_stop( $g_off_mid, '--spiral2026-border-mid-color', 'rgba(100,212,233,0.25)' ) : '' )
+                    . $g_stop( $g_off_out, '--spiral2026-border-edge-color', 'rgba(100,212,233,0.85)' )
+                    . '</radialGradient></defs>';
+
+                $grad_css = '.SVGSpiral2026{--spiral2026-axis-fill:url(#' . esc_attr( $grad_id ) . ');}';
+
+                if ( ! isset( $s['border_grad_on_background'] ) || '1' === $s['border_grad_on_background'] ) {
+                    $grad_css .= '.SVGSpiral2026 .spiral26AxisBackground path{'
+                               . 'fill:var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor));}';
+                }
+
+                // ── Animação de entrada x gradiente ──────────────────
+                //
+                // O SVG fonte anima a entrada de cada gomo com
+                //   .SVGSpiral2026.Spiral26Animate .spiral26AxisLinksGroup a > use {
+                //       animation: olaEspiralBg ... forwards; }
+                // e o frame 100% do keyframe fixa
+                //   fill: var(--spiral2026-backgroundcolor)
+                //
+                // Como o `forwards` mantém o valor final aplicado ao elemento,
+                // e valor de animação vence declaração normal, o <use> passava a
+                // pintar a cor chapada e cobria o fill herdado do <a> — o
+                // gradiente sumia exatamente quando o "piscar" terminava.
+                //
+                // Correção: reescrever o keyframe do SVG fonte para que as três
+                // paradas caiam em --spiral2026-axis-fill quando ela existir.
+                // --spiral2026-anim-fill (controle "Cor durante a animação")
+                // continua com prioridade nos frames 0% e 50%, como antes.
+                $kf_patched = false;
+                $svg = preg_replace_callback(
+                    '/@keyframes\s+olaEspiralBg\s*\{.*?\n\s*\}/s',
+                    static function ( $m ) use ( &$kf_patched ) {
+                        $kf_patched = true;
+                        return str_replace(
+                            'var(--spiral2026-backgroundcolor)',
+                            'var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor))',
+                            $m[0]
+                        );
+                    },
+                    $svg,
+                    1
+                );
+
+                // Fallback: se o SVG fonte mudar e o keyframe não for
+                // encontrado, redefine olaEspiralBg num <style> no FIM do SVG.
+                // Entre keyframes de mesmo nome vale o ÚLTIMO em ordem de
+                // documento — por isso este <style> precisa vir depois do
+                // <style> interno do SVG, e não junto dos outros no topo.
+                if ( ! $kf_patched ) {
+                    $kf_override = '<style data-bit-espiral-border-grad-kf>'
+                        . '@keyframes olaEspiralBg{'
+                        . '0%{opacity:1;'
+                        . 'fill:var(--spiral2026-anim-fill,var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor)));'
+                        . 'filter:var(--spiral2026-anim-filter,none);}'
+                        . '50%{opacity:0;'
+                        . 'fill:var(--spiral2026-anim-fill,var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor)));'
+                        . 'filter:var(--spiral2026-anim-filter,none);}'
+                        . '100%{opacity:1;'
+                        . 'fill:var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor));'
+                        . 'filter:none;}'
+                        . '}</style>';
+                    $kf_pos = strrpos( $svg, '</svg>' );
+                    if ( false !== $kf_pos ) {
+                        $svg = substr( $svg, 0, $kf_pos ) . $kf_override . substr( $svg, $kf_pos );
+                    }
+                }
+            }
+
             // Atributo data-* no <svg root> para o JS detectar se loading está ativo
             // (evita disparar o estado loading se o usuário desligar via Elementor).
             $svg = preg_replace_callback(
@@ -1583,9 +1889,11 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                 static function ( $m ) use (
                     $api_style, $typo_style, $anchor_style,
                     $fx_enabled, $glow_color, $glow_duration, $glow_dim,
-                    $loading_enabled, $loading_speed, $loading_dim
+                    $loading_enabled, $loading_speed, $loading_dim,
+                    $grad_defs, $grad_css
                 ) {
                     $base = $m[1]
+                        . $grad_defs
                         . $api_style
                         . $typo_style
                         . $anchor_style
@@ -1647,7 +1955,9 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         . '</style>'
                         . '<style data-bit-espiral-use-fix>'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a{'
-                        . 'fill:var(--spiral2026-backgroundcolor);'
+                        // --spiral2026-axis-fill só existe quando "Gradiente da
+                        // Borda" está ligado; senão vale a cor chapada de sempre.
+                        . 'fill:var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor));'
                         . 'outline:none;-webkit-tap-highlight-color:transparent;}'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a:hover,'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a:focus,'
@@ -1655,7 +1965,8 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                         . 'fill:var(--spiral2026-backgroundcolor-hover);}'
                         . '.SVGSpiral2026 .spiral26AxisLinksGroup a:focus-visible{'
                         . 'outline:2px dashed var(--spiral2026-backgroundcolor-hover);'
-                        . 'outline-offset:2px;}';
+                        . 'outline-offset:2px;}'
+                        . $grad_css;
 
                     if ( ! $fx_enabled ) {
                         return $base . '</style>';
@@ -1675,7 +1986,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                     // mudando AMBAS camadas via path[id="eixo-N"] + use[href="#eixo-N"].
                     // (lógica JS — ver #bit-espiral-click-glow script abaixo)
                     $base .= '@keyframes bit-axis-glow-fill{'
-                          . '0%,100%{fill:var(--spiral2026-backgroundcolor);}'
+                          . '0%,100%{fill:var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor));}'
                           . '50%{fill:' . $glow_color . ';}}'
                           . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-clicked use,'
                           . '.SVGSpiral2026.bit-clicked-svg .spiral26AxisBackground path.bit-glow-target{'
@@ -1688,7 +1999,7 @@ Cole o JSON exportado do <strong>espiral-2025-editor.html</strong> e clique em A
                             ? 'rgba(' . hexdec( substr( $glow_color, 1, 2 ) ) . ',' . hexdec( substr( $glow_color, 3, 2 ) ) . ',' . hexdec( substr( $glow_color, 5, 2 ) ) . ',0.6)'
                             : 'rgba(236,72,153,0.6)';
                         $base .= '@keyframes bit-axis-pulse-fill{'
-                              . '0%,100%{fill:var(--spiral2026-backgroundcolor);}'
+                              . '0%,100%{fill:var(--spiral2026-axis-fill,var(--spiral2026-backgroundcolor));}'
                               . '50%{fill:' . $low_glow . ';}}'
                               . '.SVGSpiral2026 .spiral26AxisLinksGroup a.bit-loading use,'
                               . '.SVGSpiral2026.bit-loading-svg .spiral26AxisBackground path.bit-loading-target{'
