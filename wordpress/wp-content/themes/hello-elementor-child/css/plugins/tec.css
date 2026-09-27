@@ -10,6 +10,7 @@
 
 /* Categorias na lista de eventos */
 .tec-events-calendar-list__category {
+    color         : var(--e-global-color-text);
     display       : inline-flex;
     align-items   : center;
     gap           : 4px;
@@ -363,7 +364,7 @@ a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
 .tribe-events .tribe-events-c-subscribe-dropdown__button:focus .tribe-events-c-subscribe-dropdown__button-text,
 .tribe-events .tribe-events-c-subscribe-dropdown__button:focus-within .tribe-events-c-subscribe-dropdown__button-text,
 .tribe-events .tribe-events-c-subscribe-dropdown__button--active .tribe-events-c-subscribe-dropdown__button-text {
-    color           : var(--e-global-color-text) !important;  /* escuro #392E34 */
+    color           : var(--e-global-color-2ab85f4) !important;  /* escuro #392E34 */
     text-shadow     : none !important;
     -webkit-text-stroke: 0 !important;
     opacity         : 1 !important;
@@ -413,7 +414,10 @@ a.tribe-events-c-nav__next.tribe-common-b2.tribe-common-b1--min-medium :hover {
 .tribe-events .tribe-events-c-subscribe-dropdown__button:hover,
 .tribe-events .tribe-events-c-subscribe-dropdown__button:focus,
 .tribe-events .tribe-events-c-subscribe-dropdown__button:focus-within {
-    border-color: var(--e-global-color-accent) !important;
+    background-color: var(--e-global-color-32d8d3f) !important; 
+    border-color    : var(--e-global-color-32d8d3f) !important;
+    color           : var(--e-global-color-2ab85f4) !important;   
+    text-decoration : none;
 }
 
 /* Caret/ícone ESCURO em HOVER e ABERTO (rosa de fundo, igual ao texto).
@@ -668,13 +672,21 @@ body.single-tribe_events {
 
 /* 6.5 Caret do botão "Adicionar agenda" no estado BASE (fechado) — o <path>
    vinha verde #0B4334 (fill + stroke). Alinha à cor de texto. Os estados
-   hover/aberto já são tratados na seção do subscribe-dropdown acima. */
+   hover/focus são tratados na regra seguinte. */
 .tribe-events .tribe-events-c-subscribe-dropdown__button-icon-svg path,
 .tribe-events .tribe-events-c-subscribe-dropdown__button svg path {
-    fill  : var(--e-global-color-text) !important;  /* escuro #392E34 */
-    stroke: var(--e-global-color-text) !important;
+    fill  : var(--e-global-color-70ad25c) !important; 
+    stroke: var(--e-global-color-70ad25c) !important;
 }
 
+/* Estado HOVER/FOCUS do caret — cor diferente do estado base */
+.tribe-events .tribe-events-c-subscribe-dropdown__button:hover .tribe-events-c-subscribe-dropdown__button-icon-svg path,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:hover svg path,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus .tribe-events-c-subscribe-dropdown__button-icon-svg path,
+.tribe-events .tribe-events-c-subscribe-dropdown__button:focus svg path {
+    fill: var(--e-global-color-bb00ea4) !important;
+    stroke: var(--e-global-color-bb00ea4) !important;
+}
 /* 6.6 Botão "Adicionar agenda" no estado BASE (fechado) — texto e BORDA vinham
    verdes do TEC nativo (common-full.css → .tribe-common-c-btn-border {
    color: var(--tec-color-button-primary); border: 1px solid
@@ -745,9 +757,9 @@ html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calenda
 html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calendar a:hover,
 html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calendar a:focus,
 html body.single-tribe_events #epta-template.epta-template-1 .epta-addto-calendar a:active {
-    background-color: var(--e-global-color-accent) !important;   /* rosa  #FE78A9 */
-    border-color    : var(--e-global-color-accent) !important;
-    color           : var(--e-global-color-text) !important;     /* escuro #392E34 (legível sobre o rosa) */
+    background-color: var(--e-global-color-32d8d3f) !important;   /* rosa  #FE78A9 */
+    border-color    : var(--e-global-color-32d8d3f) !important;
+    color           : var(--e-global-color-2ab85f4) !important;     /* escuro #392E34 (legível sobre o rosa) */
     text-decoration : none;
 }
 

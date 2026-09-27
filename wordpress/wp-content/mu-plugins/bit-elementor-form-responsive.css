@@ -100,7 +100,6 @@
     align-items: flex-start;
     gap: 0.5rem;
     text-align: left;
-    max-width: 34ch;
     margin-inline: auto;
 }
 
