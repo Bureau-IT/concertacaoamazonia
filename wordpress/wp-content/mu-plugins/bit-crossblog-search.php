@@ -10,7 +10,7 @@
  *              resultado de artista abre o popup dele no mapa do Atlas. Os
  *              resultados se dividem em abas por categoria (Tudo, Estudos,
  *              Notícias…), na página e no dropdown.
- * Version: 1.5.1
+ * Version: 1.5.2
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -1435,7 +1435,23 @@ add_filter( 'elementor/widget/render_content', function ( $content, $widget ) {
 			return '';
 		}
 
-		return \Elementor\Plugin::instance()->frontend->get_builder_content_for_display( $template_id );
+		// O módulo de admin bar do Elementor guarda todo documento renderizado e,
+		// no wp_footer — já de volta ao blog 2 —, pede a URL de edição de cada um.
+		// O filtro do WPML procura o 4360 no blog 2, não acha e lança
+		// InvalidArgumentException: para quem está logado a página saía 500,
+		// truncada antes do CSS do rodapé. O template nem é editável daqui, então
+		// fica fora da lista.
+		$admin_bar = \Elementor\Plugin::instance()->modules_manager->get_modules( 'admin-bar' );
+		$collector = [ $admin_bar, 'add_document_to_admin_bar' ];
+		$removed   = $admin_bar && remove_action( 'elementor/frontend/before_get_builder_content', $collector, 10 );
+
+		try {
+			return \Elementor\Plugin::instance()->frontend->get_builder_content_for_display( $template_id );
+		} finally {
+			if ( $removed ) {
+				add_action( 'elementor/frontend/before_get_builder_content', $collector, 10, 2 );
+			}
+		}
 	} );
 
 	if ( '' === $html ) {
