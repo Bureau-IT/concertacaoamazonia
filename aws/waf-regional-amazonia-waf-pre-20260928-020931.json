@@ -1,0 +1,194 @@
+{
+    "WebACL": {
+        "Name": "amazonia-waf",
+        "Id": "24877300-a231-4fcd-83d1-a46e1a4d20d7",
+        "ARN": "arn:aws:wafv2:sa-east-1:379590274801:regional/webacl/amazonia-waf/24877300-a231-4fcd-83d1-a46e1a4d20d7",
+        "DefaultAction": {
+            "Allow": {}
+        },
+        "Description": "",
+        "Rules": [
+            {
+                "Name": "BlockAttackerIPs",
+                "Priority": 0,
+                "Statement": {
+                    "IPSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:sa-east-1:379590274801:regional/ipset/blocked-attackers/ffa4cb7f-e331-42fc-a010-448e012d232f"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "BlockAttackerIPs"
+                }
+            },
+            {
+                "Name": "RateLimitPerIP",
+                "Priority": 1,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 2000,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "IP"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "RateLimitPerIP"
+                }
+            },
+            {
+                "Name": "AWSCommonRules",
+                "Priority": 2,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesCommonRuleSet",
+                        "ExcludedRules": [
+                            {
+                                "Name": "SizeRestrictions_BODY"
+                            },
+                            {
+                                "Name": "CrossSiteScripting_BODY"
+                            },
+                            {
+                                "Name": "GenericLFI_BODY"
+                            },
+                            {
+                                "Name": "GenericRFI_BODY"
+                            }
+                        ]
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWSCommonRules"
+                }
+            },
+            {
+                "Name": "AWSKnownBadInputs",
+                "Priority": 3,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesKnownBadInputsRuleSet"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWSKnownBadInputs"
+                }
+            },
+            {
+                "Name": "RateLimitAdminAjax",
+                "Priority": 4,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 100,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "IP",
+                        "ScopeDownStatement": {
+                            "ByteMatchStatement": {
+                                "SearchString": "L3dwLWFkbWluL2FkbWluLWFqYXgucGhw",
+                                "FieldToMatch": {
+                                    "UriPath": {}
+                                },
+                                "TextTransformations": [
+                                    {
+                                        "Priority": 0,
+                                        "Type": "LOWERCASE"
+                                    }
+                                ],
+                                "PositionalConstraint": "ENDS_WITH"
+                            }
+                        }
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "RateLimitAdminAjax"
+                }
+            },
+            {
+                "Name": "BlockWpJsonUsers",
+                "Priority": 5,
+                "Statement": {
+                    "OrStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWpzb24vd3AvdjIvdXNlcnM=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWpzb24vd3AvdjIvdXNlcnMv",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "BlockWpJsonUsers"
+                }
+            }
+        ],
+        "VisibilityConfig": {
+            "SampledRequestsEnabled": true,
+            "CloudWatchMetricsEnabled": true,
+            "MetricName": "amazonia-waf"
+        },
+        "Capacity": 921,
+        "ManagedByFirewallManager": false,
+        "LabelNamespace": "awswaf:379590274801:webacl:amazonia-waf:",
+        "RetrofittedByFirewallManager": false,
+        "OnSourceDDoSProtectionConfig": {
+            "ALBLowReputationMode": "ACTIVE_UNDER_DDOS"
+        }
+    },
+    "LockToken": "3da7e5b1-0b2b-4365-babe-d9dedb441b00"
+}

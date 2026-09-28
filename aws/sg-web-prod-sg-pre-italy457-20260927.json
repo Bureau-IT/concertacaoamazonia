@@ -1,0 +1,180 @@
+{
+    "SecurityGroups": [
+        {
+            "GroupId": "sg-07a970b305ccf0939",
+            "IpPermissionsEgress": [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "web-prod-sg"
+                }
+            ],
+            "VpcId": "vpc-0b0c2df445b6ff7e5",
+            "SecurityGroupArn": "arn:aws:ec2:sa-east-1:379590274801:security-group/sg-07a970b305ccf0939",
+            "OwnerId": "379590274801",
+            "GroupName": "web-prod-sg",
+            "Description": "Permite acesso aos Servidores Web",
+            "IpPermissions": [
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 80,
+                    "ToPort": 80,
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "ALB Health Check",
+                            "UserId": "379590274801",
+                            "GroupId": "sg-0268b940ffc420def"
+                        }
+                    ],
+                    "IpRanges": [
+                        {
+                            "Description": "Italy #157 - validacao green",
+                            "CidrIp": "45.11.82.0/24"
+                        },
+                        {
+                            "Description": "Brazil #89 - validacao green",
+                            "CidrIp": "185.153.176.0/24"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                },
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 8080,
+                    "ToPort": 8080,
+                    "UserIdGroupPairs": [
+                        {
+                            "UserId": "379590274801",
+                            "GroupId": "sg-0268b940ffc420def"
+                        }
+                    ],
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                },
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 22,
+                    "ToPort": 22,
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "SSH dentro do SG",
+                            "UserId": "379590274801",
+                            "GroupId": "sg-07a970b305ccf0939"
+                        }
+                    ],
+                    "IpRanges": [
+                        {
+                            "Description": "Brazil #90",
+                            "CidrIp": "185.153.176.0/24"
+                        },
+                        {
+                            "Description": "WPML",
+                            "CidrIp": "79.180.11.201/32"
+                        },
+                        {
+                            "Description": "Italy #157",
+                            "CidrIp": "45.11.82.0/24"
+                        },
+                        {
+                            "CidrIp": "186.204.135.7/32"
+                        },
+                        {
+                            "Description": "servertools-temp exp=2026-08-01T07:30:29Z by=daniel.cambria@bureau-it.com host=cambrasmax",
+                            "CidrIp": "187.15.86.46/32"
+                        },
+                        {
+                            "Description": "servertools-temp exp=2026-08-03T04:04:36Z by=daniel.cambria@bureau-it.com host=cambrasmax",
+                            "CidrIp": "187.15.86.44/32"
+                        },
+                        {
+                            "Description": "Brazil #129",
+                            "CidrIp": "187.15.86.0/24"
+                        },
+                        {
+                            "Description": "servertools-temp exp=2026-08-26T21:00:04Z by=fabricio@bureau-it.com host=cambrasmax",
+                            "CidrIp": "186.204.53.221/32"
+                        },
+                        {
+                            "Description": "servertools-temp exp=2026-09-21T19:06:26Z by=fabricio@bureau-it.com host=cambrasmax",
+                            "CidrIp": "187.15.85.142/32"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                },
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 8443,
+                    "ToPort": 8443,
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "Description": "Brazil #90",
+                            "CidrIp": "185.153.176.0/24"
+                        },
+                        {
+                            "Description": "WPML",
+                            "CidrIp": "79.180.11.201/32"
+                        },
+                        {
+                            "Description": "Italy #157 - validacao green SSL",
+                            "CidrIp": "45.11.82.0/24"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                },
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 59232,
+                    "ToPort": 59232,
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "Description": "Capture Agent",
+                            "CidrIp": "13.59.47.25/32"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                },
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 443,
+                    "ToPort": 443,
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "Description": "Italy #157 - validacao green",
+                            "CidrIp": "45.11.82.0/24"
+                        },
+                        {
+                            "Description": "Brazil #89 - validacao green",
+                            "CidrIp": "185.153.176.0/24"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ]
+        }
+    ]
+}

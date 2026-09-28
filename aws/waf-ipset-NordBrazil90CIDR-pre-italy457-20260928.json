@@ -1,0 +1,15 @@
+{
+    "IPSet": {
+        "Name": "NordBrazil90CIDR",
+        "Id": "d7cc6d47-dc0d-4dc5-8b9b-854097c34b14",
+        "ARN": "arn:aws:wafv2:us-east-1:379590274801:global/ipset/NordBrazil90CIDR/d7cc6d47-dc0d-4dc5-8b9b-854097c34b14",
+        "Description": "NordVPN exits liberados para /check-ec2.php: Brazil#89, Italy#157, Brazil#129",
+        "IPAddressVersion": "IPV4",
+        "Addresses": [
+            "185.153.176.0/24",
+            "187.15.86.0/24",
+            "45.11.82.0/24"
+        ]
+    },
+    "LockToken": "dc8d4808-9b1b-4553-8f6f-9320dd977c09"
+}

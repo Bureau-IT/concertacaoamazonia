@@ -1,0 +1,259 @@
+{
+    "WebACL": {
+        "Name": "amazonia-waf",
+        "Id": "24877300-a231-4fcd-83d1-a46e1a4d20d7",
+        "ARN": "arn:aws:wafv2:sa-east-1:379590274801:regional/webacl/amazonia-waf/24877300-a231-4fcd-83d1-a46e1a4d20d7",
+        "DefaultAction": {
+            "Allow": {}
+        },
+        "Description": "",
+        "Rules": [
+            {
+                "Name": "BlockAttackerIPs",
+                "Priority": 0,
+                "Statement": {
+                    "IPSetReferenceStatement": {
+                        "ARN": "arn:aws:wafv2:sa-east-1:379590274801:regional/ipset/blocked-attackers/ffa4cb7f-e331-42fc-a010-448e012d232f"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "BlockAttackerIPs"
+                }
+            },
+            {
+                "Name": "RateLimitPerIP",
+                "Priority": 1,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 2000,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "IP"
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "RateLimitPerIP"
+                }
+            },
+            {
+                "Name": "AWSCommonRules",
+                "Priority": 2,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesCommonRuleSet",
+                        "RuleActionOverrides": [
+                            {
+                                "Name": "GenericRFI_BODY",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "GenericLFI_BODY",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "CrossSiteScripting_BODY",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "SizeRestrictions_BODY",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            },
+                            {
+                                "Name": "SizeRestrictions_QUERYSTRING",
+                                "ActionToUse": {
+                                    "Count": {}
+                                }
+                            }
+                        ]
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWSCommonRules"
+                }
+            },
+            {
+                "Name": "AWSKnownBadInputs",
+                "Priority": 3,
+                "Statement": {
+                    "ManagedRuleGroupStatement": {
+                        "VendorName": "AWS",
+                        "Name": "AWSManagedRulesKnownBadInputsRuleSet"
+                    }
+                },
+                "OverrideAction": {
+                    "None": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "AWSKnownBadInputs"
+                }
+            },
+            {
+                "Name": "RateLimitAdminAjax",
+                "Priority": 4,
+                "Statement": {
+                    "RateBasedStatement": {
+                        "Limit": 100,
+                        "EvaluationWindowSec": 300,
+                        "AggregateKeyType": "IP",
+                        "ScopeDownStatement": {
+                            "ByteMatchStatement": {
+                                "SearchString": "L3dwLWFkbWluL2FkbWluLWFqYXgucGhw",
+                                "FieldToMatch": {
+                                    "UriPath": {}
+                                },
+                                "TextTransformations": [
+                                    {
+                                        "Priority": 0,
+                                        "Type": "LOWERCASE"
+                                    }
+                                ],
+                                "PositionalConstraint": "ENDS_WITH"
+                            }
+                        }
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "RateLimitAdminAjax"
+                }
+            },
+            {
+                "Name": "BlockWpJsonUsers",
+                "Priority": 5,
+                "Statement": {
+                    "OrStatement": {
+                        "Statements": [
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWpzb24vd3AvdjIvdXNlcnM=",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            },
+                            {
+                                "ByteMatchStatement": {
+                                    "SearchString": "L3dwLWpzb24vd3AvdjIvdXNlcnMv",
+                                    "FieldToMatch": {
+                                        "UriPath": {}
+                                    },
+                                    "TextTransformations": [
+                                        {
+                                            "Priority": 0,
+                                            "Type": "LOWERCASE"
+                                        }
+                                    ],
+                                    "PositionalConstraint": "ENDS_WITH"
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "BlockWpJsonUsers"
+                }
+            },
+            {
+                "Name": "SizeQS-Block-Except-JetSearch",
+                "Priority": 6,
+                "Statement": {
+                    "AndStatement": {
+                        "Statements": [
+                            {
+                                "LabelMatchStatement": {
+                                    "Scope": "LABEL",
+                                    "Key": "awswaf:managed:aws:core-rule-set:SizeRestrictions_QueryString"
+                                }
+                            },
+                            {
+                                "NotStatement": {
+                                    "Statement": {
+                                        "ByteMatchStatement": {
+                                            "SearchString": "L3dwLWpzb24vamV0LXNlYXJjaC92MS9zZWFyY2gtcG9zdHM=",
+                                            "FieldToMatch": {
+                                                "UriPath": {}
+                                            },
+                                            "TextTransformations": [
+                                                {
+                                                    "Priority": 0,
+                                                    "Type": "URL_DECODE"
+                                                },
+                                                {
+                                                    "Priority": 1,
+                                                    "Type": "LOWERCASE"
+                                                }
+                                            ],
+                                            "PositionalConstraint": "ENDS_WITH"
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                "Action": {
+                    "Block": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "SizeQS-Block-Except-JetSearch"
+                }
+            }
+        ],
+        "VisibilityConfig": {
+            "SampledRequestsEnabled": true,
+            "CloudWatchMetricsEnabled": true,
+            "MetricName": "amazonia-waf"
+        },
+        "Capacity": 944,
+        "ManagedByFirewallManager": false,
+        "LabelNamespace": "awswaf:379590274801:webacl:amazonia-waf:",
+        "RetrofittedByFirewallManager": false,
+        "OnSourceDDoSProtectionConfig": {
+            "ALBLowReputationMode": "ACTIVE_UNDER_DDOS"
+        }
+    },
+    "LockToken": "996d1778-34b4-437a-85e1-8323b0473d0b"
+}
