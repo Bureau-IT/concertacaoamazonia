@@ -25,6 +25,15 @@ Para cada página, faça:
 3. `browser_close`
 4. `browser_run_code` com **green** (X-Test-Green:true via context)
 
+> **Submit real em PROD cria lead no RD Station do cliente.** Os 6 forms têm a action
+> `bit_rdstation` com os identificadores reais, e a regra de 2026-07-17
+> ([[feedback_rdstation_test_separation]]) proíbe misturar teste com lead real. Sem uma
+> janela de teste (`teste-bit-*` + `@bit-bpo.com`) aberta pelo Daniel, o smoke valida só
+> renderização e o header do bypass — `OK` com token válido, `NOOP` com inválido — **na
+> origem** (SSH + `curl` em `127.0.0.1` com query única): pelo CloudFront a página vem do
+> cache e o header não aparece; com `?nowprocket=1` o nginx serve o cache estático do
+> WP Rocket e o PHP nem roda.
+
 **Páginas 6 e 7 (formulários) — fluxo atual (a partir de 2026-05-14):**
 1. **prod**: snippet "submit real — PROD" com header `X-BIT-Smoke-Token` válido (mu-plugin `bit-smoke-recaptcha-bypass.php` v1.1.0+). Espera response header `X-BIT-Smoke-Bypass: OK` e success message visível. Marker injetado: `__bit_smoke_test=1`.
 2. **prod (teste negativo)**: snippet "submit real — PROD" com token INVÁLIDO. Espera `X-BIT-Smoke-Bypass: NOOP` ou erro reCAPTCHA — garante que bypass não está aberto pra qualquer um.
@@ -3161,11 +3170,14 @@ um nos 3 ângulos: GET 302, HEAD 302, target entrega binary via CF.
 const FQDN = "https://concertacaoamazonia.com.br";
 
 // Lista de hashes conhecidos para amostragem (atualizar periodicamente):
-// 1. bioeconomia (estudos) — ID 50691, PDF 2MB
+// 1. bioeconomia (estudos) — anexo 36175, Bioeconomia-na-Amazonia-1.pdf
 // 2. tapajos-pesca (estudos) — ID 21901, PDF
-// 3. covid-saude (estudos) — qualquer hash válido em prod
+// Hash que sumiu de `jet_elements_download_button_hashes` responde 400 (Erro 400
+// do próprio handler) — isso é amostra velha, não regressão. Em 28/09/2026 o hash
+// antigo da bioeconomia (6ee83925…) não existia nem no dev; trocado por este.
+// Para escolher outro: wp eval sobre get_option("jet_elements_download_button_hashes").
 const SAMPLE_HASHES = [
-  "6ee8392574e708633bb1fa4dcde0276585579216", // bioeconomia
+  "661c20355b2bc0362cee5f8cb899aeff05c2374e", // bioeconomia
   "9e08f20041254f32dd9c0c66eb0399878988f5a8", // tapajos-pesca
 ];
 
@@ -4900,7 +4912,9 @@ silenciados pelo graceful degradation. Este gate detecta exatamente essa classe 
 - (b) Wire-up presente nos **6 forms**: footers 72234 (PT), 72921 (EN) no blog 1; 89361 (PT), 89785 (EN) no
   **blog 2** (`/cultura/` — split multisite OBRIGATÓRIO: loop único em blog 1 dá FAIL falso nos 2 de /cultura/);
   Contato 672 e Contact 3626 no blog 1.
-- (c) `conversion_identifier` esperado: `newsletter-footer-concertacao` (footers ×4), `contato-site-concertacao` (contato ×2).
+- (c) `conversion_identifier` esperado: `concertacaoamazonia.com.br-newsletter` (footers ×4), `concertacaoamazonia.com.br-contato` (contato ×2).
+  Padrão `<domínio>-<origem>` desde a v1.4.1 do mu-plugin (03/08/2026); os antigos
+  `newsletter-footer-concertacao`/`contato-site-concertacao` não existem mais em dev nem em prod.
 - (d) **Anti-drift de campos:** o `custom_id` em `bit_rd_email_field` DEVE existir no widget com `field_type=email`;
   `bit_rd_name_field`/`bit_rd_company_field` (se não-vazios) DEVEM existir no widget.
 - (e) Se o widget tiver `templateID`, os settings valem no TEMPLATE, não no post — o gate acusa e aponta o template.
@@ -4910,13 +4924,13 @@ silenciados pelo graceful degradation. Este gate detecta exatamente essa classe 
 ```bash
 GATE55_PHP='
 $targets = [
-  [ 672,  "contato-site-concertacao" ],
-  [ 3626, "contato-site-concertacao" ],
-  [ 72234, "newsletter-footer-concertacao" ],
-  [ 72921, "newsletter-footer-concertacao" ],
+  [ 672,  "concertacaoamazonia.com.br-contato" ],
+  [ 3626, "concertacaoamazonia.com.br-contato" ],
+  [ 72234, "concertacaoamazonia.com.br-newsletter" ],
+  [ 72921, "concertacaoamazonia.com.br-newsletter" ],
 ];
 if ( get_current_blog_id() === 2 ) {
-  $targets = [ [ 89361, "newsletter-footer-concertacao" ], [ 89785, "newsletter-footer-concertacao" ] ];
+  $targets = [ [ 89361, "concertacaoamazonia.com.br-newsletter" ], [ 89785, "concertacaoamazonia.com.br-newsletter" ] ];
 }
 $m = \ElementorPro\Plugin::instance()->modules_manager->get_modules( "forms" );
 echo "action_registered=" . ( $m->actions_registrar->get( "bit_rdstation" ) ? "PASS" : "FAIL" ) . "\n";
