@@ -10,7 +10,7 @@
  *              resultado de artista abre o popup dele no mapa do Atlas. Os
  *              resultados se dividem em abas por categoria (Tudo, Estudos,
  *              Notícias…), na página e no dropdown.
- * Version: 1.5.2
+ * Version: 1.6.0
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -47,7 +47,7 @@ if ( defined( 'BIT_CROSSBLOG_SEARCH' ) ? ! BIT_CROSSBLOG_SEARCH : ( ( get_site( 
 	return;
 }
 
-const BIT_CROSSBLOG_SEARCH_VERSION    = '1.5.1'; // entra na chave dos transients
+const BIT_CROSSBLOG_SEARCH_VERSION    = '1.6.0'; // entra na chave dos transients
 const BIT_CROSSBLOG_SEARCH_MAIN_BLOG  = 1;
 const BIT_CROSSBLOG_SEARCH_ATLAS_BLOG = 2;
 const BIT_CROSSBLOG_SEARCH_ATLAS_PAGE = 57548; // "Atlas Cultural das Amazônias" no blog 2 (PT)
@@ -2130,6 +2130,16 @@ add_action( 'template_redirect', function () {
 
 	$title = bit_crossblog_search_t( 'title' ) . ( '' !== $request['term'] ? ': ' . $request['term'] : '' ) . ( $tab ? ' · ' . bit_crossblog_search_tab_label( $request['cat'] ) : '' );
 
+	// Troca de aba e de página no navegador: só o bloco de resultados, sem o
+	// header e o rodapé do Elementor, que custavam ~1 s por clique mesmo com as
+	// consultas já em cache. Mesma URL, mesma resposta no-store.
+	if ( isset( $_GET['bit_busca_fragment'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		wp_send_json( [
+			'html'  => bit_crossblog_search_results_html( $request, $summary, $tab ),
+			'title' => $title . ' – ' . get_bloginfo( 'name' ),
+		] );
+	}
+
 	add_filter( 'pre_get_document_title', function () use ( $title ) {
 		return $title . ' – ' . get_bloginfo( 'name' );
 	}, 99 );
@@ -2161,7 +2171,31 @@ add_action( 'template_redirect', function () {
 	// Esmaecimento nas bordas da linha de abas (só do lado em que há mais) e
 	// a aba ativa à vista no celular. Próprio, e não o do dropdown: o script
 	// do JetSearch pode vir atrasado pelo "delay JS" do WP Rocket.
-	echo '<script>(function(){var n=document.querySelector(".bit-busca__tabs");if(!n)return;var t=n.querySelector(".bit-tabs__track"),a=n.querySelector("[aria-current]");function u(){var m=t.scrollWidth-t.clientWidth;n.classList.toggle("has-more-right",m>1&&t.scrollLeft<m-1);n.classList.toggle("has-more-left",t.scrollLeft>1);}if(a&&t.scrollWidth>t.clientWidth)t.scrollLeft=a.offsetLeft-16;t.addEventListener("scroll",u,{passive:true});window.addEventListener("resize",u);u();})();</script>';
+	//
+	// Abas, paginação e "Ver todos" trocam só o <main>, pelo fragmento JSON
+	// (bit_busca_fragment), com pushState — o clique não remonta a página. O
+	// pedido começa no hover/toque e cada URL vista fica em memória: voltar a
+	// uma aba é instantâneo. Sem JS, ou se o fetch falhar, os links seguem
+	// sendo navegação comum.
+	echo '<style>.bit-busca.is-loading .bit-busca__summary,.bit-busca.is-loading .bit-busca__section,.bit-busca.is-loading .bit-busca__group,.bit-busca.is-loading .bit-busca__pagination{opacity:.45;transition:opacity .15s .1s}</style>';
+	echo <<<'BITBUSCAJS'
+<script id="bit-busca-nav">(function(){
+var cache={};
+function tabs(){var n=document.querySelector(".bit-busca__tabs");if(!n)return;var t=n.querySelector(".bit-tabs__track"),a=n.querySelector("[aria-current]");function u(){var m=t.scrollWidth-t.clientWidth;n.classList.toggle("has-more-right",m>1&&t.scrollLeft<m-1);n.classList.toggle("has-more-left",t.scrollLeft>1);}if(a&&t.scrollWidth>t.clientWidth)t.scrollLeft=a.offsetLeft-16;t.addEventListener("scroll",u,{passive:true});n.bitUpdate=u;u();}
+window.addEventListener("resize",function(){var n=document.querySelector(".bit-busca__tabs");if(n&&n.bitUpdate)n.bitUpdate();});
+if(!window.fetch||!window.history||!history.pushState){tabs();return;}
+function link(el){var a=el&&el.closest?el.closest("a[href]"):null;if(!a||!a.closest("main.bit-busca")||a.target)return null;if(!a.closest(".bit-busca__tabs")&&!a.classList.contains("bit-busca__page-link")&&!a.classList.contains("bit-busca__see-all"))return null;if(a.origin!==location.origin||a.pathname!==location.pathname)return null;return a;}
+function get(u){if(!cache[u]){var f=new URL(u,location.href);f.searchParams.set("bit_busca_fragment","1");cache[u]=fetch(f.toString(),{credentials:"same-origin",headers:{Accept:"application/json"}}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).catch(function(e){delete cache[u];throw e;});}return cache[u];}
+function show(u,push,a){var m=document.querySelector("main.bit-busca");if(!m){location.href=u;return;}var fromTab=!!(a&&a.closest(".bit-busca__tabs"));if(fromTab){var c=a.parentNode.querySelector("[aria-current]");if(c)c.removeAttribute("aria-current");a.setAttribute("aria-current","page");}m.classList.add("is-loading");m.setAttribute("aria-busy","true");
+get(u).then(function(d){var w=document.createElement("div");w.innerHTML=d.html;var nm=w.querySelector("main.bit-busca");if(!nm)throw new Error("fragmento");m.replaceWith(nm);document.title=d.title;if(push)history.pushState({bitBusca:1},"",u);tabs();var nav=nm.querySelector(".bit-busca__tabs");if(nav){var top=nav.getBoundingClientRect().top;if(top<0||(!fromTab&&push))window.scrollTo({top:Math.max(0,window.pageYOffset+top-120)});if(fromTab){var cur=nav.querySelector("[aria-current]");if(cur)cur.focus({preventScroll:true});}}}).catch(function(){location.href=u;});}
+history.replaceState({bitBusca:1},"",location.href);
+document.addEventListener("click",function(e){if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=link(e.target);if(!a)return;e.preventDefault();if(a.href===location.href&&a.getAttribute("aria-current"))return;show(a.href,true,a);});
+function warm(e){var a=link(e.target);if(a&&a.href!==location.href)get(a.href).catch(function(){});}
+document.addEventListener("mouseover",warm,{passive:true});document.addEventListener("focusin",warm);document.addEventListener("touchstart",warm,{passive:true});
+window.addEventListener("popstate",function(e){if(e.state&&e.state.bitBusca)show(location.href,false,null);});
+tabs();
+})();</script>
+BITBUSCAJS;
 	get_footer();
 	exit;
 }, 999 );
