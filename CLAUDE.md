@@ -264,6 +264,13 @@ em favor do bit-monitoring; só `cpu-credits-low` permanece no CloudWatch — ga
   reusa o mesmo token).
 - **Token:** `OTEL_AGENT_TOKEN_PROD` no Secrets Manager `concertacaoamazonia.com.br-env-vars`
   (sa-east-1), lido em runtime pela IAM role da EC2.
+  **Ele existe SÓ no secret, não no `.env` raiz — e já foi apagado duas vezes numa virada**
+  (06/2026 e 28/09/2026): todo `post-deploy.sh` sem `--skip-secrets` reescreve o secret
+  inteiro a partir do `.env` local. Depois de qualquer blue-green, conferir
+  `systemctl is-active otelcol-contrib` na prod **e** o `last_seen`/`hostname` do agent 9 no
+  bit-monitoring. Recuperar = rotacionar (o bit-monitoring guarda só o sha256): gerar token,
+  mesclar no secret por read-merge-put via stdin, `token_hash` no agent 9, rodar o `d7`
+  standalone. Ver [[project_otel_collector_restored_d7_bug]].
 - **Install automático:** post-deploy `d7-otel-collector.sh` (idempotente) — instala
   o `.deb otelcol-contrib 0.145.0`, config hostmetrics, caps systemd (256M/25%/Nice10),
   aponta para `https://status.bureau-it.com/api/v1/otel`.
