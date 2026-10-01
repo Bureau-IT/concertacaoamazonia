@@ -63,20 +63,24 @@
   **Dono: Daniel** · **Executor: bit-ai**
   **Tipo: operação · Estimativa: 3h**
   Evidência: `cd testes && BASE_URL=https://concertacaoamazonia.com.br npx playwright test 13-busca-crossblog.spec.js`
+  ClickUp: <https://app.clickup.com/t/86akrdgeb>
 - [-] Ajustar pesquisa do site — "a pesquisa, quando está logado no admin, não desaparece".
   https://app.clickup.com/t/86aegb40j
 - [ ] **Painel de busca EN mostra o template PT (4360)** — a tradução 5638 ficou para trás no
   visual e nunca é exibida. Refazer o 5638 a partir do 4360 preservando os textos EN.
   **Dono: Daniel** · **Executor: bit-ai**
   **Tipo: obra · Estimativa: 3h**
+  ClickUp: <https://app.clickup.com/t/86akrdgec>
 - [ ] **Filtro da página /sobre-nos/participantes/ não filtra** (JSF 5098, dev e prod, medido em
   25/09/2026). Por isso o link de participante da busca leva à página sem pré-filtro.
   **Dono: Daniel** · **Executor: bit-ai**
   **Tipo: obra · Estimativa: 2h**
+  ClickUp: <https://app.clickup.com/t/86akrdged>
 - [ ] **Anomalias de conteúdo achadas pela busca** — duplicatas e lixo listados na memória
   `project_anomalias_conteudo_busca_2026_09`; a galeria-1 fica no banco (decisão de 25/09).
   **Dono: Daniel**
   **Tipo: decisão**
+  ClickUp: <https://app.clickup.com/t/86akrdgee>
 
 ## Acessibilidade e conformidade (GLOBAL)
 
@@ -132,3 +136,4 @@ se fecham ou voltam à fila.
 - [x] Busca cross-blog 1.0–1.6.0 em dev (fontes do blog 2, página /busca/, abas, trava de site, troca sem recarregar) — 25/09–01/10/2026
 - [x] Recolocar a lupa no header — https://app.clickup.com/t/86aap1657 — card fechado até 01/10/2026
 - [x] Espelho do `bit-crossblog-search` em `bit-servertools/common/mu-plugins` — PR #60 mesclado (1.5.1), PR #59 fechado; o canônico está na 1.6.0 — 01/10/2026
+- [x] Primeira auditoria do espelho (`/bit-pendencias:audit`): lista padronizada (6 statuses), bit-ai com acesso, 22 casadas, 4 cards criados pelo sync (86akrdgeb–86akrdgee), 0 órfãs, 0 deriva — 01/10/2026
