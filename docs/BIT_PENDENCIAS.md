@@ -55,17 +55,6 @@
 
 ## Busca do site (GLOBAL)
 
-- [?] **Deploy da busca cross-blog em produção** — abas por categoria, página `/busca/`, fontes do
-  blog 2. Subiu com o blue-green (fases 7 e 8 `completed` no state). Medido em 01/10/2026:
-  `https://concertacaoamazonia.com.br/busca/?s=amazonia` responde 200 com as 7 abas
-  (`bit-busca__tabs`) e `Cache-Control: no-store`. Falta conferir a versão do mu-plugin em prod
-  (a `main` está na 1.6.0; o SSH caiu em timeout neste dia) e rodar o spec abaixo.
-  **Dono: Daniel** · **Executor: bit-ai**
-  **Tipo: operação · Estimativa: 3h**
-  Evidência: `cd testes && BASE_URL=https://concertacaoamazonia.com.br npx playwright test 13-busca-crossblog.spec.js`
-  ClickUp: <https://app.clickup.com/t/86akrdgeb>
-- [-] Ajustar pesquisa do site — "a pesquisa, quando está logado no admin, não desaparece".
-  https://app.clickup.com/t/86aegb40j
 - [ ] **Painel de busca EN mostra o template PT (4360)** — a tradução 5638 ficou para trás no
   visual e nunca é exibida. Refazer o 5638 a partir do 4360 preservando os textos EN.
   **Dono: Daniel** · **Executor: bit-ai**
@@ -76,16 +65,44 @@
   **Dono: Daniel** · **Executor: bit-ai**
   **Tipo: obra · Estimativa: 2h**
   ClickUp: <https://app.clickup.com/t/86akrdged>
+- [?] **Participantes saem da busca, por ora** — decisão do Daniel em 02/10/2026: a busca não deve
+  encontrar participantes neste momento. A fonte `bit_participantes` (CCT do JetEngine, blog 1) sai
+  do `bit-crossblog-search` em dev e em prod, junto com a aba. O espelho em
+  `bit-servertools/docker-dev/common/mu-plugins/` é repositório vizinho e fica a pedido.
+  **Entregue em 02/10/2026:** 1.6.1 (`23cd4889cb`) em dev e em prod (MD5 igual ao commit, FPM
+  recarregado). Em prod, `/busca/?s=Deborah Vieitas` responde "Nenhum resultado"; as abas de
+  `amazonia` ficam em Tudo · Estudos · Notícias · Eventos · Cultura · Exposições, e o REST do
+  dropdown não devolve a fonte nem quando ela é pedida. Religar:
+  `BIT_CROSSBLOG_SEARCH_WITH_PARTICIPANTS`.
+  **Dono: Daniel** · **Executor: bit-ai**
+  **Tipo: obra · Estimativa: 2h**
+  ClickUp: <https://app.clickup.com/t/86akrx2w4>
 - [ ] **Anomalias de conteúdo achadas pela busca** — duplicatas e lixo listados na memória
   `project_anomalias_conteudo_busca_2026_09`; a galeria-1 fica no banco (decisão de 25/09).
   **Dono: Daniel**
   **Tipo: decisão**
   ClickUp: <https://app.clickup.com/t/86akrdgee>
 
+## Redirecionamentos
+
+- [?] **Redirects dos 100 dias em prod igual ao dev** — o Redirection de prod diverge do dev em
+  duas regras, medido em 02/10/2026 sobre as 53: a 160 (`/100-dias/`) ainda aponta para
+  `https://www.concertacaoamazonia.com.br/100-dias/`, e no dev aponta para o estudo
+  `/estudos/100-primeiros-dias-de-governo-propostas-para-uma-agenda-integrada-das-amazonias/`; a
+  176 (estudo → `-2`) está `enabled` em prod e `disabled` no dev. O slug do estudo em prod é o
+  limpo, então a 176 aponta para um 404.
+  **Entregue em 02/10/2026:** a 160 foi atualizada e a 176 desligada pela API do Redirection
+  (`Red_Item`). Agora as 53 regras são iguais nos dois lados (diff vazio), e o CloudFront do
+  `/100-dias/` foi invalidado. Em prod, `/100-dias/` dá um 301 para o estudo, que responde 200.
+  **Dono: Daniel** · **Executor: bit-ai**
+  **Tipo: operação · Estimativa: 1h**
+  ClickUp: <https://app.clickup.com/t/86akrx2wg>
+
 ## Acessibilidade e conformidade (GLOBAL)
 
-- [ ] Auditar VLibras v7.8.0 nos outros sites BIT (www-concertacao, totem) —
-  https://app.clickup.com/t/86ak84f6z
+- [?] Auditar VLibras v7.8.0 nos outros sites BIT (www-concertacao, totem) — o www-concertacao
+  foi resolvido em 31/08/2026 (spec de contrato 4/4 em prod, comentário no card); o totem ficou
+  para depois por decisão. https://app.clickup.com/t/86ak84f6z
 - [?] VLibras v7.8.0 · T1 spec de contrato — https://app.clickup.com/t/86ak7ef8x
 - [?] VLibras v7.8.0 · T2 CSS 2.11.0 — https://app.clickup.com/t/86ak7efdd
 - [?] VLibras v7.8.0 · T3 JS 2.11.0 — https://app.clickup.com/t/86ak7effu
@@ -96,17 +113,16 @@
   concluída. Viram `revisão solicitada` com a padronização da lista.
 - [ ] Conformidade reCAPTCHA — aviso de privacidade no site —
   https://app.clickup.com/t/86aj5k1xq
-- [/] Corrigir tags HTML — https://app.clickup.com/t/86ahjtwnw
+- [?] Corrigir tags HTML — a regra do gate 31 passa em 18/18 páginas de prod, medido em
+  02/10/2026 (um `h1`, hierarquia sem salto, `<main>`, e `<article>` nos singles de CPT); em
+  19/05/2026 eram 2/18. https://app.clickup.com/t/86ahjtwnw
 
 ## Formulários e RD Station
 
-- [/] Segmentar contatos do site no RD Station — https://app.clickup.com/t/86aedgrc8
 - [-] Automatizar dupla validação de e-mails do form do rodapé —
   https://app.clickup.com/t/86afcr8pw
 - [-] Integrar n8n às respostas dos formulários Rota 26-30 —
   https://app.clickup.com/t/86agf9r76
-- [>] Ajuste de footer — newsletter — https://app.clickup.com/t/86ajzn0rc
-
 ## Layout mobile
 
 - [>] Mobile 5 pilares — reconstruir a mecânica do mobile (corte da foto de fundo) —
@@ -125,15 +141,37 @@ Cards abertos desde junho/2025, sem atualização desde então. Ficam por link a
 se fecham ou voltam à fila.
 
 - [ ] Alterações de Menu — https://app.clickup.com/t/86a9g6191
-- [ ] Checagem geral sobre alteração de textos principais — https://app.clickup.com/t/86a9g618t
-- [ ] Checagem geral sobre modificações estruturais — https://app.clickup.com/t/86a9g6155
-- [ ] Solicitar mini biografia de artista — https://app.clickup.com/t/86a9g6154
+- [?] Solicitar mini biografia de artista — no dev, 1.292 dos 1.311 artistas do Atlas (PT+EN)
+  têm texto; 19 estão sem. https://app.clickup.com/t/86a9g6154
 
 ## Resolvidas
+
+- [x] **Deploy da busca cross-blog em produção** — abas por categoria, página `/busca/`, fontes do
+  blog 2. Subiu com o blue-green (fases 7 e 8 `completed` no state). Medido em 01/10/2026:
+  `https://concertacaoamazonia.com.br/busca/?s=amazonia` responde 200 com as 7 abas
+  (`bit-busca__tabs`) e `Cache-Control: no-store`. Falta conferir a versão do mu-plugin em prod
+  (a `main` está na 1.6.0; o SSH caiu em timeout neste dia) e rodar o spec abaixo.
+  **Dono: Daniel** · **Executor: bit-ai**
+  **Tipo: operação · Estimativa: 3h**
+  Evidência: `cd testes && BASE_URL=https://concertacaoamazonia.com.br npx playwright test 13-busca-crossblog.spec.js`
+  ClickUp: <https://app.clickup.com/t/86akrdgeb>
+  *(concluído no card em 02/10/2026)*
+
+- [x] Ajuste de footer — newsletter — https://app.clickup.com/t/86ajzn0rc
+      *(concluído no card em 02/10/2026)*
+
+- [x] Segmentar contatos do site no RD Station — https://app.clickup.com/t/86aedgrc8
+      *(concluído no card em 02/10/2026)*
+
+- [x] Ajustar pesquisa do site — "a pesquisa, quando está logado no admin, não desaparece".
+  https://app.clickup.com/t/86aegb40j
+  *(concluído no card em 02/10/2026)*
 
 Índice de uma linha por item. O histórico completo vive no card e no `git log`.
 
 - [x] Busca cross-blog 1.0–1.6.0 em dev (fontes do blog 2, página /busca/, abas, trava de site, troca sem recarregar) — 25/09–01/10/2026
 - [x] Recolocar a lupa no header — https://app.clickup.com/t/86aap1657 — card fechado até 01/10/2026
 - [x] Espelho do `bit-crossblog-search` em `bit-servertools/common/mu-plugins` — PR #60 mesclado (1.5.1), PR #59 fechado; o canônico está na 1.6.0 — 01/10/2026
+- [x] Checagem geral sobre alteração de textos principais — https://app.clickup.com/t/86a9g618t — lembrete de processo da virada de 2025, sem objeto depois dela — 02/10/2026
+- [x] Checagem geral sobre modificações estruturais — https://app.clickup.com/t/86a9g6155 — idem — 02/10/2026
 - [x] Primeira auditoria do espelho (`/bit-pendencias:audit`): lista padronizada (6 statuses), bit-ai com acesso, 22 casadas, 4 cards criados pelo sync (86akrdgeb–86akrdgee), 0 órfãs, 0 deriva — 01/10/2026
