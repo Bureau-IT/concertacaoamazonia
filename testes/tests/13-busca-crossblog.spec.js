@@ -20,7 +20,7 @@
  * do admin e no error_log ("[bit-crossblog-search]").
  *
  *   A) REST do JetSearch devolve os seis blocos adicionais (notícias, eventos,
- *      participantes, Atlas: páginas/artistas/exposições) no markup de item
+ *      Atlas: páginas/artistas/exposições; participantes saíram em 02/10/2026) no markup de item
  *   B) no dropdown, os blocos entram no slide de posts: uma rolagem só
  *   C) "Ver mais resultados" leva a /busca/ com as três seções
  *   D) /busca/ nunca é cacheável; /?s= continua redirecionando (armadilha de crawler),
@@ -85,8 +85,11 @@ test.describe('Busca cross-blog × JetSearch', () => {
 
     // A rota devolve toda fonte ligada, mesmo sem resultado (content vazio).
     expect(tipos, 'fontes adicionais ausentes — ver aviso no admin / error_log').toEqual(
-      expect.arrayContaining(['bit_noticias', 'bit_eventos', 'bit_participantes', 'bit_atlas_pages', 'bit_atlas_artists', 'bit_exposicoes'])
+      expect.arrayContaining(['bit_noticias', 'bit_eventos', 'bit_atlas_pages', 'bit_atlas_artists', 'bit_exposicoes'])
     );
+    // Participantes fora da busca desde 02/10/2026 (1.6.1): o widget ainda pede
+    // a fonte, e ela não pode voltar.
+    expect(tipos).not.toContain('bit_participantes');
 
     const paginas = dados.sources.find((s) => s.type === 'bit_atlas_pages').content;
     expect(paginas).toContain('jet-ajax-search__results-item');

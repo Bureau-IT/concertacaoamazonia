@@ -10,7 +10,7 @@
  *              resultado de artista abre o popup dele no mapa do Atlas. Os
  *              resultados se dividem em abas por categoria (Tudo, Estudos,
  *              Notícias…), na página e no dropdown.
- * Version: 1.6.0
+ * Version: 1.6.1
  * Author: Bureau de Tecnologia
  *
  * Por que fontes adicionais, e não a lista principal: o JetSearch descarta da
@@ -47,7 +47,7 @@ if ( defined( 'BIT_CROSSBLOG_SEARCH' ) ? ! BIT_CROSSBLOG_SEARCH : ( ( get_site( 
 	return;
 }
 
-const BIT_CROSSBLOG_SEARCH_VERSION    = '1.6.0'; // entra na chave dos transients
+const BIT_CROSSBLOG_SEARCH_VERSION    = '1.6.1'; // entra na chave dos transients
 const BIT_CROSSBLOG_SEARCH_MAIN_BLOG  = 1;
 const BIT_CROSSBLOG_SEARCH_ATLAS_BLOG = 2;
 const BIT_CROSSBLOG_SEARCH_ATLAS_PAGE = 57548; // "Atlas Cultural das Amazônias" no blog 2 (PT)
@@ -476,6 +476,12 @@ function bit_crossblog_search_jetsearch_version(): string {
 
 const BIT_CROSSBLOG_SEARCH_PARTICIPANTS_PAGE = 26645; // "Participantes" no blog 1 (PT)
 
+// Participantes fora da busca por decisão do Daniel em 02/10/2026 ("a busca não
+// deve encontrá-los nesse momento"). Sem a seção no registro somem a fonte do
+// dropdown, a aba e o bloco da página /busca/. Religar: true, e subir a versão
+// (ela entra na chave dos transients).
+const BIT_CROSSBLOG_SEARCH_WITH_PARTICIPANTS = false;
+
 function bit_crossblog_search_sections(): array {
 	static $sections = null;
 
@@ -558,6 +564,10 @@ function bit_crossblog_search_sections(): array {
 			'prefix'   => 'bit_crossblog_search_exhibition_name',
 		],
 	];
+
+	if ( ! BIT_CROSSBLOG_SEARCH_WITH_PARTICIPANTS ) {
+		unset( $sections['bit_participantes'] );
+	}
 
 	$sections = (array) apply_filters( 'bit_crossblog_search/sections', $sections );
 
