@@ -98,6 +98,23 @@
   **Tipo: operação · Estimativa: 1h**
   ClickUp: <https://app.clickup.com/t/86akrx2wg>
 
+- [?] **URL inexistente responde 200 com o último post (soft 404)** — medido em 02/10/2026 na
+  origem de prod e no dev: `/xyz-nao-existe-123/` (e `/100-dias` sem barra) responde 200 com o post
+  "Mel da Pedreira" e canonical para a versão EN dele, em vez de 404. Google trata como conteúdo
+  duplicado, e o gate 31e do smoke o classifica como BLOCKER.
+  **Causa e entrega (02/10/2026):** a "Permalink Migration" do Redirection (`/%postname%/`, porque
+  os posts foram para `/blog/`) refaz o `parse_request` do `$wp` global no `pre_handle_404` e não
+  o restaura quando não acha post. Com isso o `send_headers` perde o `error=404`. O mu-plugin
+  `bit-redirection-404-status.php` 1.0.0 (`453ee23c70`) devolve o estado; ele está em dev e em
+  prod. Na origem de prod as URLs inexistentes dão 404 "Página não encontrada", e o 301 de
+  `/<slug>/` → `/blog/<slug>/`, as páginas reais, `/100-dias/` e `/busca/` seguem iguais.
+  Saíram do WP Rocket 83 soft 404 que estavam cacheados como 200 (via `rocket_clean_files`), e
+  os caminhos foram invalidados no CloudFront (amostra na borda: 10/10 em 404). O espelho em
+  `common/mu-plugins/` está no PR #91 do bit-servertools (`cb6be06ed`), à espera de revisão.
+  **Dono: Daniel** · **Executor: bit-ai**
+  **Tipo: obra · Estimativa: 3h**
+  ClickUp: <https://app.clickup.com/t/86akrx91b>
+
 ## Acessibilidade e conformidade (GLOBAL)
 
 - [?] Auditar VLibras v7.8.0 nos outros sites BIT (www-concertacao, totem) — o www-concertacao
