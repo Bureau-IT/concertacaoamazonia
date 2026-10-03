@@ -68,7 +68,8 @@
 - [?] **Participantes saem da busca, por ora** — decisão do Daniel em 02/10/2026: a busca não deve
   encontrar participantes neste momento. A fonte `bit_participantes` (CCT do JetEngine, blog 1) sai
   do `bit-crossblog-search` em dev e em prod, junto com a aba. O espelho em
-  `bit-servertools/docker-dev/common/mu-plugins/` é repositório vizinho e fica a pedido.
+  `bit-servertools/docker-dev/common/mu-plugins/` entrou na main pelo PR #90 (MD5 conferido em
+  03/10/2026).
   **Entregue em 02/10/2026:** 1.6.1 (`23cd4889cb`) em dev e em prod (MD5 igual ao commit, FPM
   recarregado). Em prod, `/busca/?s=Deborah Vieitas` responde "Nenhum resultado"; as abas de
   `amazonia` ficam em Tudo · Estudos · Notícias · Eventos · Cultura · Exposições, e o REST do
@@ -110,7 +111,7 @@
   `/<slug>/` → `/blog/<slug>/`, as páginas reais, `/100-dias/` e `/busca/` seguem iguais.
   Saíram do WP Rocket 83 soft 404 que estavam cacheados como 200 (via `rocket_clean_files`), e
   os caminhos foram invalidados no CloudFront (amostra na borda: 10/10 em 404). O espelho em
-  `common/mu-plugins/` está no PR #91 do bit-servertools (`cb6be06ed`), à espera de revisão.
+  `common/mu-plugins/` entrou na main do bit-servertools pelo PR #91 (MD5 conferido em 03/10/2026).
   **Dono: Daniel** · **Executor: bit-ai**
   **Tipo: obra · Estimativa: 3h**
   ClickUp: <https://app.clickup.com/t/86akrx91b>
